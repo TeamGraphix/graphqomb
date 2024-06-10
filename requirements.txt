@@ -1,0 +1,9 @@
+numpy>=1.22,<1.26
+networkx>3.0
+quimb>=1.4.0
+autoray>=0.6.0
+galois>=0.3.0
+matplotlib
+pydantic
+scipy
+pyzx
