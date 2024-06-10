@@ -144,9 +144,7 @@ class Pattern:
         """
         if input_nodes is None:
             input_nodes = []
-        self.__input_nodes = list(
-            input_nodes
-        )  # input nodes (list() makes our own copy of the list)
+        self.__input_nodes = list(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: List[Command] = []
@@ -288,9 +286,7 @@ class Pattern:
                 for ind in uind:
                     if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
                         unique_domain.append(ind)
-                print(
-                    f"X byproduct, node = {self.__seq[i].node}, domain = {unique_domain}"
-                )
+                print(f"X byproduct, node = {self.__seq[i].node}, domain = {unique_domain}")
             elif self.__seq[i].kind == CommandKind.Z and ("Z" in filter):
                 count += 1
                 # remove duplicates
@@ -300,19 +296,13 @@ class Pattern:
                 for ind in uind:
                     if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
                         unique_domain.append(ind)
-                print(
-                    f"Z byproduct, node = {self.__seq[i].node}, domain = {unique_domain}"
-                )
+                print(f"Z byproduct, node = {self.__seq[i].node}, domain = {unique_domain}")
             elif self.__seq[i].kind == CommandKind.C and ("C" in filter):
                 count += 1
-                print(
-                    f"Clifford, node = {self.__seq[i].node}, Clifford index = {self.__seq[i].cliff_index}"
-                )
+                print(f"Clifford, node = {self.__seq[i].node}, Clifford index = {self.__seq[i].cliff_index}")
 
         if len(self.__seq) > i + 1:
-            print(
-                f"{len(self.__seq)-lim} more commands truncated. Change lim argument of print_pattern() to show more"
-            )
+            print(f"{len(self.__seq)-lim} more commands truncated. Change lim argument of print_pattern() to show more")
 
     def get_meas_plane(self):
         """get measurement plane from the pattern.
