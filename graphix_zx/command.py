@@ -1,6 +1,7 @@
 """Data validator command classes."""
 
 import enum
+import copy
 from typing import List, Literal, Tuple, Union
 
 import numpy as np
@@ -241,6 +242,15 @@ class Pattern:
 
     def __getitem__(self, index):
         return self.__seq[index]
+
+    def __add__(self, pattern):
+        if self.__output_nodes != pattern.__input_nodes:
+            raise ValueError("Output nodes of the first pattern must be the input nodes of the second pattern")
+        new_pattern = copy.deepcopy(self)
+        for cmd in pattern:
+            new_pattern.add(cmd)
+
+        return new_pattern
 
     def print_pattern(self, lim=40, filter=None):
         """print the pattern sequence (Pattern.seq).
