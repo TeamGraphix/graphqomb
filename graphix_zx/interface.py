@@ -1,4 +1,37 @@
+from abc import ABC, abstractmethod
+
 import pyzx as zx
+
+
+# abstract class for graph state
+# NOTE: want to avoid heavy dependency on pyzx
+# NOTE: this class just represents the graph state, not necessarily include optimization
+class GraphState(ABC):
+    @abstractmethod
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def __add__(self, other):
+        pass
+
+    def input_nodes(self):
+        return self.input_qubits
+
+    def output_nodes(self):
+        return self.output_qubits
+
+    @abstractmethod
+    def add_node(self, qubit: int):
+        pass
+
+    @abstractmethod
+    def add_phase(self, node: int, plane: str, phase: float):
+        pass
+
+    @abstractmethod
+    def add_edge(self, node1: int, node2: int):
+        pass
 
 
 # directly implement gates on the graph state
