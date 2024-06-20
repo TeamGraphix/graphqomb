@@ -252,6 +252,47 @@ class Pattern:
 
         return new_pattern
 
+    def calc_max_space(self):
+        """The maximum number of nodes that must be present in the graph (graph space) during the execution of the pattern.
+        For statevector simulation, this is equivalent to the maximum memory
+        needed for classical simulation.
+
+        Returns
+        -------
+        n_nodes : int
+            max number of nodes present in the graph during pattern execution.
+        """
+        nodes = len(self.input_nodes)
+        max_nodes = nodes
+        for cmd in self.__seq:
+            if cmd.kind == N:
+                nodes += 1
+            elif cmd.kind == M:
+                nodes -= 1
+            if nodes > max_nodes:
+                max_nodes = nodes
+        return max_nodes
+
+    def get_space_list(self):
+        """Returns the list of the number of nodes present in the graph (space)
+        during each step of execution of the pattern (for N and M commands).
+
+        Returns
+        -------
+        N_list : list
+            time evolution of 'space' at each 'N' and 'M' commands of pattern.
+        """
+        nodes = 0
+        N_list = []
+        for cmd in self.__seq:
+            if cmd.kind == N:
+                nodes += 1
+                N_list.append(nodes)
+            elif cmd.kind == M:
+                nodes -= 1
+                N_list.append(nodes)
+        return N_list
+
     def print_pattern(self, lim=40, filter=None):
         """print the pattern sequence (Pattern.seq).
 
@@ -329,7 +370,7 @@ class Pattern:
                 meas_plane[cmd.node] = mplane
         return meas_plane
 
-    def get_angles(self):
+    def get_meas_angles(self):
         """Get measurement angles of the pattern.
 
         Returns
@@ -342,3 +383,15 @@ class Pattern:
             if cmd.kind == CommandKind.M:
                 angles[cmd.node] = cmd.angle
         return angles
+
+    def simulate(self, backend):
+        raise NotImplementedError
+
+    def execute(self, backend):
+        raise NotImplementedError
+
+    def to_qasm3(self):
+        raise NotImplementedError
+
+    def to_text(self):
+        raise NotImplementedError
