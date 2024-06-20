@@ -1,5 +1,4 @@
 from __future__ import annotations
-import networkx as nx
 from interface import GraphState
 from focus_flow import (
     GFlow,
@@ -105,11 +104,12 @@ def transpile_from_subgraphs(
     gflow: GFlow,
     meas_planes: dict[int, str],
     meas_angles: dict[int, float],
+    adaptive_meas: bool = False,
 ) -> Pattern:
     pattern = Pattern(input_nodes=input_nodes)
     for subgraph in subgraphs:
-        sub_input_nodes = subgraph.input_nodes  # TODO: define input_nodes
-        sub_output_nodes = subgraph.output_nodes  # TODO: define output_nodes
+        sub_input_nodes = subgraph.input_nodes
+        sub_output_nodes = subgraph.output_nodes
 
         sub_internal_nodes = set(subgraph.nodes) - set(sub_input_nodes) - set(sub_output_nodes)
         sub_gflow = {node: gflow[node] for node in set(sub_input_nodes) | sub_internal_nodes}
@@ -125,6 +125,10 @@ def transpile_from_subgraphs(
             sub_meas_angles,
         )
 
-        pattern += sub_pattern
+        if adaptive_meas:
+            # process pauli corrections on the former output nodes
+            raise NotImplementedError
+        else:
+            pattern += sub_pattern
 
     return pattern
