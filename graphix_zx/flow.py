@@ -122,7 +122,7 @@ def gflowaux(
     for out in output:
         adj_mat.remove_row(node_order_row.index(out))
         node_order_row.remove(out)
-    adj_mat_row_reduced = adj_mat.copy()  # later use for construct RHS
+    adj_mat_row_reduced = adj_mat.copy()  # later used to construct RHS
     for node in nodes - correction_candidate:
         adj_mat.remove_col(node_order_col.index(node))
         node_order_col.remove(node)

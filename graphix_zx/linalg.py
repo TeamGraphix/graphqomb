@@ -294,7 +294,7 @@ class MatGF2:
             x_col = list()
             b_col = b.data[:, col]
             if np.count_nonzero(b_col[rank:]) != 0:
-                x_col = [sp.nan for i in range(self.data.shape[1])]
+                x_col = [None for i in range(self.data.shape[1])]
                 x.append(x_col)
                 continue
             for row in range(rank - 1, -1, -1):
