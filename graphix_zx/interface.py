@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import uuid
 
+import numpy as np
 import pyzx as zx
 
 
@@ -87,11 +88,24 @@ class GraphState(ABC):
         raise NotImplementedError
 
 
-class ZXPhysicalNode(PhysicalNode):
-    def __init__(self):
+class ZXMeasSpider(zx.BaseGraph):
+    def __init__(self, node_id: int | None = None):
+        super().__init__()
+
+
+class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
+    def __init__(self, node_id: int | None = None, row: int = -1):
+        super().__init__()
+
         self.is_input: bool = False
         self.is_output: bool = False
         self.is_internal: bool = False
+
+        if node_id is None:
+            node_id = gen_new_index()
+
+        self.node_id = node_id
+        self.add_vertex(ty=zx.VertexType.Z, qubit=node_id, row=row, phase=0)
 
     def is_input(self):
         return self.is_input
@@ -103,23 +117,44 @@ class ZXPhysicalNode(PhysicalNode):
         return self.is_internal
 
     def get_meas_plane(self):
-        raise NotImplementedError
+        v_type = zx.VertexType[self.type(self.meas_id)]
+        if v_type == zx.VertexType.Z:
+            return "XY"
+        elif v_type == zx.VertexType.X:
+            neighbors = self.neighbors(self.meas_id)
+            if len(neighbors) > 1:
+                raise Exception("Number of neighbors of the measurement node is not 1")
+            if self.connected(self.node_id, self.meas_id):
+                return "YZ"
+            else:
+                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), np.pi / 2):
+                    return "XZ"
+                else:
+                    raise Exception("Invalid measurement node")
+        else:
+            raise Exception("Invalid measurement node")
 
     def get_meas_angle(self):
-        raise NotImplementedError
+        return self.phase(self.meas_id)
 
     def set_meas_plane(self, plane: str):
-        raise NotImplementedError
+        # TODO: if plane is already set, raise error or remove the previous setting
+        self.meas_id = gen_new_index()
+        if plane == "XY":
+            self.add_vertex(ty=zx.VertexType.Z, qubit=self.meas_id, phase=0)
+            self.add_edge((self.node_id, self.meas_id), ty=zx.EdgeType.SIMPLE)
+        elif plane == "YZ":
+            self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
+            self.add_edge((self.node_id, self.meas_id), ty=zx.EdgeType.SIMPLE)
+        elif plane == "XZ":
+            self.add_vertex(ty=zx.VertexType.Z, qubit=gen_new_index(), phase=np.pi / 2)
+            self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
 
     def set_meas_angle(self, angle: float):
-        raise NotImplementedError
+        self.set_phase(self.meas_id, angle)
 
-    def is_measurement_form(self):
-        raise NotImplementedError
-
-    # transform into XY, XZ, or YZ spider form described in Backens(2021)
-    def to_measurement_form(self):
-        raise NotImplementedError
+    def get_ZX_diagram(self):
+        return self
 
 
 # NOTE: for Arbitrary GraphState Construction permitted in MBQC
