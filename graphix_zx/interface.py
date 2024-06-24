@@ -88,11 +88,6 @@ class GraphState(ABC):
         raise NotImplementedError
 
 
-class ZXMeasSpider(zx.BaseGraph):
-    def __init__(self, node_id: int | None = None):
-        super().__init__()
-
-
 class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
     def __init__(self, node_id: int | None = None, row: int = -1):
         super().__init__()
@@ -127,7 +122,9 @@ class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
             if self.connected(self.node_id, self.meas_id):
                 return "YZ"
             else:
-                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), np.pi / 2):
+                if neighbors[0] == zx.VertexType.Z and np.isclose(
+                    self.phase(neighbors[0]), np.pi / 2
+                ):
                     return "XZ"
                 else:
                     raise Exception("Invalid measurement node")
