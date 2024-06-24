@@ -56,11 +56,11 @@ class GraphState(ABC):
         return self.output_qubits
 
     @abstractmethod
-    def add_node(self, node: int):
+    def add_physical_node(self, node: int):
         raise NotImplementedError
 
     @abstractmethod
-    def add_edge(self, node1: int, node2: int):
+    def add_physical_edge(self, node1: int, node2: int):
         raise NotImplementedError
 
     @abstractmethod
@@ -122,9 +122,7 @@ class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
             if self.connected(self.node_id, self.meas_id):
                 return "YZ"
             else:
-                if neighbors[0] == zx.VertexType.Z and np.isclose(
-                    self.phase(neighbors[0]), np.pi / 2
-                ):
+                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), np.pi / 2):
                     return "XZ"
                 else:
                     raise Exception("Invalid measurement node")
@@ -155,39 +153,56 @@ class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
 
 
 # NOTE: for Arbitrary GraphState Construction permitted in MBQC
+# TODO: ZXPhysicalNode is probably not recognized as a subgraph
 class ZXGraphState(zx.BaseGraph, GraphState):
     def __init__(self):
         super().__init__()
 
         # NOTE: macro node is composed of XY, XZ, or YZ physical nodes
         self.physical_nodes: dict[int, ZXPhysicalNode] = dict()
+        self.physical_edges: list[tuple[int, int]] = []
 
     def __add__(self, other):
         raise NotImplementedError
 
-    def add_node(self, node: int):
-        raise NotImplementedError
+    def add_physical_node(self, node: int | None = None, row: int = -1):
+        # prepare |+> state(N)
+        if node is None:
+            node = gen_new_index()
+        self.physical_nodes[node] = ZXPhysicalNode(node, row)
+        return node
 
-    def add_edge(self, node1: int, node2: int):
-        raise NotImplementedError
+    def add_physical_edge(self, node1: int, node2: int):
+        # apply a Hadamard edge(CZ) between two nodes(E)
+        physicalnode1 = self.physical_nodes[node1]
+        physicalnode2 = self.physical_nodes[node2]
+
+        self.add_edge((physicalnode1.node_id, physicalnode2.node_id), ty=zx.EdgeType.HADAMARD)
+        self.physical_edges.append((node1, node2))
 
     def set_meas_plane(self, node: int, plane: str):
-        raise NotImplementedError
+        self.physical_nodes[node].set_meas_plane(plane)
 
     def set_meas_angle(self, node: int, angle: float):
-        raise NotImplementedError
+        self.physical_nodes[node].set_meas_angle(angle)
 
     def get_nodes(self):
-        raise NotImplementedError
+        return self.physical_nodes.keys()
 
     def get_edges(self):
-        raise NotImplementedError
+        return self.physical_edges
+
+    def get_zx_nodes(self):
+        return self.vertices()
+
+    def get_zx_edges(self):
+        return self.edges()
 
     def get_meas_planes(self):
-        raise NotImplementedError
+        return [node.get_meas_plane() for node in self.physical_nodes.values()]
 
     def get_meas_angles(self):
-        raise NotImplementedError
+        return [node.get_meas_angle() for node in self.physical_nodes.values()]
 
 
 # NOTE: for Unitary Construction
@@ -208,14 +223,10 @@ class MBQCCircuit(ZXGraphState):
         """
         old_node = self.output_qubits[qubit]
         self.set_meas_angle(old_node, angle)
-        new_node = gen_new_index()  # TODO: implement
-        self.add_node(new_node)
-        self.add_edge(old_node, new_node)
+        new_node = gen_new_index()
+        self.add_physical_node(new_node, row=qubit)
+        self.add_physical_edge(old_node, new_node)
         self.output_qubits[qubit] = new_node
-        # new_spider = self.add_vertex(
-        # ty=zx.VertexType.Z, qubit=qubit, row=qubit, phase=0
-        # )
-        # self.add_edge((old_spider, new_spider), ty=zx.EdgeType.HADAMARD)
 
         # TODO: record gflow
 
@@ -223,11 +234,11 @@ class MBQCCircuit(ZXGraphState):
     def PhaseGadget(self, qubits: list[int], angle: float):
         target_nodes = [self.output_qubits[qubit] for qubit in qubits]
         new_node = gen_new_index()  # TODO: implement
-        self.add_node(new_node)
+        self.add_physical_node(new_node, row=-1)
         self.set_meas_angle(new_node, angle)
         self.set_meas_plane(new_node, "YZ")
         for node in target_nodes:
-            self.add_edge(node, new_node)
+            self.add_physical_edge(node, new_node)
 
     # vertical edge
     def CZ(self, qubit1: int, qubit2: int):
@@ -236,10 +247,7 @@ class MBQCCircuit(ZXGraphState):
         """
         node1 = self.output_qubits[qubit1]
         node2 = self.output_qubits[qubit2]
-        self.add_edge(node1, node2)
-        # spider1 = self.output_qubits[qubit1]
-        # spider2 = self.output_qubits[qubit2]
-        # self.add_edge((spider1, spider2), ty=zx.EdgeType.HADAMARD)
+        self.add_physical_edge(node1, node2)
 
     def Rx(self, qubit: int, phase: float):  # example
         self.J(qubit, 0)
