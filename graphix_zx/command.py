@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import copy
 import enum
-from typing import List, Literal, Tuple, Union
+from typing import Literal
 
 import numpy as np
 from pydantic import BaseModel
 
 Node = int
-Plane = Union[Literal["XY"], Literal["YZ"], Literal["XZ"]]
+Plane = Literal["XY", "YZ", "XZ"]
 
 
 class CommandKind(str, enum.Enum):
@@ -50,8 +50,8 @@ class M(Command):
     node: Node
     plane: Plane = "XY"
     angle: float = 0.0
-    s_domain: List[Node] = []
-    t_domain: List[Node] = []
+    s_domain: list[Node] = []
+    t_domain: list[Node] = []
 
 
 class E(Command):
@@ -60,7 +60,7 @@ class E(Command):
     """
 
     kind: CommandKind = CommandKind.E
-    nodes: Tuple[Node, Node]
+    nodes: tuple[Node, Node]
 
 
 class C(Command):
@@ -80,7 +80,7 @@ class Correction(Command):
     """
 
     node: Node
-    domain: List[Node] = []
+    domain: list[Node] = []
 
 
 class X(Correction):
@@ -150,7 +150,7 @@ class Pattern:
         self.__input_nodes = list(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode = len(input_nodes)  # total number of nodes in the graph state
 
-        self.__seq: List[Command] = []
+        self.__seq: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
         self.__output_nodes = list()
 
@@ -195,7 +195,7 @@ class Pattern:
             self.__output_nodes.remove(cmd.node)
         self.__seq.append(cmd)
 
-    def extend(self, cmds: List[Command]):
+    def extend(self, cmds: list[Command]):
         """Add a list of commands.
 
         :param cmds: list of commands
@@ -209,7 +209,7 @@ class Pattern:
         self.__seq = []
         self.__output_nodes = list(self.__input_nodes)
 
-    def replace(self, cmds: List[Command], input_nodes=None):
+    def replace(self, cmds: list[Command], input_nodes=None):
         """Replace pattern with a given sequence of pattern commands.
 
         :param cmds: list of commands

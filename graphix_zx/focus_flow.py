@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import NewType, Dict, Set
+
+from typing import NewType
 
 import networkx as nx
 
-
-GFlow = NewType("GFlow", Dict[int, Set[int]])
+GFlow = NewType("GFlow", dict[int, set[int]])
 
 
 def oddneighbors(nodes: set[int], graph: nx.Graph) -> set[int]:
