@@ -50,10 +50,10 @@ class GraphState(ABC):
 
     # NOTE: input and output nodes are necessary because graph is open graph
     def input_nodes(self):
-        return self.input_qubits
+        return self.input_nodes
 
     def output_nodes(self):
-        return self.output_qubits
+        return self.output_nodes
 
     @abstractmethod
     def add_physical_node(self, node: int):
@@ -86,6 +86,59 @@ class GraphState(ABC):
     @abstractmethod
     def get_meas_angles(self):
         raise NotImplementedError
+
+
+class BasicGraphState(GraphState):
+    """Minimal implementation of GraphState"""
+
+    def __init__(self):
+        self.input_qubits: list[int] = []
+        self.output_qubits: list[int] = []
+        self.physical_nodes: set[int] = {}
+        self.physical_edges: dict[int, set[int]] = {}
+        self.meas_planes: dict[int, str] = {}
+        self.meas_angles: dict[int, float] = {}
+
+    def add_physical_node(self, node: int):
+        if node in self.physical_nodes:
+            raise Exception("Node already exists")
+        self.physical_nodes |= {node}
+        self.physical_edges[node] = set()
+
+    def add_physical_edge(self, node1: int, node2: int):
+        if node1 not in self.physical_nodes or node2 not in self.physical_nodes:
+            raise Exception("Node does not exist")
+        if node1 in self.physical_edges[node2] or node2 in self.physical_edges[node1]:
+            raise Exception("Edge already exists")
+        self.physical_edges[node1] |= {node2}
+        self.physical_edges[node2] |= {node1}
+
+    def set_meas_plane(self, node: int, plane: str):
+        if node not in self.physical_nodes:
+            raise Exception("Node does not exist")
+        self.meas_planes[node] = plane
+
+    def set_meas_angle(self, node: int, angle: float):
+        if node not in self.physical_nodes:
+            raise Exception("Node does not exist")
+        self.meas_angles[node] = angle
+
+    def get_nodes(self):
+        return self.physical_nodes
+
+    def get_edges(self):
+        edges = set()
+        for node1 in self.physical_edges.keys():
+            for node2 in self.physical_edges[node1]:
+                if node1 < node2:
+                    edges |= {(node1, node2)}
+        return edges
+
+    def get_meas_planes(self):
+        return self.meas_planes
+
+    def get_meas_angles(self):
+        return self.meas_angles
 
 
 class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
