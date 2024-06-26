@@ -1,7 +1,9 @@
 """Data validator command classes."""
 
-import enum
+from __future__ import annotations
+
 import copy
+import enum
 from typing import List, Literal, Tuple, Union
 
 import numpy as np

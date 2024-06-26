@@ -1,12 +1,13 @@
 from __future__ import annotations
-from interface import GraphState
+
+from command import E, M, N, Pattern, X, Z
 from focus_flow import (
     GFlow,
-    topological_sort_kahn,
     construct_DAG,
     oddneighbors,
+    topological_sort_kahn,
 )
-from command import N, E, M, X, Z, Pattern
+from interface import GraphState
 
 
 # extended MBQC
