@@ -8,8 +8,8 @@ from linalg import MatGF2
 
 def find_flow(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     raise NotImplementedError
@@ -17,8 +17,8 @@ def find_flow(
 
 def find_gflow(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     """Maximally delayed gflow finding algorithm
@@ -39,9 +39,9 @@ def find_gflow(
     ----------
     graph: nx.Graph
         graph (incl. in and out)
-    input: set
+    input_nodes: set
         set of node labels for input
-    output: set
+    output_nodes: set
         set of node labels for output
     meas_planes: dict
         measurement planes for each qubits. meas_planes[i] is the measurement plane for qubit i.
@@ -57,13 +57,13 @@ def find_gflow(
     g = dict()
     for node in graph.nodes:
         l_k[node] = 0
-    return gflowaux(graph, input, output, meas_planes, 1, l_k, g)
+    return gflowaux(graph, input_nodes, output_nodes, meas_planes, 1, l_k, g)
 
 
 def find_pflow(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
     meas_angles: dict[int, float],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
@@ -72,8 +72,8 @@ def find_pflow(
 
 def gflowaux(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
     k: int,
     l_k: dict[int, int],
@@ -87,9 +87,9 @@ def gflowaux(
     ----------
     graph: nx.Graph
         graph (incl. in and out)
-    input: set
+    input_nodes: set
         set of node labels for input
-    output: set
+    output_nodes: set
         set of node labels for output
     meas_planes: dict
         measurement planes for each qubits. meas_planes[i] is the measurement plane for qubit i.
@@ -109,16 +109,16 @@ def gflowaux(
     """
 
     nodes = set(graph.nodes)
-    if output == nodes:
+    if output_nodes == nodes:
         return g, l_k
-    non_output = nodes - output
-    correction_candidate = output - input
+    non_output = nodes - output_nodes
+    correction_candidate = output_nodes - input_nodes
     adj_mat, node_order_list = get_adjacency_matrix(graph)
     node_order_row = node_order_list.copy()
     node_order_row.sort()
     node_order_col = node_order_list.copy()
     node_order_col.sort()
-    for out in output:
+    for out in output_nodes:
         adj_mat.remove_row(node_order_row.index(out))
         node_order_row.remove(out)
     adj_mat_row_reduced = adj_mat.copy()  # later used to construct RHS
@@ -157,15 +157,15 @@ def gflowaux(
             g[non_out_node] |= {non_out_node}
 
     if len(corrected_nodes) == 0:
-        if output == nodes:
+        if output_nodes == nodes:
             return g, l_k
         else:
             return None, None
     else:
         return gflowaux(
             graph,
-            input,
-            output | corrected_nodes,
+            input_nodes,
+            output_nodes | corrected_nodes,
             meas_planes,
             k + 1,
             l_k,
@@ -175,8 +175,8 @@ def gflowaux(
 
 def check_causality(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
     meas_angles: dict[int, float],
     gflow: dict[int, set[int]],
@@ -187,8 +187,8 @@ def check_causality(
 # NOTE: want to include Pauli simplification effect
 def check_stablizers(
     graph: nx.Graph,
-    input: set[int],
-    output: set[int],
+    input_nodes: set[int],
+    output_nodes: set[int],
     meas_planes: dict[int, str],
     meas_angles: dict[int, float],
     gflow: dict[int, set[int]],

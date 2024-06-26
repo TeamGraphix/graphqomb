@@ -14,7 +14,7 @@ def oddneighbors(nodes: set[int], graph: nx.Graph) -> set[int]:
     return odd_neighbors
 
 
-def construct_DAG(gflow: GFlow, graph: nx.Graph) -> dict[int, set[int]]:
+def construct_dag(gflow: GFlow, graph: nx.Graph) -> dict[int, set[int]]:
     dag = dict()
     outputs = set(graph.nodes) - set(gflow.keys())
     for node in gflow.keys():
@@ -54,7 +54,7 @@ def focus_gflow(gflow: GFlow, graph: nx.Graph, meas_planes: dict[int, str]) -> G
     # TODO: check the validity of the gflow if possible in fast way
     outputs = set(graph.nodes) - set(gflow.keys())
 
-    topo_order = topological_sort_kahn(construct_DAG(gflow, graph))
+    topo_order = topological_sort_kahn(construct_dag(gflow, graph))
 
     for output in outputs:
         topo_order.remove(output)
@@ -74,10 +74,10 @@ def focus(
 ) -> GFlow:
     k = 0
 
-    Sk = find_non_focused_signals(target, gflow, graph, meas_planes)
-    while Sk:
+    s_k = find_non_focused_signals(target, gflow, graph, meas_planes)
+    while s_k:
         gflow = update_gflow(target, gflow, Sk, topo_order)
-        Sk = find_non_focused_signals(target, gflow, graph, meas_planes)
+        s_k = find_non_focused_signals(target, gflow, graph, meas_planes)
 
         k += 1
 
@@ -87,20 +87,20 @@ def focus(
 def find_non_focused_signals(target: int, gflow: GFlow, graph: nx.Graph, meas_planes: dict[int, str]) -> set[int]:
     non_outputs = {node for node in gflow.keys()}
 
-    S_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
-    S_xz_candidate = gflow[target] & non_outputs - {target}
-    S_yz_candidate = gflow[target] & non_outputs - {target}
+    s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
+    s_xz_candidate = gflow[target] & non_outputs - {target}
+    s_yz_candidate = gflow[target] & non_outputs - {target}
 
-    S_xy = {node for node in S_xy_candidate if meas_planes[node] == "XY"}
-    S_xz = {node for node in S_xz_candidate if meas_planes[node] == "XZ"}
-    S_yz = {node for node in S_yz_candidate if meas_planes[node] == "YZ"}
+    s_xy = {node for node in s_xy_candidate if meas_planes[node] == "XY"}
+    s_xz = {node for node in s_xz_candidate if meas_planes[node] == "XZ"}
+    s_yz = {node for node in s_yz_candidate if meas_planes[node] == "YZ"}
 
-    return S_xy | S_xz | S_yz
+    return s_xy | s_xz | s_yz
 
 
-def update_gflow(target: int, gflow: GFlow, Sk: set[int], topo_order: list[int]) -> GFlow:
-    minimal_in_Sk = min(Sk, key=lambda node: topo_order.index(node))  # TODO: check
-    gflow[target] = gflow[target] ^ gflow[minimal_in_Sk]
+def update_gflow(target: int, gflow: GFlow, s_k: set[int], topo_order: list[int]) -> GFlow:
+    minimal_in_s_k = min(s_k, key=lambda node: topo_order.index(node))  # TODO: check
+    gflow[target] = gflow[target] ^ gflow[minimal_in_s_k]
 
     return gflow
 

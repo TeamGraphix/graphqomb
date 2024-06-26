@@ -3,7 +3,7 @@ from __future__ import annotations
 from command import E, M, N, Pattern, X, Z
 from focus_flow import (
     GFlow,
-    construct_DAG,
+    construct_dag,
     oddneighbors,
     topological_sort_kahn,
 )
@@ -11,7 +11,7 @@ from interface import GraphState
 
 
 # extended MBQC
-def generate_M(
+def generate_m_cmd(
     node: int,
     meas_plane: str,
     meas_angle: float,
@@ -71,7 +71,7 @@ def transpile(
     # generate corrections
     x_corrections, z_corrections = generate_corrections(graph, gflow)
 
-    dag = construct_DAG(gflow, graph)
+    dag = construct_dag(gflow, graph)
     topo_order = topological_sort_kahn(dag)
 
     pattern = Pattern(input_nodes=input_nodes)
@@ -80,7 +80,7 @@ def transpile(
     pattern.extend([E(nodes=edge) for edge in graph.edges])
     pattern.extend(
         [
-            generate_M(
+            generate_m_cmd(
                 node,
                 meas_planes[node],
                 meas_angles[node],

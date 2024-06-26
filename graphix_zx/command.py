@@ -99,7 +99,7 @@ class Z(Correction):
     kind: CommandKind = CommandKind.Z
 
 
-class NodeAlreadyPrepared(Exception):
+class NodeAlreadyPreparedError(Exception):
     def __init__(self, node: int):
         self.__node = node
 
@@ -285,52 +285,52 @@ class Pattern:
             time evolution of 'space' at each 'N' and 'M' commands of pattern.
         """
         nodes = 0
-        N_list = []
+        space_list = []
         for cmd in self.__seq:
             if cmd.kind == N:
                 nodes += 1
-                N_list.append(nodes)
+                space_list.append(nodes)
             elif cmd.kind == M:
                 nodes -= 1
-                N_list.append(nodes)
-        return N_list
+                space_list.append(nodes)
+        return space_list
 
-    def print_pattern(self, lim=40, filter=None):
+    def print_pattern(self, lim=40, cmd_filter=None):
         """print the pattern sequence (Pattern.seq).
 
         Parameters
         ----------
         lim: int, optional
             maximum number of commands to show
-        filter : list of str, optional
+        cmd_filter : list of str, optional
             show only specified commands, e.g. ['M', 'X', 'Z']
         """
         if len(self.__seq) < lim:
             nmax = len(self.__seq)
         else:
             nmax = lim
-        if filter is None:
-            filter = ["N", "E", "M", "X", "Z", "C"]
+        if cmd_filter is None:
+            cmd_filter = ["N", "E", "M", "X", "Z", "C"]
         count = 0
         i = -1
         while count < nmax:
             i = i + 1
             if i == len(self.__seq):
                 break
-            if self.__seq[i].kind == CommandKind.N and ("N" in filter):
+            if self.__seq[i].kind == CommandKind.N and ("N" in cmd_filter):
                 count += 1
                 print(f"N, node = {self.__seq[i].node}")
-            elif self.__seq[i].kind == CommandKind.E and ("E" in filter):
+            elif self.__seq[i].kind == CommandKind.E and ("E" in cmd_filter):
                 count += 1
                 print(f"E, nodes = {self.__seq[i].node}")
-            elif self.__seq[i].kind == CommandKind.M and ("M" in filter):
+            elif self.__seq[i].kind == CommandKind.M and ("M" in cmd_filter):
                 count += 1
                 print(
                     f"M, node = {self.__seq[i].node}, "
                     + "plane = {self.__seq[i].plane}, angle(pi) = {self.__seq[i].angle}, "
                     + f"s-domain = {self.__seq[i].s_domain}, t_domain = {self.__seq[i].t_domain}"
                 )
-            elif self.__seq[i].kind == CommandKind.X and ("X" in filter):
+            elif self.__seq[i].kind == CommandKind.X and ("X" in cmd_filter):
                 count += 1
                 # remove duplicates
                 _domain = np.array(self.__seq[i].domain)
@@ -340,7 +340,7 @@ class Pattern:
                     if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
                         unique_domain.append(ind)
                 print(f"X byproduct, node = {self.__seq[i].node}, domain = {unique_domain}")
-            elif self.__seq[i].kind == CommandKind.Z and ("Z" in filter):
+            elif self.__seq[i].kind == CommandKind.Z and ("Z" in cmd_filter):
                 count += 1
                 # remove duplicates
                 _domain = np.array(self.__seq[i].domain)
@@ -350,7 +350,7 @@ class Pattern:
                     if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
                         unique_domain.append(ind)
                 print(f"Z byproduct, node = {self.__seq[i].node}, domain = {unique_domain}")
-            elif self.__seq[i].kind == CommandKind.C and ("C" in filter):
+            elif self.__seq[i].kind == CommandKind.C and ("C" in cmd_filter):
                 count += 1
                 print(f"Clifford, node = {self.__seq[i].node}, Clifford index = {self.__seq[i].cliff_index}")
 

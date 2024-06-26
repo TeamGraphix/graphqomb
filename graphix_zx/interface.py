@@ -148,7 +148,7 @@ class ZXPhysicalNode(zx.BaseGraph, PhysicalNode):
     def set_meas_angle(self, angle: float):
         self.set_phase(self.meas_id, angle)
 
-    def get_ZX_diagram(self):
+    def get_zx_diagram(self):
         return self
 
 
@@ -217,7 +217,7 @@ class MBQCCircuit(ZXGraphState):
         raise NotImplementedError
 
     # unit gate of XY plane
-    def J(self, qubit: int, angle: float):
+    def j(self, qubit: int, angle: float):
         """
         Apply a J gate to a qubit.
         """
@@ -231,7 +231,7 @@ class MBQCCircuit(ZXGraphState):
         # TODO: record gflow
 
     # TODO: unit gate of XZ and YZ planes
-    def PhaseGadget(self, qubits: list[int], angle: float):
+    def phase_gadget(self, qubits: list[int], angle: float):
         target_nodes = [self.output_qubits[qubit] for qubit in qubits]
         new_node = gen_new_index()  # TODO: implement
         self.add_physical_node(new_node, row=-1)
@@ -241,7 +241,7 @@ class MBQCCircuit(ZXGraphState):
             self.add_physical_edge(node, new_node)
 
     # vertical edge
-    def CZ(self, qubit1: int, qubit2: int):
+    def cz(self, qubit1: int, qubit2: int):
         """
         Apply a CZ gate between two qubits.
         """
@@ -249,15 +249,15 @@ class MBQCCircuit(ZXGraphState):
         node2 = self.output_qubits[qubit2]
         self.add_physical_edge(node1, node2)
 
-    def Rx(self, qubit: int, phase: float):  # example
+    def rx(self, qubit: int, phase: float):  # example
         self.J(qubit, 0)
         self.J(qubit, phase)
 
-    def Rz(self, qubit: int, phase: float):
+    def rz(self, qubit: int, phase: float):
         self.J(qubit, phase)
         self.J(qubit, 0)
 
-    def CNOT(self, qubit1: int, qubit2: int):
+    def cnot(self, qubit1: int, qubit2: int):
         self.J(qubit2, 0)
         self.CZ(qubit1, qubit2)
         self.J(qubit2, 0)
