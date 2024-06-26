@@ -3,14 +3,26 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "graphix-zx"
+version = "0.1.0"
 requires-python = ">=3.8"
+dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements-dev.txt"] }
+
 [tool.ruff]
 target-version = "py38"
-
 line-length = 120
-indent-width = 4
 
+[tool.ruff.lint]
+select = [
+  "A", # Shadowing builtins
+  "N", # Naming conventions
+]
+
+[tool.ruff.format]
+docstring-code-format = true

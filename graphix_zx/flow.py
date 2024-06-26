@@ -3,7 +3,6 @@ from __future__ import annotations
 import networkx as nx
 import numpy as np
 import sympy as sp
-
 from linalg import MatGF2
 
 
