@@ -13,8 +13,13 @@ dependencies = { file = ["requirements.txt"] }
 
 [tool.ruff]
 target-version = "py38"
-
 line-length = 120
+
+[tool.ruff.lint]
+select = [
+  "A", # Shadowing builtins
+  "N", # Naming conventions
+]
 
 [tool.ruff.format]
 docstring-code-format = true
