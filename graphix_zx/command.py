@@ -20,8 +20,6 @@ class CommandKind(str, enum.Enum):
     C = "C"
     X = "X"
     Z = "Z"
-    T = "T"
-    S = "S"
 
 
 class Command(BaseModel):
@@ -188,7 +186,7 @@ class Pattern:
         """
         if cmd.kind == CommandKind.N:
             if cmd.node in self.__output_nodes:
-                raise NodeAlreadyPrepared(cmd.node)
+                raise NodeAlreadyPreparedError(cmd.node)
             self.__Nnode += 1
             self.__output_nodes.append(cmd.node)
         elif cmd.kind == CommandKind.M:
@@ -397,3 +395,34 @@ class Pattern:
 
     def to_text(self):
         raise NotImplementedError
+
+
+def is_standardized(pattern: Pattern) -> bool:
+    """Check if the pattern is standardized.
+
+    Args:
+        pattern (Pattern): Pattern to check.
+
+    Returns:
+        bool: is the pattern standardized.
+    """
+    standardized = True
+    standardized_order = [
+        CommandKind.N,
+        CommandKind.E,
+        CommandKind.M,
+        CommandKind.X,
+        CommandKind.Z,
+        CommandKind.C,
+    ]
+    current_cmd_kind = CommandKind.N
+    for cmd in pattern:
+        if cmd.kind == current_cmd_kind:
+            continue
+        if cmd.kind not in standardized_order:
+            raise ValueError(f"Unknown command kind: {cmd.kind}")
+        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
+            standardized = False
+            break
+        current_cmd_kind = cmd.kind
+    return standardized
