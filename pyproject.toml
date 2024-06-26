@@ -12,5 +12,3 @@ dependencies = { file = ["requirements.txt"] }
 target-version = "py38"
 
 line-length = 120
-indent-width = 4
-
