@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -9,7 +9,13 @@ import numpy as np
 from numpy.typing import NDArray
 import pyzx as zx
 from fractions import Fraction
-from pyzx.graph.base import BaseGraph, DocstringMeta
+from pyzx.graph.base import DocstringMeta
+from pyzx.graph.graph_s import GraphS
+
+
+class ZXCombinedMeta(ABCMeta, DocstringMeta):
+    pass
+
 
 # NOTE: local rule(should be discussed)
 # pyzx only supports Fraction | int | Polynomial types for phase
@@ -155,7 +161,10 @@ class BasicGraphState(GraphState):
     def add_physical_edge(self, node1: int, node2: int):
         if node1 not in self.__physical_nodes or node2 not in self.__physical_nodes:
             raise Exception("Node does not exist")
-        if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
+        if (
+            node1 in self.__physical_edges[node2]
+            or node2 in self.__physical_edges[node1]
+        ):
             raise Exception("Edge already exists")
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
@@ -191,7 +200,7 @@ class BasicGraphState(GraphState):
         return self.__meas_angles
 
 
-class ZXPhysicalNode(BaseGraph, PhysicalNode, metaclass=DocstringMeta):
+class ZXPhysicalNode(GraphS, PhysicalNode, metaclass=ZXCombinedMeta):
     def __init__(self, node_id: int | None = None, row: int = -1):
         super().__init__()
 
@@ -224,7 +233,9 @@ class ZXPhysicalNode(BaseGraph, PhysicalNode, metaclass=DocstringMeta):
             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
             self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
         elif plane == "XZ":
-            self.add_vertex(ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2))
+            self.add_vertex(
+                ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2)
+            )
             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
 
     def set_meas_angle(self, angle: float):
@@ -241,7 +252,9 @@ class ZXPhysicalNode(BaseGraph, PhysicalNode, metaclass=DocstringMeta):
             if self.connected(self.node_id, self.meas_id):
                 return "YZ"
             else:
-                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), Fraction(1, 2)):
+                if neighbors[0] == zx.VertexType.Z and np.isclose(
+                    self.phase(neighbors[0]), Fraction(1, 2)
+                ):
                     return "XZ"
                 else:
                     raise Exception("Invalid measurement node")
@@ -257,16 +270,19 @@ class ZXPhysicalNode(BaseGraph, PhysicalNode, metaclass=DocstringMeta):
 
 # NOTE: for Arbitrary GraphState Construction permitted in MBQC
 # TODO: ZXPhysicalNode is probably not recognized as a subgraph
-class ZXGraphState(BaseGraph, GraphState, metaclass=DocstringMeta):
-    def __init__(self):
+class ZXGraphState(GraphS, GraphState, metaclass=ZXCombinedMeta):
+    def __init__(self, input_nodes: list[int]):
         super().__init__()
 
-        self.__input_nodes: list[int] = []
+        self.__input_nodes: list[int] = input_nodes
         self.__output_nodes: list[int] = []
 
         # NOTE: macro node is composed of XY, XZ, or YZ physical nodes
         self.__physical_nodes: dict[int, ZXPhysicalNode] = dict()
         self.__physical_edges: dict[int, set[int]] = dict()
+
+        for node in input_nodes:
+            self.add_physical_node(node)
 
     def __add__(self, other):
         raise NotImplementedError
@@ -313,6 +329,9 @@ class ZXGraphState(BaseGraph, GraphState, metaclass=DocstringMeta):
     def set_meas_angle(self, node: int, angle: float):
         self.__physical_nodes[node].set_meas_angle(angle)
 
+    # def set_row(self, node: int, row: int):
+    #     raise NotImplementedError
+
     def get_physical_nodes(self):
         return self.__physical_nodes.keys()
 
@@ -323,6 +342,9 @@ class ZXGraphState(BaseGraph, GraphState, metaclass=DocstringMeta):
                 if node1 < node2:
                     edges |= {(node1, node2)}
         return edges
+
+    def get_neighbors(self, node: int):
+        return self.__physical_edges[node]
 
     def get_zx_nodes(self):
         return self.vertices()
@@ -360,7 +382,9 @@ class J(Gate):
     angle: float = 0
 
     def get_matrix(self) -> NDArray:
-        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
+        return np.array(
+            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
+        ) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -389,11 +413,6 @@ class MBQCCircuit(ABC):
 
     @property
     @abstractmethod
-    def input_nodes(self):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def num_qubits(self):
         raise NotImplementedError
 
@@ -414,28 +433,46 @@ class MBQCCircuit(ABC):
         raise NotImplementedError
 
 
-# NOTE: for Unitary Construction
-class ZXMBQCCircuit(ZXGraphState, MBQCCircuit, metaclass=DocstringMeta):
+class BasicMBQCCircuit(MBQCCircuit):
     def __init__(self, qubits: int):
-        super().__init__()  # initialize ZXGraphState
-        self.__input_nodes: list[int] = list(range(qubits))
-        self.__output_nodes: list[int] = list(range(qubits))
-        self.__num_qubits = qubits
-
+        self.__num_qubits: int = qubits
         self.__gate_instructions: list[Gate] = []
-        self.__gflow: dict[int, set[int]] = {input_node: set() for input_node in self.__input_nodes}
-
-    # gate concatenation
-    def __add__(self, other):
-        raise NotImplementedError
 
     @property
     def input_nodes(self):
         return self.__input_nodes
 
     @property
-    def output_nodes(self):
-        return self.__output_nodes
+    def num_qubits(self):
+        return self.__num_qubits
+
+    def get_instructions(self):
+        return self.__gate_instructions
+
+    def j(self, qubit: int, angle: float):
+        self.__gate_instructions.append(J(qubit=qubit, angle=angle))
+
+    def cz(self, qubit1: int, qubit2: int):
+        self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
+
+    def phase_gadget(self, qubits: list[int], angle: float):
+        self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
+
+
+# NOTE: for Unitary Construction
+class ZXMBQCCircuit(ZXGraphState, MBQCCircuit, metaclass=DocstringMeta):
+    def __init__(self, qubits: int):
+        super().__init__(list(range(qubits)))  # initialize ZXGraphState
+        self.__num_qubits = qubits
+
+        self.__gate_instructions: list[Gate] = []
+        self.__gflow: dict[int, set[int]] = {
+            input_node: set() for input_node in self.__input_nodes
+        }
+
+    # gate concatenation
+    def __add__(self, other):
+        raise NotImplementedError
 
     @property
     def num_qubits(self):
