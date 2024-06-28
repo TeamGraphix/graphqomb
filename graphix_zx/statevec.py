@@ -25,6 +25,10 @@ class BaseStateVector(ABC):
         pass
 
     @abstractmethod
+    def tensor_product(self, other: BaseStateVector):
+        pass
+
+    @abstractmethod
     def normalize(self):
         pass
 
@@ -71,6 +75,10 @@ class StateVector(BaseStateVector):
         state = np.moveaxis(state, 0, qubit).reshape(2**self.__num_qubits)
 
         self.__state = state
+
+    def tensor_product(self, other: BaseStateVector):
+        self.__state = np.kron(self.__state, other.get_state_vector())
+        self.__num_qubits += other.num_qubits
 
     def normalize(self):
         self.__state /= np.linalg.norm(self.__state)
