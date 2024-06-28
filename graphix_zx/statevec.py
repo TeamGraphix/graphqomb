@@ -60,6 +60,7 @@ class StateVector(BaseStateVector):
 
     def evolve(self, operator: NDArray, qubits: list[int]):
         state = self.__state.reshape([2] * self.__num_qubits)
+        operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (list(range(len(qubits))), qubits)
         state = np.tensordot(operator, state, axes=axes)
@@ -72,9 +73,10 @@ class StateVector(BaseStateVector):
         basis = get_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
         state = np.tensordot(basis.T.conjugate(), state, axes=(0, qubit))
-        state = np.moveaxis(state, 0, qubit).reshape(2**self.__num_qubits)
+        state = state / np.linalg.norm(state)
 
         self.__state = state
+        self.__num_qubits -= 1
 
     def tensor_product(self, other: BaseStateVector):
         self.__state = np.kron(self.__state, other.get_state_vector())
@@ -97,15 +99,6 @@ class StateVector(BaseStateVector):
 
         return np.isclose(match_rate, 1.0)
 
-    def remove_isolated_qubit(self, qubit: int):
-        if not self.is_isolated(qubit):
-            raise IndexError("remove_qubit is only available for isolated qubit.")
-        state = self.__state.reshape([2] * self.__num_qubits)
-        state = state.take(indices=0, axis=qubit)
-
-        self.__state = state
-        self.__num_qubits -= 1
-
     def get_norm(self) -> float:
         return float(np.linalg.norm(self.__state))
 
@@ -115,6 +108,7 @@ class StateVector(BaseStateVector):
     def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
         # TODO: check Hermitian
         state = self.__state.reshape([2] * self.__num_qubits)
+        operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (list(range(len(qubits))), qubits)
         state = np.tensordot(operator, state, axes=axes)
