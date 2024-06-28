@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
-from graphix_zx.interface import MBQCCircuit, Gate, GateKind
+from graphix_zx.interface import MBQCCircuit, Gate, J, CZ, PhaseGadget
 from graphix_zx.statevec import BaseStateVector, StateVector
 
 
@@ -47,11 +47,18 @@ class MBQCCircuitSimulator(BaseSimulator):
 
     def apply_gate(self, gate: Gate):
         operator = gate.get_matrix()
-        if gate.kind == GateKind.J:
+        # may be refactored
+        if isinstance(gate, J):
+            if gate.qubit is None:
+                raise ValueError("Invalid qubit")
             self.__state.evolve(operator, [gate.qubit])
-        elif gate.kind == GateKind.CZ:
+        elif isinstance(gate, CZ):
+            if gate.qubits is None:
+                raise ValueError("Invalid qubits")
             self.__state.evolve(operator, list(gate.qubits))
-        elif gate.kind == GateKind.PhaseGadget:
+        elif isinstance(gate, PhaseGadget):
+            if gate.qubits is None:
+                raise ValueError("Invalid qubit")
             raise NotImplementedError
         else:
             raise ValueError("Invalid gate")
