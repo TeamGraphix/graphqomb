@@ -62,7 +62,7 @@ class StateVector(BaseStateVector):
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
-        axes = (list(range(len(qubits))), qubits)
+        axes = (list(range(len(qubits), 2 * len(qubits))), qubits)
         state = np.tensordot(operator, state, axes=axes)
 
         state = np.moveaxis(state, list(range(len(qubits))), qubits).reshape(2**self.__num_qubits)
@@ -110,7 +110,7 @@ class StateVector(BaseStateVector):
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
-        axes = (list(range(len(qubits))), qubits)
+        axes = (list(range(len(qubits), 2 * len(qubits))), qubits)
         state = np.tensordot(operator, state, axes=axes)
 
         state = np.moveaxis(state, list(range(len(qubits))), qubits).reshape(2**self.__num_qubits)
