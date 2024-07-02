@@ -95,7 +95,7 @@ class BasePatternSimulator(ABC):
 class PatternSimulator(BasePatternSimulator):
     def __init__(self, pattern: Pattern, backend: SimulatorBackend, calc_prob: bool = False):
         self.__pattern = pattern
-        self.__node_indices = pattern.get_node_indices()
+        self.__node_indices = pattern.input_nodes
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob = calc_prob
@@ -106,6 +106,10 @@ class PatternSimulator(BasePatternSimulator):
             raise NotImplementedError
         else:
             raise ValueError("Invalid backend")
+
+    @property
+    def node_indices(self):
+        return self.__node_indices
 
     def apply_cmd(self, cmd):
         if cmd.kind == CommandKind.N:
@@ -155,7 +159,7 @@ class PatternSimulator(BasePatternSimulator):
             raise NotImplementedError
 
     def simulate(self):
-        for cmd in self.__pattern.__seq:
+        for cmd in self.__pattern.get_commands():
             self.apply_cmd(cmd)
 
     def get_state(self):

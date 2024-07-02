@@ -27,7 +27,7 @@ class Command(BaseModel):
     Base command class.
     """
 
-    kind: CommandKind = None
+    kind: CommandKind | None = None
 
 
 class N(Command):
@@ -78,7 +78,7 @@ class Correction(Command):
     """
 
     node: Node
-    domain: set[Node] = []
+    domain: set[Node] = set()
 
 
 class X(Correction):
@@ -229,6 +229,9 @@ class Pattern:
         `N` commands and that have not been measured with an `M` command
         """
         return list(self.__output_nodes)  # copy for preventing modification
+
+    def get_commands(self):
+        return self.__seq
 
     def __len__(self):
         """length of command sequence"""
