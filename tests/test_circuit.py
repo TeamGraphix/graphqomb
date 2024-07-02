@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from graphix_zx.interface import BasicMBQCCircuit, J, CZ, PhaseGadget
-from graphix_zx.simulator import CircuitSimulatorBackend, MBQCCircuitSimulator
+from graphix_zx.simulator import SimulatorBackend, MBQCCircuitSimulator
 from graphix_zx.statevec import StateVector
 
 
@@ -31,7 +31,7 @@ def test_mbqc_circuit_simulator():
     circuit.j(0, np.pi / 4)
     circuit.cz(0, 1)
 
-    simulator = MBQCCircuitSimulator(CircuitSimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
     simulator.simulate()
 
     state = simulator.get_state()
@@ -58,7 +58,7 @@ def test_mbqc_circuit_simulator():
 
     # Test for not implemented backend
     with pytest.raises(NotImplementedError):
-        MBQCCircuitSimulator(CircuitSimulatorBackend.DensityMatrix, circuit)
+        MBQCCircuitSimulator(SimulatorBackend.DensityMatrix, circuit)
 
 
 if __name__ == "__main__":

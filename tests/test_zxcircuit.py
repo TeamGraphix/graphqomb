@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from graphix_zx.statevec import StateVector
 from graphix_zx.interface import ZXMBQCCircuit
-from graphix_zx.simulator import CircuitSimulatorBackend, MBQCCircuitSimulator
+from graphix_zx.simulator import SimulatorBackend, MBQCCircuitSimulator
 
 
 def test_zxmbqcircuit_initialization():
@@ -45,7 +45,7 @@ def test_phase_gadget():
 def test_simulator_initialization():
     qubits = 2
     circuit = ZXMBQCCircuit(qubits)
-    simulator = MBQCCircuitSimulator(CircuitSimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
 
     assert isinstance(simulator.get_state(), StateVector)
     assert simulator.get_state().num_qubits == qubits
@@ -55,7 +55,7 @@ def test_simulator_apply_gate():
     qubits = 2
     circuit = ZXMBQCCircuit(qubits)
     circuit.j(0, np.pi / 4)
-    simulator = MBQCCircuitSimulator(CircuitSimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
 
     simulator.simulate()
     state = simulator.get_state()
@@ -77,7 +77,7 @@ def test_simulator_apply_cz_gate():
     qubits = 2
     circuit = ZXMBQCCircuit(qubits)
     circuit.cz(0, 1)
-    simulator = MBQCCircuitSimulator(CircuitSimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
 
     simulator.simulate()
     state = simulator.get_state()
@@ -99,7 +99,7 @@ def test_simulator_phase_gadget_not_implemented():
     qubits = 2
     circuit = ZXMBQCCircuit(qubits)
     circuit.phase_gadget([0, 1], np.pi / 3)
-    simulator = MBQCCircuitSimulator(CircuitSimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
 
     with pytest.raises(NotImplementedError):
         simulator.simulate()
