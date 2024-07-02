@@ -3,11 +3,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
+import numpy as np
+
 from graphix_zx.interface import MBQCCircuit, Gate, J, CZ, PhaseGadget
+from graphix_zx.command import Pattern, CommandKind
 from graphix_zx.statevec import BaseStateVector, StateVector
 
 
-class BaseSimulator(ABC):
+class BaseCircuitSimulator(ABC):
     @abstractmethod
     def __init__(self):
         pass
@@ -25,7 +28,7 @@ class BaseSimulator(ABC):
         raise NotImplementedError
 
 
-class CircuitSimulatorBackend(Enum):
+class SimulatorBackend(Enum):
     """Enum class for circuit simulator backend"""
 
     StateVector = auto()
@@ -33,12 +36,12 @@ class CircuitSimulatorBackend(Enum):
 
 
 # NOTE: Currently, only XY plane is supported
-class MBQCCircuitSimulator(BaseSimulator):
-    def __init__(self, backend: CircuitSimulatorBackend, mbqc_circuit: MBQCCircuit):
+class MBQCCircuitSimulator(BaseCircuitSimulator):
+    def __init__(self, backend: SimulatorBackend, mbqc_circuit: MBQCCircuit):
         # NOTE: is it a correct backend switch?
-        if backend == CircuitSimulatorBackend.StateVector:
+        if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(mbqc_circuit.num_qubits)
-        elif backend == CircuitSimulatorBackend.DensityMatrix:
+        elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
             raise ValueError("Invalid backend")
@@ -68,4 +71,92 @@ class MBQCCircuitSimulator(BaseSimulator):
             self.apply_gate(gate)
 
     def get_state(self) -> StateVector:
+        return self.__state
+
+
+class BasePatternSimulator(ABC):
+    @abstractmethod
+    def __init__(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply_cmd(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def simulate(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_state(self):
+        raise NotImplementedError
+
+
+class PatternSimulator(BasePatternSimulator):
+    def __init__(self, pattern: Pattern, backend: SimulatorBackend, calc_prob: bool = False):
+        self.__pattern = pattern
+        self.__node_indices = pattern.get_node_indices()
+        self.__results: dict[int, bool] = {}
+
+        self.__calc_prob = calc_prob
+
+        if backend == SimulatorBackend.StateVector:
+            self.__state = StateVector(len(self.__pattern.input_nodes))
+        elif backend == SimulatorBackend.DensityMatrix:
+            raise NotImplementedError
+        else:
+            raise ValueError("Invalid backend")
+
+    def apply_cmd(self, cmd):
+        if cmd.kind == CommandKind.N:
+            self.__state.add_node(1)
+            self.__node_indices.append(cmd.node)
+        elif cmd.kind == CommandKind.E:
+            node_id1 = self.__node_indices.index(cmd.nodes[0])
+            node_id2 = self.__node_indices.index(cmd.nodes[1])
+            self.__state.entangle((node_id1, node_id2))
+        elif cmd.kind == CommandKind.M:
+            if self.__calc_prob:
+                raise NotImplementedError
+            else:
+                result = np.random.choice([0, 1])
+
+            node_id = self.__node_indices.index(cmd.node)
+            self.__state.measure(node_id, cmd.plane, cmd.angle, result)
+            self.__results[node_id] = result
+            self.__node_indices.remove(cmd.node)
+        elif cmd.kind == CommandKind.X:
+            node_id = self.__node_indices.index(cmd.node)
+            # domain calculation
+            result = False
+            for node in cmd.domain:
+                try:
+                    result ^= self.__results[node]
+                except KeyError:
+                    raise KeyError(f"node {node} is not measured yet")
+            if result:
+                self.__state.evolve(np.array([[0, 1], [1, 0]]), [node_id])
+            else:
+                pass
+        elif cmd.kind == CommandKind.Z:
+            node_id = self.__node_indices.index(cmd.node)
+            # domain calculation
+            result = False
+            for node in cmd.domain:
+                try:
+                    result ^= self.__results[node]
+                except KeyError:
+                    raise KeyError(f"node {node} is not measured yet")
+            if result:
+                self.__state.evolve(np.array([[1, 0], [0, -1]]), [node_id])
+            else:
+                pass
+        elif cmd.kind == CommandKind.C:
+            raise NotImplementedError
+
+    def simulate(self):
+        for cmd in self.__pattern.__seq:
+            self.apply_cmd(cmd)
+
+    def get_state(self):
         return self.__state
