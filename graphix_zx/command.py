@@ -150,9 +150,7 @@ class Pattern:
 
         self.__seq: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
-        self.__output_nodes = list()
-
-        self.extend([N(node=node) for node in input_nodes])
+        self.__output_nodes = list(self.__input_nodes)
 
     def add(self, cmd: Command):
         """add command to the end of the pattern.
@@ -265,9 +263,9 @@ class Pattern:
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.__seq:
-            if cmd.kind == N:
+            if cmd.kind == CommandKind.N:
                 nodes += 1
-            elif cmd.kind == M:
+            elif cmd.kind == CommandKind.M:
                 nodes -= 1
             if nodes > max_nodes:
                 max_nodes = nodes
@@ -282,13 +280,13 @@ class Pattern:
         N_list : list
             time evolution of 'space' at each 'N' and 'M' commands of pattern.
         """
-        nodes = 0
-        space_list = []
+        nodes = len(self.input_nodes)
+        space_list = [nodes]
         for cmd in self.__seq:
-            if cmd.kind == N:
+            if cmd.kind == CommandKind.N:
                 nodes += 1
                 space_list.append(nodes)
-            elif cmd.kind == M:
+            elif cmd.kind == CommandKind.M:
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
