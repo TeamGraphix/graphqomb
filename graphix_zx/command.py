@@ -78,7 +78,7 @@ class Correction(Command):
     """
 
     node: Node
-    domain: list[Node] = []
+    domain: set[Node] = []
 
 
 class X(Correction):

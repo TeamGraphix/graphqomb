@@ -5,6 +5,15 @@ from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
 
+CZ_TENSOR = np.array(
+    [
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, -1],
+    ]
+)
+
 
 class BaseStateVector(ABC):
     @abstractmethod
@@ -77,6 +86,13 @@ class StateVector(BaseStateVector):
 
         self.__state = state
         self.__num_qubits -= 1
+
+    def add_node(self, num_qubits: int):
+        self.__state = np.kron(self.__state, np.ones(2**num_qubits) / np.sqrt(2**num_qubits))
+        self.__num_qubits += num_qubits
+
+    def entangle(self, qubits: tuple[int, int]):
+        self.evolve(CZ_TENSOR, list(qubits))
 
     def tensor_product(self, other: BaseStateVector):
         self.__state = np.kron(self.__state, other.get_state_vector())
