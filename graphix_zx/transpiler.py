@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from command import E, M, N, Pattern, X, Z
-from focus_flow import (
+from graphix_zx.command import E, M, N, Pattern, X, Z
+from graphix_zx.focus_flow import (
     GFlow,
     construct_dag,
     oddneighbors,
     topological_sort_kahn,
 )
-from interface import GraphState
+from graphix_zx.interface import GraphState
 
 
 # extended MBQC
@@ -38,8 +38,8 @@ def generate_m_cmd(
 
 # generate signal lists
 def generate_corrections(graph: GraphState, gflow: GFlow) -> tuple[list[int], list[int]]:
-    x_corrections: dict[str, list[int]] = {node: list() for node in graph.nodes}
-    z_corrections: dict[str, list[int]] = {node: list() for node in graph.nodes}
+    x_corrections: dict[str, list[int]] = {node: list() for node in graph.get_physical_nodes()}
+    z_corrections: dict[str, list[int]] = {node: list() for node in graph.get_physical_nodes()}
     for node, g in gflow.items():
         odd_g = oddneighbors(g, graph)
         for correction in g:
@@ -58,15 +58,15 @@ def generate_corrections(graph: GraphState, gflow: GFlow) -> tuple[list[int], li
 # generate standardized pattern from underlying graph and gflow
 def transpile(
     graph: GraphState,
-    input_nodes: list[int],
-    output_nodes: list[int],
     gflow: GFlow,
-    meas_planes: dict[int, str],
-    meas_angles: dict[int, float],
 ) -> Pattern:
     # TODO : check the validity of the gflow
+    input_nodes = graph.input_nodes
+    output_nodes = graph.output_nodes
+    meas_planes = graph.get_meas_planes()
+    meas_angles = graph.get_meas_angles()
 
-    internal_nodes = set(graph.nodes) - set(input_nodes) - set(output_nodes)
+    internal_nodes = set(graph.get_physical_nodes()) - set(input_nodes) - set(output_nodes)
 
     # generate corrections
     x_corrections, z_corrections = generate_corrections(graph, gflow)
@@ -77,7 +77,7 @@ def transpile(
     pattern = Pattern(input_nodes=input_nodes)
     pattern.extend([N(node=node) for node in internal_nodes])
     pattern.extend([N(node=node) for node in output_nodes])
-    pattern.extend([E(nodes=edge) for edge in graph.edges])
+    pattern.extend([E(nodes=edge) for edge in graph.get_physical_edges()])
     pattern.extend(
         [
             generate_m_cmd(

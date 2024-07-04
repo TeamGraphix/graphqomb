@@ -93,7 +93,7 @@ class GraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_physical_node(self, node: int):
+    def add_physical_node(self, node: int, is_input: bool = False, is_output: bool = False):
         raise NotImplementedError
 
     @abstractmethod
@@ -135,10 +135,10 @@ class BasicGraphState(GraphState):
     def __init__(self):
         self.__input_nodes: list[int] = []
         self.__output_nodes: list[int] = []
-        self.__physical_nodes: set[int] = {}
-        self.__physical_edges: dict[int, set[int]] = {}
-        self.__meas_planes: dict[int, str] = {}
-        self.__meas_angles: dict[int, float] = {}
+        self.__physical_nodes: set[int] = set()
+        self.__physical_edges: dict[int, set[int]] = dict()
+        self.__meas_planes: dict[int, str] = dict()
+        self.__meas_angles: dict[int, float] = dict()
 
     @property
     def input_nodes(self) -> list[int]:
@@ -152,19 +152,25 @@ class BasicGraphState(GraphState):
     def num_physical_nodes(self) -> int:
         return len(self.__physical_nodes)
 
-    def add_physical_node(self, node: int):
+    @property
+    def num_physical_edges(self) -> int:
+        num_edges = np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
+        return num_edges
+
+    def add_physical_node(self, node: int, is_input: bool = False, is_output: bool = False):
         if node in self.__physical_nodes:
             raise Exception("Node already exists")
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
+        if is_input:
+            self.__input_nodes.append(node)
+        if is_output:
+            self.__output_nodes.append(node)
 
     def add_physical_edge(self, node1: int, node2: int):
         if node1 not in self.__physical_nodes or node2 not in self.__physical_nodes:
             raise Exception("Node does not exist")
-        if (
-            node1 in self.__physical_edges[node2]
-            or node2 in self.__physical_edges[node1]
-        ):
+        if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
             raise Exception("Edge already exists")
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
@@ -233,9 +239,7 @@ class ZXPhysicalNode(GraphS, PhysicalNode, metaclass=ZXCombinedMeta):
             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
             self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
         elif plane == "XZ":
-            self.add_vertex(
-                ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2)
-            )
+            self.add_vertex(ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2))
             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
 
     def set_meas_angle(self, angle: float):
@@ -252,9 +256,7 @@ class ZXPhysicalNode(GraphS, PhysicalNode, metaclass=ZXCombinedMeta):
             if self.connected(self.node_id, self.meas_id):
                 return "YZ"
             else:
-                if neighbors[0] == zx.VertexType.Z and np.isclose(
-                    self.phase(neighbors[0]), Fraction(1, 2)
-                ):
+                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), Fraction(1, 2)):
                     return "XZ"
                 else:
                     raise Exception("Invalid measurement node")
@@ -303,12 +305,23 @@ class ZXGraphState(GraphS, GraphState, metaclass=ZXCombinedMeta):
     def num_physical_edges(self):
         return len(self.__physical_edges)
 
-    def add_physical_node(self, node: int | None = None, row: int = -1):
+    def add_physical_node(
+        self,
+        node: int | None = None,
+        is_input: bool = False,
+        is_output: bool = False,
+        row: int = -1,
+    ):
         # prepare |+> state(N)
         if node is None:
             node = gen_new_index()
         self.__physical_nodes[node] = ZXPhysicalNode(node, row)
         self.__physical_edges[node] = set()
+
+        if is_input:
+            self.__input_nodes.append(node)
+        if is_output:
+            self.__output_nodes.append(node)
         return node
 
     def add_physical_edge(self, node1: int, node2: int):
@@ -382,9 +395,7 @@ class J(Gate):
     angle: float = 0
 
     def get_matrix(self) -> NDArray:
-        return np.array(
-            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
-        ) / np.sqrt(2)
+        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -466,9 +477,7 @@ class ZXMBQCCircuit(ZXGraphState, MBQCCircuit, metaclass=DocstringMeta):
         self.__num_qubits = qubits
 
         self.__gate_instructions: list[Gate] = []
-        self.__gflow: dict[int, set[int]] = {
-            input_node: set() for input_node in self.__input_nodes
-        }
+        self.__gflow: dict[int, set[int]] = {input_node: set() for input_node in self.__input_nodes}
 
     # gate concatenation
     def __add__(self, other):
