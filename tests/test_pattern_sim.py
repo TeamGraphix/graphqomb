@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 # Assuming the following imports exist based on your code context
-from graphix_zx.command import N, E, M, X, Z, Pattern, is_standardized
+from graphix_zx.command import N, E, M, X, Z, Pattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 
 
@@ -46,13 +46,13 @@ def mock_statevector(monkeypatch):
     monkeypatch.setattr("graphix_zx.statevec.StateVector", MockStateVector)
 
 
-def test_simulator_initialization(setup_pattern, mock_statevector):
+def test_simulator_initialization(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     assert simulator.get_state() == MockStateVector(len(pattern.input_nodes))
 
 
-def test_apply_command_add_node(setup_pattern, mock_statevector):
+def test_apply_command_add_node(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=2)
@@ -60,7 +60,7 @@ def test_apply_command_add_node(setup_pattern, mock_statevector):
     assert len(simulator.node_indices) == len(pattern.input_nodes) + 1
 
 
-def test_apply_command_entangle(setup_pattern, mock_statevector):
+def test_apply_command_entangle(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -70,7 +70,7 @@ def test_apply_command_entangle(setup_pattern, mock_statevector):
     # No assertion here as MockStateVector doesn't store entanglement info
 
 
-def test_apply_command_measure(setup_pattern, mock_statevector):
+def test_apply_command_measure(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = M(node=0, plane="XY", angle=0.5, s_domain=[], t_domain=[])
@@ -78,7 +78,7 @@ def test_apply_command_measure(setup_pattern, mock_statevector):
     assert 1 not in simulator.node_indices
 
 
-def test_apply_command_byproduct_x(setup_pattern, mock_statevector):
+def test_apply_command_byproduct_x(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -90,7 +90,7 @@ def test_apply_command_byproduct_x(setup_pattern, mock_statevector):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_apply_command_byproduct_z(setup_pattern, mock_statevector):
+def test_apply_command_byproduct_z(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -102,7 +102,7 @@ def test_apply_command_byproduct_z(setup_pattern, mock_statevector):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_simulate(setup_pattern, mock_statevector):
+def test_simulate(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     simulator.simulate()
