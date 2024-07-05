@@ -3,7 +3,6 @@ from __future__ import annotations
 from graphix_zx.command import E, M, N, Pattern, X, Z
 from graphix_zx.focus_flow import (
     GFlow,
-    construct_dag,
     oddneighbors,
     topological_sort_kahn,
 )
@@ -27,6 +26,8 @@ def generate_m_cmd(
     elif meas_plane == "YZ":
         s_domain = z_correction
         t_domain = x_correction
+    else:
+        raise ValueError("Invalid measurement plane")
     return M(
         node=node,
         plane=meas_plane,
@@ -37,28 +38,33 @@ def generate_m_cmd(
 
 
 # generate signal lists
-def generate_corrections(graph: GraphState, gflow: GFlow) -> tuple[list[int], list[int]]:
-    x_corrections: dict[str, list[int]] = {node: list() for node in graph.get_physical_nodes()}
-    z_corrections: dict[str, list[int]] = {node: list() for node in graph.get_physical_nodes()}
-    for node, g in gflow.items():
-        odd_g = oddneighbors(g, graph)
-        for correction in g:
-            x_corrections[correction].append(node)
-        for correction in odd_g:
-            z_corrections[correction].append(node)
+def generate_corrections(graph: GraphState, flow: GFlow) -> dict[int, set[int]]:
+    corrections: dict[str, list[int]] = {node: set() for node in graph.get_physical_nodes()}
 
-    # remove itself
-    for node in gflow.keys():
-        x_corrections[node] = list(set(x_corrections[node]) - {node})
-        z_corrections[node] = list(set(z_corrections[node]) - {node})
+    for node in flow.keys():
+        for correction in flow[node]:
+            corrections[correction] |= {node}
 
-    return x_corrections, z_corrections
+    # remove self-corrections
+    for node in corrections.keys():
+        corrections[node] -= {node}
+
+    return corrections
+
+
+def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = False) -> Pattern:
+    # generate corrections
+    x_flow = gflow
+    z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
+    return transpile(graph, x_flow, z_flow, correct_output)
 
 
 # generate standardized pattern from underlying graph and gflow
 def transpile(
     graph: GraphState,
-    gflow: GFlow,
+    x_flow: dict[int, set[int]],
+    z_flow: dict[int, set[int]],
+    correct_output: bool = True,
 ) -> Pattern:
     # TODO : check the validity of the gflow
     input_nodes = graph.input_nodes
@@ -68,10 +74,12 @@ def transpile(
 
     internal_nodes = set(graph.get_physical_nodes()) - set(input_nodes) - set(output_nodes)
 
-    # generate corrections
-    x_corrections, z_corrections = generate_corrections(graph, gflow)
+    x_corrections = generate_corrections(graph, x_flow)
+    z_corrections = generate_corrections(graph, z_flow)
 
-    dag = construct_dag(gflow, graph)
+    dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow.keys()}
+    for output in output_nodes:
+        dag[output] = set()
     topo_order = topological_sort_kahn(dag)
 
     pattern = Pattern(input_nodes=input_nodes)
@@ -91,8 +99,9 @@ def transpile(
             if node not in output_nodes
         ]
     )
-    pattern.extend([X(node=node, domain=x_corrections[node]) for node in output_nodes])
-    pattern.extend([Z(node=node, domain=z_corrections[node]) for node in output_nodes])
+    if correct_output:
+        pattern.extend([X(node=node, domain=x_corrections[node]) for node in output_nodes])
+        pattern.extend([Z(node=node, domain=z_corrections[node]) for node in output_nodes])
     # TODO: add Clifford commands on the output nodes
 
     return pattern
@@ -101,11 +110,7 @@ def transpile(
 def transpile_from_subgraphs(
     subgraphs: list[GraphState],
     input_nodes: list[int],
-    output_nodes: list[int],
     gflow: GFlow,
-    meas_planes: dict[int, str],
-    meas_angles: dict[int, float],
-    adaptive_meas: bool = False,
 ) -> Pattern:
     pattern = Pattern(input_nodes=input_nodes)
     for subgraph in subgraphs:
@@ -114,22 +119,11 @@ def transpile_from_subgraphs(
 
         sub_internal_nodes = set(subgraph.nodes) - set(sub_input_nodes) - set(sub_output_nodes)
         sub_gflow = {node: gflow[node] for node in set(sub_input_nodes) | sub_internal_nodes}
-        sub_meas_planes = {node: meas_planes[node] for node in set(sub_input_nodes) | sub_internal_nodes}
-        sub_meas_angles = {node: meas_angles[node] for node in set(sub_input_nodes) | sub_internal_nodes}
 
-        sub_pattern = transpile(
-            subgraph,
-            sub_input_nodes,
-            sub_output_nodes,
-            sub_gflow,
-            sub_meas_planes,
-            sub_meas_angles,
-        )
+        sub_pattern = transpile(subgraph, sub_gflow, correct_output=False)
 
-        if adaptive_meas:
-            # process pauli corrections on the former output nodes
-            raise NotImplementedError
-        else:
-            pattern += sub_pattern
+        # TODO: corrections on output
+
+        pattern += sub_pattern
 
     return pattern
