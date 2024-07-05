@@ -30,38 +30,38 @@ def phase2angle(phase: Fraction) -> float:
     return float(phase * np.pi)
 
 
-class PhysicalNode(ABC):
-    @abstractmethod
-    def __init__(self):
-        raise NotImplementedError
+# class PhysicalNode(ABC):
+#     @abstractmethod
+#     def __init__(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def is_input(self):
-        raise NotImplementedError
+#     @abstractmethod
+#     def is_input(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def is_output(self):
-        raise NotImplementedError
+#     @abstractmethod
+#     def is_output(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def is_internal(self):
-        raise NotImplementedError
+#     @abstractmethod
+#     def is_internal(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def get_meas_plane(self):
-        raise NotImplementedError
+#     @abstractmethod
+#     def get_meas_plane(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def get_meas_angle(self):
-        raise NotImplementedError
+#     @abstractmethod
+#     def get_meas_angle(self):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def set_meas_plane(self, plane: str):
-        raise NotImplementedError
+#     @abstractmethod
+#     def set_meas_plane(self, plane: str):
+#         raise NotImplementedError
 
-    @abstractmethod
-    def set_meas_angle(self, angle: float):
-        raise NotImplementedError
+#     @abstractmethod
+#     def set_meas_angle(self, angle: float):
+#         raise NotImplementedError
 
 
 # abstract class for graph state
@@ -74,22 +74,22 @@ class GraphState(ABC):
     # NOTE: input and output nodes are necessary because graph is open graph
     @property
     @abstractmethod
-    def input_nodes(self):
+    def input_nodes(self) -> list[int]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def output_nodes(self):
+    def output_nodes(self) -> list[int]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def num_physical_nodes(self):
+    def num_physical_nodes(self) -> int:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def num_physical_edges(self):
+    def num_physical_edges(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -101,6 +101,14 @@ class GraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def set_input(self, node: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_output(self, node: int):
+        raise NotImplementedError
+
+    @abstractmethod
     def set_meas_plane(self, node: int, plane: str):
         raise
 
@@ -109,23 +117,23 @@ class GraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_physical_nodes(self):
+    def get_physical_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_physical_edges(self):
+    def get_physical_edges(self) -> set[tuple[int, int]]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_neighbors(self, node: int):
+    def get_neighbors(self, node: int) -> set[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_meas_planes(self):
+    def get_meas_planes(self) -> dict[int, str]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_meas_angles(self):
+    def get_meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
 
@@ -175,6 +183,16 @@ class BasicGraphState(GraphState):
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
+    def set_input(self, node: int):
+        if node not in self.__physical_nodes:
+            raise Exception("Node does not exist")
+        self.__input_nodes.append(node)
+
+    def set_output(self, node: int):
+        if node not in self.__physical_nodes:
+            raise Exception("Node does not exist")
+        self.__output_nodes.append(node)
+
     def set_meas_plane(self, node: int, plane: str):
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
@@ -206,170 +224,170 @@ class BasicGraphState(GraphState):
         return self.__meas_angles
 
 
-class ZXPhysicalNode(GraphS, PhysicalNode, metaclass=ZXCombinedMeta):
-    def __init__(self, node_id: int | None = None, row: int = -1):
-        super().__init__()
+# class ZXPhysicalNode(GraphS, PhysicalNode, metaclass=ZXCombinedMeta):
+#     def __init__(self, node_id: int | None = None, row: int = -1):
+#         super().__init__()
 
-        self.__is_input: bool = False
-        self.__is_output: bool = False
-        self.__is_internal: bool = False
+#         self.__is_input: bool = False
+#         self.__is_output: bool = False
+#         self.__is_internal: bool = False
 
-        if node_id is None:
-            node_id = gen_new_index()
+#         if node_id is None:
+#             node_id = gen_new_index()
 
-        self.node_id = node_id
-        self.add_vertex(ty=zx.VertexType.Z, qubit=node_id, row=row, phase=0)
+#         self.node_id = node_id
+#         self.add_vertex(ty=zx.VertexType.Z, qubit=node_id, row=row, phase=0)
 
-    def is_input(self):
-        return self.__is_input
+#     def is_input(self):
+#         return self.__is_input
 
-    def is_output(self):
-        return self.__is_output
+#     def is_output(self):
+#         return self.__is_output
 
-    def is_internal(self):
-        return self.__is_internal
+#     def is_internal(self):
+#         return self.__is_internal
 
-    def set_meas_plane(self, plane: str):
-        # TODO: if plane is already set, raise error or remove the previous setting
-        self.meas_id = gen_new_index()
-        if plane == "XY":
-            self.add_vertex(ty=zx.VertexType.Z, qubit=self.meas_id, phase=0)
-            self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
-        elif plane == "YZ":
-            self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
-            self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
-        elif plane == "XZ":
-            self.add_vertex(ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2))
-            self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
+#     def set_meas_plane(self, plane: str):
+#         # TODO: if plane is already set, raise error or remove the previous setting
+#         self.meas_id = gen_new_index()
+#         if plane == "XY":
+#             self.add_vertex(ty=zx.VertexType.Z, qubit=self.meas_id, phase=0)
+#             self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
+#         elif plane == "YZ":
+#             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
+#             self.add_edge((self.node_id, self.meas_id), edgetype=zx.EdgeType.SIMPLE)
+#         elif plane == "XZ":
+#             self.add_vertex(ty=zx.VertexType.Z, qubit=gen_new_index(), phase=Fraction(1, 2))
+#             self.add_vertex(ty=zx.VertexType.X, qubit=self.meas_id, phase=0)
 
-    def set_meas_angle(self, angle: float):
-        self.set_phase(self.meas_id, angle2phase(angle))
+#     def set_meas_angle(self, angle: float):
+#         self.set_phase(self.meas_id, angle2phase(angle))
 
-    def get_meas_plane(self):
-        v_type = zx.VertexType[self.type(self.meas_id)]
-        if v_type == zx.VertexType.Z:
-            return "XY"
-        elif v_type == zx.VertexType.X:
-            neighbors = self.neighbors(self.meas_id)
-            if len(neighbors) > 1:
-                raise Exception("Number of neighbors of the measurement node is not 1")
-            if self.connected(self.node_id, self.meas_id):
-                return "YZ"
-            else:
-                if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), Fraction(1, 2)):
-                    return "XZ"
-                else:
-                    raise Exception("Invalid measurement node")
-        else:
-            raise Exception("Invalid measurement node")
+#     def get_meas_plane(self):
+#         v_type = zx.VertexType[self.type(self.meas_id)]
+#         if v_type == zx.VertexType.Z:
+#             return "XY"
+#         elif v_type == zx.VertexType.X:
+#             neighbors = self.neighbors(self.meas_id)
+#             if len(neighbors) > 1:
+#                 raise Exception("Number of neighbors of the measurement node is not 1")
+#             if self.connected(self.node_id, self.meas_id):
+#                 return "YZ"
+#             else:
+#                 if neighbors[0] == zx.VertexType.Z and np.isclose(self.phase(neighbors[0]), Fraction(1, 2)):
+#                     return "XZ"
+#                 else:
+#                     raise Exception("Invalid measurement node")
+#         else:
+#             raise Exception("Invalid measurement node")
 
-    def get_meas_angle(self):
-        return phase2angle(self.phase(self.meas_id))
+#     def get_meas_angle(self):
+#         return phase2angle(self.phase(self.meas_id))
 
-    def get_zx_diagram(self):
-        return self
+#     def get_zx_diagram(self):
+#         return self
 
 
-# NOTE: for Arbitrary GraphState Construction permitted in MBQC
-# TODO: ZXPhysicalNode is probably not recognized as a subgraph
-class ZXGraphState(GraphS, GraphState, metaclass=ZXCombinedMeta):
-    def __init__(self, input_nodes: list[int]):
-        super().__init__()
+# # NOTE: for Arbitrary GraphState Construction permitted in MBQC
+# # TODO: ZXPhysicalNode is probably not recognized as a subgraph
+# class ZXGraphState(GraphS, GraphState, metaclass=ZXCombinedMeta):
+#     def __init__(self, input_nodes: list[int]):
+#         super().__init__()
 
-        self.__input_nodes: list[int] = input_nodes
-        self.__output_nodes: list[int] = []
+#         self.__input_nodes: list[int] = input_nodes
+#         self.__output_nodes: list[int] = []
 
-        # NOTE: macro node is composed of XY, XZ, or YZ physical nodes
-        self.__physical_nodes: dict[int, ZXPhysicalNode] = dict()
-        self.__physical_edges: dict[int, set[int]] = dict()
+#         # NOTE: macro node is composed of XY, XZ, or YZ physical nodes
+#         self.__physical_nodes: dict[int, ZXPhysicalNode] = dict()
+#         self.__physical_edges: dict[int, set[int]] = dict()
 
-        for node in input_nodes:
-            self.add_physical_node(node)
+#         for node in input_nodes:
+#             self.add_physical_node(node)
 
-    def __add__(self, other):
-        raise NotImplementedError
+#     def __add__(self, other):
+#         raise NotImplementedError
 
-    @property
-    def input_nodes(self):
-        return self.__input_nodes
+#     @property
+#     def input_nodes(self):
+#         return self.__input_nodes
 
-    @property
-    def output_nodes(self):
-        return self.__output_nodes
+#     @property
+#     def output_nodes(self):
+#         return self.__output_nodes
 
-    @property
-    def num_physical_nodes(self):
-        return len(self.__physical_nodes)
+#     @property
+#     def num_physical_nodes(self):
+#         return len(self.__physical_nodes)
 
-    @property
-    def num_physical_edges(self):
-        return len(self.__physical_edges)
+#     @property
+#     def num_physical_edges(self):
+#         return len(self.__physical_edges)
 
-    def add_physical_node(
-        self,
-        node: int | None = None,
-        is_input: bool = False,
-        is_output: bool = False,
-        row: int = -1,
-    ):
-        # prepare |+> state(N)
-        if node is None:
-            node = gen_new_index()
-        self.__physical_nodes[node] = ZXPhysicalNode(node, row)
-        self.__physical_edges[node] = set()
+#     def add_physical_node(
+#         self,
+#         node: int | None = None,
+#         is_input: bool = False,
+#         is_output: bool = False,
+#         row: int = -1,
+#     ):
+#         # prepare |+> state(N)
+#         if node is None:
+#             node = gen_new_index()
+#         self.__physical_nodes[node] = ZXPhysicalNode(node, row)
+#         self.__physical_edges[node] = set()
 
-        if is_input:
-            self.__input_nodes.append(node)
-        if is_output:
-            self.__output_nodes.append(node)
-        return node
+#         if is_input:
+#             self.__input_nodes.append(node)
+#         if is_output:
+#             self.__output_nodes.append(node)
+#         return node
 
-    def add_physical_edge(self, node1: int, node2: int):
-        # apply a Hadamard edge(CZ) between two nodes(E)
-        physicalnode1 = self.__physical_nodes[node1]
-        physicalnode2 = self.__physical_nodes[node2]
+#     def add_physical_edge(self, node1: int, node2: int):
+#         # apply a Hadamard edge(CZ) between two nodes(E)
+#         physicalnode1 = self.__physical_nodes[node1]
+#         physicalnode2 = self.__physical_nodes[node2]
 
-        self.add_edge(
-            (physicalnode1.node_id, physicalnode2.node_id),
-            edgetype=zx.EdgeType.HADAMARD,
-        )
-        self.__physical_edges[node1] |= {node2}
-        self.__physical_edges[node2] |= {node1}
+#         self.add_edge(
+#             (physicalnode1.node_id, physicalnode2.node_id),
+#             edgetype=zx.EdgeType.HADAMARD,
+#         )
+#         self.__physical_edges[node1] |= {node2}
+#         self.__physical_edges[node2] |= {node1}
 
-    def set_meas_plane(self, node: int, plane: str):
-        self.__physical_nodes[node].set_meas_plane(plane)
+#     def set_meas_plane(self, node: int, plane: str):
+#         self.__physical_nodes[node].set_meas_plane(plane)
 
-    def set_meas_angle(self, node: int, angle: float):
-        self.__physical_nodes[node].set_meas_angle(angle)
+#     def set_meas_angle(self, node: int, angle: float):
+#         self.__physical_nodes[node].set_meas_angle(angle)
 
-    # def set_row(self, node: int, row: int):
-    #     raise NotImplementedError
+#     # def set_row(self, node: int, row: int):
+#     #     raise NotImplementedError
 
-    def get_physical_nodes(self):
-        return self.__physical_nodes.keys()
+#     def get_physical_nodes(self):
+#         return self.__physical_nodes.keys()
 
-    def get_physical_edges(self):
-        edges = set()
-        for node1 in self.__physical_edges.keys():
-            for node2 in self.__physical_edges[node1]:
-                if node1 < node2:
-                    edges |= {(node1, node2)}
-        return edges
+#     def get_physical_edges(self):
+#         edges = set()
+#         for node1 in self.__physical_edges.keys():
+#             for node2 in self.__physical_edges[node1]:
+#                 if node1 < node2:
+#                     edges |= {(node1, node2)}
+#         return edges
 
-    def get_neighbors(self, node: int):
-        return self.__physical_edges[node]
+#     def get_neighbors(self, node: int):
+#         return self.__physical_edges[node]
 
-    def get_zx_nodes(self):
-        return self.vertices()
+#     def get_zx_nodes(self):
+#         return self.vertices()
 
-    def get_zx_edges(self):
-        return self.edges()
+#     def get_zx_edges(self):
+#         return self.edges()
 
-    def get_meas_planes(self):
-        return [node.get_meas_plane() for node in self.__physical_nodes.values()]
+#     def get_meas_planes(self):
+#         return [node.get_meas_plane() for node in self.__physical_nodes.values()]
 
-    def get_meas_angles(self):
-        return [node.get_meas_angle() for node in self.__physical_nodes.values()]
+#     def get_meas_angles(self):
+#         return [node.get_meas_angle() for node in self.__physical_nodes.values()]
 
 
 class GateKind(Enum):
@@ -470,85 +488,123 @@ class BasicMBQCCircuit(MBQCCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
-# NOTE: for Unitary Construction
-class ZXMBQCCircuit(ZXGraphState, MBQCCircuit, metaclass=DocstringMeta):
-    def __init__(self, qubits: int):
-        super().__init__(list(range(qubits)))  # initialize ZXGraphState
-        self.__num_qubits = qubits
+# # NOTE: for Unitary Construction
+# class ZXMBQCCircuit(ZXGraphState, MBQCCircuit, metaclass=DocstringMeta):
+#     def __init__(self, qubits: int):
+#         super().__init__(list(range(qubits)))  # initialize ZXGraphState
+#         self.__num_qubits = qubits
 
-        self.__gate_instructions: list[Gate] = []
-        self.__gflow: dict[int, set[int]] = {input_node: set() for input_node in self.__input_nodes}
+#         self.__gate_instructions: list[Gate] = []
+#         self.__gflow: dict[int, set[int]] = {input_node: set() for input_node in self.__input_nodes}
 
-    # gate concatenation
-    def __add__(self, other):
-        raise NotImplementedError
+#     # gate concatenation
+#     def __add__(self, other):
+#         raise NotImplementedError
 
-    @property
-    def num_qubits(self):
-        return self.__num_qubits
+#     @property
+#     def num_qubits(self):
+#         return self.__num_qubits
 
-    @property
-    def gflow(self):
-        return self.__gflow
+#     @property
+#     def gflow(self):
+#         return self.__gflow
 
-    def get_instructions(self):
-        return super().get_instructions()
+#     def get_instructions(self):
+#         return super().get_instructions()
 
-    # unit gate of XY plane
-    def j(self, qubit: int, angle: float):
-        """
-        Apply a J gate to a qubit.
-        """
-        old_node = self.__output_nodes[qubit]
-        self.set_meas_angle(old_node, angle)
-        new_node = gen_new_index()
-        self.add_physical_node(new_node, row=qubit)
-        self.add_physical_edge(old_node, new_node)
-        self.__output_nodes[qubit] = new_node
+#     # unit gate of XY plane
+#     def j(self, qubit: int, angle: float):
+#         """
+#         Apply a J gate to a qubit.
+#         """
+#         old_node = self.__output_nodes[qubit]
+#         self.set_meas_angle(old_node, angle)
+#         new_node = gen_new_index()
+#         self.add_physical_node(new_node, row=qubit)
+#         self.add_physical_edge(old_node, new_node)
+#         self.__output_nodes[qubit] = new_node
 
-        self.__gflow[old_node] |= {new_node}
-        self.__gate_instructions.append(J(qubit=qubit, angle=angle))
+#         self.__gflow[old_node] |= {new_node}
+#         self.__gate_instructions.append(J(qubit=qubit, angle=angle))
 
-    # TODO: unit gate of XZ and YZ planes
-    def phase_gadget(self, qubits: list[int], angle: float):
-        target_nodes = [self.__output_nodes[qubit] for qubit in qubits]
-        new_node = gen_new_index()  # TODO: implement
-        self.add_physical_node(new_node, row=-1)
-        self.set_meas_angle(new_node, angle)
-        self.set_meas_plane(new_node, "YZ")
-        for node in target_nodes:
-            self.add_physical_edge(node, new_node)
+#     # TODO: unit gate of XZ and YZ planes
+#     def phase_gadget(self, qubits: list[int], angle: float):
+#         target_nodes = [self.__output_nodes[qubit] for qubit in qubits]
+#         new_node = gen_new_index()  # TODO: implement
+#         self.add_physical_node(new_node, row=-1)
+#         self.set_meas_angle(new_node, angle)
+#         self.set_meas_plane(new_node, "YZ")
+#         for node in target_nodes:
+#             self.add_physical_edge(node, new_node)
 
-        # TODO: record gflow
-        self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
+#         # TODO: record gflow
+#         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
-    # vertical edge
-    def cz(self, qubit1: int, qubit2: int):
-        """
-        Apply a CZ gate between two qubits.
-        """
-        node1 = self.__output_nodes[qubit1]
-        node2 = self.__output_nodes[qubit2]
-        self.add_physical_edge(node1, node2)
+#     # vertical edge
+#     def cz(self, qubit1: int, qubit2: int):
+#         """
+#         Apply a CZ gate between two qubits.
+#         """
+#         node1 = self.__output_nodes[qubit1]
+#         node2 = self.__output_nodes[qubit2]
+#         self.add_physical_edge(node1, node2)
 
-        self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
+#         self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
 
-    def rx(self, qubit: int, angle: float):  # example
-        self.j(qubit, 0)
-        self.j(qubit, angle)
+#     def rx(self, qubit: int, angle: float):  # example
+#         self.j(qubit, 0)
+#         self.j(qubit, angle)
 
-    def rz(self, qubit: int, angle: float):
-        self.j(qubit, angle)
-        self.j(qubit, 0)
+#     def rz(self, qubit: int, angle: float):
+#         self.j(qubit, angle)
+#         self.j(qubit, 0)
 
-    def cnot(self, qubit1: int, qubit2: int):
-        self.j(qubit2, 0)
-        self.cz(qubit1, qubit2)
-        self.j(qubit2, 0)
+#     def cnot(self, qubit1: int, qubit2: int):
+#         self.j(qubit2, 0)
+#         self.cz(qubit1, qubit2)
+#         self.j(qubit2, 0)
 
 
 def gen_new_index():
     return uuid.uuid4().int
+
+
+def circuit2graph(circuit: MBQCCircuit) -> tuple[GraphState, dict[int, set[int]]]:
+    graph = BasicGraphState()
+    flow = dict()
+
+    front_nodes = []  # list index  corresponds to qubit index
+    num_nodes = 0
+
+    # input nodes
+    for _ in range(circuit.num_qubits):
+        graph.add_physical_node(num_nodes, is_input=True)
+        front_nodes.append(num_nodes)
+        num_nodes += 1
+
+    for instruction in circuit.get_instructions():
+        if isinstance(instruction, J):
+            graph.add_physical_node(num_nodes)
+            graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
+            graph.set_meas_plane(front_nodes[instruction.qubit], "XY")
+            graph.set_meas_angle(front_nodes[instruction.qubit], instruction.angle)
+
+            flow[front_nodes[instruction.qubit]] = {num_nodes}
+            front_nodes[instruction.qubit] = num_nodes
+
+            num_nodes += 1
+
+        elif isinstance(instruction, CZ):
+            graph.add_physical_edge(front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]])
+        elif isinstance(instruction, PhaseGadget):
+            raise NotImplementedError
+        else:
+            raise ValueError("Invalid instruction")
+
+    for node in front_nodes:
+        graph.set_output(node)
+
+    return graph, flow
 
 
 def visualize(graph: GraphState):
