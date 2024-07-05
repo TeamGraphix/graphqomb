@@ -8,13 +8,13 @@ GFlow = Dict[int, Set[int]]
 
 
 def oddneighbors(nodes: set[int], graph: GraphState) -> set[int]:
-    odd_neighbors = set()
+    odd_neighbors: set[int] = set()
     for node in nodes:
         odd_neighbors ^= set(graph.get_neighbors(node))
     return odd_neighbors
 
 
-def construct_dag(gflow: GFlow, graph: GraphState) -> dict[int, set[int]]:
+def construct_dag(gflow: GFlow, graph: GraphState, check: bool = False) -> dict[int, set[int]]:
     dag = dict()
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
     for node in gflow.keys():
@@ -22,7 +22,19 @@ def construct_dag(gflow: GFlow, graph: GraphState) -> dict[int, set[int]]:
     for output in outputs:
         dag[output] = set()
 
+    if check:
+        if not check_dag(dag):
+            raise ValueError("Cycle detected in the graph")
+
     return dag
+
+
+def check_dag(dag: dict[int, set[int]]) -> bool:
+    for node in dag.keys():
+        for child in dag[node]:
+            if node in dag[child]:
+                return False
+    return True
 
 
 def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
