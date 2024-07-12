@@ -41,10 +41,10 @@ def test_mbqc_circuit_simulator():
     expected_state = (
         np.array(
             [
-                (1 + np.exp(1j * np.pi / 4)),
-                (1 + np.exp(1j * np.pi / 4)),
-                (1 - np.exp(1j * np.pi / 4)),
-                -(1 - np.exp(1j * np.pi / 4)),
+                (1 + np.exp(-1j * np.pi / 4)),
+                (1 + np.exp(-1j * np.pi / 4)),
+                (1 - np.exp(-1j * np.pi / 4)),
+                -(1 - np.exp(-1j * np.pi / 4)),
             ],
             dtype=complex,
         )
