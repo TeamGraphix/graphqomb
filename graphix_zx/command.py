@@ -321,12 +321,12 @@ class Pattern:
                 print(f"N, node = {self.__seq[i].node}")
             elif self.__seq[i].kind == CommandKind.E and ("E" in cmd_filter):
                 count += 1
-                print(f"E, nodes = {self.__seq[i].node}")
+                print(f"E, nodes = {self.__seq[i].nodes}")
             elif self.__seq[i].kind == CommandKind.M and ("M" in cmd_filter):
                 count += 1
                 print(
                     f"M, node = {self.__seq[i].node}, "
-                    + "plane = {self.__seq[i].plane}, angle(pi) = {self.__seq[i].angle}, "
+                    + f"plane = {self.__seq[i].plane}, angle(pi) = {self.__seq[i].angle}, "
                     + f"s-domain = {self.__seq[i].s_domain}, t_domain = {self.__seq[i].t_domain}"
                 )
             elif self.__seq[i].kind == CommandKind.X and ("X" in cmd_filter):
