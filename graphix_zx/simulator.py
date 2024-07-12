@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import numpy as np
 
-from graphix_zx.interface import MBQCCircuit, Gate, J, CZ, PhaseGadget
+from graphix_zx.circuit import MBQCCircuit, Gate, J, CZ, PhaseGadget
 from graphix_zx.command import Pattern, CommandKind
 from graphix_zx.statevec import BaseStateVector, StateVector
 
@@ -98,7 +98,7 @@ class PatternSimulator(BasePatternSimulator):
         self.__node_indices = pattern.input_nodes
         self.__results: dict[int, bool] = {}
 
-        self.__calc_prob = calc_prob
+        self.__calc_prob: bool = calc_prob
 
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(len(self.__pattern.input_nodes))

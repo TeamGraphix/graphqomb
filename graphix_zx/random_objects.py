@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.random import Generator
 
-from graphix_zx.interface import BasicGraphState
+from graphix_zx.graphstate import BasicGraphState
 
 
 def get_random_flow_graph(

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from graphix_zx.interface import BasicMBQCCircuit, J, CZ, PhaseGadget
+from graphix_zx.circuit import BasicMBQCCircuit, J, CZ, PhaseGadget
 from graphix_zx.simulator import SimulatorBackend, MBQCCircuitSimulator
 from graphix_zx.statevec import StateVector
 

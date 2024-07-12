@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
-from graphix_zx.interface import GraphState
+from graphix_zx.graphstate import GraphState
 
 GFlow = Dict[int, Set[int]]
 

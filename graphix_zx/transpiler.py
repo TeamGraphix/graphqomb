@@ -6,7 +6,7 @@ from graphix_zx.focus_flow import (
     oddneighbors,
     topological_sort_kahn,
 )
-from graphix_zx.interface import GraphState
+from graphix_zx.graphstate import GraphState
 
 
 # extended MBQC
@@ -117,7 +117,7 @@ def transpile_from_subgraphs(
         sub_input_nodes = subgraph.input_nodes
         sub_output_nodes = subgraph.output_nodes
 
-        sub_internal_nodes = set(subgraph.nodes) - set(sub_input_nodes) - set(sub_output_nodes)
+        sub_internal_nodes = set(subgraph.get_physical_nodes) - set(sub_input_nodes) - set(sub_output_nodes)
         sub_gflow = {node: gflow[node] for node in set(sub_input_nodes) | sub_internal_nodes}
 
         sub_pattern = transpile(subgraph, sub_gflow, correct_output=False)
