@@ -38,7 +38,7 @@ def generate_m_cmd(
 
 
 # generate signal lists
-def generate_corrections(graph: GraphState, flow: GFlow) -> dict[int, set[int]]:
+def generate_corrections(graph: GraphState, flow: dict[int, set[int]]) -> dict[int, set[int]]:
     corrections: dict[str, list[int]] = {node: set() for node in graph.get_physical_nodes()}
 
     for node in flow.keys():
