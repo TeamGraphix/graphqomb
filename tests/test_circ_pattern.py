@@ -1,0 +1,75 @@
+"""Integrated test with real simulator"""
+
+import pytest
+
+import numpy as np
+
+from graphix_zx.circuit import BasicMBQCCircuit, circuit2graph
+from graphix_zx.transpiler import transpile_from_flow
+from graphix_zx.simulator import (
+    MBQCCircuitSimulator,
+    PatternSimulator,
+    SimulatorBackend,
+)
+
+
+@pytest.fixture
+def random_circ():
+    circ = BasicMBQCCircuit(3)
+    circ.j(0, 0.5 * np.pi)
+    circ.cz(0, 1)
+    circ.cz(1, 2)
+    circ.j(2, 0.25 * np.pi)
+    circ.j(1, 0.75 * np.pi)
+    # circ.phase_gadget([0, 2], 0.25)
+    return circ
+
+
+def test_circuit_sim(random_circ):
+    simulator = MBQCCircuitSimulator(random_circ, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.get_state()
+    assert np.isclose(state.get_norm(), 1.0)
+
+
+def test_pattern_sim(random_circ):
+    graph, gflow = circuit2graph(random_circ)
+    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.get_state()
+    assert np.isclose(state.get_norm(), 1.0)
+    assert set(simulator.node_indices) == set(pattern.output_nodes)
+
+
+def test_minimum_circ_pattern():
+    circuit = BasicMBQCCircuit(1)
+    circuit.j(0, 0.3 * np.pi)
+    graph, gflow = circuit2graph(circuit)
+    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    pattern.print_pattern()
+    circ_simulator = MBQCCircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    pattern_sim.simulate()
+
+    circ_state = circ_simulator.get_state().get_state_vector()
+    pattern_state = pattern_sim.get_state().get_state_vector()
+
+    inner_prod = np.vdot(circ_state, pattern_state)
+    assert np.isclose(np.abs(inner_prod), 1.0)
+
+
+def test_match_circ_pattern(random_circ):
+    graph, gflow = circuit2graph(random_circ)
+    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+
+    circ_sim = MBQCCircuitSimulator(random_circ, SimulatorBackend.StateVector)
+    circ_sim.simulate()
+    pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    pattern_sim.simulate()
+
+    circ_state = circ_sim.get_state().get_state_vector()
+    pattern_state = pattern_sim.get_state().get_state_vector()
+    inner_prod = np.vdot(circ_state, pattern_state)
+    assert np.isclose(np.abs(inner_prod), 1.0)
