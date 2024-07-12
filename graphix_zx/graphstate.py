@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 from abc import ABC, abstractmethod
 
 
@@ -7,6 +8,10 @@ class GraphState(ABC):
     @abstractmethod
     def __init__(self):
         pass
+
+    @abstractmethod
+    def append_graph(self, other) -> GraphState:
+        raise NotImplementedError
 
     # NOTE: input and output nodes are necessary because graph is open graph
     @property
@@ -84,6 +89,46 @@ class BasicGraphState(GraphState):
         self.__physical_edges: dict[int, set[int]] = dict()
         self.__meas_planes: dict[int, str] = dict()
         self.__meas_angles: dict[int, float] = dict()
+
+    def append_graph(self, other) -> BasicGraphState:
+        common_nodes = set(self.__physical_nodes) & set(other.__physical_nodes)
+        border_nodes = set(self.__output_nodes) & set(other.__input_nodes)
+
+        if not common_nodes == border_nodes:
+            raise Exception("Graphs are not compatible")
+
+        new_graph = BasicGraphState()
+        for node in self.__physical_nodes:
+            new_graph.add_physical_node(node)
+            if node in set(self.__input_nodes):
+                new_graph.set_input(node)
+
+            if node in set(self.__output_nodes) - set(other.__input_nodes):
+                new_graph.set_output(node)
+            else:
+                new_graph.set_meas_plane(node, self.__meas_planes.get(node, "XY"))
+                new_graph.set_meas_angle(node, self.__meas_angles.get(node, 0.0))
+
+        for edge in self.get_physical_edges():
+            new_graph.add_physical_edge(edge[0], edge[1])
+
+        for node in other.__physical_nodes:
+            if node in common_nodes:
+                continue
+            new_graph.add_physical_node(node)
+            if node in set(other.__input_nodes) - set(self.__output_nodes):
+                new_graph.set_input(node)
+
+            if node in set(other.__output_nodes):
+                new_graph.set_output(node)
+            else:
+                new_graph.set_meas_plane(node, other.__meas_planes.get(node, "XY"))
+                new_graph.set_meas_angle(node, other.__meas_angles.get(node, 0.0))
+
+        for edge in other.get_physical_edges():
+            new_graph.add_physical_edge(edge[0], edge[1])
+
+        return new_graph
 
     @property
     def input_nodes(self) -> list[int]:
