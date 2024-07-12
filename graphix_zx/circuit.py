@@ -7,6 +7,8 @@ from enum import Enum, auto
 import numpy as np
 from numpy.typing import NDArray
 
+from graphix_zx.graphstate import BasicGraphState, GraphState
+
 
 class GateKind(Enum):
     """Enum class for gate kind"""
