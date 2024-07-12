@@ -37,7 +37,7 @@ class SimulatorBackend(Enum):
 
 # NOTE: Currently, only XY plane is supported
 class MBQCCircuitSimulator(BaseCircuitSimulator):
-    def __init__(self, backend: SimulatorBackend, mbqc_circuit: MBQCCircuit):
+    def __init__(self, mbqc_circuit: MBQCCircuit, backend: SimulatorBackend):
         # NOTE: is it a correct backend switch?
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(mbqc_circuit.num_qubits)

@@ -31,7 +31,7 @@ def test_mbqc_circuit_simulator():
     circuit.j(0, np.pi / 4)
     circuit.cz(0, 1)
 
-    simulator = MBQCCircuitSimulator(SimulatorBackend.StateVector, circuit)
+    simulator = MBQCCircuitSimulator(circuit, SimulatorBackend.StateVector)
     simulator.simulate()
 
     state = simulator.get_state()
@@ -54,11 +54,11 @@ def test_mbqc_circuit_simulator():
 
     # Test for invalid backend
     with pytest.raises(ValueError):
-        MBQCCircuitSimulator("InvalidBackend", circuit)
+        MBQCCircuitSimulator(circuit, "InvalidBackend")
 
     # Test for not implemented backend
     with pytest.raises(NotImplementedError):
-        MBQCCircuitSimulator(SimulatorBackend.DensityMatrix, circuit)
+        MBQCCircuitSimulator(circuit, SimulatorBackend.DensityMatrix)
 
 
 if __name__ == "__main__":
