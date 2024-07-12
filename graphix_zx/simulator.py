@@ -79,6 +79,11 @@ class BasePatternSimulator(ABC):
     def __init__(self):
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def results(self):
+        raise NotImplementedError
+
     @abstractmethod
     def apply_cmd(self):
         raise NotImplementedError
@@ -94,8 +99,8 @@ class BasePatternSimulator(ABC):
 
 class PatternSimulator(BasePatternSimulator):
     def __init__(self, pattern: Pattern, backend: SimulatorBackend, calc_prob: bool = False):
-        self.__pattern = pattern
-        self.__node_indices = pattern.input_nodes
+        self.__pattern: Pattern = pattern
+        self.__node_indices: list[int] = pattern.input_nodes
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
@@ -111,6 +116,10 @@ class PatternSimulator(BasePatternSimulator):
     def node_indices(self):
         return self.__node_indices
 
+    @property
+    def results(self):
+        return self.__results
+
     def apply_cmd(self, cmd):
         if cmd.kind == CommandKind.N:
             self.__state.add_node(1)
@@ -125,10 +134,21 @@ class PatternSimulator(BasePatternSimulator):
             else:
                 result = np.random.choice([0, 1])
 
+            s_bool = 0
+            t_bool = 0
+            for node in cmd.s_domain:
+                s_bool ^= self.__results[node]
+            for node in cmd.t_domain:
+                t_bool ^= self.__results[node]
+
+            angle = (-1) ** s_bool * cmd.angle + t_bool * np.pi
+
             node_id = self.__node_indices.index(cmd.node)
-            self.__state.measure(node_id, cmd.plane, cmd.angle, result)
-            self.__results[node_id] = result
+            self.__state.measure(node_id, cmd.plane, angle, result)
+            self.__results[cmd.node] = result
             self.__node_indices.remove(cmd.node)
+
+            self.__state.normalize()  # NOTE: necessary?
         elif cmd.kind == CommandKind.X:
             node_id = self.__node_indices.index(cmd.node)
             # domain calculation
@@ -161,6 +181,12 @@ class PatternSimulator(BasePatternSimulator):
     def simulate(self):
         for cmd in self.__pattern.get_commands():
             self.apply_cmd(cmd)
+
+        # permute node indices -> output nodes
+        output_nodes = self.__pattern.output_nodes
+        permutation = [output_nodes.index(node) for node in self.__node_indices]
+        self.__node_indices = output_nodes
+        self.__state.reorder(permutation)
 
     def get_state(self):
         return self.__state
