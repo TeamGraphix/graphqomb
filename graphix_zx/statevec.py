@@ -17,7 +17,7 @@ CZ_TENSOR = np.array(
 
 class BaseStateVector(ABC):
     @abstractmethod
-    def __init__(self, num_qubits: int):
+    def __init__(self, num_qubits: int, state: NDArray | None = None):
         pass
 
     @property
@@ -39,6 +39,10 @@ class BaseStateVector(ABC):
 
     @abstractmethod
     def normalize(self):
+        pass
+
+    @abstractmethod
+    def reorder(self, permutation: list[int]):
         pass
 
     @abstractmethod
@@ -59,9 +63,12 @@ class BaseStateVector(ABC):
 
 
 class StateVector(BaseStateVector):
-    def __init__(self, num_qubits: int):
+    def __init__(self, num_qubits: int, state: NDArray | None = None):
         self.__num_qubits = num_qubits
-        self.__state = np.ones(2**num_qubits) / np.sqrt(2**num_qubits)
+        if state is not None:
+            self.__state = state
+        else:
+            self.__state = np.ones(2**num_qubits) / np.sqrt(2**num_qubits)
 
     @property
     def num_qubits(self) -> int:
@@ -76,13 +83,15 @@ class StateVector(BaseStateVector):
 
         state = np.moveaxis(state, list(range(len(qubits))), qubits).reshape(2**self.__num_qubits)
 
+        state = state.reshape(2**self.__num_qubits)
+
         self.__state = state
 
     def measure(self, qubit: int, plane: str, angle: float, result: int):
         basis = get_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
         state = np.tensordot(basis.T.conjugate(), state, axes=(0, qubit))
-        state = state / np.linalg.norm(state)
+        state = state.reshape(2 ** (self.__num_qubits - 1))
 
         self.__state = state
         self.__num_qubits -= 1
@@ -100,6 +109,11 @@ class StateVector(BaseStateVector):
 
     def normalize(self):
         self.__state /= np.linalg.norm(self.__state)
+
+    def reorder(self, permutation: list[int]):
+        state = self.__state.reshape([2] * self.__num_qubits)
+        state = np.transpose(state, permutation)
+        self.__state = state.reshape(2**self.__num_qubits)
 
     # check if qubit is isolated(product state)
     def is_isolated(self, qubit: int) -> bool:
