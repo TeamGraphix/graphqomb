@@ -52,7 +52,7 @@ def generate_corrections(graph: GraphState, flow: GFlow) -> dict[int, set[int]]:
     return corrections
 
 
-def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = False) -> Pattern:
+def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = True) -> Pattern:
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
