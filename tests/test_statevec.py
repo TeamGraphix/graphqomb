@@ -4,36 +4,46 @@ from graphix_zx.statevec import StateVector
 
 
 @pytest.fixture
-def state_vector():
+def plus_state():
     return StateVector(2)
 
 
+@pytest.fixture
+def state_vector():
+    num_qubits = 3
+    state = np.arange(2**num_qubits, dtype=np.float64)
+    return StateVector(num_qubits, state)
+
+
 def test_initialization(state_vector):
-    expected_state = np.ones(2**state_vector.num_qubits) / np.sqrt(2**state_vector.num_qubits)
-    assert state_vector.num_qubits == 2
+    expected_state = np.arange(2**state_vector.num_qubits)
+    assert state_vector.num_qubits == 3
     assert np.allclose(state_vector.get_state_vector(), expected_state)
 
 
 def test_evolve(state_vector):
     operator = np.array([[1, 0], [0, -1]])  # Z gate
     state_vector.evolve(operator, [0])
-    expected_state = np.array([1 / 2, 1 / 2, -1 / 2, -1 / 2])  # (|00> + |01> - |10> - |11>)/2
+    expected_state = np.arange(2**state_vector.num_qubits)
+    expected_state[len(expected_state) // 2 :] *= -1  # apply Z gate to qubit 0
     assert np.allclose(state_vector.get_state_vector(), expected_state)
 
 
 def test_measure(state_vector):
-    state_vector.measure(0, "XZ", 0, 0)  # project onto |0> state
-    expected_state = np.array([1 / np.sqrt(2), 1 / np.sqrt(2)])  # |+>
+    expected_state = np.arange(2 ** (state_vector.num_qubits - 1))
 
-    assert state_vector.num_qubits == 1
+    state_vector.measure(0, "XZ", 0, 0)  # project onto |0> state
+
+    assert state_vector.num_qubits == 2
     assert np.allclose(state_vector.get_state_vector(), expected_state)
 
 
 def test_tensor_product(state_vector):
+    expected_state = np.array([i // 2 for i in range(2 ** (state_vector.num_qubits + 1))] / np.sqrt(2))
     other_vector = StateVector(1)
     state_vector.tensor_product(other_vector)
-    expected_state = np.ones(2 ** (state_vector.num_qubits)) / np.sqrt(2 ** (state_vector.num_qubits))
-    assert state_vector.num_qubits == 3
+
+    assert state_vector.num_qubits == 4
     assert np.allclose(state_vector.get_state_vector(), expected_state)
 
 
@@ -43,28 +53,38 @@ def test_normalize(state_vector):
     assert np.isclose(state_vector.get_norm(), expected_norm)
 
 
-def test_is_isolated(state_vector):
-    isolated = state_vector.is_isolated(0)
+def test_reorder(state_vector):
+    permutation = [2, 0, 1]
+    state_vector.reorder(permutation)
+
+    expected_state = np.arange(2**state_vector.num_qubits)
+    expected_state = expected_state.reshape((2, 2, 2)).transpose(permutation).flatten()
+    assert np.allclose(state_vector.get_state_vector(), expected_state)
+
+
+def test_is_isolated(plus_state):
+    isolated = plus_state.is_isolated(0)
     assert isolated
 
 
-def test_is_not_isolated(state_vector):
+def test_is_not_isolated(plus_state):
     cz = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
-    state_vector.evolve(cz, [0, 1])
-    isolated = state_vector.is_isolated(0)
+    plus_state.evolve(cz, [0, 1])
+    isolated = plus_state.is_isolated(0)
     assert not isolated
 
 
 def test_get_norm(state_vector):
-    expected_norm = 1.0
+    state = np.arange(2**state_vector.num_qubits)
+    expected_norm = np.linalg.norm(state)
     assert np.isclose(state_vector.get_norm(), expected_norm)
 
 
-def test_expectation_value(state_vector):
+def test_expectation_value(plus_state):
     operator = np.array([[1, 0], [0, -1]])  # Z gate
-    exp_value = state_vector.expectation_value(operator, [0])
-    expected_value = 0.0  # <psi|Z|psi> = 0 for initial state
+    exp_value = plus_state.expectation_value(operator, [0])
+    expected_value = 0.0  # <++|Z|++> = 0
     assert np.isclose(exp_value, expected_value)
 
 
