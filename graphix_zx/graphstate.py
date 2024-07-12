@@ -89,6 +89,8 @@ class BasicGraphState(GraphState):
         self.__physical_edges: dict[int, set[int]] = dict()
         self.__meas_planes: dict[int, str] = dict()
         self.__meas_angles: dict[int, float] = dict()
+        # NOTE: qubit index if allocated. -1 if not. used for simulation
+        self.__q_indices: dict[int, int] = dict()
 
     @property
     def input_nodes(self) -> list[int]:
@@ -107,11 +109,18 @@ class BasicGraphState(GraphState):
         num_edges = np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
         return num_edges
 
-    def add_physical_node(self, node: int, is_input: bool = False, is_output: bool = False):
+    def add_physical_node(
+        self,
+        node: int,
+        q_index: int = -1,
+        is_input: bool = False,
+        is_output: bool = False,
+    ):
         if node in self.__physical_nodes:
             raise Exception("Node already exists")
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
+        self.set_q_index(node, q_index)
         if is_input:
             self.__input_nodes.append(node)
         if is_output:
@@ -135,6 +144,11 @@ class BasicGraphState(GraphState):
             raise Exception("Node does not exist")
         self.__output_nodes.append(node)
 
+    def set_q_index(self, node: int, q_index: int = -1):
+        if q_index < -1:
+            raise ValueError(f"Invalid qubit index {q_index}. Must be -1 or greater")
+        self.__q_indices[node] = q_index
+
     def set_meas_plane(self, node: int, plane: str):
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
@@ -155,6 +169,9 @@ class BasicGraphState(GraphState):
                 if node1 < node2:
                     edges |= {(node1, node2)}
         return edges
+
+    def get_q_indices(self) -> dict[int, int]:
+        return self.__q_indices
 
     def get_neighbors(self, node: int) -> set[int]:
         return self.__physical_edges[node]
