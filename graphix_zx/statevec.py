@@ -90,7 +90,7 @@ class StateVector(BaseStateVector):
     def measure(self, qubit: int, plane: str, angle: float, result: int):
         basis = get_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
-        state = np.tensordot(basis.T.conjugate(), state, axes=(0, qubit))
+        state = np.tensordot(basis.conjugate(), state, axes=(0, qubit))
         state = state.reshape(2 ** (self.__num_qubits - 1))
 
         self.__state = state
