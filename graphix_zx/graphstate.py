@@ -220,4 +220,14 @@ class BasicGraphState(GraphState):
         for edge in other.get_physical_edges():
             new_graph.add_physical_edge(edge[0], edge[1])
 
+        # q_index update
+        for node, q_index in self.__q_indices.items():
+            new_graph.set_q_index(node, q_index)
+
+        for node, q_index in other.__q_indices.items():
+            if node in common_nodes:
+                if new_graph.__q_indices[node] != q_index:
+                    raise ValueError("Qubit index mismatch")
+            new_graph.set_q_index(node, q_index)
+
         return new_graph
