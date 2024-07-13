@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 from abc import ABC, abstractmethod
 
+from graphix_zx.common import Plane
+
 
 class GraphState(ABC):
     @abstractmethod
@@ -51,7 +53,7 @@ class GraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_meas_plane(self, node: int, plane: str):
+    def set_meas_plane(self, node: int, plane: Plane):
         raise
 
     @abstractmethod
@@ -71,7 +73,7 @@ class GraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_meas_planes(self) -> dict[int, str]:
+    def get_meas_planes(self) -> dict[int, Plane]:
         raise NotImplementedError
 
     @abstractmethod
@@ -87,7 +89,7 @@ class BasicGraphState(GraphState):
         self.__output_nodes: list[int] = []
         self.__physical_nodes: set[int] = set()
         self.__physical_edges: dict[int, set[int]] = dict()
-        self.__meas_planes: dict[int, str] = dict()
+        self.__meas_planes: dict[int, Plane] = dict()
         self.__meas_angles: dict[int, float] = dict()
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices: dict[int, int] = dict()
@@ -149,7 +151,7 @@ class BasicGraphState(GraphState):
             raise ValueError(f"Invalid qubit index {q_index}. Must be -1 or greater")
         self.__q_indices[node] = q_index
 
-    def set_meas_plane(self, node: int, plane: str):
+    def set_meas_plane(self, node: int, plane: Plane):
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
         self.__meas_planes[node] = plane
@@ -176,7 +178,7 @@ class BasicGraphState(GraphState):
     def get_neighbors(self, node: int) -> set[int]:
         return self.__physical_edges[node]
 
-    def get_meas_planes(self) -> dict[int, str]:
+    def get_meas_planes(self) -> dict[int, Plane]:
         return self.__meas_planes
 
     def get_meas_angles(self) -> dict[int, float]:
@@ -198,7 +200,7 @@ class BasicGraphState(GraphState):
             if node in set(self.__output_nodes) - set(other.__input_nodes):
                 new_graph.set_output(node)
             else:
-                new_graph.set_meas_plane(node, self.__meas_planes.get(node, "XY"))
+                new_graph.set_meas_plane(node, self.__meas_planes.get(node, Plane.XY))
                 new_graph.set_meas_angle(node, self.__meas_angles.get(node, 0.0))
 
         for edge in self.get_physical_edges():
@@ -214,7 +216,7 @@ class BasicGraphState(GraphState):
             if node in set(other.__output_nodes):
                 new_graph.set_output(node)
             else:
-                new_graph.set_meas_plane(node, other.__meas_planes.get(node, "XY"))
+                new_graph.set_meas_plane(node, other.__meas_planes.get(node, Plane.XY))
                 new_graph.set_meas_angle(node, other.__meas_angles.get(node, 0.0))
 
         for edge in other.get_physical_edges():

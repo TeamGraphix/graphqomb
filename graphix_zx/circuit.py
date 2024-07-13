@@ -7,6 +7,7 @@ from enum import Enum, auto
 import numpy as np
 from numpy.typing import NDArray
 
+from graphix_zx.common import Plane
 from graphix_zx.graphstate import BasicGraphState, GraphState
 
 
@@ -125,7 +126,7 @@ def circuit2graph(circuit: MBQCCircuit) -> tuple[GraphState, dict[int, set[int]]
         if isinstance(instruction, J):
             graph.add_physical_node(num_nodes)
             graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
-            graph.set_meas_plane(front_nodes[instruction.qubit], "XY")
+            graph.set_meas_plane(front_nodes[instruction.qubit], Plane.XY)
             graph.set_meas_angle(front_nodes[instruction.qubit], instruction.angle)
 
             flow[front_nodes[instruction.qubit]] = {num_nodes}

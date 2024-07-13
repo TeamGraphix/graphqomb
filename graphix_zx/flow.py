@@ -5,12 +5,14 @@ import numpy as np
 import sympy as sp
 from linalg import MatGF2
 
+from graphix_zx.common import Plane
+
 
 def find_flow(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     raise NotImplementedError
 
@@ -19,7 +21,7 @@ def find_gflow(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     """Maximally delayed gflow finding algorithm
 
@@ -64,7 +66,7 @@ def find_pflow(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
     meas_angles: dict[int, float],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     raise NotImplementedError
@@ -74,7 +76,7 @@ def gflowaux(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
     k: int,
     l_k: dict[int, int],
     g: dict[int, set[int]],
@@ -130,13 +132,13 @@ def gflowaux(
     for i_row in range(len(node_order_row)):
         node = node_order_row[i_row]
         vec = MatGF2(np.zeros(len(node_order_row), dtype=int))
-        if meas_planes[node] == "XY":
+        if meas_planes[node] == Plane.XY:
             vec.data[i_row] = 1
-        elif meas_planes[node] == "XZ":
+        elif meas_planes[node] == Plane.ZX:
             vec.data[i_row] = 1
             vec_add = adj_mat_row_reduced.data[:, node_order_list.index(node)]
             vec = vec + vec_add
-        elif meas_planes[node] == "YZ":
+        elif meas_planes[node] == Plane.YZ:
             vec.data = adj_mat_row_reduced.data[:, node_order_list.index(node)].reshape(vec.data.shape)
         b.data[:, i_row] = vec.data
     adj_mat, b, _, col_permutation = adj_mat.forward_eliminate(b)
@@ -153,7 +155,7 @@ def gflowaux(
         sol = np.array(sol_list)
         sol_index = sol.nonzero()[0]
         g[non_out_node] = set(node_order_col[col_permutation.index(i)] for i in sol_index)
-        if meas_planes[non_out_node] in ["XZ", "YZ"]:
+        if meas_planes[non_out_node] in [Plane.ZX, Plane.YZ]:
             g[non_out_node] |= {non_out_node}
 
     if len(corrected_nodes) == 0:
@@ -177,7 +179,7 @@ def check_causality(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
     meas_angles: dict[int, float],
     gflow: dict[int, set[int]],
 ) -> bool:
@@ -189,7 +191,7 @@ def check_stablizers(
     graph: nx.Graph,
     input_nodes: set[int],
     output_nodes: set[int],
-    meas_planes: dict[int, str],
+    meas_planes: dict[int, Plane],
     meas_angles: dict[int, float],
     gflow: dict[int, set[int]],
 ) -> bool:

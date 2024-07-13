@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
 
+from graphix_zx.common import Plane
+
 CZ_TENSOR = np.array(
     [
         [1, 0, 0, 0],
@@ -30,7 +32,7 @@ class BaseStateVector(ABC):
         pass
 
     @abstractmethod
-    def measure(self, qubit: int, plane: str, angle: float, result: int):
+    def measure(self, qubit: int, plane: Plane, angle: float, result: int):
         pass
 
     @abstractmethod
@@ -87,7 +89,7 @@ class StateVector(BaseStateVector):
 
         self.__state = state
 
-    def measure(self, qubit: int, plane: str, angle: float, result: int):
+    def measure(self, qubit: int, plane: Plane, angle: float, result: int):
         basis = get_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
         state = np.tensordot(basis.conjugate(), state, axes=(0, qubit))
@@ -151,12 +153,12 @@ class StateVector(BaseStateVector):
         raise NotImplementedError
 
 
-def get_basis(plane: str, angle: float) -> NDArray:
-    if plane == "XY":
+def get_basis(plane: Plane, angle: float) -> NDArray:
+    if plane == Plane.XY:
         return np.array([1, np.exp(1j * angle)]) / np.sqrt(2)
-    elif plane == "YZ":
+    elif plane == Plane.YZ:
         return np.array([np.cos(angle / 2), np.sin(angle / 2)])
-    elif plane == "XZ":
+    elif plane == Plane.ZX:
         return np.array([np.cos(angle / 2), 1j * np.sin(angle / 2)])
     else:
         raise ValueError("Invalid plane")

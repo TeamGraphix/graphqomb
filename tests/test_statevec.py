@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from graphix_zx.common import Plane
 from graphix_zx.statevec import StateVector
 
 
@@ -32,7 +33,7 @@ def test_evolve(state_vector):
 def test_measure(state_vector):
     expected_state = np.arange(2 ** (state_vector.num_qubits - 1))
 
-    state_vector.measure(0, "XZ", 0, 0)  # project onto |0> state
+    state_vector.measure(0, Plane.ZX, 0, 0)  # project onto |0> state
 
     assert state_vector.num_qubits == 2
     assert np.allclose(state_vector.get_state_vector(), expected_state)

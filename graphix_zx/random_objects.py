@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.random import Generator
 
+from graphix_zx.common import Plane
 from graphix_zx.graphstate import BasicGraphState
 
 
@@ -20,7 +21,7 @@ def get_random_flow_graph(
     # input nodes
     for w in range(width):
         graph.add_physical_node(num_nodes, is_input=True)
-        graph.set_meas_plane(num_nodes, "XY")
+        graph.set_meas_plane(num_nodes, Plane.XY)
         graph.set_meas_angle(num_nodes, 0.0)
         num_nodes += 1
 
@@ -28,7 +29,7 @@ def get_random_flow_graph(
     for _ in range(depth - 2):
         for w in range(width):
             graph.add_physical_node(num_nodes)
-            graph.set_meas_plane(num_nodes, "XY")
+            graph.set_meas_plane(num_nodes, Plane.XY)
             graph.set_meas_angle(num_nodes, 0.0)
             graph.add_physical_edge(num_nodes - width, num_nodes)
             flow[num_nodes - width] = {num_nodes}

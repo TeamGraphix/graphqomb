@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, Pattern, X, Z
 from graphix_zx.focus_flow import (
     GFlow,
@@ -12,18 +13,18 @@ from graphix_zx.graphstate import GraphState
 # extended MBQC
 def generate_m_cmd(
     node: int,
-    meas_plane: str,
+    meas_plane: Plane,
     meas_angle: float,
     x_correction: list[int],
     z_correction: list[int],
 ) -> M:
-    if meas_plane == "XY":
+    if meas_plane == Plane.XY:
         s_domain = x_correction
         t_domain = z_correction
-    elif meas_plane == "XZ":
+    elif meas_plane == Plane.ZX:
         s_domain = x_correction.extend(z_correction)
         t_domain = x_correction
-    elif meas_plane == "YZ":
+    elif meas_plane == Plane.YZ:
         s_domain = z_correction
         t_domain = x_correction
     else:

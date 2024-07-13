@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 
 # Assuming the following imports exist based on your code context
+from graphix_zx.common import Plane
 from graphix_zx.command import N, E, M, X, Z, Pattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 
@@ -33,7 +34,7 @@ def setup_pattern():
     cmds = [
         N(node=1),
         E(nodes=(0, 1)),
-        M(node=1, plane="XY", angle=0.5, s_domain=[], t_domain=[]),
+        M(node=1, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[]),
         X(node=0, domain=[1]),
         Z(node=0, domain=[1]),
     ]
@@ -73,7 +74,7 @@ def test_apply_command_entangle(setup_pattern):
 def test_apply_command_measure(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    cmd = M(node=0, plane="XY", angle=0.5, s_domain=[], t_domain=[])
+    cmd = M(node=0, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[])
     simulator.apply_cmd(cmd)
     assert 1 not in simulator.node_indices
 
@@ -83,7 +84,7 @@ def test_apply_command_byproduct_x(setup_pattern):
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
     simulator.apply_cmd(cmd)
-    cmd = M(node=1, plane="XY", angle=0.5, s_domain=[], t_domain=[])
+    cmd = M(node=1, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[])
     simulator.apply_cmd(cmd)
     cmd = X(node=0, domain=[1])
     simulator.apply_cmd(cmd)
@@ -95,7 +96,7 @@ def test_apply_command_byproduct_z(setup_pattern):
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
     simulator.apply_cmd(cmd)
-    cmd = M(node=1, plane="XY", angle=0.5, s_domain=[], t_domain=[])
+    cmd = M(node=1, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[])
     simulator.apply_cmd(cmd)
     cmd = Z(node=0, domain=[1])
     simulator.apply_cmd(cmd)

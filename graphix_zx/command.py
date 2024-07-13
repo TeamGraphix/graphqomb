@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import copy
 import enum
-from typing import Literal
 
 import numpy as np
 from pydantic import BaseModel
+from graphix_zx.common import Plane
 
 Node = int
-Plane = Literal["XY", "YZ", "XZ"]
 
 
 class CommandKind(str, enum.Enum):
@@ -37,6 +36,7 @@ class N(Command):
 
     kind: CommandKind = CommandKind.N
     node: Node
+    q_index: int = -1
 
 
 class M(Command):
@@ -46,7 +46,7 @@ class M(Command):
 
     kind: CommandKind = CommandKind.M
     node: Node
-    plane: Plane = "XY"
+    plane: Plane = Plane.XY
     angle: float = 0.0
     s_domain: list[Node] = []
     t_domain: list[Node] = []
@@ -385,17 +385,11 @@ class Pattern:
                 angles[cmd.node] = cmd.angle
         return angles
 
-    def simulate(self, backend):
-        raise NotImplementedError
-
-    def execute(self, backend):
-        raise NotImplementedError
-
     def to_qasm3(self):
         raise NotImplementedError
 
-    def to_text(self):
-        raise NotImplementedError
+    def immutable(self):
+        return Pattern(self.__input_nodes, self.__seq)
 
 
 def is_standardized(pattern: Pattern) -> bool:

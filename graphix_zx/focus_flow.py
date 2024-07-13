@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
+from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState
 
 GFlow = Dict[int, Set[int]]
@@ -103,9 +104,9 @@ def find_non_focused_signals(target: int, gflow: GFlow, graph: GraphState, meas_
     s_xz_candidate = gflow[target] & non_outputs - {target}
     s_yz_candidate = gflow[target] & non_outputs - {target}
 
-    s_xy = {node for node in s_xy_candidate if meas_planes[node] == "XY"}
-    s_xz = {node for node in s_xz_candidate if meas_planes[node] == "XZ"}
-    s_yz = {node for node in s_yz_candidate if meas_planes[node] == "YZ"}
+    s_xy = {node for node in s_xy_candidate if meas_planes[node] == Plane.XY}
+    s_xz = {node for node in s_xz_candidate if meas_planes[node] == Plane.ZX}
+    s_yz = {node for node in s_yz_candidate if meas_planes[node] == Plane.YZ}
 
     return s_xy | s_xz | s_yz
 
@@ -124,11 +125,11 @@ def is_focused(gflow: GFlow, graph: GraphState, meas_planes: dict[int, str]):
         for child in gflow[node]:
             if child in outputs:
                 continue
-            focused &= (meas_planes[child] == "XY") or (node == child)
+            focused &= (meas_planes[child] == Plane.XY) or (node == child)
 
         for child in oddneighbors(gflow[node], graph):
             if child in outputs:
                 continue
-            focused &= (meas_planes[child] != "XY") or (node == child)
+            focused &= (meas_planes[child] != Plane.XY) or (node == child)
 
     return focused
