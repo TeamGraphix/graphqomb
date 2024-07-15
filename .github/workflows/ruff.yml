@@ -1,0 +1,53 @@
+name: ruff
+
+on:
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ruff_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Ruff
+        run: |
+          python3 -m pip install -U pip
+          pip install ruff
+
+      - name: Run ruff check
+        run: |
+          pip install ruff
+          ruff check
+
+  ruff_format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Ruff
+        run: |
+          python3 -m pip install -U pip
+          pip install ruff
+
+      - name: Run ruff format
+        run: |
+          ruff format
+
+      - name: Run ruff isort
+        run: |
+          ruff check --select I --fix
