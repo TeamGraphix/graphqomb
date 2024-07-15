@@ -56,7 +56,7 @@ class PhaseGadget(Gate):
         raise NotImplementedError
 
 
-class MBQCCircuit(ABC):
+class BaseCircuit(ABC):
     @abstractmethod
     def __init__(self):
         pass
@@ -83,7 +83,7 @@ class MBQCCircuit(ABC):
         raise NotImplementedError
 
 
-class BasicMBQCCircuit(MBQCCircuit):
+class MBQCCircuit(BaseCircuit):
     def __init__(self, qubits: int):
         self.__num_qubits: int = qubits
         self.__gate_instructions: list[Gate] = []
@@ -109,7 +109,7 @@ class BasicMBQCCircuit(MBQCCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
-def circuit2graph(circuit: MBQCCircuit) -> tuple[GraphState, dict[int, set[int]]]:
+def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]]:
     graph = BasicGraphState()
     flow = dict()
 

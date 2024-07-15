@@ -4,7 +4,7 @@ import pytest
 
 import numpy as np
 
-from graphix_zx.circuit import BasicMBQCCircuit, circuit2graph
+from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.transpiler import transpile_from_flow
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
@@ -15,7 +15,7 @@ from graphix_zx.simulator import (
 
 @pytest.fixture
 def random_circ():
-    circ = BasicMBQCCircuit(3)
+    circ = MBQCCircuit(3)
     circ.j(0, 0.5 * np.pi)
     circ.cz(0, 1)
     circ.cz(1, 2)
@@ -43,7 +43,7 @@ def test_pattern_sim(random_circ):
 
 
 def test_minimum_circ_pattern():
-    circuit = BasicMBQCCircuit(1)
+    circuit = MBQCCircuit(1)
     circuit.j(0, 0.3 * np.pi)
     graph, gflow = circuit2graph(circuit)
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
