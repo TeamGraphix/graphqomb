@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import copy
 from abc import ABC, abstractmethod
 
-import numpy as np
 import dataclasses
 
 from graphix_zx.command import Command, CommandKind
@@ -59,17 +57,17 @@ class BasePattern(ABC):
 
 @dataclasses.dataclass(frozen=True)
 class ImmutablePattern(BasePattern):
-    input_nodes: list[int]
-    output_nodes: list[int]
+    input_nodes: set[int]
+    output_nodes: set[int]
     seq: list[Command]
     runnable: bool = False
     deterministic: bool = False
 
     def get_input_nodes(self):
-        return self.input_nodes
+        return set(self.input_nodes)
 
     def get_output_nodes(self):
-        return self.output_nodes
+        return set(self.output_nodes)
 
     def get_commands(self):
         return self.seq
@@ -94,15 +92,15 @@ class ImmutablePattern(BasePattern):
 
 
 class MutablePattern(BasePattern):
-    def __init__(self, input_nodes: list[int] | None = None):
+    def __init__(self, input_nodes: set[int] | None = None):
         if input_nodes is None:
-            input_nodes = []
-        self.__input_nodes: list[int] = list(input_nodes)  # input nodes (list() makes our own copy of the list)
+            input_nodes = set()
+        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
-        self.__output_nodes: list[int] = list(self.__input_nodes)
+        self.__output_nodes: set[int] = set(self.__input_nodes)
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
@@ -112,9 +110,9 @@ class MutablePattern(BasePattern):
             if cmd.node in self.__output_nodes:
                 raise NodeAlreadyPreparedError(cmd.node)
             self.__Nnode += 1
-            self.__output_nodes.append(cmd.node)
+            self.__output_nodes |= {cmd.node}
         elif cmd.kind == CommandKind.M:
-            self.__output_nodes.remove(cmd.node)
+            self.__output_nodes -= {cmd.node}
         self.__seq.append(cmd)
 
         # runnablility and determinism are not guaranteed after adding a command
@@ -128,31 +126,22 @@ class MutablePattern(BasePattern):
     def clear(self):
         self.__Nnode = len(self.__input_nodes)
         self.__seq = []
-        self.__output_nodes = list(self.__input_nodes)
+        self.__output_nodes = set(self.__input_nodes)
 
-    def replace(self, cmds: list[Command], input_nodes=None):
+    def replace(self, cmds: list[Command], input_nodes: set[int] | None = None):
         if input_nodes is not None:
-            self.__input_nodes = list(input_nodes)
+            self.__input_nodes = set(input_nodes)
         self.clear()
         self.extend(cmds)
 
     def get_input_nodes(self):
-        return list(self.__input_nodes)
+        return set(self.__input_nodes)
 
     def get_output_nodes(self):
-        return list(self.__output_nodes)
+        return set(self.__output_nodes)
 
     def get_commands(self):
         return self.__seq
-
-    def __add__(self, pattern):
-        if self.__output_nodes != pattern.__input_nodes:
-            raise ValueError("Output nodes of the first pattern must be the input nodes of the second pattern")
-        new_pattern = copy.deepcopy(self)
-        for cmd in pattern:
-            new_pattern.add(cmd)
-
-        return new_pattern
 
     def calc_max_space(self):
         nodes = len(self.get_input_nodes())
