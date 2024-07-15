@@ -117,8 +117,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, dict[int, set[i
     num_nodes = 0
 
     # input nodes
-    for _ in range(circuit.num_qubits):
+    for i in range(circuit.num_qubits):
         graph.add_physical_node(num_nodes, is_input=True)
+        graph.set_q_index(num_nodes, i)
         front_nodes.append(num_nodes)
         num_nodes += 1
 
@@ -128,6 +129,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, dict[int, set[i
             graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
             graph.set_meas_plane(front_nodes[instruction.qubit], Plane.XY)
             graph.set_meas_angle(front_nodes[instruction.qubit], instruction.angle)
+            graph.set_q_index(num_nodes, instruction.qubit)
 
             flow[front_nodes[instruction.qubit]] = {num_nodes}
             front_nodes[instruction.qubit] = num_nodes

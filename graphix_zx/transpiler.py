@@ -78,6 +78,9 @@ def transpile(
     output_nodes = graph.output_nodes
     meas_planes = graph.get_meas_planes()
     meas_angles = graph.get_meas_angles()
+    q_indices = graph.get_q_indices()
+
+    input_q_indices = {node: q_indices[node] for node in input_nodes}
 
     internal_nodes = set(graph.get_physical_nodes()) - set(input_nodes) - set(output_nodes)
 
@@ -89,9 +92,9 @@ def transpile(
         dag[output] = set()
     topo_order = topological_sort_kahn(dag)
 
-    pattern = MutablePattern(input_nodes=input_nodes)
-    pattern.extend([N(node=node) for node in internal_nodes])
-    pattern.extend([N(node=node) for node in output_nodes])
+    pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
+    pattern.extend([N(node=node, q_index=q_indices[node]) for node in internal_nodes])
+    pattern.extend([N(node=node, q_index=q_indices[node]) for node in output_nodes])
     pattern.extend([E(nodes=edge) for edge in graph.get_physical_edges()])
     pattern.extend(
         [
