@@ -17,14 +17,13 @@ def random_circ():
     raise NotImplementedError
 
 
-def test_transpile_fron_graph(random_graph):
+def test_transpile_from_graph(random_graph):
     graph, flow = random_graph
     pattern = transpile_from_flow(graph, flow)
     assert is_standardized(pattern)
 
 
-@pytest.mark.skip
-def test_pattern_simulation(random_circ):
+def test_transpile_from_subgraphs():
     pass
 
 
