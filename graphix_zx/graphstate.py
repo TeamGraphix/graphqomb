@@ -188,7 +188,7 @@ class GraphState(BaseGraphState):
         common_nodes = set(self.__physical_nodes) & set(other.__physical_nodes)
         border_nodes = set(self.__output_nodes) & set(other.__input_nodes)
 
-        if not common_nodes == border_nodes:
+        if not common_nodes != border_nodes:
             raise Exception("Graphs are not compatible")
 
         new_graph = GraphState()
