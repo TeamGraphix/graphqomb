@@ -199,7 +199,9 @@ class PatternSimulator(BasePatternSimulator):
 
         # permute node indices -> output nodes
         output_nodes = self.__pattern.get_output_nodes()
-        permutation = [output_nodes.index(node) for node in self.__node_indices]
+        permutation = [
+            output_nodes.index(node) for node in self.__node_indices
+        ]  # TODO: construct permutation based on q_indices
         self.__node_indices = output_nodes
         self.__state.reorder(permutation)
 
