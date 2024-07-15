@@ -134,11 +134,42 @@ class MutablePattern(BasePattern):
         self.clear()
         self.extend(cmds)
 
+    # should support immutable pattern as well?
+    def append_pattern(self, pattern: MutablePattern):
+        common_nodes = self.get_nodes() & pattern.get_nodes()
+        border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
+
+        if common_nodes != border_nodes:
+            raise ValueError("Patterns are not compatible")
+
+        new_input_nodes = self.get_input_nodes() | (pattern.get_input_nodes() - common_nodes)
+        new_pattern = MutablePattern(input_nodes=new_input_nodes)
+        for cmd in self.get_commands():
+            new_pattern.add(cmd)
+
+        for cmd in pattern.get_commands():
+            new_pattern.add(cmd)
+
+        if self.is_runnable() and pattern.is_runnable():
+            new_pattern.mark_runnable()
+
+        if self.is_deterministic() and pattern.is_deterministic():
+            new_pattern.mark_deterministic()
+
+        return new_pattern
+
     def get_input_nodes(self):
         return set(self.__input_nodes)
 
     def get_output_nodes(self):
         return set(self.__output_nodes)
+
+    def get_nodes(self):
+        nodes = set()
+        for cmd in self.__seq:
+            if cmd.kind == CommandKind.N:
+                nodes |= {cmd.node}
+        return nodes
 
     def get_commands(self):
         return self.__seq
