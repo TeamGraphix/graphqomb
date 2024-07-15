@@ -26,3 +26,8 @@ select = [
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = "ignore::DeprecationWarning"
+markers = "slow: mark test as slow"
