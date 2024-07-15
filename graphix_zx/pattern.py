@@ -39,6 +39,10 @@ class BasePattern(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_q_indices(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def get_commands(self):
         raise NotImplementedError
 
@@ -59,6 +63,7 @@ class BasePattern(ABC):
 class ImmutablePattern(BasePattern):
     input_nodes: set[int]
     output_nodes: set[int]
+    q_indices: dict[int, int]
     seq: list[Command]
     runnable: bool = False
     deterministic: bool = False
@@ -68,6 +73,9 @@ class ImmutablePattern(BasePattern):
 
     def get_output_nodes(self):
         return set(self.output_nodes)
+
+    def get_q_indices(self):
+        return dict(self.q_indices)
 
     def get_commands(self):
         return self.seq
@@ -92,7 +100,11 @@ class ImmutablePattern(BasePattern):
 
 
 class MutablePattern(BasePattern):
-    def __init__(self, input_nodes: set[int] | None = None):
+    def __init__(
+        self,
+        input_nodes: set[int] | None = None,
+        q_indices: dict[int, int] | None = None,
+    ):
         if input_nodes is None:
             input_nodes = set()
         self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
@@ -101,6 +113,15 @@ class MutablePattern(BasePattern):
         self.__seq: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
         self.__output_nodes: set[int] = set(self.__input_nodes)
+
+        if q_indices is None:
+            q_indices = dict()
+            _count = 0
+            for input_node in input_nodes:
+                q_indices[input_node] = _count
+                _count += 1
+
+        self.__q_indices: dict[int, int] = q_indices  # qubit index. used for simulation
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
@@ -111,6 +132,7 @@ class MutablePattern(BasePattern):
                 raise NodeAlreadyPreparedError(cmd.node)
             self.__Nnode += 1
             self.__output_nodes |= {cmd.node}
+            self.__q_indices[cmd.node] = cmd.q_index
         elif cmd.kind == CommandKind.M:
             self.__output_nodes -= {cmd.node}
         self.__seq.append(cmd)
@@ -143,7 +165,14 @@ class MutablePattern(BasePattern):
             raise ValueError("Patterns are not compatible")
 
         new_input_nodes = self.get_input_nodes() | (pattern.get_input_nodes() - common_nodes)
-        new_pattern = MutablePattern(input_nodes=new_input_nodes)
+        new_input_q_indices = dict()
+        for node in new_input_nodes:
+            try:
+                new_input_q_indices[node] = self.__q_indices[node]
+            except KeyError:
+                new_input_q_indices[node] = pattern.get_q_indices()[node]
+
+        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
         for cmd in self.get_commands():
             new_pattern.add(cmd)
 
@@ -163,6 +192,9 @@ class MutablePattern(BasePattern):
 
     def get_output_nodes(self):
         return set(self.__output_nodes)
+
+    def get_q_indices(self):
+        return dict(self.__q_indices)
 
     def get_nodes(self):
         nodes = set()
@@ -231,6 +263,7 @@ class MutablePattern(BasePattern):
         return ImmutablePattern(
             input_nodes=self.__input_nodes,
             output_nodes=self.__output_nodes,
+            q_indices=self.__q_indices,
             seq=self.__seq,
             runnable=self.__runnable,
             deterministic=self.__deterministic,
