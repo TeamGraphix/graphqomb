@@ -30,7 +30,7 @@ def generate_m_cmd(
     elif meas_plane == Plane.YZ:
         s_domain = z_correction
         t_domain = x_correction
-    else:  # NOTE: can include Pauli simplification.
+    else:  # NOTE: possible to include Pauli simplification.
         raise ValueError("Invalid measurement plane")
     return M(
         node=node,
