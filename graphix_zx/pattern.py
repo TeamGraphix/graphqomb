@@ -108,6 +108,10 @@ class MutablePattern(BasePattern):
             self.__output_nodes.remove(cmd.node)
         self.__seq.append(cmd)
 
+        # runnablility and determinism are not guaranteed after adding a command
+        self.__runnable = False
+        self.__deterministic = False
+
     def extend(self, cmds: list[Command]):
         for cmd in cmds:
             self.add(cmd)

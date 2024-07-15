@@ -30,7 +30,7 @@ def generate_m_cmd(
     elif meas_plane == Plane.YZ:
         s_domain = z_correction
         t_domain = x_correction
-    else:
+    else:  # NOTE: can include Pauli simplification.
         raise ValueError("Invalid measurement plane")
     return M(
         node=node,
@@ -61,6 +61,7 @@ def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = 
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
     pattern = transpile(graph, x_flow, z_flow, correct_output)
+    pattern.mark_runnable()
     pattern.mark_deterministic()
     return pattern
 
@@ -72,7 +73,7 @@ def transpile(
     z_flow: dict[int, set[int]],
     correct_output: bool = True,
 ) -> MutablePattern:
-    # TODO : check the validity of the gflow
+    # TODO : check the validity of the flows
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
     meas_planes = graph.get_meas_planes()
@@ -110,8 +111,8 @@ def transpile(
         pattern.extend([Z(node=node, domain=z_corrections[node]) for node in output_nodes])
     # TODO: add Clifford commands on the output nodes
 
-    pattern.mark_runnable()
-
+    # NOTE: not guaranteed to be runnable before validating flows
+    # pattern.mark_runnable()
     return pattern
 
 
