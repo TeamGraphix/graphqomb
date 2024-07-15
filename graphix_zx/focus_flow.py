@@ -1,3 +1,5 @@
+"""focusing gflow is equivalent to shifting signals on a pattern"""
+
 from __future__ import annotations
 
 from typing import Dict, Set

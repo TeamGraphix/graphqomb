@@ -1,3 +1,5 @@
+"""same functionaly as minimize_space in the original repo."""
+
 from __future__ import annotations
 
 from graphix_zx.graphstate import GraphState, BasicGraphState
