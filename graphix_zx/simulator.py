@@ -6,7 +6,8 @@ from enum import Enum, auto
 import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, Gate, J, CZ, PhaseGadget
-from graphix_zx.command import Pattern, CommandKind
+from graphix_zx.command import CommandKind
+from graphix_zx.pattern import BasePattern, MutablePattern, ImmutablePattern
 from graphix_zx.statevec import BaseStateVector, StateVector
 
 
@@ -98,15 +99,29 @@ class BasePatternSimulator(ABC):
 
 
 class PatternSimulator(BasePatternSimulator):
-    def __init__(self, pattern: Pattern, backend: SimulatorBackend, calc_prob: bool = False):
-        self.__pattern: Pattern = pattern
-        self.__node_indices: list[int] = pattern.input_nodes
+    def __init__(
+        self,
+        pattern: BasePattern,
+        backend: SimulatorBackend,
+        calc_prob: bool = False,
+    ):
+        self.__node_indices: list[int] = pattern.get_input_nodes()
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
 
+        if isinstance(pattern, MutablePattern):
+            self.__pattern = pattern.freeze()
+        elif isinstance(pattern, ImmutablePattern):
+            self.__pattern = pattern
+
+        if not self.__pattern.is_runnable():
+            raise ValueError("Pattern is not runnable")
+
         if backend == SimulatorBackend.StateVector:
-            self.__state = StateVector(len(self.__pattern.input_nodes))
+            if not self.__pattern.is_deterministic():
+                raise ValueError("Pattern is not deterministic. Please use DensityMatrix backend instead.")
+            self.__state = StateVector(len(self.__pattern.get_input_nodes()))
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
@@ -183,7 +198,7 @@ class PatternSimulator(BasePatternSimulator):
             self.apply_cmd(cmd)
 
         # permute node indices -> output nodes
-        output_nodes = self.__pattern.output_nodes
+        output_nodes = self.__pattern.get_output_nodes()
         permutation = [output_nodes.index(node) for node in self.__node_indices]
         self.__node_indices = output_nodes
         self.__state.reorder(permutation)

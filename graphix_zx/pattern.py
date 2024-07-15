@@ -24,10 +24,6 @@ class NodeAlreadyPreparedError(Exception):
 
 class BasePattern(ABC):
     @abstractmethod
-    def __init__(self):
-        raise NotImplementedError
-
-    @abstractmethod
     def get_input_nodes(self):
         raise NotImplementedError
 
@@ -127,13 +123,11 @@ class MutablePattern(BasePattern):
         self.clear()
         self.extend(cmds)
 
-    @property
-    def input_nodes(self):
-        return list(self.__input_nodes)  # copy for preventing modification
+    def get_input_nodes(self):
+        return list(self.__input_nodes)
 
-    @property
-    def output_nodes(self):
-        return list(self.__output_nodes)  # copy for preventing modification
+    def get_output_nodes(self):
+        return list(self.__output_nodes)
 
     def get_commands(self):
         return self.__seq
@@ -159,7 +153,7 @@ class MutablePattern(BasePattern):
         return new_pattern
 
     def calc_max_space(self):
-        nodes = len(self.input_nodes)
+        nodes = len(self.get_input_nodes())
         max_nodes = nodes
         for cmd in self.__seq:
             if cmd.kind == CommandKind.N:
@@ -171,7 +165,7 @@ class MutablePattern(BasePattern):
         return max_nodes
 
     def get_space_list(self):
-        nodes = len(self.input_nodes)
+        nodes = len(self.get_input_nodes())
         space_list = [nodes]
         for cmd in self.__seq:
             if cmd.kind == CommandKind.N:
@@ -202,6 +196,14 @@ class MutablePattern(BasePattern):
 
     def is_deterministic(self):
         return self.__deterministic
+
+    # Mark the pattern as runnable. Called where the pattern is guaranteed to be runnable
+    def mark_runnable(self):
+        self.__runnable = True
+
+    # Mark the pattern as deterministic. Called where flow preservation is guaranteed
+    def mark_deterministic(self):
+        self.__deterministic = True
 
     def freeze(self) -> ImmutablePattern:
         return ImmutablePattern(
@@ -243,6 +245,15 @@ def is_standardized(pattern: BasePattern) -> bool:
             break
         current_cmd_kind = cmd.kind
     return standardized
+
+
+def is_runnable(pattern: BasePattern) -> bool:
+    raise NotImplementedError
+
+
+# NOTE: generally, difficult to prove that a pattern is deterministic
+def is_deterministic(pattern: BasePattern) -> bool:
+    raise NotImplementedError
 
 
 def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None):
