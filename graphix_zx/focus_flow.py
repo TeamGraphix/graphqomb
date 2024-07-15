@@ -5,19 +5,19 @@ from __future__ import annotations
 from typing import Dict, Set
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState
 
 GFlow = Dict[int, Set[int]]
 
 
-def oddneighbors(nodes: set[int], graph: GraphState) -> set[int]:
+def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
     odd_neighbors: set[int] = set()
     for node in nodes:
         odd_neighbors ^= set(graph.get_neighbors(node))
     return odd_neighbors
 
 
-def construct_dag(gflow: GFlow, graph: GraphState, check: bool = False) -> dict[int, set[int]]:
+def construct_dag(gflow: GFlow, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
     dag = dict()
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
     for node in gflow.keys():
@@ -65,7 +65,7 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
         raise ValueError("Cycle detected in the graph")
 
 
-def focus_gflow(gflow: GFlow, graph: GraphState, meas_planes: dict[int, str]) -> GFlow:
+def focus_gflow(gflow: GFlow, graph: BaseGraphState, meas_planes: dict[int, str]) -> GFlow:
     # TODO: check the validity of the gflow if possible in fast way
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
 
@@ -83,7 +83,7 @@ def focus_gflow(gflow: GFlow, graph: GraphState, meas_planes: dict[int, str]) ->
 def focus(
     target: int,
     gflow: GFlow,
-    graph: GraphState,
+    graph: BaseGraphState,
     meas_planes: dict[int, str],
     topo_order: list[int],
 ) -> GFlow:
@@ -99,7 +99,7 @@ def focus(
     return gflow
 
 
-def find_non_focused_signals(target: int, gflow: GFlow, graph: GraphState, meas_planes: dict[int, str]) -> set[int]:
+def find_non_focused_signals(target: int, gflow: GFlow, graph: BaseGraphState, meas_planes: dict[int, str]) -> set[int]:
     non_outputs = {node for node in gflow.keys()}
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
@@ -120,7 +120,7 @@ def update_gflow(target: int, gflow: GFlow, s_k: set[int], topo_order: list[int]
     return gflow
 
 
-def is_focused(gflow: GFlow, graph: GraphState, meas_planes: dict[int, str]):
+def is_focused(gflow: GFlow, graph: BaseGraphState, meas_planes: dict[int, str]):
     focused = True
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
     for node in gflow.keys():
