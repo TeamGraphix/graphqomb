@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from graphix_zx.graphstate import GraphState, BasicGraphState
+from graphix_zx.graphstate import BaseGraphState, GraphState
 from graphix_zx.focus_flow import GFlow, construct_dag
 
 
-def get_subgraph_sequences(graph: GraphState, meas_order: list[int]) -> list[GraphState]:
+def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[BaseGraphState]:
     """Get the subgraph sequences."""
     subgraphs = []
     activated_nodes = graph.input_nodes
     for target_node in meas_order:
-        subgraph = BasicGraphState()
+        subgraph = GraphState()
         neighbors = graph.get_neighbors(target_node)
         activation_nodes = get_activation_nodes(graph, target_node, activated_nodes)
         prepared_nodes = neighbors - activation_nodes
@@ -36,7 +36,7 @@ def get_subgraph_sequences(graph: GraphState, meas_order: list[int]) -> list[Gra
     return subgraphs
 
 
-def get_minimized_sp_meas_order(graph: GraphState, gflow: GFlow) -> list[int]:
+def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: GFlow) -> list[int]:
     """Get the minimized space measurement order."""
     inverted_dag = get_dependencies(graph, gflow)
     activated_nodes = set(graph.input_nodes)
@@ -63,7 +63,7 @@ def get_minimized_sp_meas_order(graph: GraphState, gflow: GFlow) -> list[int]:
     return meas_order
 
 
-def get_dependencies(graph: GraphState, gflow: GFlow) -> dict[int, set[int]]:
+def get_dependencies(graph: BaseGraphState, gflow: GFlow) -> dict[int, set[int]]:
     """Get the dependencies."""
     dag = construct_dag(gflow, graph)
     inverted_dag: dict[int, set[int]] = {node: set() for node in dag.keys()}
@@ -73,14 +73,14 @@ def get_dependencies(graph: GraphState, gflow: GFlow) -> dict[int, set[int]]:
     return inverted_dag
 
 
-def get_activation_nodes(graph: GraphState, target_node: int, activated_nodes: set[int]) -> set[int]:
+def get_activation_nodes(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> set[int]:
     """Get the nodes to be activated."""
     neighbors = set(graph.get_neighbors(target_node))
     activation_nodes = neighbors - activated_nodes
     return activation_nodes
 
 
-def count_activation_cost(graph: GraphState, target_node: int, activated_nodes: set[int]) -> int:
+def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> int:
     """Count the activation cost."""
     activation_nodes = get_activation_nodes(graph, target_node, activated_nodes)
     return len(activation_nodes)

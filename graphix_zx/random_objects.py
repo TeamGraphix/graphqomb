@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import Generator
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import BasicGraphState
+from graphix_zx.graphstate import GraphState
 
 
 def get_random_flow_graph(
@@ -12,9 +12,9 @@ def get_random_flow_graph(
     depth: int,
     edge_p: float = 0.5,
     rng: Generator = np.random.default_rng(),
-) -> tuple[BasicGraphState, dict[int, set[int]]]:
+) -> tuple[GraphState, dict[int, set[int]]]:
     """Generate a random flow graph."""
-    graph = BasicGraphState()
+    graph = GraphState()
     flow: dict[int, set[int]] = dict()
     num_nodes = 0
 

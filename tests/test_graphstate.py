@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.graphstate import BasicGraphState
+from graphix_zx.graphstate import GraphState
 
 
 @pytest.fixture
 def graph():
-    return BasicGraphState()
+    return GraphState()
 
 
 def test_add_physical_node(graph):
@@ -75,12 +75,12 @@ def test_set_meas_angle(graph):
 
 
 def test_append_graph():
-    graph1 = BasicGraphState()
+    graph1 = GraphState()
     graph1.add_physical_node(1, is_input=True)
     graph1.add_physical_node(2, is_output=True)
     graph1.add_physical_edge(1, 2)
 
-    graph2 = BasicGraphState()
+    graph2 = GraphState()
     graph2.add_physical_node(2, is_input=True)
     graph2.add_physical_node(3, is_output=True)
     graph2.add_physical_edge(2, 3)

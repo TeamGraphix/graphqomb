@@ -6,13 +6,13 @@ from abc import ABC, abstractmethod
 from graphix_zx.common import Plane
 
 
-class GraphState(ABC):
+class BaseGraphState(ABC):
     @abstractmethod
     def __init__(self):
         pass
 
     @abstractmethod
-    def append_graph(self, other) -> GraphState:
+    def append_graph(self, other) -> BaseGraphState:
         raise NotImplementedError
 
     # NOTE: input and output nodes are necessary because graph is open graph
@@ -81,7 +81,7 @@ class GraphState(ABC):
         raise NotImplementedError
 
 
-class BasicGraphState(GraphState):
+class GraphState(BaseGraphState):
     """Minimal implementation of GraphState"""
 
     def __init__(self):
@@ -184,14 +184,14 @@ class BasicGraphState(GraphState):
     def get_meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
 
-    def append_graph(self, other) -> BasicGraphState:
+    def append_graph(self, other) -> GraphState:
         common_nodes = set(self.__physical_nodes) & set(other.__physical_nodes)
         border_nodes = set(self.__output_nodes) & set(other.__input_nodes)
 
         if not common_nodes == border_nodes:
             raise Exception("Graphs are not compatible")
 
-        new_graph = BasicGraphState()
+        new_graph = GraphState()
         for node in self.__physical_nodes:
             new_graph.add_physical_node(node)
             if node in set(self.__input_nodes):

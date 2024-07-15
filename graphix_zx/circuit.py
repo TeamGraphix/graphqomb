@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import BasicGraphState, GraphState
+from graphix_zx.graphstate import GraphState, BaseGraphState
 
 
 class GateKind(Enum):
@@ -109,8 +109,8 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]]:
-    graph = BasicGraphState()
+def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, dict[int, set[int]]]:
+    graph = GraphState()
     flow = dict()
 
     front_nodes = []  # list index  corresponds to qubit index

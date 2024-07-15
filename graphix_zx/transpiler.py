@@ -10,7 +10,7 @@ from graphix_zx.focus_flow import (
     oddneighbors,
     topological_sort_kahn,
 )
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import BaseGraphState
 
 
 # extended MBQC
@@ -42,7 +42,7 @@ def generate_m_cmd(
 
 
 # generate signal lists
-def generate_corrections(graph: GraphState, flow: dict[int, set[int]]) -> dict[int, set[int]]:
+def generate_corrections(graph: BaseGraphState, flow: dict[int, set[int]]) -> dict[int, set[int]]:
     corrections: dict[str, list[int]] = {node: set() for node in graph.get_physical_nodes()}
 
     for node in flow.keys():
@@ -56,7 +56,7 @@ def generate_corrections(graph: GraphState, flow: dict[int, set[int]]) -> dict[i
     return corrections
 
 
-def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = True) -> MutablePattern:
+def transpile_from_flow(graph: BaseGraphState, gflow: GFlow, correct_output: bool = True) -> MutablePattern:
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
@@ -68,7 +68,7 @@ def transpile_from_flow(graph: GraphState, gflow: GFlow, correct_output: bool = 
 
 # generate standardized pattern from underlying graph and gflow
 def transpile(
-    graph: GraphState,
+    graph: BaseGraphState,
     x_flow: dict[int, set[int]],
     z_flow: dict[int, set[int]],
     correct_output: bool = True,
@@ -117,7 +117,7 @@ def transpile(
 
 
 def transpile_from_subgraphs(
-    subgraphs: list[GraphState],
+    subgraphs: list[BaseGraphState],
     input_nodes: list[int],
     gflow: GFlow,
 ) -> MutablePattern:
