@@ -23,6 +23,15 @@ class NodeAlreadyPreparedError(Exception):
 
 
 class BasePattern(ABC):
+    def __len__(self):
+        return len(self.get_commands())
+
+    def __iter__(self):
+        return iter(self.get_commands())
+
+    def __getitem__(self, index):
+        return self.get_commands()[index]
+
     @abstractmethod
     def get_input_nodes(self):
         raise NotImplementedError
@@ -135,17 +144,6 @@ class MutablePattern(BasePattern):
 
     def get_commands(self):
         return self.__seq
-
-    def __len__(self):
-        """length of command sequence"""
-        return len(self.__seq)
-
-    def __iter__(self):
-        """iterate over commands"""
-        return iter(self.__seq)
-
-    def __getitem__(self, index):
-        return self.__seq[index]
 
     def __add__(self, pattern):
         if self.__output_nodes != pattern.__input_nodes:
@@ -295,24 +293,10 @@ def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandK
             )
         elif pattern[i].kind == CommandKind.X and (CommandKind.X in cmd_filter):
             count += 1
-            # remove duplicates
-            _domain = np.array(pattern[i].domain)
-            uind = np.unique(_domain)
-            unique_domain = []
-            for ind in uind:
-                if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
-                    unique_domain.append(ind)
-            print(f"X byproduct, node = {pattern[i].node}, domain = {unique_domain}")
+            print(f"X byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
         elif pattern[i].kind == CommandKind.Z and (CommandKind.Z in cmd_filter):
             count += 1
-            # remove duplicates
-            _domain = np.array(pattern[i].domain)
-            uind = np.unique(_domain)
-            unique_domain = []
-            for ind in uind:
-                if np.mod(np.count_nonzero(_domain == ind), 2) == 1:
-                    unique_domain.append(ind)
-            print(f"Z byproduct, node = {pattern[i].node}, domain = {unique_domain}")
+            print(f"Z byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
         elif pattern[i].kind == CommandKind.C and (CommandKind.C in cmd_filter):
             count += 1
             print(f"Clifford, node = {pattern[i].node}, Clifford index = {pattern[i].cliff_index}")

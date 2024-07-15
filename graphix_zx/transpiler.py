@@ -18,14 +18,14 @@ def generate_m_cmd(
     node: int,
     meas_plane: Plane,
     meas_angle: float,
-    x_correction: list[int],
-    z_correction: list[int],
+    x_correction: set[int],
+    z_correction: set[int],
 ) -> M:
     if meas_plane == Plane.XY:
         s_domain = x_correction
         t_domain = z_correction
     elif meas_plane == Plane.ZX:
-        s_domain = x_correction.extend(z_correction)
+        s_domain = x_correction | z_correction
         t_domain = x_correction
     elif meas_plane == Plane.YZ:
         s_domain = z_correction

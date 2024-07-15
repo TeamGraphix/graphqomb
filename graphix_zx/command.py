@@ -46,8 +46,8 @@ class M(Command):
     node: Node
     plane: Plane = Plane.XY
     angle: float = 0.0
-    s_domain: list[Node] = []
-    t_domain: list[Node] = []
+    s_domain: set[Node] = set()
+    t_domain: set[Node] = set()
 
 
 class E(Command):
