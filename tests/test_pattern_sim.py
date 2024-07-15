@@ -3,7 +3,8 @@ import numpy as np
 
 # Assuming the following imports exist based on your code context
 from graphix_zx.common import Plane
-from graphix_zx.command import N, E, M, X, Z, Pattern
+from graphix_zx.command import N, E, M, X, Z
+from graphix_zx.pattern import MutablePattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 
 
@@ -30,7 +31,7 @@ class MockStateVector:
 
 @pytest.fixture
 def setup_pattern():
-    pattern = Pattern([0])
+    pattern = MutablePattern([0])
     cmds = [
         N(node=1),
         E(nodes=(0, 1)),
@@ -39,6 +40,8 @@ def setup_pattern():
         Z(node=0, domain=[1]),
     ]
     pattern.extend(cmds)
+    pattern.mark_runnable()
+    pattern.mark_deterministic()
     return pattern
 
 
@@ -50,7 +53,7 @@ def mock_statevector(monkeypatch):
 def test_simulator_initialization(setup_pattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    assert simulator.get_state() == MockStateVector(len(pattern.input_nodes))
+    assert simulator.get_state() == MockStateVector(len(pattern.get_input_nodes()))
 
 
 def test_apply_command_add_node(setup_pattern):
@@ -58,7 +61,7 @@ def test_apply_command_add_node(setup_pattern):
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=2)
     simulator.apply_cmd(cmd)
-    assert len(simulator.node_indices) == len(pattern.input_nodes) + 1
+    assert len(simulator.node_indices) == len(pattern.get_input_nodes()) + 1
 
 
 def test_apply_command_entangle(setup_pattern):
@@ -109,5 +112,5 @@ def test_simulate(setup_pattern):
     simulator.simulate()
     # Assertions depend on expected state after simulation
     # This is a placeholder, adjust according to actual expected state
-    expected_state = MockStateVector(len(pattern.input_nodes))
+    expected_state = MockStateVector(len(pattern.get_input_nodes()))
     assert simulator.get_state() == expected_state

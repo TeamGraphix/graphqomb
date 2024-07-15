@@ -39,7 +39,7 @@ def test_pattern_sim(random_circ):
     simulator.simulate()
     state = simulator.get_state()
     assert np.isclose(state.get_norm(), 1.0)
-    assert set(simulator.node_indices) == set(pattern.output_nodes)
+    assert set(simulator.node_indices) == set(pattern.get_output_nodes())
 
 
 def test_minimum_circ_pattern():
@@ -47,7 +47,6 @@ def test_minimum_circ_pattern():
     circuit.j(0, 0.3 * np.pi)
     graph, gflow = circuit2graph(circuit)
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
-    pattern.print_pattern()
     circ_simulator = MBQCCircuitSimulator(circuit, SimulatorBackend.StateVector)
     circ_simulator.simulate()
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
