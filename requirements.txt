@@ -1,3 +1,4 @@
+eval_type_backport
 numpy>=1.22,<2
 quimb>=1.4.0
 autoray>=0.6.0
