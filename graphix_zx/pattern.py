@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import dataclasses
 
-from graphix_zx.command import Command, CommandKind
+from graphix_zx.command import Command, CommandKind, N, E, M, C, X, Z
 
 
 class NodeAlreadyPreparedError(Exception):
@@ -15,7 +15,6 @@ class NodeAlreadyPreparedError(Exception):
     def node(self):
         return self.__node
 
-    @property
     def __str__(self) -> str:
         return f"Node already prepared: {self.__node}"
 
@@ -127,13 +126,13 @@ class MutablePattern(BasePattern):
         self.__deterministic: bool = False
 
     def add(self, cmd: Command):
-        if cmd.kind == CommandKind.N:
+        if isinstance(cmd, N):
             if cmd.node in self.__output_nodes:
                 raise NodeAlreadyPreparedError(cmd.node)
             self.__Nnode += 1
             self.__output_nodes |= {cmd.node}
             self.__q_indices[cmd.node] = cmd.q_index
-        elif cmd.kind == CommandKind.M:
+        elif isinstance(cmd, M):
             self.__output_nodes -= {cmd.node}
         self.__seq.append(cmd)
 
