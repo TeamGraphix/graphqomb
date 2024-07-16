@@ -6,7 +6,7 @@ from graphix_zx.graphstate import BaseGraphState, GraphState
 from graphix_zx.focus_flow import GFlow, construct_dag
 
 
-def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[BaseGraphState]:
+def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[GraphState]:
     """Get the subgraph sequences."""
     subgraphs = []
     activated_nodes = graph.input_nodes
@@ -45,7 +45,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: GFlow) -> list[int
     meas_order = []
 
     while unmeasured_nodes:
-        meas_candidates = set()
+        meas_candidates: set[int] = set()
         for node in unmeasured_nodes:
             if len(inverted_dag[node]) == 0:
                 meas_candidates |= {node}

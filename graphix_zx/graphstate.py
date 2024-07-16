@@ -18,12 +18,12 @@ class BaseGraphState(ABC):
     # NOTE: input and output nodes are necessary because graph is open graph
     @property
     @abstractmethod
-    def input_nodes(self) -> list[int]:
+    def input_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def output_nodes(self) -> list[int]:
+    def output_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @property
@@ -37,7 +37,13 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_physical_node(self, node: int, is_input: bool = False, is_output: bool = False):
+    def add_physical_node(
+        self,
+        node: int,
+        q_index: int,
+        is_input: bool,
+        is_output: bool,
+    ):
         raise NotImplementedError
 
     @abstractmethod
@@ -80,13 +86,17 @@ class BaseGraphState(ABC):
     def get_meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_q_indices(self) -> dict[int, int]:
+        raise NotImplementedError
+
 
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState"""
 
     def __init__(self):
-        self.__input_nodes: list[int] = []
-        self.__output_nodes: list[int] = []
+        self.__input_nodes: set[int] = {}
+        self.__output_nodes: set[int] = {}
         self.__physical_nodes: set[int] = set()
         self.__physical_edges: dict[int, set[int]] = dict()
         self.__meas_planes: dict[int, Plane] = dict()
@@ -95,11 +105,11 @@ class GraphState(BaseGraphState):
         self.__q_indices: dict[int, int] = dict()
 
     @property
-    def input_nodes(self) -> list[int]:
+    def input_nodes(self) -> set[int]:
         return self.__input_nodes
 
     @property
-    def output_nodes(self) -> list[int]:
+    def output_nodes(self) -> set[int]:
         return self.__output_nodes
 
     @property
@@ -124,9 +134,9 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node] = set()
         self.set_q_index(node, q_index)
         if is_input:
-            self.__input_nodes.append(node)
+            self.__input_nodes |= {node}
         if is_output:
-            self.__output_nodes.append(node)
+            self.__output_nodes |= {node}
 
     def add_physical_edge(self, node1: int, node2: int):
         if node1 not in self.__physical_nodes or node2 not in self.__physical_nodes:
@@ -139,12 +149,12 @@ class GraphState(BaseGraphState):
     def set_input(self, node: int):
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
-        self.__input_nodes.append(node)
+        self.__input_nodes |= {node}
 
     def set_output(self, node: int):
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
-        self.__output_nodes.append(node)
+        self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1):
         if q_index < -1:

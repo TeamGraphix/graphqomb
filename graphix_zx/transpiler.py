@@ -43,7 +43,7 @@ def generate_m_cmd(
 
 # generate signal lists
 def generate_corrections(graph: BaseGraphState, flow: dict[int, set[int]]) -> dict[int, set[int]]:
-    corrections: dict[str, list[int]] = {node: set() for node in graph.get_physical_nodes()}
+    corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
 
     for node in flow.keys():
         for correction in flow[node]:
@@ -121,7 +121,7 @@ def transpile(
 
 def transpile_from_subgraphs(
     subgraphs: list[BaseGraphState],
-    input_nodes: list[int],
+    input_nodes: set[int],
     gflow: GFlow,
 ) -> MutablePattern:
     pattern = MutablePattern(input_nodes=input_nodes)
@@ -129,14 +129,14 @@ def transpile_from_subgraphs(
         sub_input_nodes = subgraph.input_nodes
         sub_output_nodes = subgraph.output_nodes
 
-        sub_internal_nodes = set(subgraph.get_physical_nodes) - set(sub_input_nodes) - set(sub_output_nodes)
+        sub_internal_nodes = set(subgraph.get_physical_nodes()) - set(sub_input_nodes) - set(sub_output_nodes)
         sub_gflow = {node: gflow[node] for node in set(sub_input_nodes) | sub_internal_nodes}
 
-        sub_pattern = transpile(subgraph, sub_gflow, correct_output=False)
+        sub_pattern = transpile_from_flow(subgraph, sub_gflow, correct_output=False)
 
         # TODO: corrections on output
 
-        pattern += sub_pattern
+        pattern = pattern.append_pattern(sub_pattern)
 
     pattern.mark_runnable()
     pattern.mark_deterministic()

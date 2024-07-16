@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from pydantic import BaseModel
 from enum import Enum, auto
 
 import numpy as np
@@ -19,37 +19,33 @@ class GateKind(Enum):
     PhaseGadget = auto()
 
 
-@dataclass(frozen=True)
-class Gate:
+class Gate(BaseModel):
     kind: GateKind
 
     def get_matrix(self) -> NDArray:
         raise NotImplementedError
 
 
-@dataclass(frozen=True)
 class J(Gate):
     kind: GateKind = GateKind.J
-    qubit: int | None = None
+    qubit: int
     angle: float = 0
 
     def get_matrix(self) -> NDArray:
         return np.array([[1, np.exp(-1j * self.angle)], [1, -np.exp(-1j * self.angle)]]) / np.sqrt(2)
 
 
-@dataclass(frozen=True)
 class CZ(Gate):
     kind: GateKind = GateKind.CZ
-    qubits: tuple[int, int] | None = None
+    qubits: tuple[int, int]
 
     def get_matrix(self) -> NDArray:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
 
-@dataclass(frozen=True)
 class PhaseGadget(Gate):
     kind: GateKind = GateKind.PhaseGadget
-    qubits: list[int] | None = None
+    qubits: list[int]
     angle: float = 0
 
     def get_matrix(self) -> NDArray:
