@@ -105,7 +105,8 @@ class PatternSimulator(BasePatternSimulator):
         backend: SimulatorBackend,
         calc_prob: bool = False,
     ):
-        self.__node_indices: list[int] = pattern.get_input_nodes()
+        q_indices = pattern.get_q_indices()
+        self.__node_indices: list[int] = [q_indices[input_node] for input_node in pattern.get_input_nodes()]
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
@@ -197,13 +198,31 @@ class PatternSimulator(BasePatternSimulator):
         for cmd in self.__pattern.get_commands():
             self.apply_cmd(cmd)
 
-        # permute node indices -> output nodes
-        output_nodes = self.__pattern.get_output_nodes()
-        permutation = [
-            output_nodes.index(node) for node in self.__node_indices
-        ]  # TODO: construct permutation based on q_indices
-        self.__node_indices = output_nodes
+        permutation = parse_q_indices(self.__node_indices, self.__pattern.get_q_indices())
+        self.__node_indices = [self.__node_indices[i] for i in permutation]
         self.__state.reorder(permutation)
 
     def get_state(self):
         return self.__state
+
+
+# return permutation
+def parse_q_indices(node_indices: list[int], q_indices: dict[int, int]) -> list[int]:
+    ancilla = set()
+    permutation = [-1 for _ in range(len(node_indices))]
+    # check
+    for node in node_indices:
+        if q_indices[node] == -1:
+            ancilla |= {node}
+        elif q_indices[node] < 0 or q_indices[node] >= len(node_indices):
+            raise ValueError(f"Invalid qubit index {q_indices[node]}")
+        else:
+            permutation[node_indices.index(node)] = q_indices[node]
+
+    # fill ancilla
+    ancilla_pos = len(node_indices) - len(ancilla)
+    for node in ancilla:
+        permutation[node_indices.index(node)] = ancilla_pos
+        ancilla_pos += 1
+
+    return permutation
