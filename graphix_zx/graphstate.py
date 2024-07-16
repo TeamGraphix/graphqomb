@@ -95,8 +95,8 @@ class GraphState(BaseGraphState):
     """Minimal implementation of GraphState"""
 
     def __init__(self):
-        self.__input_nodes: set[int] = {}
-        self.__output_nodes: set[int] = {}
+        self.__input_nodes: set[int] = set()
+        self.__output_nodes: set[int] = set()
         self.__physical_nodes: set[int] = set()
         self.__physical_edges: dict[int, set[int]] = dict()
         self.__meas_planes: dict[int, Plane] = dict()
@@ -195,10 +195,10 @@ class GraphState(BaseGraphState):
         return self.__meas_angles
 
     def append_graph(self, other) -> GraphState:
-        common_nodes = set(self.__physical_nodes) & set(other.__physical_nodes)
-        border_nodes = set(self.__output_nodes) & set(other.__input_nodes)
+        common_nodes = self.get_physical_nodes() & other.get_physical_nodes()
+        border_nodes = self.output_nodes & other.input_nodes
 
-        if not common_nodes != border_nodes:
+        if common_nodes != border_nodes:
             raise Exception("Graphs are not compatible")
 
         new_graph = GraphState()
