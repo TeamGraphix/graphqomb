@@ -340,7 +340,7 @@ def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandK
             count += 1
             print(
                 f"M, node = {pattern[i].node}, "
-                + f"plane = {pattern[i].plane}, angle(pi) = {pattern[i].angle}, "
+                + f"plane = {pattern[i].plane}, angle = {pattern[i].angle}, "
                 + f"s-domain = {pattern[i].s_domain}, t_domain = {pattern[i].t_domain}"
             )
         elif pattern[i].kind == CommandKind.X and (CommandKind.X in cmd_filter):
