@@ -85,10 +85,6 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions: list[Gate] = []
 
     @property
-    def input_nodes(self):
-        return self.__input_nodes
-
-    @property
     def num_qubits(self):
         return self.__num_qubits
 
