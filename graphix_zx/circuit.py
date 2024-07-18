@@ -102,7 +102,7 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, FlowLike]:
+def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
     graph = GraphState()
     flow = dict()
 
