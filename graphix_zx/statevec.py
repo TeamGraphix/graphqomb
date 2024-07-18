@@ -83,7 +83,7 @@ class StateVector(BaseStateVector):
         axes = (list(range(len(qubits), 2 * len(qubits))), qubits)
         state = np.tensordot(operator, state, axes=axes)
 
-        state = np.moveaxis(state, list(range(len(qubits))), qubits).reshape(2**self.__num_qubits)
+        state = np.moveaxis(state, list(range(len(qubits))), qubits)
 
         state = state.reshape(2**self.__num_qubits)
 
@@ -113,9 +113,12 @@ class StateVector(BaseStateVector):
         self.__state /= np.linalg.norm(self.__state)
 
     def reorder(self, permutation: list[int]):
+        # if permutation is [2, 0, 1], then
+        # [q0, q1, q2] -> [q1, q2, q0]
+        axes = [permutation.index(i) for i in range(self.__num_qubits)]
         state = self.__state.reshape([2] * self.__num_qubits)
-        state = np.transpose(state, permutation)
-        self.__state = state.reshape(2**self.__num_qubits)
+        state = state.transpose(axes).flatten()
+        self.__state = state
 
     # check if qubit is isolated(product state)
     def is_isolated(self, qubit: int) -> bool:

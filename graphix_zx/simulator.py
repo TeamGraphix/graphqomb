@@ -199,7 +199,10 @@ class PatternSimulator(BasePatternSimulator):
             self.apply_cmd(cmd)
 
         permutation = parse_q_indices(self.__node_indices, self.__pattern.get_q_indices())
-        self.__node_indices = [self.__node_indices[i] for i in permutation]
+        new_indices = [-1 for _ in range(len(permutation))]
+        for i in range(len(permutation)):
+            new_indices[permutation[i]] = self.__node_indices[i]
+        self.__node_indices = new_indices
         self.__state.reorder(permutation)
 
     def get_state(self):
