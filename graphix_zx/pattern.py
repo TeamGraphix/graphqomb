@@ -198,7 +198,7 @@ class MutablePattern(BasePattern):
     def get_nodes(self):
         nodes = set()
         for cmd in self.__seq:
-            if cmd.kind == CommandKind.N:
+            if isinstance(cmd, N):
                 nodes |= {cmd.node}
         return nodes
 
@@ -232,7 +232,7 @@ class MutablePattern(BasePattern):
     def get_meas_planes(self):
         meas_plane = dict()
         for cmd in self.__seq:
-            if cmd.kind == CommandKind.M:
+            if isinstance(cmd, M):
                 mplane = cmd.plane
                 meas_plane[cmd.node] = mplane
         return meas_plane
@@ -240,7 +240,7 @@ class MutablePattern(BasePattern):
     def get_meas_angles(self):
         angles = {}
         for cmd in self.__seq:
-            if cmd.kind == CommandKind.M:
+            if isinstance(cmd, M):
                 angles[cmd.node] = cmd.angle
         return angles
 
