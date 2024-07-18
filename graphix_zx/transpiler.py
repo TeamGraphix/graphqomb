@@ -94,7 +94,7 @@ def transpile(
 
     pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
     pattern.extend([N(node=node, q_index=q_indices[node]) for node in internal_nodes])
-    pattern.extend([N(node=node, q_index=q_indices[node]) for node in output_nodes])
+    pattern.extend([N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes])
     pattern.extend([E(nodes=edge) for edge in graph.get_physical_edges()])
     pattern.extend(
         [
