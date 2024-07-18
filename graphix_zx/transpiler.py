@@ -5,8 +5,8 @@ from __future__ import annotations
 from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.pattern import MutablePattern
+from graphix_zx.flow import FlowLike
 from graphix_zx.focus_flow import (
-    GFlow,
     oddneighbors,
     topological_sort_kahn,
 )
@@ -42,7 +42,7 @@ def generate_m_cmd(
 
 
 # generate signal lists
-def generate_corrections(graph: BaseGraphState, flow: dict[int, set[int]]) -> dict[int, set[int]]:
+def generate_corrections(graph: BaseGraphState, flow: FlowLike) -> dict[int, set[int]]:
     corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
 
     for node in flow.keys():
@@ -56,7 +56,7 @@ def generate_corrections(graph: BaseGraphState, flow: dict[int, set[int]]) -> di
     return corrections
 
 
-def transpile_from_flow(graph: BaseGraphState, gflow: GFlow, correct_output: bool = True) -> MutablePattern:
+def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> MutablePattern:
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
@@ -122,7 +122,7 @@ def transpile(
 def transpile_from_subgraphs(
     subgraphs: list[BaseGraphState],
     input_nodes: set[int],
-    gflow: GFlow,
+    gflow: FlowLike,
 ) -> MutablePattern:
     pattern = MutablePattern(input_nodes=input_nodes)
     for subgraph in subgraphs:

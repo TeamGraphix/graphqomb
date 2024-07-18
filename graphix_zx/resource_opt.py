@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from graphix_zx.graphstate import BaseGraphState, GraphState
-from graphix_zx.focus_flow import GFlow, construct_dag
+from graphix_zx.flow import FlowLike
+from graphix_zx.focus_flow import construct_dag
 
 
 def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[GraphState]:
@@ -36,7 +37,7 @@ def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list
     return subgraphs
 
 
-def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: GFlow) -> list[int]:
+def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[int]:
     """Get the minimized space measurement order."""
     inverted_dag = get_dependencies(graph, gflow)
     activated_nodes = set(graph.input_nodes)
@@ -63,7 +64,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: GFlow) -> list[int
     return meas_order
 
 
-def get_dependencies(graph: BaseGraphState, gflow: GFlow) -> dict[int, set[int]]:
+def get_dependencies(graph: BaseGraphState, gflow: FlowLike) -> dict[int, set[int]]:
     """Get the dependencies."""
     dag = construct_dag(gflow, graph)
     inverted_dag: dict[int, set[int]] = {node: set() for node in dag.keys()}

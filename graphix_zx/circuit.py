@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from graphix_zx.common import Plane
+from graphix_zx.flow import FlowLike
 from graphix_zx.graphstate import GraphState, BaseGraphState
 
 
@@ -101,7 +102,7 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, dict[int, set[int]]]:
+def circuit2graph(circuit: BaseCircuit) -> tuple[BaseGraphState, FlowLike]:
     graph = GraphState()
     flow = dict()
 
