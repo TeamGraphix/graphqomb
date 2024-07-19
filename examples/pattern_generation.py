@@ -13,7 +13,7 @@ from graphix_zx.simulator import (
 # %%
 # generate circuit
 circuit = MBQCCircuit(3)
-circuit.j(0, 0 * np.pi)
+circuit.j(0, 0.5 * np.pi)
 circuit.cz(0, 1)
 circuit.cz(0, 2)
 circuit.j(1, 0.75 * np.pi)
