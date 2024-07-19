@@ -116,8 +116,6 @@ def transpile(
         pattern.extend([Z(node=node, domain=z_corrections[node]) for node in output_nodes])
     # TODO: add Clifford commands on the output nodes
 
-    # NOTE: not guaranteed to be runnable before validating flows
-    # pattern.mark_runnable()
     return pattern
 
 
