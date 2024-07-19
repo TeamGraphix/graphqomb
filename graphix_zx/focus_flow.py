@@ -63,17 +63,16 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
         raise ValueError("Cycle detected in the graph")
 
 
-def focus_gflow(gflow: FlowLike, graph: BaseGraphState, meas_planes: dict[int, str]) -> FlowLike:
+def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:
     # TODO: check the validity of the gflow if possible in fast way
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
-
     topo_order = topological_sort_kahn(construct_dag(gflow, graph))
 
     for output in outputs:
         topo_order.remove(output)
 
     for target in topo_order:
-        gflow = focus(target, gflow, graph, meas_planes, topo_order)
+        gflow = focus(target, gflow, graph, topo_order)
 
     return gflow
 
@@ -82,24 +81,23 @@ def focus(
     target: int,
     gflow: FlowLike,
     graph: BaseGraphState,
-    meas_planes: dict[int, str],
     topo_order: list[int],
 ) -> FlowLike:
-    k = 0
+    meas_planes = graph.get_meas_planes()
 
-    s_k = find_non_focused_signals(target, gflow, graph, meas_planes)
+    k = 0
+    s_k = find_non_focused_signals(target, gflow, graph)
     while s_k:
         gflow = update_gflow(target, gflow, s_k, topo_order)
-        s_k = find_non_focused_signals(target, gflow, graph, meas_planes)
+        s_k = find_non_focused_signals(target, gflow, graph)
 
         k += 1
 
     return gflow
 
 
-def find_non_focused_signals(
-    target: int, gflow: FlowLike, graph: BaseGraphState, meas_planes: dict[int, str]
-) -> set[int]:
+def find_non_focused_signals(target: int, gflow: FlowLike, graph: BaseGraphState) -> set[int]:
+    meas_planes = graph.get_meas_planes()
     non_outputs = {node for node in gflow.keys()}
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
@@ -120,9 +118,11 @@ def update_gflow(target: int, gflow: FlowLike, s_k: set[int], topo_order: list[i
     return gflow
 
 
-def is_focused(gflow: FlowLike, graph: BaseGraphState, meas_planes: dict[int, str]):
-    focused = True
+def is_focused(gflow: FlowLike, graph: BaseGraphState) -> bool:
+    meas_planes = graph.get_meas_planes()
     outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
+
+    focused = True
     for node in gflow.keys():
         for child in gflow[node]:
             if child in outputs:
