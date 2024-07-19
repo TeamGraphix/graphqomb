@@ -20,48 +20,48 @@ CZ_TENSOR = np.array(
 class BaseStateVector(ABC):
     @abstractmethod
     def __init__(self, num_qubits: int, state: NDArray | None = None):
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def num_qubits(self) -> int:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def evolve(self, operator: NDArray, qubits: list[int]):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def measure(self, qubit: int, plane: Plane, angle: float, result: int):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def tensor_product(self, other: BaseStateVector):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def normalize(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def reorder(self, permutation: list[int]):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_state_vector(self) -> NDArray:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_norm(self) -> float:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_density_matrix(self) -> NDArray:
-        pass
+        raise NotImplementedError
 
 
 class StateVector(BaseStateVector):
@@ -77,6 +77,12 @@ class StateVector(BaseStateVector):
         return self.__num_qubits
 
     def evolve(self, operator: NDArray, qubits: list[int]):
+        """apply operator to state
+
+        Args:
+            operator (NDArray): quantum operator matrix
+            qubits (list[int]): target qubits
+        """
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
@@ -90,6 +96,14 @@ class StateVector(BaseStateVector):
         self.__state = state
 
     def measure(self, qubit: int, plane: Plane, angle: float, result: int):
+        """measure qubit in specified basis
+
+        Args:
+            qubit (int): target qubit
+            plane (Plane): measurement plane
+            angle (float): measurement angle
+            result (int): measurement result
+        """
         basis = get_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
         state = np.tensordot(basis.conjugate(), state, axes=(0, qubit))
@@ -99,29 +113,58 @@ class StateVector(BaseStateVector):
         self.__num_qubits -= 1
 
     def add_node(self, num_qubits: int):
+        """add |+> state to the end of state vector
+
+        Args:
+            num_qubits (int): number of qubits to be added
+        """
         self.__state = np.kron(self.__state, np.ones(2**num_qubits) / np.sqrt(2**num_qubits))
         self.__num_qubits += num_qubits
 
     def entangle(self, qubits: tuple[int, int]):
+        """entangle two qubits
+
+        Args:
+            qubits (tuple[int, int]): target qubits
+        """
         self.evolve(CZ_TENSOR, list(qubits))
 
     def tensor_product(self, other: BaseStateVector):
+        """tensor product with other state vector
+
+        Args:
+            other (BaseStateVector): other state vector
+        """
         self.__state = np.kron(self.__state, other.get_state_vector())
         self.__num_qubits += other.num_qubits
 
     def normalize(self):
+        """normalize state vector"""
         self.__state /= np.linalg.norm(self.__state)
 
     def reorder(self, permutation: list[int]):
-        # if permutation is [2, 0, 1], then
+        """permute qubits
+
+        if permutation is [2, 0, 1], then
         # [q0, q1, q2] -> [q1, q2, q0]
+
+        Args:
+            permutation (list[int]): permutation list
+        """
         axes = [permutation.index(i) for i in range(self.__num_qubits)]
         state = self.__state.reshape([2] * self.__num_qubits)
         state = state.transpose(axes).flatten()
         self.__state = state
 
-    # check if qubit is isolated(product state)
     def is_isolated(self, qubit: int) -> bool:
+        """check if qubit is isolated(product state)
+
+        Args:
+            qubit (int): target qubit
+
+        Returns:
+            bool: True if isolated, False otherwise
+        """
         state = self.__state.reshape([2] * self.__num_qubits)
         state0 = state.take(indices=0, axis=qubit)
         state1 = state.take(indices=1, axis=qubit)
@@ -134,13 +177,32 @@ class StateVector(BaseStateVector):
 
         return np.isclose(match_rate, 1.0)
 
-    def get_norm(self) -> float:
-        return float(np.linalg.norm(self.__state))
-
     def get_state_vector(self) -> NDArray:
+        """get state vector as numpy array
+
+        Returns:
+            NDArray: state vector
+        """
         return self.__state
 
+    def get_norm(self) -> float:
+        """get norm of state vector
+
+        Returns:
+            float: norm of state vector
+        """
+        return float(np.linalg.norm(self.__state))
+
     def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
+        """calculate expectation value of operator
+
+        Args:
+            operator (NDArray): Hermitian operator matrix
+            qubits (list[int]): target qubits
+
+        Returns:
+            float: expectation value
+        """
         # TODO: check Hermitian
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
@@ -153,10 +215,30 @@ class StateVector(BaseStateVector):
         return np.dot(self.__state.conjugate(), state) / np.linalg.norm(self.__state) ** 2
 
     def get_density_matrix(self) -> NDArray:
+        """get density matrix
+
+        Raises:
+            NotImplementedError: _description_
+
+        Returns:
+            NDArray: density matrix
+        """
         raise NotImplementedError
 
 
 def get_basis(plane: Plane, angle: float) -> NDArray:
+    """get basis
+
+    Args:
+        plane (Plane): plane
+        angle (float): angle
+
+    Raises:
+        ValueError: invalid plane
+
+    Returns:
+        NDArray: basis
+    """
     if plane == Plane.XY:
         return np.array([1, np.exp(1j * angle)]) / np.sqrt(2)
     elif plane == Plane.YZ:
