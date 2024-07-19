@@ -302,7 +302,68 @@ def is_standardized(pattern: BasePattern) -> bool:
 
 
 def is_runnable(pattern: BasePattern) -> bool:
-    raise NotImplementedError
+    runnable = True
+    if not check_rule0(pattern):
+        runnable = False
+    if not check_rule1(pattern):
+        runnable = False
+    if not check_rule2(pattern):
+        runnable = False
+    if not check_rule3(pattern):
+        runnable = False
+    return runnable
+
+
+# no command depends on an output not yet measured
+def check_rule0(pattern: BasePattern) -> bool:
+    measured = set()
+    for cmd in pattern:
+        if isinstance(cmd, M):
+            if len(cmd.s_domain & measured) > 0:
+                return False
+            elif len(cmd.t_domain & measured) > 0:
+                return False
+            measured.add(cmd.node)
+        elif isinstance(cmd, X) or isinstance(cmd, Z):
+            if len(cmd.domain & measured) > 0:
+                return False
+
+    return True
+
+
+# no command acts on a qubit already measured
+def check_rule1(pattern: BasePattern) -> bool:
+    measured = set()
+    for cmd in pattern:
+        if isinstance(cmd, M):
+            if cmd.node in measured:
+                return False
+            measured.add(cmd.node)
+        else:
+            if cmd.node in measured:
+                return False
+    return True
+
+
+# no command acts on a qubit not yet prepared, unless it is an input qubit
+def check_rule2(pattern: BasePattern) -> bool:
+    prepared = set(pattern.get_input_nodes())
+    for cmd in pattern:
+        if isinstance(cmd, N):
+            prepared.add(cmd.node)
+        elif cmd.node not in prepared:
+            return False
+    return True
+
+
+# a qubit i is measured if and only if i is not an output
+def check_rule3(pattern: BasePattern) -> bool:
+    output_nodes = pattern.get_output_nodes()
+    for cmd in pattern:
+        if isinstance(cmd, M):
+            if cmd.node in output_nodes:
+                return False
+    return True
 
 
 # NOTE: generally, difficult to prove that a pattern is deterministic
