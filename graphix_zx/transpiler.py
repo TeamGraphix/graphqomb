@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Dict, Set
+
 from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.pattern import MutablePattern
@@ -12,15 +14,33 @@ from graphix_zx.focus_flow import (
 )
 from graphix_zx.graphstate import BaseGraphState
 
+Correction = Set[int]
+CorrectionMap = Dict[int, Correction]
+
 
 # extended MBQC
 def generate_m_cmd(
     node: int,
     meas_plane: Plane,
     meas_angle: float,
-    x_correction: set[int],
-    z_correction: set[int],
+    x_correction: Correction,
+    z_correction: Correction,
 ) -> M:
+    """Generate a measurement command.
+
+    Args:
+        node (int): node to be measured
+        meas_plane (Plane): measurement plane
+        meas_angle (float): measurement angle
+        x_correction (Correction): x correction applied to the node
+        z_correction (Correction): z correction applied to the node
+
+    Raises:
+        ValueError: invalid measurement plane
+
+    Returns:
+        M: measurement command
+    """
     if meas_plane == Plane.XY:
         s_domain = x_correction
         t_domain = z_correction
@@ -41,12 +61,20 @@ def generate_m_cmd(
     )
 
 
-# generate signal lists
-def generate_corrections(graph: BaseGraphState, flow: FlowLike) -> dict[int, set[int]]:
+def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> CorrectionMap:
+    """Generate correction from flowlike object
+
+    Args:
+        graph (BaseGraphState): graph state
+        flowlike (FlowLike): flowlike object
+
+    Returns:
+        CorrectionMap : correction dictionary
+    """
     corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
 
-    for node in flow.keys():
-        for correction in flow[node]:
+    for node in flowlike.keys():
+        for correction in flowlike[node]:
             corrections[correction] |= {node}
 
     # remove self-corrections
@@ -57,6 +85,17 @@ def generate_corrections(graph: BaseGraphState, flow: FlowLike) -> dict[int, set
 
 
 def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> MutablePattern:
+    """transpile pattern from gflow object
+
+    Args:
+        graph (BaseGraphState): graph state
+        gflow (FlowLike): gflow
+        correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
+
+    Returns:
+        MutablePattern: mutable pattern
+    """
+    # TODO: check the validity of the flows
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
@@ -73,15 +112,25 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
     return pattern
 
 
-# generate standardized pattern from underlying graph and gflow
 def transpile(
     graph: BaseGraphState,
-    x_corrections: dict[int, set[int]],
-    z_corrections: dict[int, set[int]],
+    x_corrections: CorrectionMap,
+    z_corrections: CorrectionMap,
     dag: dict[int, set[int]],
     correct_output: bool = True,
 ) -> MutablePattern:
-    # TODO : check the validity of the flows
+    """transpile pattern from graph, corrections, and dag
+
+    Args:
+        graph (BaseGraphState): graph state
+        x_corrections (CorrectionMap): x corrections
+        z_corrections (CorrectionMap): z corrections
+        dag (dict[int, set[int]]): directed acyclic graph
+        correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
+
+    Returns:
+        MutablePattern: mutable pattern
+    """
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
     meas_planes = graph.get_meas_planes()
@@ -124,6 +173,16 @@ def transpile_from_subgraphs(
     subgraphs: list[BaseGraphState],
     gflow: FlowLike,
 ) -> MutablePattern:
+    """Generate a pattern from subgraph sequence
+
+    Args:
+        graph (BaseGraphState): graph state
+        subgraphs (list[BaseGraphState]): subgraph sequence
+        gflow (FlowLike): gflow
+
+    Returns:
+        MutablePattern: mutable pattern
+    """
     pattern = MutablePattern()
 
     xflow = gflow
