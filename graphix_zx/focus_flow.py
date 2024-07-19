@@ -83,8 +83,6 @@ def focus(
     graph: BaseGraphState,
     topo_order: list[int],
 ) -> FlowLike:
-    meas_planes = graph.get_meas_planes()
-
     k = 0
     s_k = find_non_focused_signals(target, gflow, graph)
     while s_k:
