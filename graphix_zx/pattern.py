@@ -161,7 +161,7 @@ class MutablePattern(BasePattern):
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
         if common_nodes != border_nodes:
-            raise ValueError("Patterns are not compatible")
+            raise ValueError(f"Patterns are not compatible. Common nodes: {common_nodes}, border nodes: {border_nodes}")
 
         new_input_nodes = self.get_input_nodes() | (pattern.get_input_nodes() - common_nodes)
         new_input_q_indices = dict()
@@ -196,7 +196,7 @@ class MutablePattern(BasePattern):
         return dict(self.__q_indices)
 
     def get_nodes(self):
-        nodes = set()
+        nodes = set(self.__input_nodes)
         for cmd in self.__seq:
             if isinstance(cmd, N):
                 nodes |= {cmd.node}
