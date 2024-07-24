@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from graphix_zx.graphstate import BaseGraphState, GraphState
-from graphix_zx.flow import FlowLike
-from graphix_zx.focus_flow import construct_dag
+from graphix_zx.flow import FlowLike, construct_dag
 
 
 def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[GraphState]:
