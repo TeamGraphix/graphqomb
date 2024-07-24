@@ -11,6 +11,36 @@ FlowLike = Dict[int, Set[int]]
 Layer = Dict[int, int]
 
 
+def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
+    odd_neighbors: set[int] = set()
+    for node in nodes:
+        odd_neighbors ^= set(graph.get_neighbors(node))
+    return odd_neighbors
+
+
+def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
+    dag = dict()
+    outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
+    for node in gflow.keys():
+        dag[node] = (gflow[node] | oddneighbors(gflow[node], graph)) - {node}
+    for output in outputs:
+        dag[output] = set()
+
+    if check:
+        if not check_dag(dag):
+            raise ValueError("Cycle detected in the graph")
+
+    return dag
+
+
+def check_dag(dag: dict[int, set[int]]) -> bool:
+    for node in dag.keys():
+        for child in dag[node]:
+            if node in dag[child]:
+                return False
+    return True
+
+
 def find_flow(
     graph: BaseGraphState,
 ) -> tuple[FlowLike, Layer]:
@@ -46,7 +76,8 @@ def check_causality(
     graph: BaseGraphState,
     gflow: FlowLike,
 ) -> bool:
-    raise NotImplementedError
+    dag = construct_dag(gflow, graph)
+    return check_dag(dag)
 
 
 # NOTE: want to include Pauli simplification effect

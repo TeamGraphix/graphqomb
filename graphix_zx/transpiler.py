@@ -7,9 +7,8 @@ from typing import Dict, Set
 from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.pattern import MutablePattern
-from graphix_zx.flow import FlowLike
+from graphix_zx.flow import FlowLike, oddneighbors
 from graphix_zx.focus_flow import (
-    oddneighbors,
     topological_sort_kahn,
 )
 from graphix_zx.graphstate import BaseGraphState

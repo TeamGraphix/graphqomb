@@ -4,38 +4,8 @@ from __future__ import annotations
 
 
 from graphix_zx.common import Plane
-from graphix_zx.flow import FlowLike
+from graphix_zx.flow import FlowLike, oddneighbors, construct_dag
 from graphix_zx.graphstate import BaseGraphState
-
-
-def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
-    odd_neighbors: set[int] = set()
-    for node in nodes:
-        odd_neighbors ^= set(graph.get_neighbors(node))
-    return odd_neighbors
-
-
-def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
-    dag = dict()
-    outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
-    for node in gflow.keys():
-        dag[node] = (gflow[node] | oddneighbors(gflow[node], graph)) - {node}
-    for output in outputs:
-        dag[output] = set()
-
-    if check:
-        if not check_dag(dag):
-            raise ValueError("Cycle detected in the graph")
-
-    return dag
-
-
-def check_dag(dag: dict[int, set[int]]) -> bool:
-    for node in dag.keys():
-        for child in dag[node]:
-            if node in dag[child]:
-                return False
-    return True
 
 
 def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:

@@ -316,7 +316,7 @@ def is_runnable(pattern: BasePattern) -> bool:
 
 # no command depends on an output not yet measured
 def check_rule0(pattern: BasePattern) -> bool:
-    measured = set()
+    measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
             if len(cmd.s_domain & measured) > 0:
