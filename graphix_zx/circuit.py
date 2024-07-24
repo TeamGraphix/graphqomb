@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 from graphix_zx.common import Plane
 from graphix_zx.flow import FlowLike
-from graphix_zx.graphstate import GraphState, BaseGraphState
+from graphix_zx.graphstate import GraphState
 
 
 class GateKind(Enum):
