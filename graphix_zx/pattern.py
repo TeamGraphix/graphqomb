@@ -38,6 +38,10 @@ class BasePattern(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_nodes(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def get_q_indices(self):
         raise NotImplementedError
 
@@ -72,6 +76,13 @@ class ImmutablePattern(BasePattern):
 
     def get_output_nodes(self):
         return set(self.output_nodes)
+
+    def get_nodes(self):
+        nodes = set(self.input_nodes)
+        for cmd in self.seq:
+            if isinstance(cmd, N):
+                nodes |= {cmd.node}
+        return nodes
 
     def get_q_indices(self):
         return dict(self.q_indices)
@@ -156,7 +167,7 @@ class MutablePattern(BasePattern):
         self.extend(cmds)
 
     # should support immutable pattern as well?
-    def append_pattern(self, pattern: MutablePattern):
+    def append_pattern(self, pattern: MutablePattern | ImmutablePattern):
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
