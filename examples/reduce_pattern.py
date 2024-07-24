@@ -43,8 +43,7 @@ print_pattern(reduced_pattern)
 
 # %%
 # compare the result with the circuit simulator
-locked_pattern = reduced_pattern.freeze()
-simulator = PatternSimulator(locked_pattern, SimulatorBackend.StateVector)
+simulator = PatternSimulator(reduced_pattern, SimulatorBackend.StateVector)
 simulator.simulate()
 state = simulator.get_state()
 statevec = state.get_state_vector()

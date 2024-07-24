@@ -40,8 +40,7 @@ print_pattern(pattern)
 
 # %%
 # simulate the pattern
-locked_pattern = pattern.freeze()
-simulator = PatternSimulator(locked_pattern, SimulatorBackend.StateVector)
+simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
 simulator.simulate()
 state = simulator.get_state()
 statevec = state.get_state_vector()
