@@ -6,8 +6,8 @@ from typing import Dict, Set
 
 from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, X, Z
-from graphix_zx.pattern import MutablePattern
-from graphix_zx.flow import FlowLike, oddneighbors
+from graphix_zx.pattern import MutablePattern, ImmutablePattern
+from graphix_zx.flow import FlowLike, oddneighbors, check_causality
 from graphix_zx.focus_flow import (
     topological_sort_kahn,
 )
@@ -83,7 +83,7 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
     return corrections
 
 
-def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> MutablePattern:
+def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> ImmutablePattern:
     """transpile pattern from gflow object
 
     Args:
@@ -92,9 +92,13 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
         correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
 
     Returns:
-        MutablePattern: mutable pattern
+        ImmutablePattern: immutable pattern
     """
     # TODO: check the validity of the flows
+    if not check_causality(graph, gflow):
+        raise ValueError("Invalid flow")
+    # stabilizer check?
+
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
@@ -108,7 +112,7 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
     pattern = transpile(graph, x_corrections, z_corrections, dag, correct_output)
     pattern.mark_runnable()
     pattern.mark_deterministic()
-    return pattern
+    return pattern.freeze()
 
 
 def transpile(
@@ -171,7 +175,7 @@ def transpile_from_subgraphs(
     graph: BaseGraphState,
     subgraphs: list[BaseGraphState],
     gflow: FlowLike,
-) -> MutablePattern:
+) -> ImmutablePattern:
     """Generate a pattern from subgraph sequence
 
     Args:
@@ -180,8 +184,12 @@ def transpile_from_subgraphs(
         gflow (FlowLike): gflow
 
     Returns:
-        MutablePattern: mutable pattern
+        ImmutablePattern: immutable pattern
     """
+    if not check_causality(graph, gflow):
+        raise ValueError("Invalid flow")
+    # stabilizer check?
+
     pattern = MutablePattern()
 
     xflow = gflow
@@ -218,4 +226,4 @@ def transpile_from_subgraphs(
     pattern.mark_runnable()
     pattern.mark_deterministic()
 
-    return pattern
+    return pattern.freeze()

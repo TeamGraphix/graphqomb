@@ -7,7 +7,7 @@ import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, Gate, J, CZ, PhaseGadget
 from graphix_zx.command import CommandKind
-from graphix_zx.pattern import BasePattern, MutablePattern, ImmutablePattern
+from graphix_zx.pattern import ImmutablePattern
 from graphix_zx.statevec import BaseStateVector, StateVector
 
 
@@ -101,7 +101,7 @@ class BasePatternSimulator(ABC):
 class PatternSimulator(BasePatternSimulator):
     def __init__(
         self,
-        pattern: BasePattern,
+        pattern: ImmutablePattern,
         backend: SimulatorBackend,
         calc_prob: bool = False,
     ):
@@ -110,11 +110,7 @@ class PatternSimulator(BasePatternSimulator):
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
-
-        if isinstance(pattern, MutablePattern):
-            self.__pattern = pattern.freeze()
-        elif isinstance(pattern, ImmutablePattern):
-            self.__pattern = pattern
+        self.__pattern = pattern
 
         if not self.__pattern.is_runnable():
             raise ValueError("Pattern is not runnable")
