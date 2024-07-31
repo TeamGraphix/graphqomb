@@ -50,7 +50,14 @@ class PhaseGadget(Gate):
     angle: float = 0
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        def count_ones_in_binary(array):
+            count_ones = np.vectorize(lambda x: bin(x).count("1"))
+            return count_ones(array)
+
+        index_array = np.arange(2 ** len(self.qubits))
+        z_sign = (-1) ** count_ones_in_binary(index_array)
+        matrix = np.diag(np.exp(-1j * self.angle / 2 * z_sign))
+        return matrix
 
 
 class BaseCircuit(ABC):
@@ -73,10 +80,6 @@ class BaseCircuit(ABC):
 
     @abstractmethod
     def cz(self, qubit1: int, qubit2: int):
-        raise NotImplementedError
-
-    @abstractmethod
-    def phase_gadget(self, qubits: list[int], angle: float):
         raise NotImplementedError
 
 
@@ -132,7 +135,15 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
         elif isinstance(instruction, CZ):
             graph.add_physical_edge(front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]])
         elif isinstance(instruction, PhaseGadget):
-            raise NotImplementedError
+            graph.add_physical_node(num_nodes)
+            graph.set_meas_angle(num_nodes, instruction.angle)
+            graph.set_meas_plane(num_nodes, Plane.YZ)
+            for qubit in instruction.qubits:
+                graph.add_physical_edge(front_nodes[qubit], num_nodes)
+
+            flow[num_nodes] = {num_nodes}
+
+            num_nodes += 1
         else:
             raise ValueError("Invalid instruction")
 

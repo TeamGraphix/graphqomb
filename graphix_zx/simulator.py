@@ -63,7 +63,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         elif isinstance(gate, PhaseGadget):
             if gate.qubits is None:
                 raise ValueError("Invalid qubit")
-            raise NotImplementedError
+            self.__state.evolve(operator, gate.qubits)
         else:
             raise ValueError("Invalid gate")
 
