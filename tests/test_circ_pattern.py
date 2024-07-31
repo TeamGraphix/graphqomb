@@ -21,7 +21,23 @@ def random_circ():
     circ.cz(1, 2)
     circ.j(2, 0.25 * np.pi)
     circ.j(1, 0.75 * np.pi)
-    # circ.phase_gadget([0, 2], 0.25)
+    return circ
+
+
+@pytest.fixture
+def random_circ_with_phase_gadget():
+    circ = MBQCCircuit(3)
+    circ.j(0, 0.5 * np.pi)
+    circ.cz(0, 1)
+    circ.cz(1, 2)
+    circ.j(2, 0.25 * np.pi)
+    circ.j(1, 0.75 * np.pi)
+    circ.phase_gadget([0, 2], 0.5 * np.pi)
+    circ.cz(0, 2)
+    circ.j(0, 0.25 * np.pi)
+    circ.cz(0, 1)
+    circ.cz(1, 2)
+    circ.j(2, 0.25 * np.pi)
     return circ
 
 
@@ -64,6 +80,21 @@ def test_match_circ_pattern(random_circ):
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
 
     circ_sim = MBQCCircuitSimulator(random_circ, SimulatorBackend.StateVector)
+    circ_sim.simulate()
+    pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    pattern_sim.simulate()
+
+    circ_state = circ_sim.get_state().get_state_vector()
+    pattern_state = pattern_sim.get_state().get_state_vector()
+    inner_prod = np.vdot(circ_state, pattern_state)
+    assert np.isclose(np.abs(inner_prod), 1.0)
+
+
+def test_match_circ_pattern_with_phase_gadget(random_circ_with_phase_gadget):
+    graph, gflow = circuit2graph(random_circ_with_phase_gadget)
+    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+
+    circ_sim = MBQCCircuitSimulator(random_circ_with_phase_gadget, SimulatorBackend.StateVector)
     circ_sim.simulate()
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
     pattern_sim.simulate()
