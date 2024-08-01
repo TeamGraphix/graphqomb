@@ -32,7 +32,7 @@ class J(Gate):
     kind: GateKind = GateKind.J
 
     def get_matrix(self) -> NDArray:
-        return np.array([[1, np.exp(-1j * self.angle)], [1, -np.exp(-1j * self.angle)]]) / np.sqrt(2)
+        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,16 @@ class PhaseGadget(Gate):
         return matrix
 
 
+class MacroGate(ABC):
+    @abstractmethod
+    def get_unit_gates(self) -> list[Gate]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_matrix(self) -> NDArray:
+        raise NotImplementedError
+
+
 class BaseCircuit(ABC):
     @abstractmethod
     def __init__(self):
@@ -73,14 +83,6 @@ class BaseCircuit(ABC):
 
     @abstractmethod
     def get_instructions(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def j(self, qubit: int, angle: float):
-        raise NotImplementedError
-
-    @abstractmethod
-    def cz(self, qubit1: int, qubit2: int):
         raise NotImplementedError
 
 
@@ -106,9 +108,28 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
+class MacroCircuit(BaseCircuit):
+    def __init__(self, qubits: int):
+        self.__num_qubits: int = qubits
+        self.__macro_gate_instructions: list[MacroGate] = []
+
+    @property
+    def num_qubits(self):
+        return self.__num_qubits
+
+    def get_instructions(self):
+        gate_instructions = []
+        for macro_gate in self.__macro_gate_instructions:
+            gate_instructions.extend(macro_gate.get_unit_gates())
+        return gate_instructions
+
+    def apply_custom_gate(self, gate: MacroGate):
+        raise NotImplementedError
+
+
 def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
     graph = GraphState()
-    flow = dict()
+    gflow = dict()
 
     front_nodes = []  # list index  corresponds to qubit index
     num_nodes = 0
@@ -125,10 +146,10 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
             graph.add_physical_node(num_nodes)
             graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
             graph.set_meas_plane(front_nodes[instruction.qubit], Plane.XY)
-            graph.set_meas_angle(front_nodes[instruction.qubit], instruction.angle)
+            graph.set_meas_angle(front_nodes[instruction.qubit], -instruction.angle)
             graph.set_q_index(num_nodes, instruction.qubit)
 
-            flow[front_nodes[instruction.qubit]] = {num_nodes}
+            gflow[front_nodes[instruction.qubit]] = {num_nodes}
             front_nodes[instruction.qubit] = num_nodes
 
             num_nodes += 1
@@ -142,7 +163,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
             for qubit in instruction.qubits:
                 graph.add_physical_edge(front_nodes[qubit], num_nodes)
 
-            flow[num_nodes] = {num_nodes}
+            gflow[num_nodes] = {num_nodes}
 
             num_nodes += 1
         else:
@@ -151,4 +172,4 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
     for node in front_nodes:
         graph.set_output(node)
 
-    return graph, flow
+    return graph, gflow
