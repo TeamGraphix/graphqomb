@@ -202,7 +202,7 @@ class U3(MacroSingleGate):
         ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class CNOT(MacroMultiGate):
     control: int
     target: int
@@ -218,7 +218,7 @@ class CNOT(MacroMultiGate):
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
 
-@dataclass
+@dataclass(frozen=True)
 class SWAP(MacroMultiGate):
     qubit1: int
     qubit2: int
@@ -245,7 +245,7 @@ class SWAP(MacroMultiGate):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CRz(MacroMultiGate):
     control: int
     target: int
@@ -274,7 +274,7 @@ class CRz(MacroMultiGate):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CRx(MacroMultiGate):
     control: int
     target: int
@@ -304,7 +304,7 @@ class CRx(MacroMultiGate):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CU3(MacroMultiGate):
     control: int
     target: int
@@ -347,7 +347,7 @@ class CU3(MacroMultiGate):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CCZ(MacroMultiGate):
     control1: int
     control2: int
@@ -381,7 +381,7 @@ class CCZ(MacroMultiGate):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Toffoli(MacroMultiGate):
     control1: int
     control2: int
