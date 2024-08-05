@@ -36,9 +36,7 @@ class J(Gate):
         return [self]
 
     def get_matrix(self) -> NDArray:
-        return np.array(
-            [[1, np.exp(-1j * self.angle)], [1, -np.exp(-1j * self.angle)]]
-        ) / np.sqrt(2)
+        return np.array([[1, np.exp(-1j * self.angle)], [1, -np.exp(-1j * self.angle)]]) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -146,6 +144,14 @@ class S(MacroSingleGate):
 
 
 @dataclass(frozen=True)
+class T(MacroSingleGate):
+    qubit: int
+
+    def get_unit_gates(self) -> list[Gate]:
+        return [J(self.qubit, 0), J(self.qubit, np.pi / 4)]
+
+
+@dataclass(frozen=True)
 class Rx(MacroSingleGate):
     qubit: int
     angle: float
@@ -209,7 +215,7 @@ class CNOT(MacroMultiGate):
         ]
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
 
 @dataclass
@@ -229,7 +235,14 @@ class SWAP(MacroMultiGate):
         return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0],
+                [0, 0, 1, 0],
+                [0, 1, 0, 0],
+                [0, 0, 0, 1],
+            ]
+        )
 
 
 @dataclass
@@ -239,10 +252,26 @@ class CRz(MacroMultiGate):
     angle: float
 
     def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
+        macro_gates = [
+            Rz(self.target, self.angle / 2),
+            CNOT(self.control, self.target),
+            Rz(self.target, -self.angle / 2),
+            CNOT(self.control, self.target),
+        ]
+        unit_gates = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0],
+                [0, np.exp(-1j * self.angle / 2), 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, np.exp(1j * self.angle / 2)],
+            ]
+        )
 
 
 @dataclass
@@ -252,10 +281,27 @@ class CRx(MacroMultiGate):
     angle: float
 
     def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
+        macro_gates = [
+            Rz(self.target, np.pi / 2),
+            CNOT(self.control, self.target),
+            U3(self.target, -self.angle / 2, 0, 0),
+            CNOT(self.control, self.target),
+            U3(self.target, self.angle / 2, -np.pi / 2, 0),
+        ]
+        unit_gates = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, np.cos(self.angle), -1j * np.sin(self.angle)],
+                [0, -1j * np.sin(self.angle), 0, np.cos(self.angle)],
+            ]
+        )
 
 
 @dataclass
@@ -267,10 +313,38 @@ class CU3(MacroMultiGate):
     angle3: float
 
     def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
+        macro_gates = [
+            Rz(self.control, self.angle3 / 2 + self.angle2 / 2),
+            Rz(self.target, self.angle3 / 2 - self.angle2 / 2),
+            CNOT(self.control, self.target),
+            U3(self.target, -self.angle1 / 2, 0, -(self.angle2 + self.angle3) / 2),
+            CNOT(self.control, self.target),
+            U3(self.target, self.angle1 / 2, self.angle2, 0),
+        ]
+        unit_gates = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [
+                    0,
+                    0,
+                    np.cos(self.angle1),
+                    -np.exp(1j * self.angle3) * np.sin(self.angle1),
+                ],
+                [
+                    0,
+                    0,
+                    np.exp(1j * self.angle2) * np.sin(self.angle1),
+                    np.exp(1j * (self.angle2 + self.angle3)) * np.cos(self.angle1),
+                ],
+            ]
+        )
 
 
 @dataclass
@@ -280,10 +354,31 @@ class CCZ(MacroMultiGate):
     target: int
 
     def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
+        macro_gates = [
+            CRz(self.control2, self.target, np.pi / 2),
+            CNOT(self.control1, self.control2),
+            CRz(self.control2, self.target, -np.pi / 2),
+            CNOT(self.control1, self.control2),
+            CRz(self.control1, self.target, np.pi / 2),
+        ]
+        unit_gates = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, -1],
+            ]
+        )
 
 
 @dataclass
@@ -293,7 +388,30 @@ class Toffoli(MacroMultiGate):
     target: int
 
     def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
+        macro_gates = [
+            H(self.target),
+            CRz(self.control2, self.target, np.pi / 2),
+            CNOT(self.control1, self.control2),
+            CRz(self.control2, self.target, -np.pi / 2),
+            CNOT(self.control1, self.control2),
+            CRz(self.control1, self.target, np.pi / 2),
+            H(self.target),
+        ]
+        unit_gates = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
 
     def get_matrix(self) -> NDArray:
-        raise NotImplementedError
+        return np.array(
+            [
+                [1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 1, 0],
+            ]
+        )
