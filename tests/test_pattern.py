@@ -86,12 +86,12 @@ def test_is_standardized():
         X(node=0, domain=[1]),
     ]
     pattern.extend(cmds)
-    assert is_standardized(pattern) == True
+    assert is_standardized(pattern)
 
     # Adding an out-of-order command should break standardization
     cmd_out_of_order = N(node=2)
     pattern.add(cmd_out_of_order)
-    assert is_standardized(pattern) == False
+    assert not is_standardized(pattern)
 
 
 if __name__ == "__main__":

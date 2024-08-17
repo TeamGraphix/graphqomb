@@ -10,8 +10,9 @@ from graphix_zx.pattern import MutablePattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 
 if TYPE_CHECKING:
-    from graphix_zx.statevec import StateVector
     from numpy.typing import NDArray
+
+    from graphix_zx.statevec import StateVector
 
 
 # Mock StateVector class to test without actual quantum simulation
