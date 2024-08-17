@@ -169,10 +169,7 @@ class PatternSimulator(BasePatternSimulator):
             # domain calculation
             result = False
             for node in cmd.domain:
-                try:
-                    result ^= self.__results[node]
-                except KeyError:
-                    raise KeyError(f"node {node} is not measured yet")
+                result ^= self.__results[node]
             if result:
                 self.__state.evolve(np.array([[0, 1], [1, 0]]), [node_id])
             else:
@@ -182,10 +179,7 @@ class PatternSimulator(BasePatternSimulator):
             # domain calculation
             result = False
             for node in cmd.domain:
-                try:
-                    result ^= self.__results[node]
-                except KeyError:
-                    raise KeyError(f"node {node} is not measured yet")
+                result ^= self.__results[node]
             if result:
                 self.__state.evolve(np.array([[1, 0], [0, -1]]), [node_id])
             else:
