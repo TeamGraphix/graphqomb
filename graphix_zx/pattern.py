@@ -130,7 +130,7 @@ class MutablePattern(BasePattern):
             q_indices = {}
             _count = 0
             for i, input_node in enumerate(input_nodes):
-                q_indices[input_node] = _count
+                q_indices[input_node] = i
 
         self.__q_indices: dict[int, int] = q_indices  # qubit index. used for simulation
 
