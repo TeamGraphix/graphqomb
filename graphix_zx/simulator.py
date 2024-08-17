@@ -212,7 +212,8 @@ def parse_q_indices(node_indices: list[int], q_indices: dict[int, int]) -> list[
         if q_indices[node] == -1:
             ancilla |= {node}
         elif q_indices[node] < 0 or q_indices[node] >= len(node_indices):
-            raise ValueError(f"Invalid qubit index {q_indices[node]}")
+            msg = f"Invalid qubit index {q_indices[node]}"
+            raise ValueError(msg)
         else:
             permutation[node_indices.index(node)] = q_indices[node]
 

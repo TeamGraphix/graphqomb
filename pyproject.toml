@@ -51,9 +51,7 @@ ignore = [
   "FBT",   # boolean-trap
   "FIX",   # fixme
 
-  # will be activated future
-  # "EM101",
-  "EM102",
+  # will be activated future,
   "TRY002",
   "TRY003",
   "TRY004",

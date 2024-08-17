@@ -173,7 +173,8 @@ class MutablePattern(BasePattern):
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
         if common_nodes != border_nodes:
-            raise ValueError(f"Patterns are not compatible. Common nodes: {common_nodes}, border nodes: {border_nodes}")
+            msg = f"Patterns are not compatible. Common nodes: {common_nodes}, border nodes: {border_nodes}"
+            raise ValueError(msg)
         new_input_nodes = self.get_input_nodes() | pattern.get_input_nodes()
         new_input_q_indices = {}
         for node in new_input_nodes:
@@ -303,7 +304,8 @@ def is_standardized(pattern: BasePattern) -> bool:
         if cmd.kind == current_cmd_kind:
             continue
         if cmd.kind not in standardized_order:
-            raise ValueError(f"Unknown command kind: {cmd.kind}")
+            msg = f"Unknown command kind: {cmd.kind}"
+            raise ValueError(msg)
         if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
             standardized = False
             break

@@ -166,7 +166,8 @@ class GraphState(BaseGraphState):
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:
         if q_index < -1:
-            raise ValueError(f"Invalid qubit index {q_index}. Must be -1 or greater")
+            msg = f"Invalid qubit index {q_index}. Must be -1 or greater"
+            raise ValueError(msg)
         self.__q_indices[node] = q_index
 
     def set_meas_plane(self, node: int, plane: Plane) -> None:
