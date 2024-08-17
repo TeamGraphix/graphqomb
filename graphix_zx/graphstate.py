@@ -130,7 +130,7 @@ class GraphState(BaseGraphState):
     ) -> None:
         if node in self.__physical_nodes:
             msg = f"Node already exists {node=}"
-            raise Exception(msg)
+            raise ValueError(msg)
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
         self.set_q_index(node, q_index)
@@ -211,7 +211,7 @@ class GraphState(BaseGraphState):
 
         if common_nodes != border_nodes:
             msg = "Qubit index mismatch"
-            raise Exception(msg)
+            raise ValueError(msg)
 
         new_graph = GraphState()
         for node in self.__physical_nodes:

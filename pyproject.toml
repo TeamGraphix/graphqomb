@@ -52,7 +52,7 @@ ignore = [
   "FIX",   # fixme
 
   # will be activated future,
-  "TRY002",
+  # "TRY002",
   "TRY003",
   "TRY004",
   "D400",
