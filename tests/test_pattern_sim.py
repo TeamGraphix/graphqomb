@@ -10,7 +10,7 @@ from graphix_zx.statevec import StateVector
 
 # Mock StateVector class to test without actual quantum simulation
 class MockStateVector:
-    def __init__(self, num_qubits: int):
+    def __init__(self, num_qubits: int) -> None:
         self.num_qubits = num_qubits
 
     def add_node(self, num: int):
@@ -25,7 +25,7 @@ class MockStateVector:
     def evolve(self, operation: NDArray, nodes: list[int]):
         pass
 
-    def __eq__(self, other: StateVector):
+    def __eq__(self, other: StateVector) -> bool:
         return self.num_qubits == other.num_qubits
 
 

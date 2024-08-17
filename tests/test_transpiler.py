@@ -1,4 +1,3 @@
-
 import pytest
 
 from graphix_zx.graphstate import GraphState
