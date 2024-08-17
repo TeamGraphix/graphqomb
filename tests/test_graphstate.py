@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from graphix_zx.graphstate import GraphState
 
 

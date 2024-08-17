@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING
 
 import pytest
-
+from graphix_zx.graphstate import GraphState
 from graphix_zx.pattern import is_standardized
 from graphix_zx.random_objects import get_random_flow_graph
 from graphix_zx.transpiler import transpile_from_flow
-from graphix_zx.graphstate import GraphState
+
 
 @pytest.fixture
 def random_graph():
