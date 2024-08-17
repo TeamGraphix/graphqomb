@@ -66,10 +66,7 @@ class C(Command):
 
 @dataclass
 class Correction(Command):
-    """
-    Correction command.
-    Either X or Z.
-    """
+    """Correction command.Either X or Z."""
 
     node: Node
     domain: set[Node] = field(default_factory=set)
