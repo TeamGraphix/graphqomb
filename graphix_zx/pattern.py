@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 from abc import ABC, abstractmethod
+from typing import Iterator
 
 from graphix_zx.command import Command, CommandKind, M, N, X, Z
 
 
 class NodeAlreadyPreparedError(Exception):
-    def __init__(self, node: int):
+    def __init__(self, node: int) -> None:
         self.__node: int = node
 
     @property
@@ -19,10 +20,10 @@ class NodeAlreadyPreparedError(Exception):
 
 
 class BasePattern(ABC):
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.get_commands())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         return iter(self.get_commands())
 
     def __getitem__(self, index: int) -> Command:
