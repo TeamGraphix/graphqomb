@@ -33,7 +33,8 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
 
     if len(topo_order) == len(dag):
         return topo_order
-    raise ValueError("Cycle detected in the graph")
+    msg = "Cycle detected in the graph"
+    raise ValueError(msg)
 
 
 def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:

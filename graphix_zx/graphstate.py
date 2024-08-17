@@ -129,7 +129,8 @@ class GraphState(BaseGraphState):
         is_output: bool = False,
     ) -> None:
         if node in self.__physical_nodes:
-            raise Exception("Node already exists")
+            msg = f"Node already exists {node=}"
+            raise Exception(msg)
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
         self.set_q_index(node, q_index)
@@ -139,21 +140,28 @@ class GraphState(BaseGraphState):
             self.__output_nodes |= {node}
 
     def add_physical_edge(self, node1: int, node2: int) -> None:
-        if node1 not in self.__physical_nodes or node2 not in self.__physical_nodes:
-            raise Exception("Node does not exist")
+        if node1 not in self.__physical_nodes:
+            msg = f"Node does not exist {node1=}"
+            raise ValueError(msg)
+        if node2 not in self.__physical_nodes:
+            msg = f"Node does not exist {node2=}"
+            raise ValueError(msg)
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
-            raise Exception("Edge already exists")
+            msg = f"Edge already exists {node1=}, {node2=}"
+            raise ValueError(msg)
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
     def set_input(self, node: int) -> None:
         if node not in self.__physical_nodes:
-            raise Exception("Node does not exist")
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
         self.__input_nodes |= {node}
 
     def set_output(self, node: int) -> None:
         if node not in self.__physical_nodes:
-            raise Exception("Node does not exist")
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
         self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:
@@ -163,12 +171,14 @@ class GraphState(BaseGraphState):
 
     def set_meas_plane(self, node: int, plane: Plane) -> None:
         if node not in self.__physical_nodes:
-            raise Exception("Node does not exist")
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
         self.__meas_planes[node] = plane
 
     def set_meas_angle(self, node: int, angle: float) -> None:
         if node not in self.__physical_nodes:
-            raise Exception("Node does not exist")
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
         self.__meas_angles[node] = angle
 
     def get_physical_nodes(self) -> set[int]:
@@ -199,7 +209,8 @@ class GraphState(BaseGraphState):
         border_nodes = self.output_nodes & other.input_nodes
 
         if common_nodes != border_nodes:
-            raise Exception("Graphs are not compatible")
+            msg = "Qubit index mismatch"
+            raise Exception(msg)
 
         new_graph = GraphState()
         for node in self.__physical_nodes:
@@ -238,7 +249,8 @@ class GraphState(BaseGraphState):
 
         for node, q_index in other.get_q_indices().items():
             if (node in common_nodes) and (new_graph.get_q_indices()[node] != q_index):
-                raise ValueError("Qubit index mismatch")
+                msg = "Qubit index mismatch."
+                raise ValueError(msg)
             new_graph.set_q_index(node, q_index)
 
         return new_graph

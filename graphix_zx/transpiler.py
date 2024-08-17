@@ -54,7 +54,8 @@ def generate_m_cmd(
         s_domain = z_correction
         t_domain = x_correction
     else:  # NOTE: possible to include Pauli simplification.
-        raise ValueError("Invalid measurement plane")
+        msg = "Invalid measurement plane"
+        raise ValueError(msg)
     return M(
         node=node,
         plane=meas_plane,
@@ -102,7 +103,8 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
     """
     # TODO: check the validity of the flows
     if not check_causality(graph, gflow):
-        raise ValueError("Invalid flow")
+        msg = "Invalid flow"
+        raise ValueError(msg)
     # stabilizer check?
 
     # generate corrections
@@ -195,7 +197,8 @@ def transpile_from_subgraphs(
         ImmutablePattern: immutable pattern
     """
     if not check_causality(graph, gflow):
-        raise ValueError("Invalid flow")
+        msg = "Invalid flow"
+        raise ValueError(msg)
     # stabilizer check?
 
     pattern = MutablePattern()

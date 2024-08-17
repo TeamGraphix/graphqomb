@@ -50,7 +50,8 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
-            raise ValueError("Invalid backend")
+            msg = f"Invalid backend: {backend}"
+            raise ValueError(msg)
 
         self.__gate_instructions: list[Gate] = mbqc_circuit.get_instructions()
 
@@ -58,19 +59,14 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         operator = gate.get_matrix()
         # may be refactored
         if isinstance(gate, J):
-            if gate.qubit is None:
-                raise ValueError("Invalid qubit")
             self.__state.evolve(operator, [gate.qubit])
         elif isinstance(gate, CZ):
-            if gate.qubits is None:
-                raise ValueError("Invalid qubits")
             self.__state.evolve(operator, list(gate.qubits))
         elif isinstance(gate, PhaseGadget):
-            if gate.qubits is None:
-                raise ValueError("Invalid qubit")
             self.__state.evolve(operator, gate.qubits)
         else:
-            raise ValueError("Invalid gate")
+            msg = f"Invalid gate: {gate}"
+            raise ValueError(msg)
 
     def simulate(self) -> None:
         for gate in self.__gate_instructions:
@@ -118,16 +114,19 @@ class PatternSimulator(BasePatternSimulator):
         self.__pattern = pattern
 
         if not self.__pattern.is_runnable():
-            raise ValueError("Pattern is not runnable")
+            msg = "Pattern is not runnable"
+            raise ValueError(msg)
 
         if backend == SimulatorBackend.StateVector:
             if not self.__pattern.is_deterministic():
-                raise ValueError("Pattern is not deterministic. Please use DensityMatrix backend instead.")
+                msg = "Pattern is not deterministic. Please use DensityMatrix backend instead."
+                raise ValueError(msg)
             self.__state = StateVector(len(self.__pattern.get_input_nodes()))
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
-            raise ValueError("Invalid backend")
+            msg = f"Invalid backend: {backend}"
+            raise ValueError(msg)
 
     @property
     def node_indices(self) -> list[int]:

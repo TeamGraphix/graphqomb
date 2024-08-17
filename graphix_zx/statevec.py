@@ -256,4 +256,5 @@ def get_basis(plane: Plane, angle: float) -> NDArray:
         return np.array([np.cos(angle / 2), 1j * np.sin(angle / 2)])
     if plane == Plane.ZX:
         return np.array([np.cos(angle / 2), np.sin(angle / 2)])
-    raise ValueError("Invalid plane")
+    msg = "Invalid plane"
+    raise ValueError(msg)

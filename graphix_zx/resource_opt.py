@@ -82,7 +82,8 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
                 meas_candidates |= {node}
 
         if len(meas_candidates) == 0:
-            raise ValueError("Cycle detected in the graph")
+            msg = "Cycle detected in the graph"
+            raise ValueError(msg)
 
         # evaluate activation cost
         activation_costs = {node: count_activation_cost(graph, node, activated_nodes) for node in meas_candidates}

@@ -27,7 +27,8 @@ def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -
         dag[output] = set()
 
     if check and not check_dag(dag):
-        raise ValueError("Cycle detected in the graph")
+        msg = "Cycle detected in the graph"
+        raise ValueError(msg)
 
     return dag
 

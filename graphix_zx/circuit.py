@@ -171,7 +171,8 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
 
             num_nodes += 1
         else:
-            raise ValueError("Invalid instruction")
+            msg = f"Invalid instruction {instruction=}"
+            raise ValueError(msg)
 
     for node in front_nodes:
         graph.set_output(node)

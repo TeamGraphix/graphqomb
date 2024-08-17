@@ -53,7 +53,7 @@ def test_mbqc_circuit_simulator():
     assert np.allclose(state.get_state_vector(), expected_state)
 
     # Test for invalid backend
-    with pytest.raises(ValueError, match="Invalid backend"):
+    with pytest.raises(ValueError, match="Invalid backend: Not Implmented Backend"):
         MBQCCircuitSimulator(circuit, "Not Implmented Backend")
 
     # Test for not implemented backend

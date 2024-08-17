@@ -40,13 +40,13 @@ def test_add_duplicate_physical_edge(graph: GraphState):
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
-    with pytest.raises(Exception, match="Edge already exists"):
+    with pytest.raises(ValueError, match="Edge already exists node1=1, node2=2"):
         graph.add_physical_edge(1, 2)
 
 
 def test_add_edge_with_nonexistent_node(graph: GraphState):
     graph.add_physical_node(1)
-    with pytest.raises(Exception, match="Node does not exist"):
+    with pytest.raises(ValueError, match="Node does not exist node2=2"):
         graph.add_physical_edge(1, 2)
 
 
