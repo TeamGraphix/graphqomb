@@ -66,7 +66,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
             self.__state.evolve(operator, gate.qubits)
         else:
             msg = f"Invalid gate: {gate}"
-            raise ValueError(msg)
+            raise TypeError(msg)
 
     def simulate(self) -> None:
         for gate in self.__gate_instructions:
