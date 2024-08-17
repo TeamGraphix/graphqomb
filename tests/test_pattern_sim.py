@@ -1,31 +1,31 @@
 import pytest
+from numpy.typing import NDArray
 
 from graphix_zx.command import E, M, N, X, Z
-
-# Assuming the following imports exist based on your code context
 from graphix_zx.common import Plane
 from graphix_zx.pattern import MutablePattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
+from graphix_zx.statevec import StateVector
 
 
 # Mock StateVector class to test without actual quantum simulation
 class MockStateVector:
-    def __init__(self, num_qubits):
+    def __init__(self, num_qubits: int):
         self.num_qubits = num_qubits
 
-    def add_node(self, num):
+    def add_node(self, num: int):
         self.nodes.extend([None] * num)
 
-    def entangle(self, nodes):
+    def entangle(self, nodes: tuple[int, int]):
         pass
 
-    def measure(self, node_id, plane, angle, result):
+    def measure(self, node_id: int, plane: Plane, angle: float, result: int):
         pass
 
-    def evolve(self, operation, nodes):
+    def evolve(self, operation: NDArray, nodes: list[int]):
         pass
 
-    def __eq__(self, other):
+    def __eq__(self, other: StateVector):
         return self.num_qubits == other.num_qubits
 
 
@@ -45,18 +45,13 @@ def setup_pattern():
     return pattern
 
 
-@pytest.fixture
-def mock_statevector(monkeypatch):
-    monkeypatch.setattr("graphix_zx.statevec.StateVector", MockStateVector)
-
-
-def test_simulator_initialization(setup_pattern):
+def test_simulator_initialization(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     assert simulator.get_state() == MockStateVector(len(pattern.get_input_nodes()))
 
 
-def test_apply_command_add_node(setup_pattern):
+def test_apply_command_add_node(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=2)
@@ -64,7 +59,7 @@ def test_apply_command_add_node(setup_pattern):
     assert len(simulator.node_indices) == len(pattern.get_input_nodes()) + 1
 
 
-def test_apply_command_entangle(setup_pattern):
+def test_apply_command_entangle(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -74,7 +69,7 @@ def test_apply_command_entangle(setup_pattern):
     # No assertion here as MockStateVector doesn't store entanglement info
 
 
-def test_apply_command_measure(setup_pattern):
+def test_apply_command_measure(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = M(node=0, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[])
@@ -82,7 +77,7 @@ def test_apply_command_measure(setup_pattern):
     assert 1 not in simulator.node_indices
 
 
-def test_apply_command_byproduct_x(setup_pattern):
+def test_apply_command_byproduct_x(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -94,7 +89,7 @@ def test_apply_command_byproduct_x(setup_pattern):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_apply_command_byproduct_z(setup_pattern):
+def test_apply_command_byproduct_z(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -106,7 +101,7 @@ def test_apply_command_byproduct_z(setup_pattern):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_simulate(setup_pattern):
+def test_simulate(setup_pattern: MutablePattern):
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     simulator.simulate()

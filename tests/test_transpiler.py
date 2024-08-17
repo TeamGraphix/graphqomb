@@ -1,9 +1,11 @@
+from typing import TYPE_CHECKING
+
 import pytest
 
 from graphix_zx.pattern import is_standardized
 from graphix_zx.random_objects import get_random_flow_graph
 from graphix_zx.transpiler import transpile_from_flow
-
+from graphix_zx.graphstate import GraphState
 
 @pytest.fixture
 def random_graph():
@@ -16,7 +18,7 @@ def random_circ():
     raise NotImplementedError
 
 
-def test_transpile_from_graph(random_graph):
+def test_transpile_from_graph(random_graph: GraphState):
     graph, flow = random_graph
     pattern = transpile_from_flow(graph, flow)
     assert is_standardized(pattern)
