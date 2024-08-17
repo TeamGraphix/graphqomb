@@ -21,18 +21,14 @@ class CommandKind(str, enum.Enum):
 
 
 class Command(ABC):
-    """
-    Base command class.
-    """
+    """Base command class."""
 
     kind: CommandKind | None = None
 
 
 @dataclass
 class N(Command):
-    """
-    Preparation command.
-    """
+    """Preparation command."""
 
     node: Node
     q_index: int = -1
@@ -41,9 +37,7 @@ class N(Command):
 
 @dataclass
 class M(Command):
-    """
-    Measurement command. By default the plane is set to 'XY', the angle to 0, empty domains and identity vop.
-    """
+    """Measurement command. By default the plane is set to 'XY', the angle to 0, empty domains and identity vop."""
 
     node: Node
     plane: Plane = Plane.XY
@@ -55,9 +49,7 @@ class M(Command):
 
 @dataclass
 class E(Command):
-    """
-    Entanglement command.
-    """
+    """Entanglement command."""
 
     nodes: tuple[Node, Node]
     kind: CommandKind = CommandKind.E
@@ -65,9 +57,7 @@ class E(Command):
 
 @dataclass
 class C(Command):
-    """
-    Clifford command.
-    """
+    """Clifford command."""
 
     node: Node
     cliff_index: int
@@ -87,17 +77,13 @@ class Correction(Command):
 
 @dataclass
 class X(Correction):
-    """
-    X correction command.
-    """
+    """X correction command."""
 
     kind: CommandKind = CommandKind.X
 
 
 @dataclass
 class Z(Correction):
-    """
-    Z correction command.
-    """
+    """Z correction command."""
 
     kind: CommandKind = CommandKind.Z
