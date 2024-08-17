@@ -69,7 +69,7 @@ def focus(
 
 def find_non_focused_signals(target: int, gflow: FlowLike, graph: BaseGraphState) -> set[int]:
     meas_planes = graph.get_meas_planes()
-    non_outputs = {node for node in gflow}
+    non_outputs = set(gflow)
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
     s_xz_candidate = gflow[target] & non_outputs - {target}
