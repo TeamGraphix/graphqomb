@@ -148,7 +148,8 @@ class PatternSimulator(BasePatternSimulator):
         elif cmd.kind == CommandKind.M:
             if self.__calc_prob:
                 raise NotImplementedError
-            result = np.random.choice([0, 1])
+            rng = np.random.default_rng()
+            result = rng.choice([0, 1])
 
             s_bool = 0
             t_bool = 0
