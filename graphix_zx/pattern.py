@@ -330,7 +330,7 @@ def check_rule0(pattern: BasePattern) -> bool:
             if len(cmd.s_domain & measured) > 0 or len(cmd.t_domain & measured) > 0:
                 return False
             measured.add(cmd.node)
-        elif isinstance(cmd, X) or isinstance(cmd, Z):
+        elif isinstance(cmd, (X, Z)):
             if len(cmd.domain & measured) > 0:
                 return False
 
