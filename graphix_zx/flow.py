@@ -19,8 +19,8 @@ def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
 
 def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
     dag = dict()
-    outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
-    for node in gflow.keys():
+    outputs = set(graph.get_physical_nodes()) - set(gflow)
+    for node in gflow:
         dag[node] = (gflow[node] | oddneighbors(gflow[node], graph)) - {node}
     for output in outputs:
         dag[output] = set()

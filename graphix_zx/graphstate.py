@@ -177,7 +177,7 @@ class GraphState(BaseGraphState):
 
     def get_physical_edges(self) -> set[tuple[int, int]]:
         edges = set()
-        for node1 in self.__physical_edges.keys():
+        for node1 in self.__physical_edges:
             for node2 in self.__physical_edges[node1]:
                 if node1 < node2:
                     edges |= {(node1, node2)}

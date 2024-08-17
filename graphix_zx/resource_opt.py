@@ -100,7 +100,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
 def get_dependencies(graph: BaseGraphState, gflow: FlowLike) -> dict[int, set[int]]:
     """Get the dependencies."""
     dag = construct_dag(gflow, graph)
-    inverted_dag: dict[int, set[int]] = {node: set() for node in dag.keys()}
+    inverted_dag: dict[int, set[int]] = {node: set() for node in dag}
     for node, children in dag.items():
         for child in children:
             inverted_dag[child].add(node)

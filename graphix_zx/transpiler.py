@@ -75,7 +75,7 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
     """
     corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
 
-    for node in flowlike.keys():
+    for node in flowlike:
         for correction in flowlike[node]:
             corrections[correction] |= {node}
 
@@ -105,11 +105,11 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
 
     # generate corrections
     x_flow = gflow
-    z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
+    z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow}
     x_corrections = generate_corrections(graph, x_flow)
     z_corrections = generate_corrections(graph, z_flow)
 
-    dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow.keys()}
+    dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow}
     for node in graph.output_nodes:
         dag[node] = set()
 
@@ -199,7 +199,7 @@ def transpile_from_subgraphs(
     pattern = MutablePattern()
 
     xflow = gflow
-    zflow = {node: oddneighbors(gflow[node], graph) for node in gflow.keys()}
+    zflow = {node: oddneighbors(gflow[node], graph) for node in gflow}
     x_corrections = generate_corrections(graph, xflow)
     z_corrections = generate_corrections(graph, zflow)
 

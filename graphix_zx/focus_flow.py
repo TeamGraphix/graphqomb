@@ -33,7 +33,7 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
 
 def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:
     # TODO: check the validity of the gflow if possible in fast way
-    outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
+    outputs = set(graph.get_physical_nodes()) - set(gflow)
     topo_order = topological_sort_kahn(construct_dag(gflow, graph))
 
     for output in outputs:
@@ -64,7 +64,7 @@ def focus(
 
 def find_non_focused_signals(target: int, gflow: FlowLike, graph: BaseGraphState) -> set[int]:
     meas_planes = graph.get_meas_planes()
-    non_outputs = {node for node in gflow.keys()}
+    non_outputs = {node for node in gflow}
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
     s_xz_candidate = gflow[target] & non_outputs - {target}
@@ -86,10 +86,10 @@ def update_gflow(target: int, gflow: FlowLike, s_k: set[int], topo_order: list[i
 
 def is_focused(gflow: FlowLike, graph: BaseGraphState) -> bool:
     meas_planes = graph.get_meas_planes()
-    outputs = set(graph.get_physical_nodes()) - set(gflow.keys())
+    outputs = set(graph.get_physical_nodes()) - set(gflow)
 
     focused = True
-    for node in gflow.keys():
+    for node in gflow:
         for child in gflow[node]:
             if child in outputs:
                 continue
