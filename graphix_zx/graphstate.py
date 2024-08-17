@@ -237,9 +237,8 @@ class GraphState(BaseGraphState):
             new_graph.set_q_index(node, q_index)
 
         for node, q_index in other.__q_indices.items():
-            if node in common_nodes:
-                if new_graph.__q_indices[node] != q_index:
-                    raise ValueError("Qubit index mismatch")
+            if (node in common_nodes) and (new_graph.__q_indices[node] != q_index):
+                raise ValueError("Qubit index mismatch")
             new_graph.set_q_index(node, q_index)
 
         return new_graph
