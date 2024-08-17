@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import dataclasses
 from abc import ABC, abstractmethod
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 
 from graphix_zx.command import Command, CommandKind, M, N, X, Z
+
+if TYPE_CHECKING:
+    from graphix_zx.common import Plane
 
 
 class NodeAlreadyPreparedError(Exception):
