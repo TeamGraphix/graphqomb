@@ -19,7 +19,7 @@ CZ_TENSOR = np.array(
 
 class BaseStateVector(ABC):
     @abstractmethod
-    def __init__(self, num_qubits: int, state: NDArray | None = None):
+    def __init__(self, num_qubits: int, state: NDArray | None = None) -> None:
         raise NotImplementedError
 
     @property
@@ -28,23 +28,23 @@ class BaseStateVector(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def evolve(self, operator: NDArray, qubits: list[int]):
+    def evolve(self, operator: NDArray, qubits: list[int]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def measure(self, qubit: int, plane: Plane, angle: float, result: int):
+    def measure(self, qubit: int, plane: Plane, angle: float, result: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def tensor_product(self, other: BaseStateVector):
+    def tensor_product(self, other: BaseStateVector) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def normalize(self):
+    def normalize(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def reorder(self, permutation: list[int]):
+    def reorder(self, permutation: list[int]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -65,7 +65,7 @@ class BaseStateVector(ABC):
 
 
 class StateVector(BaseStateVector):
-    def __init__(self, num_qubits: int, state: NDArray | None = None):
+    def __init__(self, num_qubits: int, state: NDArray | None = None) -> None:
         self.__num_qubits = num_qubits
         if state is not None:
             self.__state = state
@@ -76,7 +76,7 @@ class StateVector(BaseStateVector):
     def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def evolve(self, operator: NDArray, qubits: list[int]):
+    def evolve(self, operator: NDArray, qubits: list[int]) -> None:
         """Apply operator to state
 
         Args:
@@ -95,7 +95,7 @@ class StateVector(BaseStateVector):
 
         self.__state = state
 
-    def measure(self, qubit: int, plane: Plane, angle: float, result: int):
+    def measure(self, qubit: int, plane: Plane, angle: float, result: int) -> None:
         """Measure qubit in specified basis
 
         Args:
@@ -112,7 +112,7 @@ class StateVector(BaseStateVector):
         self.__state = state
         self.__num_qubits -= 1
 
-    def add_node(self, num_qubits: int):
+    def add_node(self, num_qubits: int) -> None:
         """Add |+> state to the end of state vector
 
         Args:
@@ -121,7 +121,7 @@ class StateVector(BaseStateVector):
         self.__state = np.kron(self.__state, np.ones(2**num_qubits) / np.sqrt(2**num_qubits))
         self.__num_qubits += num_qubits
 
-    def entangle(self, qubits: tuple[int, int]):
+    def entangle(self, qubits: tuple[int, int]) -> None:
         """Entangle two qubits
 
         Args:
@@ -129,7 +129,7 @@ class StateVector(BaseStateVector):
         """
         self.evolve(CZ_TENSOR, list(qubits))
 
-    def tensor_product(self, other: BaseStateVector):
+    def tensor_product(self, other: BaseStateVector) -> None:
         """Tensor product with other state vector
 
         Args:
@@ -138,11 +138,11 @@ class StateVector(BaseStateVector):
         self.__state = np.kron(self.__state, other.get_state_vector())
         self.__num_qubits += other.num_qubits
 
-    def normalize(self):
+    def normalize(self) -> None:
         """Normalize state vector"""
         self.__state /= np.linalg.norm(self.__state)
 
-    def reorder(self, permutation: list[int]):
+    def reorder(self, permutation: list[int]) -> None:
         """Permute qubits
 
         if permutation is [2, 0, 1], then

@@ -17,15 +17,15 @@ if TYPE_CHECKING:
 
 class BaseCircuitSimulator(ABC):
     @abstractmethod
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod
-    def apply_gate(self, gate: Gate):
+    def apply_gate(self, gate: Gate) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def simulate(self):
+    def simulate(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -42,7 +42,7 @@ class SimulatorBackend(Enum):
 
 # NOTE: Currently, only XY plane is supported
 class MBQCCircuitSimulator(BaseCircuitSimulator):
-    def __init__(self, mbqc_circuit: MBQCCircuit, backend: SimulatorBackend):
+    def __init__(self, mbqc_circuit: MBQCCircuit, backend: SimulatorBackend) -> None:
         # NOTE: is it a correct backend switch?
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(mbqc_circuit.num_qubits)
@@ -53,7 +53,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
 
         self.__gate_instructions: list[Gate] = mbqc_circuit.get_instructions()
 
-    def apply_gate(self, gate: Gate):
+    def apply_gate(self, gate: Gate) -> None:
         operator = gate.get_matrix()
         # may be refactored
         if isinstance(gate, J):
@@ -71,7 +71,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         else:
             raise ValueError("Invalid gate")
 
-    def simulate(self):
+    def simulate(self) -> None:
         for gate in self.__gate_instructions:
             self.apply_gate(gate)
 
@@ -81,24 +81,24 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
 
 class BasePatternSimulator(ABC):
     @abstractmethod
-    def __init__(self):
+    def __init__(self) -> None:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def results(self):
+    def results(self) -> dict[int, bool]:
         raise NotImplementedError
 
     @abstractmethod
-    def apply_cmd(self):
+    def apply_cmd(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def simulate(self):
+    def simulate(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def get_state(self):
+    def get_state(self):  # TODO: make base simulator backend class including sv, dm, tn
         raise NotImplementedError
 
 
@@ -129,14 +129,14 @@ class PatternSimulator(BasePatternSimulator):
             raise ValueError("Invalid backend")
 
     @property
-    def node_indices(self):
+    def node_indices(self) -> list[int]:
         return self.__node_indices
 
     @property
-    def results(self):
+    def results(self) -> dict[int, bool]:
         return self.__results
 
-    def apply_cmd(self, cmd):
+    def apply_cmd(self, cmd) -> None:
         if cmd.kind == CommandKind.N:
             self.__state.add_node(1)
             self.__node_indices.append(cmd.node)
@@ -193,7 +193,7 @@ class PatternSimulator(BasePatternSimulator):
         elif cmd.kind == CommandKind.C:
             raise NotImplementedError
 
-    def simulate(self):
+    def simulate(self) -> None:
         for cmd in self.__pattern.get_commands():
             self.apply_cmd(cmd)
 
@@ -204,7 +204,7 @@ class PatternSimulator(BasePatternSimulator):
         self.__node_indices = new_indices
         self.__state.reorder(permutation)
 
-    def get_state(self):
+    def get_state(self):  # TODO: make base simulator backend class including sv, dm, tn
         return self.__state
 
 

@@ -9,7 +9,7 @@ from graphix_zx.common import Plane
 
 class BaseGraphState(ABC):
     @abstractmethod
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @abstractmethod
@@ -44,27 +44,27 @@ class BaseGraphState(ABC):
         q_index: int,
         is_input: bool,
         is_output: bool,
-    ):
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def add_physical_edge(self, node1: int, node2: int):
+    def add_physical_edge(self, node1: int, node2: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def set_input(self, node: int):
+    def set_input(self, node: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def set_output(self, node: int):
+    def set_output(self, node: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def set_meas_plane(self, node: int, plane: Plane):
+    def set_meas_plane(self, node: int, plane: Plane) -> None:
         raise
 
     @abstractmethod
-    def set_meas_angle(self, node: int, angle: float):
+    def set_meas_angle(self, node: int, angle: float) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -95,7 +95,7 @@ class BaseGraphState(ABC):
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__input_nodes: set[int] = set()
         self.__output_nodes: set[int] = set()
         self.__physical_nodes: set[int] = set()
@@ -128,7 +128,7 @@ class GraphState(BaseGraphState):
         q_index: int = -1,
         is_input: bool = False,
         is_output: bool = False,
-    ):
+    ) -> None:
         if node in self.__physical_nodes:
             raise Exception("Node already exists")
         self.__physical_nodes |= {node}
@@ -139,7 +139,7 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
-    def add_physical_edge(self, node1: int, node2: int):
+    def add_physical_edge(self, node1: int, node2: int) -> None:
         if node1 not in self.__physical_nodes or node2 not in self.__physical_nodes:
             raise Exception("Node does not exist")
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
@@ -147,27 +147,27 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
-    def set_input(self, node: int):
+    def set_input(self, node: int) -> None:
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
         self.__input_nodes |= {node}
 
-    def set_output(self, node: int):
+    def set_output(self, node: int) -> None:
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
         self.__output_nodes |= {node}
 
-    def set_q_index(self, node: int, q_index: int = -1):
+    def set_q_index(self, node: int, q_index: int = -1) -> None:
         if q_index < -1:
             raise ValueError(f"Invalid qubit index {q_index}. Must be -1 or greater")
         self.__q_indices[node] = q_index
 
-    def set_meas_plane(self, node: int, plane: Plane):
+    def set_meas_plane(self, node: int, plane: Plane) -> None:
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
         self.__meas_planes[node] = plane
 
-    def set_meas_angle(self, node: int, angle: float):
+    def set_meas_angle(self, node: int, angle: float) -> None:
         if node not in self.__physical_nodes:
             raise Exception("Node does not exist")
         self.__meas_angles[node] = angle

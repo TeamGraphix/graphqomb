@@ -76,57 +76,57 @@ class MacroGate(ABC):
 
 class BaseCircuit(ABC):
     @abstractmethod
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @property
     @abstractmethod
-    def num_qubits(self):
+    def num_qubits(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def get_instructions(self):
+    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
         raise NotImplementedError
 
 
 class MBQCCircuit(BaseCircuit):
-    def __init__(self, qubits: int):
+    def __init__(self, qubits: int) -> None:
         self.__num_qubits: int = qubits
         self.__gate_instructions: list[Gate] = []
 
     @property
-    def num_qubits(self):
+    def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def get_instructions(self):
+    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
         return self.__gate_instructions
 
-    def j(self, qubit: int, angle: float):
+    def j(self, qubit: int, angle: float) -> None:
         self.__gate_instructions.append(J(qubit=qubit, angle=angle))
 
-    def cz(self, qubit1: int, qubit2: int):
+    def cz(self, qubit1: int, qubit2: int) -> None:
         self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
 
-    def phase_gadget(self, qubits: list[int], angle: float):
+    def phase_gadget(self, qubits: list[int], angle: float) -> None:
         self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
 
 
 class MacroCircuit(BaseCircuit):
-    def __init__(self, qubits: int):
+    def __init__(self, qubits: int) -> None:
         self.__num_qubits: int = qubits
         self.__macro_gate_instructions: list[MacroGate] = []
 
     @property
-    def num_qubits(self):
+    def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def get_instructions(self):
+    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
         gate_instructions = []
         for macro_gate in self.__macro_gate_instructions:
             gate_instructions.extend(macro_gate.get_unit_gates())
         return gate_instructions
 
-    def apply_macro_gate(self, gate: MacroGate):
+    def apply_macro_gate(self, gate: MacroGate) -> None:
         self.__macro_gate_instructions.append(gate)
 
 

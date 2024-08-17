@@ -8,10 +8,10 @@ from graphix_zx.command import Command, CommandKind, M, N, X, Z
 
 class NodeAlreadyPreparedError(Exception):
     def __init__(self, node: int):
-        self.__node = node
+        self.__node: int = node
 
     @property
-    def node(self):
+    def node(self) -> int:
         return self.__node
 
     def __str__(self) -> str:
@@ -25,39 +25,39 @@ class BasePattern(ABC):
     def __iter__(self):
         return iter(self.get_commands())
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Command:
         return self.get_commands()[index]
 
     @abstractmethod
-    def get_input_nodes(self):
+    def get_input_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_output_nodes(self):
+    def get_output_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_nodes(self):
+    def get_nodes(self) -> set[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_q_indices(self):
+    def get_q_indices(self) -> dict[int, int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_commands(self):
+    def get_commands(self) -> list[Command]:
         raise NotImplementedError
 
     @abstractmethod
-    def calc_max_space(self):
+    def calc_max_space(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def is_runnable(self):
+    def is_runnable(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def is_deterministic(self):
+    def is_deterministic(self) -> bool:
         raise NotImplementedError
 
 
@@ -70,26 +70,26 @@ class ImmutablePattern(BasePattern):
     runnable: bool = False
     deterministic: bool = False
 
-    def get_input_nodes(self):
+    def get_input_nodes(self) -> set[int]:
         return set(self.input_nodes)
 
-    def get_output_nodes(self):
+    def get_output_nodes(self) -> set[int]:
         return set(self.output_nodes)
 
-    def get_nodes(self):
+    def get_nodes(self) -> set[int]:
         nodes = set(self.input_nodes)
         for cmd in self.seq:
             if isinstance(cmd, N):
                 nodes |= {cmd.node}
         return nodes
 
-    def get_q_indices(self):
+    def get_q_indices(self) -> dict[int, int]:
         return dict(self.q_indices)
 
-    def get_commands(self):
+    def get_commands(self) -> list[Command]:
         return self.seq
 
-    def calc_max_space(self):
+    def calc_max_space(self) -> int:
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.seq:
@@ -100,10 +100,10 @@ class ImmutablePattern(BasePattern):
             max_nodes = max(nodes, max_nodes)
         return max_nodes
 
-    def is_runnable(self):
+    def is_runnable(self) -> bool:
         return self.runnable
 
-    def is_deterministic(self):
+    def is_deterministic(self) -> bool:
         return self.deterministic
 
 
@@ -112,7 +112,7 @@ class MutablePattern(BasePattern):
         self,
         input_nodes: set[int] | None = None,
         q_indices: dict[int, int] | None = None,
-    ):
+    ) -> None:
         if input_nodes is None:
             input_nodes = set()
         self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
@@ -134,7 +134,7 @@ class MutablePattern(BasePattern):
         self.__runnable: bool = False
         self.__deterministic: bool = False
 
-    def add(self, cmd: Command):
+    def add(self, cmd: Command) -> None:
         if isinstance(cmd, N):
             if cmd.node in self.__output_nodes:
                 raise NodeAlreadyPreparedError(cmd.node)
@@ -149,23 +149,23 @@ class MutablePattern(BasePattern):
         self.__runnable = False
         self.__deterministic = False
 
-    def extend(self, cmds: list[Command]):
+    def extend(self, cmds: list[Command]) -> None:
         for cmd in cmds:
             self.add(cmd)
 
-    def clear(self):
+    def clear(self) -> None:
         self.__Nnode = len(self.__input_nodes)
         self.__seq = []
         self.__output_nodes = set(self.__input_nodes)
 
-    def replace(self, cmds: list[Command], input_nodes: set[int] | None = None):
+    def replace(self, cmds: list[Command], input_nodes: set[int] | None = None) -> None:
         if input_nodes is not None:
             self.__input_nodes = set(input_nodes)
         self.clear()
         self.extend(cmds)
 
     # should support immutable pattern as well?
-    def append_pattern(self, pattern: MutablePattern | ImmutablePattern):
+    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
@@ -195,26 +195,26 @@ class MutablePattern(BasePattern):
 
         return new_pattern
 
-    def get_input_nodes(self):
+    def get_input_nodes(self) -> set[int]:
         return set(self.__input_nodes)
 
-    def get_output_nodes(self):
+    def get_output_nodes(self) -> set[int]:
         return set(self.__output_nodes)
 
-    def get_q_indices(self):
+    def get_q_indices(self) -> dict[int, int]:
         return dict(self.__q_indices)
 
-    def get_nodes(self):
+    def get_nodes(self) -> set[int]:
         nodes = set(self.__input_nodes)
         for cmd in self.__seq:
             if isinstance(cmd, N):
                 nodes |= {cmd.node}
         return nodes
 
-    def get_commands(self):
+    def get_commands(self) -> list[Command]:
         return self.__seq
 
-    def calc_max_space(self):
+    def calc_max_space(self) -> int:
         nodes = len(self.get_input_nodes())
         max_nodes = nodes
         for cmd in self.__seq:
@@ -225,7 +225,7 @@ class MutablePattern(BasePattern):
             max_nodes = max(nodes, max_nodes)
         return max_nodes
 
-    def get_space_list(self):
+    def get_space_list(self) -> list[int]:
         nodes = len(self.get_input_nodes())
         space_list = [nodes]
         for cmd in self.__seq:
@@ -237,7 +237,7 @@ class MutablePattern(BasePattern):
                 space_list.append(nodes)
         return space_list
 
-    def get_meas_planes(self):
+    def get_meas_planes(self) -> dict[int, Plane]:
         meas_plane = dict()
         for cmd in self.__seq:
             if isinstance(cmd, M):
@@ -245,25 +245,25 @@ class MutablePattern(BasePattern):
                 meas_plane[cmd.node] = mplane
         return meas_plane
 
-    def get_meas_angles(self):
-        angles = {}
+    def get_meas_angles(self) -> dict[int, float]:
+        angles = dict()
         for cmd in self.__seq:
             if isinstance(cmd, M):
                 angles[cmd.node] = cmd.angle
         return angles
 
-    def is_runnable(self):
+    def is_runnable(self) -> bool:
         return self.__runnable
 
-    def is_deterministic(self):
+    def is_deterministic(self) -> bool:
         return self.__deterministic
 
     # Mark the pattern as runnable. Called where the pattern is guaranteed to be runnable
-    def mark_runnable(self):
+    def mark_runnable(self) -> None:
         self.__runnable = True
 
     # Mark the pattern as deterministic. Called where flow preservation is guaranteed
-    def mark_deterministic(self):
+    def mark_deterministic(self) -> None:
         self.__deterministic = True
 
     def freeze(self) -> ImmutablePattern:
@@ -276,13 +276,13 @@ class MutablePattern(BasePattern):
             deterministic=self.__deterministic,
         )
 
-    def standardize(self):
+    def standardize(self) -> None:
         raise NotImplementedError
 
-    def shift_signals(self):
+    def shift_signals(self) -> None:
         raise NotImplementedError
 
-    def pauli_simplification(self):
+    def pauli_simplification(self) -> None:
         raise NotImplementedError
 
 
@@ -376,7 +376,7 @@ def is_deterministic(pattern: BasePattern) -> bool:
     raise NotImplementedError
 
 
-def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None):
+def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
     if len(pattern) < lim:
         nmax = len(pattern)
     else:
