@@ -119,8 +119,7 @@ class GraphState(BaseGraphState):
 
     @property
     def num_physical_edges(self) -> int:
-        num_edges = np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
-        return num_edges
+        return np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
 
     def add_physical_node(
         self,

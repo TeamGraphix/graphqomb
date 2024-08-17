@@ -110,8 +110,7 @@ def get_dependencies(graph: BaseGraphState, gflow: FlowLike) -> dict[int, set[in
 def get_activation_nodes(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> set[int]:
     """Get the nodes to be activated."""
     neighbors = set(graph.get_neighbors(target_node))
-    activation_nodes = neighbors - activated_nodes
-    return activation_nodes
+    return neighbors - activated_nodes
 
 
 def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> int:

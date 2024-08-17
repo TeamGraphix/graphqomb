@@ -70,8 +70,7 @@ class PhaseGadget(Gate):
 
         index_array = np.arange(2 ** len(self.qubits))
         z_sign = (-1) ** count_ones_in_binary(index_array)
-        matrix = np.diag(np.exp(-1j * self.angle / 2 * z_sign))
-        return matrix
+        return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
 
 # Macro gates
