@@ -22,7 +22,7 @@ def get_random_flow_graph(
     flow: dict[int, set[int]] = {}
     num_nodes = 0
 
-    if rng == None:
+    if rng is None:
         rng = np.random.default_rng()
 
     # input nodes
