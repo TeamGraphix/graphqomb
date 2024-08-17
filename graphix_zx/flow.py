@@ -19,7 +19,7 @@ def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
 
 
 def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
-    dag = dict()
+    dag = {}
     outputs = set(graph.get_physical_nodes()) - set(gflow)
     for node in gflow:
         dag[node] = (gflow[node] | oddneighbors(gflow[node], graph)) - {node}
@@ -50,8 +50,8 @@ def find_flow(
 def find_gflow(
     graph: BaseGraphState,
 ) -> tuple[FlowLike, Layer]:
-    l_k: Layer = dict()
-    g: FlowLike = dict()
+    l_k: Layer = {}
+    g: FlowLike = {}
     for node in graph.get_physical_nodes():
         l_k[node] = 0
     return gflowaux(graph, 1, l_k, g)

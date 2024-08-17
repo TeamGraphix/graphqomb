@@ -124,7 +124,7 @@ class MutablePattern(BasePattern):
         self.__output_nodes: set[int] = set(self.__input_nodes)
 
         if q_indices is None:
-            q_indices = dict()
+            q_indices = {}
             _count = 0
             for input_node in input_nodes:
                 q_indices[input_node] = _count
@@ -173,7 +173,7 @@ class MutablePattern(BasePattern):
         if common_nodes != border_nodes:
             raise ValueError(f"Patterns are not compatible. Common nodes: {common_nodes}, border nodes: {border_nodes}")
         new_input_nodes = self.get_input_nodes() | pattern.get_input_nodes()
-        new_input_q_indices = dict()
+        new_input_q_indices = {}
         for node in new_input_nodes:
             if node in self.get_input_nodes():
                 new_input_q_indices[node] = self.__q_indices[node]
@@ -238,7 +238,7 @@ class MutablePattern(BasePattern):
         return space_list
 
     def get_meas_planes(self) -> dict[int, Plane]:
-        meas_plane = dict()
+        meas_plane = {}
         for cmd in self.__seq:
             if isinstance(cmd, M):
                 mplane = cmd.plane
@@ -246,7 +246,7 @@ class MutablePattern(BasePattern):
         return meas_plane
 
     def get_meas_angles(self) -> dict[int, float]:
-        angles = dict()
+        angles = {}
         for cmd in self.__seq:
             if isinstance(cmd, M):
                 angles[cmd.node] = cmd.angle

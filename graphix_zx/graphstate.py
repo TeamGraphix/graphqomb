@@ -99,11 +99,11 @@ class GraphState(BaseGraphState):
         self.__input_nodes: set[int] = set()
         self.__output_nodes: set[int] = set()
         self.__physical_nodes: set[int] = set()
-        self.__physical_edges: dict[int, set[int]] = dict()
-        self.__meas_planes: dict[int, Plane] = dict()
-        self.__meas_angles: dict[int, float] = dict()
+        self.__physical_edges: dict[int, set[int]] = {}
+        self.__meas_planes: dict[int, Plane] = {}
+        self.__meas_angles: dict[int, float] = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
-        self.__q_indices: dict[int, int] = dict()
+        self.__q_indices: dict[int, int] = {}
 
     @property
     def input_nodes(self) -> set[int]:

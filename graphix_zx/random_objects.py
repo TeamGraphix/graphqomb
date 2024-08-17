@@ -19,7 +19,7 @@ def get_random_flow_graph(
 ) -> tuple[GraphState, dict[int, set[int]]]:
     """Generate a random flow graph."""
     graph = GraphState()
-    flow: dict[int, set[int]] = dict()
+    flow: dict[int, set[int]] = {}
     num_nodes = 0
 
     # input nodes

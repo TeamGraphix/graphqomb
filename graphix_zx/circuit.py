@@ -132,7 +132,7 @@ class MacroCircuit(BaseCircuit):
 
 def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
     graph = GraphState()
-    gflow = dict()
+    gflow = {}
 
     front_nodes = []  # list index  corresponds to qubit index
     num_nodes = 0
