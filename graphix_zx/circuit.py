@@ -25,6 +25,7 @@ class GateKind(Enum):
 
 
 class Gate(ABC):
+    @abstractmethod
     def get_matrix(self) -> NDArray:
         raise NotImplementedError
 

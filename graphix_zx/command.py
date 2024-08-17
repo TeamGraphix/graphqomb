@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import enum
-from abc import ABC
 from dataclasses import dataclass, field
 
 from graphix_zx.common import Plane
@@ -20,7 +19,7 @@ class CommandKind(str, enum.Enum):
     Z = "Z"
 
 
-class Command(ABC):
+class Command:
     """Base command class."""
 
     kind: CommandKind | None = None
