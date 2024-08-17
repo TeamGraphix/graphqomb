@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict, Set
+from typing import TYPE_CHECKING, Dict, Set
 
-from graphix_zx.graphstate import BaseGraphState
+if TYPE_CHECKING:
+    from graphix_zx.graphstate import BaseGraphState
 
 FlowLike = Dict[int, Set[int]]
 Layer = Dict[int, int]

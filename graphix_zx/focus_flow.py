@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from graphix_zx.common import Plane
-from graphix_zx.flow import FlowLike, construct_dag, oddneighbors
-from graphix_zx.graphstate import BaseGraphState
+from graphix_zx.flow import construct_dag, oddneighbors
+
+if TYPE_CHECKING:
+    from graphix_zx.flow import FlowLike
+    from graphix_zx.graphstate import BaseGraphState
 
 
 def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:

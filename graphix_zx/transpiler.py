@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Dict, Set
+from typing import TYPE_CHECKING, Dict, Set
 
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import Plane
-from graphix_zx.flow import FlowLike, check_causality, oddneighbors
+from graphix_zx.flow import check_causality, oddneighbors
 from graphix_zx.focus_flow import (
     topological_sort_kahn,
 )
-from graphix_zx.graphstate import BaseGraphState
-from graphix_zx.pattern import ImmutablePattern, MutablePattern
+from graphix_zx.pattern import MutablePattern
+
+if TYPE_CHECKING:
+    from graphix_zx.flow import FlowLike
+    from graphix_zx.graphstate import BaseGraphState
+    from graphix_zx.pattern import ImmutablePattern
 
 Correction = Set[int]
 CorrectionMap = Dict[int, Correction]
