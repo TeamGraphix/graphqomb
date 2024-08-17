@@ -57,7 +57,7 @@ class BaseGraphState(ABC):
 
     @abstractmethod
     def set_meas_plane(self, node: int, plane: Plane) -> None:
-        raise
+        raise NotImplementedError
 
     @abstractmethod
     def set_meas_angle(self, node: int, angle: float) -> None:
