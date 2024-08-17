@@ -93,7 +93,7 @@ class MacroMultiGate(Gate):
 
 
 @dataclass(frozen=True)
-class I(MacroSingleGate):
+class Identity(MacroSingleGate):
     qubit: int
 
     def get_unit_gates(self) -> list[Gate]:
