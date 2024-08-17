@@ -64,7 +64,7 @@ class PhaseGadget(Gate):
         return [self]
 
     def get_matrix(self) -> NDArray:
-        def count_ones_in_binary(array: NDArray):
+        def count_ones_in_binary(array: NDArray) -> NDArray:
             count_ones = np.vectorize(lambda x: bin(x).count("1"))
             return count_ones(array)
 
