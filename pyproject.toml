@@ -80,6 +80,7 @@ docstring-code-format = true
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = [
   "S101", # `assert` detected
+  "PLR2004", # magic value in test(should be removed)
 ]
 
 [tool.pytest.ini_options]
