@@ -181,7 +181,7 @@ class MutablePattern(BasePattern):
             if node in self.get_input_nodes():
                 new_input_q_indices[node] = self.__q_indices[node]
             else:
-                new_input_q_indices[node] = pattern.__q_indices
+                new_input_q_indices[node] = pattern.get_q_indices()
 
         new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
         for cmd in self.get_commands():

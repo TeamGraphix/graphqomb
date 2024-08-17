@@ -207,7 +207,7 @@ class GraphState(BaseGraphState):
             if node in set(self.__input_nodes):
                 new_graph.set_input(node)
 
-            if node in set(self.__output_nodes) - set(other.__input_nodes):
+            if node in set(self.output_nodes) - set(other.input_nodes):
                 new_graph.set_output(node)
             else:
                 new_graph.set_meas_plane(node, self.__meas_planes.get(node, Plane.XY))
@@ -216,28 +216,28 @@ class GraphState(BaseGraphState):
         for edge in self.get_physical_edges():
             new_graph.add_physical_edge(edge[0], edge[1])
 
-        for node in other.__physical_nodes:
+        for node in other.get_physical_nodes():
             if node in common_nodes:
                 continue
             new_graph.add_physical_node(node)
-            if node in set(other.__input_nodes) - set(self.__output_nodes):
+            if node in set(other.input_nodes) - set(self.output_nodes):
                 new_graph.set_input(node)
 
-            if node in set(other.__output_nodes):
+            if node in set(other.output_nodes):
                 new_graph.set_output(node)
             else:
-                new_graph.set_meas_plane(node, other.__meas_planes.get(node, Plane.XY))
-                new_graph.set_meas_angle(node, other.__meas_angles.get(node, 0.0))
+                new_graph.set_meas_plane(node, other.get_meas_planes().get(node, Plane.XY))
+                new_graph.set_meas_angle(node, other.get_meas_angles().get(node, 0.0))
 
         for edge in other.get_physical_edges():
             new_graph.add_physical_edge(edge[0], edge[1])
 
         # q_index update
-        for node, q_index in self.__q_indices.items():
+        for node, q_index in self.get_q_indices().items():
             new_graph.set_q_index(node, q_index)
 
-        for node, q_index in other.__q_indices.items():
-            if (node in common_nodes) and (new_graph.__q_indices[node] != q_index):
+        for node, q_index in other.get_q_indices().items():
+            if (node in common_nodes) and (new_graph.get_q_indices()[node] != q_index):
                 raise ValueError("Qubit index mismatch")
             new_graph.set_q_index(node, q_index)
 
