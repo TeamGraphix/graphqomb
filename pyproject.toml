@@ -64,6 +64,9 @@ ignore = [
   "D103",
   "D100",
   "T201", # print
+  "ANN201", # after creating BaseSimulatorBackend class
+  "PLR0912", # too complex
+  "C901", # too complex
 ]
 
 [tool.ruff.lint.pydocstyle]

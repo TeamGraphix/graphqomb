@@ -15,12 +15,15 @@ def get_random_flow_graph(
     width: int,
     depth: int,
     edge_p: float = 0.5,
-    rng: Generator = np.random.default_rng(),
+    rng: Generator | None = None,
 ) -> tuple[GraphState, dict[int, set[int]]]:
     """Generate a random flow graph."""
     graph = GraphState()
     flow: dict[int, set[int]] = {}
     num_nodes = 0
+
+    if rng == None:
+        rng = np.random.default_rng()
 
     # input nodes
     for _ in range(width):
