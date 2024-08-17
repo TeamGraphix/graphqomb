@@ -377,10 +377,7 @@ def is_deterministic(pattern: BasePattern) -> bool:
 
 
 def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
-    if len(pattern) < lim:
-        nmax = len(pattern)
-    else:
-        nmax = lim
+    nmax = len(pattern) if len(pattern) < lim else lim
     if cmd_filter is None:
         cmd_filter = [
             CommandKind.N,
