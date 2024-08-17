@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from numpy.typing import NDArray
 
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import Plane
@@ -12,6 +11,7 @@ from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 
 if TYPE_CHECKING:
     from graphix_zx.statevec import StateVector
+    from numpy.typing import NDArray
 
 
 # Mock StateVector class to test without actual quantum simulation
