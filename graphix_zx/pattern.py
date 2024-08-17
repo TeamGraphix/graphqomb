@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import dataclasses
 from abc import ABC, abstractmethod
 
-import dataclasses
-
-from graphix_zx.command import Command, CommandKind, N, E, M, C, X, Z
+from graphix_zx.command import Command, CommandKind, M, N, X, Z
 
 
 class NodeAlreadyPreparedError(Exception):
@@ -98,8 +97,7 @@ class ImmutablePattern(BasePattern):
                 nodes += 1
             elif cmd.kind == CommandKind.M:
                 nodes -= 1
-            if nodes > max_nodes:
-                max_nodes = nodes
+            max_nodes = max(nodes, max_nodes)
         return max_nodes
 
     def is_runnable(self):
@@ -224,8 +222,7 @@ class MutablePattern(BasePattern):
                 nodes += 1
             elif cmd.kind == CommandKind.M:
                 nodes -= 1
-            if nodes > max_nodes:
-                max_nodes = nodes
+            max_nodes = max(nodes, max_nodes)
         return max_nodes
 
     def get_space_list(self):
@@ -330,9 +327,7 @@ def check_rule0(pattern: BasePattern) -> bool:
     measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
-            if len(cmd.s_domain & measured) > 0:
-                return False
-            elif len(cmd.t_domain & measured) > 0:
+            if len(cmd.s_domain & measured) > 0 or len(cmd.t_domain & measured) > 0:
                 return False
             measured.add(cmd.node)
         elif isinstance(cmd, X) or isinstance(cmd, Z):
@@ -350,9 +345,8 @@ def check_rule1(pattern: BasePattern) -> bool:
             if cmd.node in measured:
                 return False
             measured.add(cmd.node)
-        else:
-            if cmd.node in measured:
-                return False
+        elif cmd.node in measured:
+            return False
     return True
 
 

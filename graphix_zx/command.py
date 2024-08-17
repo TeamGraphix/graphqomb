@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC
 import enum
+from abc import ABC
 from dataclasses import dataclass, field
 
 from graphix_zx.common import Plane

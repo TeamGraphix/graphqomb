@@ -3,12 +3,12 @@ import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.pattern import is_standardized, print_pattern
-from graphix_zx.transpiler import transpile_from_flow
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
     SimulatorBackend,
 )
+from graphix_zx.transpiler import transpile_from_flow
 
 # %%
 # generate circuit

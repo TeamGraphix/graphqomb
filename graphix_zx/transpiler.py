@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
-from graphix_zx.common import Plane
 from graphix_zx.command import E, M, N, X, Z
-from graphix_zx.pattern import MutablePattern, ImmutablePattern
-from graphix_zx.flow import FlowLike, oddneighbors, check_causality
+from graphix_zx.common import Plane
+from graphix_zx.flow import FlowLike, check_causality, oddneighbors
 from graphix_zx.focus_flow import (
     topological_sort_kahn,
 )
 from graphix_zx.graphstate import BaseGraphState
+from graphix_zx.pattern import ImmutablePattern, MutablePattern
 
 Correction = Set[int]
 CorrectionMap = Dict[int, Correction]
@@ -34,10 +34,12 @@ def generate_m_cmd(
         x_correction (Correction): x correction applied to the node
         z_correction (Correction): z correction applied to the node
 
-    Raises:
+    Raises
+    ------
         ValueError: invalid measurement plane
 
-    Returns:
+    Returns
+    -------
         M: measurement command
     """
     if meas_plane == Plane.XY:
@@ -67,7 +69,8 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
         graph (BaseGraphState): graph state
         flowlike (FlowLike): flowlike object
 
-    Returns:
+    Returns
+    -------
         CorrectionMap : correction dictionary
     """
     corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
@@ -77,21 +80,22 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
             corrections[correction] |= {node}
 
     # remove self-corrections
-    for node in corrections.keys():
+    for node in corrections:
         corrections[node] -= {node}
 
     return corrections
 
 
 def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> ImmutablePattern:
-    """transpile pattern from gflow object
+    """Transpile pattern from gflow object
 
     Args:
         graph (BaseGraphState): graph state
         gflow (FlowLike): gflow
         correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
 
-    Returns:
+    Returns
+    -------
         ImmutablePattern: immutable pattern
     """
     # TODO: check the validity of the flows
@@ -122,7 +126,7 @@ def transpile(
     dag: dict[int, set[int]],
     correct_output: bool = True,
 ) -> MutablePattern:
-    """transpile pattern from graph, corrections, and dag
+    """Transpile pattern from graph, corrections, and dag
 
     Args:
         graph (BaseGraphState): graph state
@@ -131,7 +135,8 @@ def transpile(
         dag (dict[int, set[int]]): directed acyclic graph
         correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
 
-    Returns:
+    Returns
+    -------
         MutablePattern: mutable pattern
     """
     input_nodes = graph.input_nodes
@@ -183,7 +188,8 @@ def transpile_from_subgraphs(
         subgraphs (list[BaseGraphState]): subgraph sequence
         gflow (FlowLike): gflow
 
-    Returns:
+    Returns
+    -------
         ImmutablePattern: immutable pattern
     """
     if not check_causality(graph, gflow):

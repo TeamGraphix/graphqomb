@@ -1,9 +1,9 @@
 import pytest
-import numpy as np
+
+from graphix_zx.command import E, M, N, X, Z
 
 # Assuming the following imports exist based on your code context
 from graphix_zx.common import Plane
-from graphix_zx.command import N, E, M, X, Z
 from graphix_zx.pattern import MutablePattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
 

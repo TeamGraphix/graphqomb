@@ -2,14 +2,14 @@
 import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
-from graphix_zx.resource_opt import get_minimized_sp_meas_order, get_subgraph_sequences
 from graphix_zx.pattern import is_standardized, print_pattern
-from graphix_zx.transpiler import transpile_from_flow, transpile_from_subgraphs
+from graphix_zx.resource_opt import get_minimized_sp_meas_order, get_subgraph_sequences
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
     SimulatorBackend,
 )
+from graphix_zx.transpiler import transpile_from_flow, transpile_from_subgraphs
 
 # %%
 # generate circuit

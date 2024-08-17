@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from graphix_zx.common import Plane
 from graphix_zx.statevec import StateVector
 

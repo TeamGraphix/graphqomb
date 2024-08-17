@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import numpy as np
 
-from graphix_zx.circuit import MBQCCircuit, Gate, J, CZ, PhaseGadget
+from graphix_zx.circuit import CZ, Gate, J, MBQCCircuit, PhaseGadget
 from graphix_zx.command import CommandKind
 from graphix_zx.pattern import ImmutablePattern
 from graphix_zx.statevec import BaseStateVector, StateVector
@@ -143,8 +143,7 @@ class PatternSimulator(BasePatternSimulator):
         elif cmd.kind == CommandKind.M:
             if self.__calc_prob:
                 raise NotImplementedError
-            else:
-                result = np.random.choice([0, 1])
+            result = np.random.choice([0, 1])
 
             s_bool = 0
             t_bool = 0

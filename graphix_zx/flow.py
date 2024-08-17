@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Dict, Set
 
-from graphix_zx.common import Plane
 from graphix_zx.graphstate import BaseGraphState
 
 FlowLike = Dict[int, Set[int]]
@@ -34,7 +33,7 @@ def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -
 
 
 def check_dag(dag: dict[int, set[int]]) -> bool:
-    for node in dag.keys():
+    for node in dag:
         for child in dag[node]:
             if node in dag[child]:
                 return False

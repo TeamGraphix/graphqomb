@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
 from abc import ABC, abstractmethod
+
+import numpy as np
 
 from graphix_zx.common import Plane
 

@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-
 from graphix_zx.common import Plane
-from graphix_zx.flow import FlowLike, oddneighbors, construct_dag
+from graphix_zx.flow import FlowLike, construct_dag, oddneighbors
 from graphix_zx.graphstate import BaseGraphState
 
 
 def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
-    in_degree = {node: 0 for node in dag.keys()}
-    for node in dag.keys():
+    in_degree = {node: 0 for node in dag}
+    for node in dag:
         for child in dag[node]:
             in_degree[child] += 1
 
-    queue = [node for node in in_degree.keys() if in_degree[node] == 0]
+    queue = [node for node in in_degree if in_degree[node] == 0]
 
     topo_order = []
 
@@ -29,8 +28,7 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
 
     if len(topo_order) == len(dag):
         return topo_order
-    else:
-        raise ValueError("Cycle detected in the graph")
+    raise ValueError("Cycle detected in the graph")
 
 
 def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:

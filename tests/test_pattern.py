@@ -2,12 +2,12 @@ import pytest
 
 # Assuming Command and CommandKind are defined somewhere
 from graphix_zx.command import (
-    N,
-    M,
     E,
+    M,
+    N,
     X,
 )
-from graphix_zx.pattern import NodeAlreadyPreparedError, MutablePattern, is_standardized
+from graphix_zx.pattern import MutablePattern, NodeAlreadyPreparedError, is_standardized
 
 
 def test_pattern_initialization():
