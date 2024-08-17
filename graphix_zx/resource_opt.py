@@ -91,7 +91,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
         meas_order.append(target_node)
         activated_nodes |= get_activation_nodes(graph, target_node, activated_nodes) | {target_node}
         unmeasured_nodes -= {target_node}
-        for node, children in inverted_dag.items():
+        for _, children in inverted_dag.items():
             if target_node in children:
                 children.remove(target_node)
     return meas_order

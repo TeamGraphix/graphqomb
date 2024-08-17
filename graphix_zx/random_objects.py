@@ -23,7 +23,7 @@ def get_random_flow_graph(
     num_nodes = 0
 
     # input nodes
-    for w in range(width):
+    for _ in range(width):
         graph.add_physical_node(num_nodes, is_input=True)
         graph.set_meas_plane(num_nodes, Plane.XY)
         graph.set_meas_angle(num_nodes, 0.0)
@@ -31,7 +31,7 @@ def get_random_flow_graph(
 
     # internal nodes
     for _ in range(depth - 2):
-        for w in range(width):
+        for _ in range(width):
             graph.add_physical_node(num_nodes)
             graph.set_meas_plane(num_nodes, Plane.XY)
             graph.set_meas_angle(num_nodes, 0.0)
@@ -44,7 +44,7 @@ def get_random_flow_graph(
                 graph.add_physical_edge(num_nodes - width + w, num_nodes - width + w + 1)
 
     # output nodes
-    for w in range(width):
+    for _ in range(width):
         graph.add_physical_node(num_nodes, is_output=True)
         graph.add_physical_edge(num_nodes - width, num_nodes)
         flow[num_nodes - width] = {num_nodes}
