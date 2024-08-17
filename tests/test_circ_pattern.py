@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
-from graphix_zx.simulator import (MBQCCircuitSimulator, PatternSimulator,
-                                  SimulatorBackend)
+from graphix_zx.simulator import MBQCCircuitSimulator, PatternSimulator, SimulatorBackend
 from graphix_zx.transpiler import transpile_from_flow
 
 
