@@ -364,10 +364,7 @@ def check_rule2(pattern: BasePattern) -> bool:
 # a qubit i is measured if and only if i is not an output
 def check_rule3(pattern: BasePattern) -> bool:
     output_nodes = pattern.get_output_nodes()
-    for cmd in pattern:
-        if isinstance(cmd, M) and (cmd.node in output_nodes):
-            return False
-    return True
+    return all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
 
 
 # # NOTE: generally, difficult to prove that a pattern is deterministic
