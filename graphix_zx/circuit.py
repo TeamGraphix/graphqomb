@@ -32,9 +32,7 @@ class J(Gate):
     kind: GateKind = GateKind.J
 
     def get_matrix(self) -> NDArray:
-        return np.array(
-            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
-        ) / np.sqrt(2)
+        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -157,9 +155,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
             num_nodes += 1
 
         elif isinstance(instruction, CZ):
-            graph.add_physical_edge(
-                front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]]
-            )
+            graph.add_physical_edge(front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]])
         elif isinstance(instruction, PhaseGadget):
             graph.add_physical_node(num_nodes)
             graph.set_meas_angle(num_nodes, instruction.angle)
