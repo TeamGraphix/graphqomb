@@ -13,6 +13,7 @@ from graphix_zx.statevec import StateVector
 if TYPE_CHECKING:
     from graphix_zx.statevec import BaseStateVector
     from graphix_zx.pattern import ImmutablePattern
+    from graphix_zx.command import Command
 
 
 class BaseCircuitSimulator(ABC):
@@ -136,7 +137,7 @@ class PatternSimulator(BasePatternSimulator):
     def results(self) -> dict[int, bool]:
         return self.__results
 
-    def apply_cmd(self, cmd) -> None:
+    def apply_cmd(self, cmd: Command) -> None:
         if cmd.kind == CommandKind.N:
             self.__state.add_node(1)
             self.__node_indices.append(cmd.node)

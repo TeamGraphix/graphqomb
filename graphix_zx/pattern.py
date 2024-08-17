@@ -25,7 +25,7 @@ class BasePattern(ABC):
     def __iter__(self):
         return iter(self.get_commands())
 
-    def __getitem__(self, index) -> Command:
+    def __getitem__(self, index: int) -> Command:
         return self.get_commands()[index]
 
     @abstractmethod

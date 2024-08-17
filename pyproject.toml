@@ -53,12 +53,14 @@ ignore = [
 
   # will be activated future
   "EM101",
+  "EM102",
   "TRY003",
   "D400",
   "TD003",
   "TD002",
   "D102",
   "D101",
+  "D103",
   "D100",
 ]
 

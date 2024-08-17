@@ -12,10 +12,6 @@ class BaseGraphState(ABC):
     def __init__(self) -> None:
         pass
 
-    @abstractmethod
-    def append_graph(self, other) -> BaseGraphState:
-        raise NotImplementedError
-
     # NOTE: input and output nodes are necessary because graph is open graph
     @property
     @abstractmethod
@@ -76,6 +72,10 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_q_indices(self) -> dict[int, int]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
         raise NotImplementedError
 
@@ -88,7 +88,7 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_q_indices(self) -> dict[int, int]:
+    def append_graph(self, other: BaseGraphState) -> BaseGraphState:
         raise NotImplementedError
 
 
@@ -195,7 +195,7 @@ class GraphState(BaseGraphState):
     def get_meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
 
-    def append_graph(self, other) -> GraphState:
+    def append_graph(self, other: BaseGraphState) -> GraphState:
         common_nodes = self.get_physical_nodes() & other.get_physical_nodes()
         border_nodes = self.output_nodes & other.input_nodes
 
