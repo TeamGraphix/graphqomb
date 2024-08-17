@@ -54,8 +54,8 @@ def test_normalize(state_vector: StateVector):
     assert np.isclose(state_vector.get_norm(), expected_norm)
 
 
-def test_reorder(state_vector: StateVector):
-    pass
+# def test_reorder(state_vector: StateVector):
+#     pass
 
 
 def test_is_isolated(plus_state: StateVector):
