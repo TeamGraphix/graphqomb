@@ -60,10 +60,11 @@ ignore = [
   "D400",
   "TD003",
   "TD002",
-  "D102",
-  "D101",
-  "D103",
   "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
   "T201", # print
   "ANN201", # after creating BaseSimulatorBackend class
   "PLR0912", # too complex
