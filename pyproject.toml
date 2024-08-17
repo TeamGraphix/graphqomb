@@ -50,6 +50,16 @@ ignore = [
   "ERA",   # commented-out code
   "FBT",   # boolean-trap
   "FIX",   # fixme
+
+  # will be activated future
+  "EM101",
+  "TRY003",
+  "D400",
+  "TD003",
+  "TD002",
+  "D102",
+  "D101",
+  "D100",
 ]
 
 [tool.ruff.lint.pydocstyle]

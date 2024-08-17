@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 
 from graphix_zx.common import Plane
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 CZ_TENSOR = np.array(
     [
