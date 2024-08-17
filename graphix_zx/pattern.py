@@ -371,9 +371,9 @@ def check_rule3(pattern: BasePattern) -> bool:
     return True
 
 
-# NOTE: generally, difficult to prove that a pattern is deterministic
-def is_deterministic(pattern: BasePattern) -> bool:
-    raise NotImplementedError
+# # NOTE: generally, difficult to prove that a pattern is deterministic
+# def is_deterministic(pattern: BasePattern) -> bool:
+#     raise NotImplementedError
 
 
 def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
