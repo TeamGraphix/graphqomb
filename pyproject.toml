@@ -19,10 +19,41 @@ target-version = "py38"
 line-length = 120
 
 [tool.ruff.lint]
-select = [
-  "A", # Shadowing builtins
-  "N", # Naming conventions
+select = ["ALL"]
+ignore = [
+  # Conflicts with ruff format
+  "COM812",
+  "COM819",
+  "D206",
+  "D300",
+  "E111",
+  "E114",
+  "E117",
+  "ISC001",
+  "ISC002",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "W191",
+
+  # Not necessary for this project
+  "AIR",
+  "ASYNC",
+  "DJ",
+  "PD",
+
+  # Manually disabled
+  "ANN10", # `self`/`cls` not annotated
+  "CPY",   # copyright missing
+  "D105",  # undocumented magic method
+  "ERA",   # commented-out code
+  "FBT",   # boolean-trap
+  "FIX",   # fixme
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.format]
 docstring-code-format = true
