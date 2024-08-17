@@ -7,9 +7,7 @@ from typing import TYPE_CHECKING, Dict, Set
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import Plane
 from graphix_zx.flow import check_causality, oddneighbors
-from graphix_zx.focus_flow import (
-    topological_sort_kahn,
-)
+from graphix_zx.focus_flow import topological_sort_kahn
 from graphix_zx.pattern import MutablePattern
 
 if TYPE_CHECKING:

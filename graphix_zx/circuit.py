@@ -11,8 +11,9 @@ from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from graphix_zx.flow import FlowLike
     from numpy.typing import NDArray
+
+    from graphix_zx.flow import FlowLike
 
 
 class GateKind(Enum):

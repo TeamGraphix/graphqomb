@@ -11,9 +11,9 @@ from graphix_zx.command import CommandKind
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
-    from graphix_zx.statevec import BaseStateVector
-    from graphix_zx.pattern import ImmutablePattern
     from graphix_zx.command import Command
+    from graphix_zx.pattern import ImmutablePattern
+    from graphix_zx.statevec import BaseStateVector
 
 
 class BaseCircuitSimulator(ABC):
