@@ -60,7 +60,6 @@ ignore = [
   "D103",
   "D104",
   "D400",
-  # "T201", # print
   "PLR0912", # too complex
   "C901", # too complex
 ]
@@ -79,7 +78,7 @@ docstring-code-format = true
 "examples/*.py" = [
   "T201", # print
   ]
-  
+
 [tool.pytest.ini_options]
 pythonpath = ["graphix_zx"]
 testpaths = ["tests"]
