@@ -44,3 +44,5 @@ circ_simulator.simulate()
 circ_state = circ_simulator.get_state().get_state_vector()
 inner_product = np.vdot(statevec, circ_state)
 print("inner product:", np.abs(inner_product))  # should be 1
+
+# %%

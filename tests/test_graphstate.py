@@ -86,12 +86,12 @@ def test_append_graph() -> None:
     graph2.add_physical_node(3, is_output=True)
     graph2.add_physical_edge(2, 3)
 
-    graph = graph1.append_graph(graph2)
+    graph1.append(graph2)
 
-    assert graph.num_physical_nodes == 3
-    assert graph.num_physical_edges == 2
-    assert 1 in graph.input_nodes
-    assert 3 in graph.output_nodes
+    assert graph1.num_physical_nodes == 3
+    assert graph1.num_physical_edges == 2
+    assert 1 in graph1.input_nodes
+    assert 3 in graph1.output_nodes
 
 
 if __name__ == "__main__":

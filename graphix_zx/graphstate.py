@@ -12,7 +12,6 @@ class BaseGraphState(ABC):
     def __init__(self) -> None:
         pass
 
-    # NOTE: input and output nodes are necessary because graph is open graph
     @property
     @abstractmethod
     def input_nodes(self) -> set[int]:
@@ -85,10 +84,6 @@ class BaseGraphState(ABC):
 
     @abstractmethod
     def get_meas_angles(self) -> dict[int, float]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def append_graph(self, other: BaseGraphState) -> BaseGraphState:
         raise NotImplementedError
 
 
@@ -205,7 +200,14 @@ class GraphState(BaseGraphState):
     def get_meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
 
-    def append_graph(self, other: BaseGraphState) -> GraphState:
+    def _reset_input_output(self, node: int) -> None:
+        if node in self.__input_nodes:
+            self.__input_nodes.remove(node)
+        if node in self.__output_nodes:
+            self.__output_nodes.remove(node)
+
+    # TODO: overload
+    def append(self, other: BaseGraphState) -> None:
         common_nodes = self.get_physical_nodes() & other.get_physical_nodes()
         border_nodes = self.output_nodes & other.input_nodes
 
@@ -213,45 +215,26 @@ class GraphState(BaseGraphState):
             msg = "Qubit index mismatch"
             raise ValueError(msg)
 
-        new_graph = GraphState()
-        for node in self.__physical_nodes:
-            new_graph.add_physical_node(node)
-            if node in set(self.__input_nodes):
-                new_graph.set_input(node)
-
-            if node in set(self.output_nodes) - set(other.input_nodes):
-                new_graph.set_output(node)
-            else:
-                new_graph.set_meas_plane(node, self.__meas_planes.get(node, Plane.XY))
-                new_graph.set_meas_angle(node, self.__meas_angles.get(node, 0.0))
-
-        for edge in self.get_physical_edges():
-            new_graph.add_physical_edge(edge[0], edge[1])
-
         for node in other.get_physical_nodes():
-            if node in common_nodes:
-                continue
-            new_graph.add_physical_node(node)
-            if node in set(other.input_nodes) - set(self.output_nodes):
-                new_graph.set_input(node)
+            if node in border_nodes:
+                self._reset_input_output(node)
+            else:
+                self.add_physical_node(node)
+                if node in set(other.input_nodes) - set(self.output_nodes):
+                    self.set_input(node)
 
             if node in set(other.output_nodes):
-                new_graph.set_output(node)
+                self.set_output(node)
             else:
-                new_graph.set_meas_plane(node, other.get_meas_planes().get(node, Plane.XY))
-                new_graph.set_meas_angle(node, other.get_meas_angles().get(node, 0.0))
+                self.set_meas_plane(node, other.get_meas_planes().get(node, Plane.XY))
+                self.set_meas_angle(node, other.get_meas_angles().get(node, 0.0))
 
         for edge in other.get_physical_edges():
-            new_graph.add_physical_edge(edge[0], edge[1])
+            self.add_physical_edge(edge[0], edge[1])
 
         # q_index update
-        for node, q_index in self.get_q_indices().items():
-            new_graph.set_q_index(node, q_index)
-
         for node, q_index in other.get_q_indices().items():
-            if (node in common_nodes) and (new_graph.get_q_indices()[node] != q_index):
+            if (node in common_nodes) and (self.get_q_indices()[node] != q_index):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
-            new_graph.set_q_index(node, q_index)
-
-        return new_graph
+            self.set_q_index(node, q_index)
