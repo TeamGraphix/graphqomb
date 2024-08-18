@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.circuit import CZ, Gate, J, MBQCCircuit, PhaseGadget
-from graphix_zx.command import CommandKind
+from graphix_zx.command import C, E, M, N, X, Z
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
@@ -137,56 +137,21 @@ class PatternSimulator(BasePatternSimulator):
         return self.__results
 
     def apply_cmd(self, cmd: Command) -> None:
-        if cmd.kind == CommandKind.N:
-            self.__state.add_node(1)
-            self.__node_indices.append(cmd.node)
-        elif cmd.kind == CommandKind.E:
-            node_id1 = self.__node_indices.index(cmd.nodes[0])
-            node_id2 = self.__node_indices.index(cmd.nodes[1])
-            self.__state.entangle((node_id1, node_id2))
-        elif cmd.kind == CommandKind.M:
-            if self.__calc_prob:
-                raise NotImplementedError
-            rng = np.random.default_rng()
-            result = rng.choice([0, 1])
-
-            s_bool = 0
-            t_bool = 0
-            for node in cmd.s_domain:
-                s_bool ^= self.__results[node]
-            for node in cmd.t_domain:
-                t_bool ^= self.__results[node]
-
-            angle = (-1) ** s_bool * cmd.angle + t_bool * np.pi
-
-            node_id = self.__node_indices.index(cmd.node)
-            self.__state.measure(node_id, cmd.plane, angle, result)
-            self.__results[cmd.node] = result
-            self.__node_indices.remove(cmd.node)
-
-            self.__state.normalize()  # NOTE: necessary?
-        elif cmd.kind == CommandKind.X:
-            node_id = self.__node_indices.index(cmd.node)
-            # domain calculation
-            result = False
-            for node in cmd.domain:
-                result ^= self.__results[node]
-            if result:
-                self.__state.evolve(np.array([[0, 1], [1, 0]]), [node_id])
-            else:
-                pass
-        elif cmd.kind == CommandKind.Z:
-            node_id = self.__node_indices.index(cmd.node)
-            # domain calculation
-            result = False
-            for node in cmd.domain:
-                result ^= self.__results[node]
-            if result:
-                self.__state.evolve(np.array([[1, 0], [0, -1]]), [node_id])
-            else:
-                pass
-        elif cmd.kind == CommandKind.C:
-            raise NotImplementedError
+        if isinstance(cmd, N):
+            self._apply_n(cmd)
+        elif isinstance(cmd, E):
+            self._apply_e(cmd)
+        elif isinstance(cmd, M):
+            self._apply_m(cmd)
+        elif isinstance(cmd, X):
+            self._apply_x(cmd)
+        elif isinstance(cmd, Z):
+            self._apply_z(cmd)
+        elif isinstance(cmd, C):
+            self._apply_c(cmd)
+        else:
+            msg = f"Invalid command: {cmd}"
+            raise TypeError(msg)
 
     def simulate(self) -> None:
         for cmd in self.__pattern.get_commands():
@@ -201,6 +166,62 @@ class PatternSimulator(BasePatternSimulator):
 
     def get_state(self):  # TODO: make base simulator backend class including sv, dm, tn
         return self.__state
+
+    def _apply_n(self, cmd: N) -> None:
+        self.__state.add_node(1)
+        self.__node_indices.append(cmd.node)
+
+    def _apply_e(self, cmd: E) -> None:
+        node_id1 = self.__node_indices.index(cmd.nodes[0])
+        node_id2 = self.__node_indices.index(cmd.nodes[1])
+        self.__state.entangle((node_id1, node_id2))
+
+    def _apply_m(self, cmd: M) -> None:
+        if self.__calc_prob:
+            raise NotImplementedError
+        rng = np.random.default_rng()
+        result = rng.choice([0, 1])
+
+        s_bool = 0
+        t_bool = 0
+        for node in cmd.s_domain:
+            s_bool ^= self.__results[node]
+        for node in cmd.t_domain:
+            t_bool ^= self.__results[node]
+
+        angle = (-1) ** s_bool * cmd.angle + t_bool * np.pi
+
+        node_id = self.__node_indices.index(cmd.node)
+        self.__state.measure(node_id, cmd.plane, angle, result)
+        self.__results[cmd.node] = result
+        self.__node_indices.remove(cmd.node)
+
+        self.__state.normalize()
+
+    def _apply_x(self, cmd: X) -> None:
+        node_id = self.__node_indices.index(cmd.node)
+        # domain calculation
+        result = False
+        for node in cmd.domain:
+            result ^= self.__results[node]
+        if result:
+            self.__state.evolve(np.array([[0, 1], [1, 0]]), [node_id])
+        else:
+            pass
+
+    def _apply_z(self, cmd: Z) -> None:
+        node_id = self.__node_indices.index(cmd.node)
+        # domain calculation
+        result = False
+        for node in cmd.domain:
+            result ^= self.__results[node]
+        if result:
+            self.__state.evolve(np.array([[1, 0], [0, -1]]), [node_id])
+        else:
+            pass
+
+    def _apply_c(self, cmd: C) -> None:
+        raise NotImplementedError
 
 
 # return permutation
