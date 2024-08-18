@@ -36,7 +36,7 @@ class MockStateVector:
         return self.num_qubits == other.num_qubits
 
 
-@pytest.fixture
+@pytest.fixture()
 def setup_pattern():
     pattern = MutablePattern([0])
     cmds = [

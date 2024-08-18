@@ -5,7 +5,7 @@ import pytest
 from graphix_zx.graphstate import GraphState
 
 
-@pytest.fixture
+@pytest.fixture()
 def graph():
     return GraphState()
 

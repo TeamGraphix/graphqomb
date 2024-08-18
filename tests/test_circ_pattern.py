@@ -8,7 +8,7 @@ from graphix_zx.simulator import MBQCCircuitSimulator, PatternSimulator, Simulat
 from graphix_zx.transpiler import transpile_from_flow
 
 
-@pytest.fixture
+@pytest.fixture()
 def random_circ():
     circ = MBQCCircuit(3)
     circ.j(0, 0.5 * np.pi)
@@ -19,7 +19,7 @@ def random_circ():
     return circ
 
 
-@pytest.fixture
+@pytest.fixture()
 def random_circ_with_phase_gadget():
     circ = MBQCCircuit(3)
     circ.j(0, 0.5 * np.pi)
