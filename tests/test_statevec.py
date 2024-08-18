@@ -5,12 +5,12 @@ from graphix_zx.common import Plane
 from graphix_zx.statevec import StateVector
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_state() -> StateVector:
     return StateVector(2)
 
 
-@pytest.fixture()
+@pytest.fixture
 def state_vector() -> StateVector:
     num_qubits = 3
     state = np.arange(2**num_qubits, dtype=np.float64)

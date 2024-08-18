@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import GraphState
 
 
-@pytest.fixture()
+@pytest.fixture
 def random_graph() -> tuple[GraphState, FlowLike]:
     graph, flow = get_random_flow_graph(10, 10)
     return graph, flow

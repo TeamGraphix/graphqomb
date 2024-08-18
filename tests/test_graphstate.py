@@ -6,7 +6,7 @@ from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState
 
 
-@pytest.fixture()
+@pytest.fixture
 def graph() -> GraphState:
     return GraphState()
 
