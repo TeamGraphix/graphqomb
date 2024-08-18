@@ -60,7 +60,6 @@ ignore = [
   "D103",
   "D104",
   "D400",
-  "PLR0912", # too complex
 ]
 
 [tool.ruff.lint.pydocstyle]
