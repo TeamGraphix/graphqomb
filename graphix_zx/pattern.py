@@ -124,7 +124,9 @@ class MutablePattern(BasePattern):
     ) -> None:
         if input_nodes is None:
             input_nodes = set()
-        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
+        self.__input_nodes: set[int] = set(
+            input_nodes
+        )  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: list[Command] = []
@@ -142,7 +144,7 @@ class MutablePattern(BasePattern):
         self.__runnable: bool = False
         self.__deterministic: bool = False
 
-    def add(self, cmd: Command) -> None:
+    def __add(self, cmd: Command) -> None:
         if isinstance(cmd, N):
             if cmd.node in self.__output_nodes:
                 raise NodeAlreadyPreparedError(cmd.node)
@@ -152,6 +154,9 @@ class MutablePattern(BasePattern):
         elif isinstance(cmd, M):
             self.__output_nodes -= {cmd.node}
         self.__seq.append(cmd)
+
+    def add(self, cmd: Command) -> None:
+        self.__add(cmd)
 
         # runnablility and determinism are not guaranteed after adding a command
         self.__runnable = False
@@ -172,7 +177,9 @@ class MutablePattern(BasePattern):
         self.clear()
         self.extend(cmds)
 
-    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
+    def append_pattern(
+        self, pattern: MutablePattern | ImmutablePattern
+    ) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
@@ -187,7 +194,9 @@ class MutablePattern(BasePattern):
             else:
                 new_input_q_indices[node] = pattern.get_q_indices()[node]
 
-        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
+        new_pattern = MutablePattern(
+            input_nodes=new_input_nodes, q_indices=new_input_q_indices
+        )
         for cmd in self.get_commands():
             new_pattern.add(cmd)
 
@@ -310,7 +319,9 @@ def is_standardized(pattern: BasePattern) -> bool:
         if cmd.kind not in standardized_order:
             msg = f"Unknown command kind: {cmd.kind}"
             raise ValueError(msg)
-        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
+        if standardized_order.index(cmd.kind) < standardized_order.index(
+            current_cmd_kind
+        ):
             standardized = False
             break
         current_cmd_kind = cmd.kind
@@ -426,7 +437,9 @@ def print_command(cmd: Command) -> None:
         logging.warning("Command %s not recognized", cmd.kind)
 
 
-def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
+def print_pattern(
+    pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
+) -> None:
     logging.basicConfig(level=logging.INFO)
     if cmd_filter is None:
         cmd_filter = [

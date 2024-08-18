@@ -88,7 +88,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
         # evaluate activation cost
         activation_costs = {node: count_activation_cost(graph, node, activated_nodes) for node in meas_candidates}
         # select the node with the minimum activation cost
-        target_node = min(activation_costs, key=activation_costs.get)
+        target_node = find_min_from_dict(activation_costs)
         meas_order.append(target_node)
         activated_nodes |= get_activation_nodes(graph, target_node, activated_nodes) | {target_node}
         unmeasured_nodes -= {target_node}
@@ -118,3 +118,13 @@ def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nod
     """Count the activation cost."""
     activation_nodes = get_activation_nodes(graph, target_node, activated_nodes)
     return len(activation_nodes)
+
+
+def find_min_from_dict(d: dict[int, int]) -> int:
+    """Find the minimum value from a dictionary."""
+    min_value = float("inf")
+    for key, value in d.items():
+        if value < min_value:
+            min_index = key
+            min_value = value
+    return min_index
