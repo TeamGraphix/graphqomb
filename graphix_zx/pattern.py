@@ -30,8 +30,12 @@ class BasePattern(ABC):
     def __iter__(self) -> Iterator[Command]:
         return iter(self.get_commands())
 
-    def __getitem__(self, index: int) -> Command:
-        return self.get_commands()[index]
+    def __getitem__(self, index: int | slice) -> Command | list[Command]:
+        commands = self.get_commands()
+        if isinstance(index, (int, slice)):
+            return commands[index]
+        msg = f"Index type not supported: {type(index)}"
+        raise TypeError(msg)
 
     @abstractmethod
     def get_input_nodes(self) -> set[int]:
@@ -387,9 +391,44 @@ def check_rule3(pattern: BasePattern) -> bool:
 #     raise NotImplementedError
 
 
+def print_command(cmd: Command) -> None:
+    if isinstance(cmd, N):
+        logging.info("N, node = %s", cmd.node)
+    elif isinstance(cmd, E):
+        logging.info("E, nodes = %s", cmd.nodes)
+    elif isinstance(cmd, M):
+        logging.info(
+            "M, node = %s, plane = %s, angle = %s, s-domain = %s, t_domain = %s",
+            cmd.node,
+            cmd.plane,
+            cmd.angle,
+            cmd.s_domain,
+            cmd.t_domain,
+        )
+    elif isinstance(cmd, X):
+        logging.info(
+            "X byproduct, node = %s, domain = %s",
+            cmd.node,
+            cmd.domain,
+        )
+    elif isinstance(cmd, Z):
+        logging.info(
+            "Z byproduct, node = %s, domain = %s",
+            cmd.node,
+            cmd.domain,
+        )
+    elif isinstance(cmd, C):
+        logging.info(
+            "Clifford, node = %s, Clifford index = %s",
+            cmd.node,
+            cmd.cliff_index,
+        )
+    else:
+        logging.warning("Command %s not recognized", cmd.kind)
+
+
 def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
     logging.basicConfig(level=logging.INFO)
-    nmax = min(lim, len(pattern))
     if cmd_filter is None:
         cmd_filter = [
             CommandKind.N,
@@ -399,45 +438,16 @@ def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandK
             CommandKind.Z,
             CommandKind.C,
         ]
+    nmax = min(lim, len(pattern))
+    print_count = 0
     for i, cmd in enumerate(pattern):
-        if i == nmax:
-            break
-        if isinstance(cmd, N) and (CommandKind.N in cmd_filter):
-            logging.info("N, node = %s", cmd.node)
-        elif isinstance(cmd, E) and (CommandKind.E in cmd_filter):
-            logging.info("E, nodes = %s", cmd.nodes)
-        elif isinstance(cmd, M) and (CommandKind.M in cmd_filter):
-            logging.info(
-                "M, node = %s, plane = %s, angle = %s, s-domain = %s, t_domain = %s",
-                cmd.node,
-                cmd.plane,
-                cmd.angle,
-                cmd.s_domain,
-                cmd.t_domain,
-            )
-        elif isinstance(cmd, X) and (CommandKind.X in cmd_filter):
-            logging.info(
-                "X byproduct, node = %s, domain = %s",
-                cmd.node,
-                cmd.domain,
-            )
-        elif isinstance(cmd, Z) and (CommandKind.Z in cmd_filter):
-            logging.info(
-                "Z byproduct, node = %s, domain = %s",
-                cmd.node,
-                cmd.domain,
-            )
-        elif isinstance(cmd, C) and (CommandKind.C in cmd_filter):
-            logging.info(
-                "Clifford, node = %s, Clifford index = %s",
-                cmd.node,
-                cmd.cliff_index,
-            )
-        else:
-            logging.warning("Command %s not recognized", cmd.kind)
+        if cmd.kind in cmd_filter:
+            print_command(cmd)
+            print_count += 1
 
-    if len(pattern) > i + 1:
-        logging.info(
-            "%d more commands truncated. Change lim argument of print_pattern() to show more",
-            len(pattern) - lim,
-        )
+        if print_count > nmax:
+            logging.info(
+                "%d more commands truncated. Change lim argument of print_pattern() to show more",
+                len(pattern) - i - 1,
+            )
+            break
