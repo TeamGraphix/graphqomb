@@ -20,16 +20,16 @@ class MockStateVector:
     def __init__(self, num_qubits: int) -> None:
         self.num_qubits = num_qubits
 
-    def add_node(self, num: int):
+    def add_node(self, num: int) -> None:
         self.nodes.extend([None] * num)
 
-    def entangle(self, nodes: tuple[int, int]):
+    def entangle(self, nodes: tuple[int, int]) -> None:
         pass
 
-    def measure(self, node_id: int, plane: Plane, angle: float, result: int):
+    def measure(self, node_id: int, plane: Plane, angle: float, result: int) -> None:
         pass
 
-    def evolve(self, operation: NDArray, nodes: list[int]):
+    def evolve(self, operation: NDArray, nodes: list[int]) -> None:
         pass
 
     def __eq__(self, other: StateVector) -> bool:
@@ -37,7 +37,7 @@ class MockStateVector:
 
 
 @pytest.fixture()
-def setup_pattern():
+def setup_pattern() -> MutablePattern:
     pattern = MutablePattern([0])
     cmds = [
         N(node=1),
@@ -52,13 +52,13 @@ def setup_pattern():
     return pattern
 
 
-def test_simulator_initialization(setup_pattern: MutablePattern):
+def test_simulator_initialization(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     assert simulator.get_state() == MockStateVector(len(pattern.get_input_nodes()))
 
 
-def test_apply_command_add_node(setup_pattern: MutablePattern):
+def test_apply_command_add_node(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=2)
@@ -66,7 +66,7 @@ def test_apply_command_add_node(setup_pattern: MutablePattern):
     assert len(simulator.node_indices) == len(pattern.get_input_nodes()) + 1
 
 
-def test_apply_command_entangle(setup_pattern: MutablePattern):
+def test_apply_command_entangle(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -76,7 +76,7 @@ def test_apply_command_entangle(setup_pattern: MutablePattern):
     # No assertion here as MockStateVector doesn't store entanglement info
 
 
-def test_apply_command_measure(setup_pattern: MutablePattern):
+def test_apply_command_measure(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = M(node=0, plane=Plane.XY, angle=0.5, s_domain=[], t_domain=[])
@@ -84,7 +84,7 @@ def test_apply_command_measure(setup_pattern: MutablePattern):
     assert 1 not in simulator.node_indices
 
 
-def test_apply_command_byproduct_x(setup_pattern: MutablePattern):
+def test_apply_command_byproduct_x(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -96,7 +96,7 @@ def test_apply_command_byproduct_x(setup_pattern: MutablePattern):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_apply_command_byproduct_z(setup_pattern: MutablePattern):
+def test_apply_command_byproduct_z(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=1)
@@ -108,7 +108,7 @@ def test_apply_command_byproduct_z(setup_pattern: MutablePattern):
     # No specific assertion as MockStateVector doesn't evolve
 
 
-def test_simulate(setup_pattern: MutablePattern):
+def test_simulate(setup_pattern: MutablePattern) -> None:
     pattern = setup_pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     simulator.simulate()

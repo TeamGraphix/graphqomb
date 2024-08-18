@@ -2,33 +2,34 @@ from __future__ import annotations
 
 import pytest
 
+from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState
 
 
 @pytest.fixture()
-def graph():
+def graph() -> GraphState:
     return GraphState()
 
 
-def test_add_physical_node(graph: GraphState):
+def test_add_physical_node(graph: GraphState) -> None:
     graph.add_physical_node(1)
     assert 1 in graph.get_physical_nodes()
     assert graph.num_physical_nodes == 1
 
 
-def test_add_physical_node_input_output(graph: GraphState):
+def test_add_physical_node_input_output(graph: GraphState) -> None:
     graph.add_physical_node(1, is_input=True, is_output=True)
     assert 1 in graph.input_nodes
     assert 1 in graph.output_nodes
 
 
-def test_add_duplicate_physical_node(graph: GraphState):
+def test_add_duplicate_physical_node(graph: GraphState) -> None:
     graph.add_physical_node(1)
     with pytest.raises(Exception, match="Node already exists"):
         graph.add_physical_node(1)
 
 
-def test_add_physical_edge(graph: GraphState):
+def test_add_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -36,7 +37,7 @@ def test_add_physical_edge(graph: GraphState):
     assert graph.num_physical_edges == 1
 
 
-def test_add_duplicate_physical_edge(graph: GraphState):
+def test_add_duplicate_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -44,37 +45,37 @@ def test_add_duplicate_physical_edge(graph: GraphState):
         graph.add_physical_edge(1, 2)
 
 
-def test_add_edge_with_nonexistent_node(graph: GraphState):
+def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Node does not exist node2=2"):
         graph.add_physical_edge(1, 2)
 
 
-def test_set_input(graph: GraphState):
+def test_set_input(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_input(1)
     assert 1 in graph.input_nodes
 
 
-def test_set_output(graph: GraphState):
+def test_set_output(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_output(1)
     assert 1 in graph.output_nodes
 
 
-def test_set_meas_plane(graph: GraphState):
+def test_set_meas_plane(graph: GraphState) -> None:
     graph.add_physical_node(1)
-    graph.set_meas_plane(1, "XZ")
-    assert graph.get_meas_planes()[1] == "XZ"
+    graph.set_meas_plane(1, Plane.XZ)
+    assert graph.get_meas_planes()[1] == Plane.XZ
 
 
-def test_set_meas_angle(graph: GraphState):
+def test_set_meas_angle(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_meas_angle(1, 45.0)
     assert graph.get_meas_angles()[1] == 45.0
 
 
-def test_append_graph():
+def test_append_graph() -> None:
     graph1 = GraphState()
     graph1.add_physical_node(1, is_input=True)
     graph1.add_physical_node(2, is_output=True)

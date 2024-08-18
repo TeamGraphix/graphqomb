@@ -4,12 +4,16 @@ import numpy as np
 import pytest
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
-from graphix_zx.simulator import MBQCCircuitSimulator, PatternSimulator, SimulatorBackend
+from graphix_zx.simulator import (
+    MBQCCircuitSimulator,
+    PatternSimulator,
+    SimulatorBackend,
+)
 from graphix_zx.transpiler import transpile_from_flow
 
 
 @pytest.fixture()
-def random_circ():
+def random_circ() -> MBQCCircuit:
     circ = MBQCCircuit(3)
     circ.j(0, 0.5 * np.pi)
     circ.cz(0, 1)
@@ -20,7 +24,7 @@ def random_circ():
 
 
 @pytest.fixture()
-def random_circ_with_phase_gadget():
+def random_circ_with_phase_gadget() -> MBQCCircuit:
     circ = MBQCCircuit(3)
     circ.j(0, 0.5 * np.pi)
     circ.cz(0, 1)
@@ -36,14 +40,14 @@ def random_circ_with_phase_gadget():
     return circ
 
 
-def test_circuit_sim(random_circ: MBQCCircuit):
+def test_circuit_sim(random_circ: MBQCCircuit) -> None:
     simulator = MBQCCircuitSimulator(random_circ, SimulatorBackend.StateVector)
     simulator.simulate()
     state = simulator.get_state()
     assert np.isclose(state.get_norm(), 1.0)
 
 
-def test_pattern_sim(random_circ: MBQCCircuit):
+def test_pattern_sim(random_circ: MBQCCircuit) -> None:
     graph, gflow = circuit2graph(random_circ)
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
@@ -53,7 +57,7 @@ def test_pattern_sim(random_circ: MBQCCircuit):
     assert set(simulator.node_indices) == set(pattern.get_output_nodes())
 
 
-def test_minimum_circ_pattern():
+def test_minimum_circ_pattern() -> None:
     circuit = MBQCCircuit(1)
     circuit.j(0, 0.3 * np.pi)
     graph, gflow = circuit2graph(circuit)
@@ -70,7 +74,7 @@ def test_minimum_circ_pattern():
     assert np.isclose(np.abs(inner_prod), 1.0)
 
 
-def test_match_circ_pattern(random_circ: MBQCCircuit):
+def test_match_circ_pattern(random_circ: MBQCCircuit) -> None:
     graph, gflow = circuit2graph(random_circ)
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
 
@@ -85,7 +89,9 @@ def test_match_circ_pattern(random_circ: MBQCCircuit):
     assert np.isclose(np.abs(inner_prod), 1.0)
 
 
-def test_match_circ_pattern_with_phase_gadget(random_circ_with_phase_gadget: MBQCCircuit):
+def test_match_circ_pattern_with_phase_gadget(
+    random_circ_with_phase_gadget: MBQCCircuit,
+) -> None:
     graph, gflow = circuit2graph(random_circ_with_phase_gadget)
     pattern = transpile_from_flow(graph, gflow, correct_output=True)
 

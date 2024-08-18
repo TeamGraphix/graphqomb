@@ -7,7 +7,7 @@ from graphix_zx.statevec import StateVector
 
 
 # Test BasicMBQCCircuit
-def test_basic_mbqc_circuit():
+def test_basic_mbqc_circuit() -> None:
     circuit = MBQCCircuit(0)
 
     assert circuit.num_qubits == 0
@@ -26,7 +26,7 @@ def test_basic_mbqc_circuit():
 
 
 # Test MBQCCircuitSimulator
-def test_mbqc_circuit_simulator():
+def test_mbqc_circuit_simulator() -> None:
     circuit = MBQCCircuit(2)
     circuit.j(0, np.pi / 4)
     circuit.cz(0, 1)
