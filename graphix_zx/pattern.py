@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Iterator
 
-from graphix_zx.command import Command, CommandKind, M, N, X, Z
+from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from graphix_zx.common import Plane
@@ -181,7 +182,7 @@ class MutablePattern(BasePattern):
             if node in self.get_input_nodes():
                 new_input_q_indices[node] = self.__q_indices[node]
             else:
-                new_input_q_indices[node] = pattern.get_q_indices()
+                new_input_q_indices[node] = pattern.get_q_indices()[node]
 
         new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
         for cmd in self.get_commands():
@@ -349,8 +350,15 @@ def check_rule1(pattern: BasePattern) -> bool:
             if cmd.node in measured:
                 return False
             measured.add(cmd.node)
-        elif cmd.node in measured:
-            return False
+        elif isinstance(cmd, E):
+            if len(set(cmd.nodes) & measured) > 0:
+                return False
+        elif isinstance(cmd, (N, X, Z, C)):
+            if cmd.node in measured:
+                return False
+        else:
+            msg = f"Unknown command kind: {cmd.kind}"
+            raise TypeError(msg)
     return True
 
 
@@ -360,7 +368,10 @@ def check_rule2(pattern: BasePattern) -> bool:
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
-        elif cmd.node not in prepared:
+        elif isinstance(cmd, E):
+            if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
+                return False
+        elif isinstance(cmd, (M, X, Z, C)) and cmd.node not in prepared:
             return False
     return True
 
@@ -377,6 +388,7 @@ def check_rule3(pattern: BasePattern) -> bool:
 
 
 def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
+    logging.basicConfig(level=logging.INFO)
     nmax = min(lim, len(pattern))
     if cmd_filter is None:
         cmd_filter = [
@@ -387,36 +399,45 @@ def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandK
             CommandKind.Z,
             CommandKind.C,
         ]
-    count = 0
-    i = -1
-    while count < nmax:
-        i = i + 1
-        if i == len(pattern):
+    for i, cmd in enumerate(pattern):
+        if i == nmax:
             break
-        if pattern[i].kind == CommandKind.N and (CommandKind.N in cmd_filter):
-            count += 1
-            print(f"N, node = {pattern[i].node}")
-        elif pattern[i].kind == CommandKind.E and (CommandKind.E in cmd_filter):
-            count += 1
-            print(f"E, nodes = {pattern[i].nodes}")
-        elif pattern[i].kind == CommandKind.M and (CommandKind.M in cmd_filter):
-            count += 1
-            print(
-                f"M, node = {pattern[i].node}, "
-                f"plane = {pattern[i].plane}, angle = {pattern[i].angle}, "
-                f"s-domain = {pattern[i].s_domain}, t_domain = {pattern[i].t_domain}"
+        if isinstance(cmd, N) and (CommandKind.N in cmd_filter):
+            logging.info("N, node = %s", cmd.node)
+        elif isinstance(cmd, E) and (CommandKind.E in cmd_filter):
+            logging.info("E, nodes = %s", cmd.nodes)
+        elif isinstance(cmd, M) and (CommandKind.M in cmd_filter):
+            logging.info(
+                "M, node = %s, plane = %s, angle = %s, s-domain = %s, t_domain = %s",
+                cmd.node,
+                cmd.plane,
+                cmd.angle,
+                cmd.s_domain,
+                cmd.t_domain,
             )
-        elif pattern[i].kind == CommandKind.X and (CommandKind.X in cmd_filter):
-            count += 1
-            print(f"X byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
-        elif pattern[i].kind == CommandKind.Z and (CommandKind.Z in cmd_filter):
-            count += 1
-            print(f"Z byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
-        elif pattern[i].kind == CommandKind.C and (CommandKind.C in cmd_filter):
-            count += 1
-            print(f"Clifford, node = {pattern[i].node}, Clifford index = {pattern[i].cliff_index}")
+        elif isinstance(cmd, X) and (CommandKind.X in cmd_filter):
+            logging.info(
+                "X byproduct, node = %s, domain = %s",
+                cmd.node,
+                cmd.domain,
+            )
+        elif isinstance(cmd, Z) and (CommandKind.Z in cmd_filter):
+            logging.info(
+                "Z byproduct, node = %s, domain = %s",
+                cmd.node,
+                cmd.domain,
+            )
+        elif isinstance(cmd, C) and (CommandKind.C in cmd_filter):
+            logging.info(
+                "Clifford, node = %s, Clifford index = %s",
+                cmd.node,
+                cmd.cliff_index,
+            )
         else:
-            print(f"Command {pattern[i].kind} not recognized")
+            logging.warning("Command %s not recognized", cmd.kind)
 
     if len(pattern) > i + 1:
-        print(f"{len(pattern)-lim} more commands truncated. Change lim argument of print_pattern() to show more")
+        logging.info(
+            "%d more commands truncated. Change lim argument of print_pattern() to show more",
+            len(pattern) - lim,
+        )
