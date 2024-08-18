@@ -13,6 +13,7 @@ from graphix_zx.statevec import StateVector
 if TYPE_CHECKING:
     from graphix_zx.command import Command
     from graphix_zx.pattern import ImmutablePattern
+    from graphix_zx.simulator_backend import BaseSimulatorBackend
     from graphix_zx.statevec import BaseStateVector
 
 
@@ -87,7 +88,7 @@ class BasePatternSimulator(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_cmd(self) -> None:
+    def apply_cmd(self, cmd: Command) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -95,7 +96,9 @@ class BasePatternSimulator(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_state(self):  # TODO: make base simulator backend class including sv, dm, tn
+    def get_state(
+        self,
+    ) -> BaseSimulatorBackend:
         raise NotImplementedError
 
 
@@ -164,7 +167,7 @@ class PatternSimulator(BasePatternSimulator):
         self.__node_indices = new_indices
         self.__state.reorder(permutation)
 
-    def get_state(self):  # TODO: make base simulator backend class including sv, dm, tn
+    def get_state(self) -> BaseSimulatorBackend:
         return self.__state
 
     def _apply_n(self, cmd: N) -> None:

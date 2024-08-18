@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from graphix_zx.common import Plane
+from graphix_zx.simulator_backend import BaseSimulatorBackend
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -20,7 +21,7 @@ CZ_TENSOR = np.array(
 )
 
 
-class BaseStateVector(ABC):
+class BaseStateVector(BaseSimulatorBackend):
     @abstractmethod
     def __init__(self, num_qubits: int, state: NDArray | None = None) -> None:
         raise NotImplementedError
@@ -71,6 +72,7 @@ class StateVector(BaseStateVector):
     def __init__(self, num_qubits: int, state: NDArray | None = None) -> None:
         self.__num_qubits = num_qubits
         if state is not None:
+            # TODO: check state shape
             self.__state = state
         else:
             self.__state = np.ones(2**num_qubits) / np.sqrt(2**num_qubits)
@@ -242,19 +244,14 @@ def get_basis(plane: Plane, angle: float) -> NDArray:
         plane (Plane): plane
         angle (float): angle
 
-    Raises
-    ------
-        ValueError: invalid plane
-
     Returns
     -------
         NDArray: basis
     """
     if plane == Plane.XY:
-        return np.array([1, np.exp(1j * angle)]) / np.sqrt(2)
-    if plane == Plane.YZ:
-        return np.array([np.cos(angle / 2), 1j * np.sin(angle / 2)])
-    if plane == Plane.ZX:
-        return np.array([np.cos(angle / 2), np.sin(angle / 2)])
-    msg = "Invalid plane"
-    raise ValueError(msg)
+        basis = np.array([1, np.exp(1j * angle)]) / np.sqrt(2)
+    elif plane == Plane.YZ:
+        basis = np.array([np.cos(angle / 2), 1j * np.sin(angle / 2)])
+    elif plane == Plane.ZX:
+        basis = np.array([np.cos(angle / 2), np.sin(angle / 2)])
+    return basis

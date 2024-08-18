@@ -119,9 +119,7 @@ class MutablePattern(BasePattern):
     ) -> None:
         if input_nodes is None:
             input_nodes = set()
-        self.__input_nodes: set[int] = set(
-            input_nodes
-        )  # input nodes (list() makes our own copy of the list)
+        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: list[Command] = []
@@ -170,9 +168,7 @@ class MutablePattern(BasePattern):
         self.extend(cmds)
 
     # should support immutable pattern as well?
-    def append_pattern(
-        self, pattern: MutablePattern | ImmutablePattern
-    ) -> MutablePattern:
+    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
@@ -187,9 +183,7 @@ class MutablePattern(BasePattern):
             else:
                 new_input_q_indices[node] = pattern.get_q_indices()
 
-        new_pattern = MutablePattern(
-            input_nodes=new_input_nodes, q_indices=new_input_q_indices
-        )
+        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
         for cmd in self.get_commands():
             new_pattern.add(cmd)
 
@@ -312,9 +306,7 @@ def is_standardized(pattern: BasePattern) -> bool:
         if cmd.kind not in standardized_order:
             msg = f"Unknown command kind: {cmd.kind}"
             raise ValueError(msg)
-        if standardized_order.index(cmd.kind) < standardized_order.index(
-            current_cmd_kind
-        ):
+        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
             standardized = False
             break
         current_cmd_kind = cmd.kind
@@ -384,9 +376,7 @@ def check_rule3(pattern: BasePattern) -> bool:
 #     raise NotImplementedError
 
 
-def print_pattern(
-    pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
-) -> None:
+def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
     nmax = min(lim, len(pattern))
     if cmd_filter is None:
         cmd_filter = [
@@ -418,23 +408,15 @@ def print_pattern(
             )
         elif pattern[i].kind == CommandKind.X and (CommandKind.X in cmd_filter):
             count += 1
-            print(
-                f"X byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}"
-            )
+            print(f"X byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
         elif pattern[i].kind == CommandKind.Z and (CommandKind.Z in cmd_filter):
             count += 1
-            print(
-                f"Z byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}"
-            )
+            print(f"Z byproduct, node = {pattern[i].node}, domain = {pattern[i].domain}")
         elif pattern[i].kind == CommandKind.C and (CommandKind.C in cmd_filter):
             count += 1
-            print(
-                f"Clifford, node = {pattern[i].node}, Clifford index = {pattern[i].cliff_index}"
-            )
+            print(f"Clifford, node = {pattern[i].node}, Clifford index = {pattern[i].cliff_index}")
         else:
             print(f"Command {pattern[i].kind} not recognized")
 
     if len(pattern) > i + 1:
-        print(
-            f"{len(pattern)-lim} more commands truncated. Change lim argument of print_pattern() to show more"
-        )
+        print(f"{len(pattern)-lim} more commands truncated. Change lim argument of print_pattern() to show more")
