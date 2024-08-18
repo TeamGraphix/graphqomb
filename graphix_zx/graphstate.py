@@ -206,7 +206,7 @@ class GraphState(BaseGraphState):
         if node in self.__output_nodes:
             self.__output_nodes.remove(node)
 
-    # TODO: overload
+    # TODO: overload with pattern
     def append(self, other: BaseGraphState) -> None:
         common_nodes = self.get_physical_nodes() & other.get_physical_nodes()
         border_nodes = self.output_nodes & other.input_nodes

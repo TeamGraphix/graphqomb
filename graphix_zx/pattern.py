@@ -172,13 +172,12 @@ class MutablePattern(BasePattern):
         self.clear()
         self.extend(cmds)
 
-    # should support immutable pattern as well?
     def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
         if common_nodes != border_nodes:
-            msg = f"Patterns are not compatible. Common nodes: {common_nodes}, border nodes: {border_nodes}"
+            msg = f"Detect duplicated nodes without border of two patterns. duplicated nodes: {common_nodes}"
             raise ValueError(msg)
         new_input_nodes = self.get_input_nodes() | pattern.get_input_nodes()
         new_input_q_indices = {}
