@@ -1,78 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from graphix_zx.common import Plane
+from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
     from graphix_zx.flow import FlowLike
-
-
-class GateKind(Enum):
-    """Enum class for gate kind"""
-
-    J = auto()
-    CZ = auto()
-    PhaseGadget = auto()
-
-
-class Gate(ABC):
-    @abstractmethod
-    def get_matrix(self) -> NDArray:
-        raise NotImplementedError
-
-
-@dataclass(frozen=True)
-class J(Gate):
-    qubit: int
-    angle: float
-    kind: GateKind = GateKind.J
-
-    def get_matrix(self) -> NDArray:
-        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
-
-
-@dataclass(frozen=True)
-class CZ(Gate):
-    qubits: tuple[int, int]
-    kind: GateKind = GateKind.CZ
-
-    def get_matrix(self) -> NDArray:
-        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
-
-
-@dataclass(frozen=True)
-class PhaseGadget(Gate):
-    qubits: list[int]
-    angle: float
-    kind: GateKind = GateKind.PhaseGadget
-
-    def get_matrix(self) -> NDArray:
-        def count_ones_in_binary(array: NDArray) -> NDArray:
-            count_ones = np.vectorize(lambda x: bin(x).count("1"))
-            return count_ones(array)
-
-        index_array = np.arange(2 ** len(self.qubits))
-        z_sign = (-1) ** count_ones_in_binary(index_array)
-        return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
-
-
-class MacroGate(ABC):
-    @abstractmethod
-    def get_unit_gates(self) -> list[Gate]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_matrix(self) -> NDArray:
-        raise NotImplementedError
 
 
 class BaseCircuit(ABC):
@@ -86,20 +22,20 @@ class BaseCircuit(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
+    def get_instructions(self) -> list[UnitGate]:
         raise NotImplementedError
 
 
 class MBQCCircuit(BaseCircuit):
     def __init__(self, qubits: int) -> None:
         self.__num_qubits: int = qubits
-        self.__gate_instructions: list[Gate] = []
+        self.__gate_instructions: list[UnitGate] = []
 
     @property
     def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
+    def get_instructions(self) -> list[UnitGate]:
         return self.__gate_instructions
 
     def j(self, qubit: int, angle: float) -> None:
@@ -115,19 +51,19 @@ class MBQCCircuit(BaseCircuit):
 class MacroCircuit(BaseCircuit):
     def __init__(self, qubits: int) -> None:
         self.__num_qubits: int = qubits
-        self.__macro_gate_instructions: list[MacroGate] = []
+        self.__macro_gate_instructions: list[Gate] = []
 
     @property
     def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def get_instructions(self) -> list[Gate]:  # TODO: should be unit gate class
+    def get_instructions(self) -> list[UnitGate]:
         gate_instructions = []
         for macro_gate in self.__macro_gate_instructions:
             gate_instructions.extend(macro_gate.get_unit_gates())
         return gate_instructions
 
-    def apply_macro_gate(self, gate: MacroGate) -> None:
+    def apply_macro_gate(self, gate: Gate) -> None:
         self.__macro_gate_instructions.append(gate)
 
 

@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.circuit import CZ, Gate, J, MBQCCircuit, PhaseGadget
 from graphix_zx.command import C, E, M, N, X, Z
+from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
+    from graphix_zx.circuit import MBQCCircuit
     from graphix_zx.command import Command
     from graphix_zx.pattern import ImmutablePattern
     from graphix_zx.simulator_backend import BaseSimulatorBackend
@@ -54,7 +55,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
 
-        self.__gate_instructions: list[Gate] = mbqc_circuit.get_instructions()
+        self.__gate_instructions: list[UnitGate] = mbqc_circuit.get_instructions()
 
     def apply_gate(self, gate: Gate) -> None:
         operator = gate.get_matrix()

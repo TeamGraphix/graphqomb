@@ -46,7 +46,9 @@ class J(UnitGate):
         return [self]
 
     def get_matrix(self) -> NDArray:
-        return np.array([[1, np.exp(-1j * self.angle)], [1, -np.exp(-1j * self.angle)]]) / np.sqrt(2)
+        return np.array(
+            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
+        ) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
