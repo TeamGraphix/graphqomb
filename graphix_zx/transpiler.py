@@ -12,7 +12,7 @@ from graphix_zx.pattern import MutablePattern
 
 if TYPE_CHECKING:
     from graphix_zx.flow import FlowLike
-    from graphix_zx.graphstate import BaseGraphState
+    from graphix_zx.graphstate import BaseGraphState, GraphState
     from graphix_zx.pattern import ImmutablePattern
 
 Correction = Set[int]
@@ -182,7 +182,7 @@ def transpile(
 
 def transpile_from_subgraphs(
     graph: BaseGraphState,
-    subgraphs: list[BaseGraphState],
+    subgraphs: list[GraphState],
     gflow: FlowLike,
 ) -> ImmutablePattern:
     """Generate a pattern from subgraph sequence

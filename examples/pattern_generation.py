@@ -36,12 +36,12 @@ print_pattern(pattern)
 simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
 simulator.simulate()
 state = simulator.get_state()
-statevec = state.get_state_vector()
+statevec = state.get_array()
 
 # check by comparing the circuit simulator
 circ_simulator = MBQCCircuitSimulator(circuit, SimulatorBackend.StateVector)
 circ_simulator.simulate()
-circ_state = circ_simulator.get_state().get_state_vector()
+circ_state = circ_simulator.get_state().get_array()
 inner_product = np.vdot(statevec, circ_state)
 print("inner product:", np.abs(inner_product))  # should be 1
 
