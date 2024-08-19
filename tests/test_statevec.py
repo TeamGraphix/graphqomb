@@ -20,7 +20,7 @@ def state_vector() -> StateVector:
 def test_initialization(state_vector: StateVector) -> None:
     expected_state = np.arange(2**state_vector.num_qubits)
     assert state_vector.num_qubits == 3
-    assert np.allclose(state_vector.get_state_vector(), expected_state)
+    assert np.allclose(state_vector.get_array(), expected_state)
 
 
 def test_evolve(state_vector: StateVector) -> None:
@@ -28,7 +28,7 @@ def test_evolve(state_vector: StateVector) -> None:
     state_vector.evolve(operator, [0])
     expected_state = np.arange(2**state_vector.num_qubits)
     expected_state[len(expected_state) // 2 :] *= -1  # apply Z gate to qubit 0
-    assert np.allclose(state_vector.get_state_vector(), expected_state)
+    assert np.allclose(state_vector.get_array(), expected_state)
 
 
 def test_measure(state_vector: StateVector) -> None:
@@ -37,7 +37,7 @@ def test_measure(state_vector: StateVector) -> None:
     state_vector.measure(0, Plane.ZX, 0, 0)  # project onto |0> state
 
     assert state_vector.num_qubits == 2
-    assert np.allclose(state_vector.get_state_vector(), expected_state)
+    assert np.allclose(state_vector.get_array(), expected_state)
 
 
 def test_tensor_product(state_vector: StateVector) -> None:
@@ -46,7 +46,7 @@ def test_tensor_product(state_vector: StateVector) -> None:
     state_vector.tensor_product(other_vector)
 
     assert state_vector.num_qubits == 4
-    assert np.allclose(state_vector.get_state_vector(), expected_state)
+    assert np.allclose(state_vector.get_array(), expected_state)
 
 
 def test_normalize(state_vector: StateVector) -> None:

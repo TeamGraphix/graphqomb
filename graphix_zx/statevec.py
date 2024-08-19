@@ -52,14 +52,6 @@ class BaseStateVector(BaseSimulatorBackend):
         raise NotImplementedError
 
     @abstractmethod
-    def get_state_vector(self) -> NDArray:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_norm(self) -> float:
-        raise NotImplementedError
-
-    @abstractmethod
     def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
         raise NotImplementedError
 
@@ -140,7 +132,7 @@ class StateVector(BaseStateVector):
         Args:
             other (BaseStateVector): other state vector
         """
-        self.__state = np.kron(self.__state, other.get_state_vector())
+        self.__state = np.kron(self.__state, other.get_array())
         self.__num_qubits += other.num_qubits
 
     def normalize(self) -> None:
@@ -183,7 +175,7 @@ class StateVector(BaseStateVector):
 
         return np.isclose(match_rate, 1.0)
 
-    def get_state_vector(self) -> NDArray:
+    def get_array(self) -> NDArray:
         """Get state vector as numpy array
 
         Returns

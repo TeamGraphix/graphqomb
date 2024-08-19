@@ -27,3 +27,11 @@ class BaseSimulatorBackend(ABC):
     @abstractmethod
     def normalize(self) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def get_norm(self) -> float:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_array(self) -> NDArray:
+        raise NotImplementedError

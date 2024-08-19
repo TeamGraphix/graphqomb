@@ -67,8 +67,8 @@ def test_minimum_circ_pattern() -> None:
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
     pattern_sim.simulate()
 
-    circ_state = circ_simulator.get_state().get_state_vector()
-    pattern_state = pattern_sim.get_state().get_state_vector()
+    circ_state = circ_simulator.get_state().get_array()
+    pattern_state = pattern_sim.get_state().get_array()
 
     inner_prod = np.vdot(circ_state, pattern_state)
     assert np.isclose(np.abs(inner_prod), 1.0)
@@ -83,8 +83,8 @@ def test_match_circ_pattern(random_circ: MBQCCircuit) -> None:
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
     pattern_sim.simulate()
 
-    circ_state = circ_sim.get_state().get_state_vector()
-    pattern_state = pattern_sim.get_state().get_state_vector()
+    circ_state = circ_sim.get_state().get_array()
+    pattern_state = pattern_sim.get_state().get_array()
     inner_prod = np.vdot(circ_state, pattern_state)
     assert np.isclose(np.abs(inner_prod), 1.0)
 
@@ -100,7 +100,7 @@ def test_match_circ_pattern_with_phase_gadget(
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
     pattern_sim.simulate()
 
-    circ_state = circ_sim.get_state().get_state_vector()
-    pattern_state = pattern_sim.get_state().get_state_vector()
+    circ_state = circ_sim.get_state().get_array()
+    pattern_state = pattern_sim.get_state().get_array()
     inner_prod = np.vdot(circ_state, pattern_state)
     assert np.isclose(np.abs(inner_prod), 1.0)

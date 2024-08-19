@@ -83,7 +83,7 @@ def test_is_standardized() -> None:
         N(node=1),
         E(nodes=(0, 1)),
         M(node=1),
-        X(node=0, domain=[1]),
+        X(node=0, domain={1}),
     ]
     pattern.extend(cmds)
     assert is_standardized(pattern)
