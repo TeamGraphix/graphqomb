@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-class UnitGate(Enum):
+class UnitGateKind(Enum):
     """Enum class for gate kind"""
 
     J = auto()
@@ -21,7 +21,7 @@ class UnitGate(Enum):
 
 class Gate(ABC):
     @abstractmethod
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         raise NotImplementedError
 
     @abstractmethod
@@ -29,13 +29,20 @@ class Gate(ABC):
         raise NotImplementedError
 
 
+class UnitGate(Gate):
+    @property
+    @abstractmethod
+    def kind(self) -> UnitGateKind:
+        raise NotImplementedError
+
+
 @dataclass(frozen=True)
-class J(Gate):
+class J(UnitGate):
     qubit: int
     angle: float
-    kind: UnitGate = UnitGate.J
+    kind: UnitGateKind = UnitGateKind.J
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
     def get_matrix(self) -> NDArray:
@@ -43,11 +50,11 @@ class J(Gate):
 
 
 @dataclass(frozen=True)
-class CZ(Gate):
+class CZ(UnitGate):
     qubits: tuple[int, int]
-    kind: UnitGate = UnitGate.CZ
+    kind: UnitGateKind = UnitGateKind.CZ
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
     def get_matrix(self) -> NDArray:
@@ -55,12 +62,12 @@ class CZ(Gate):
 
 
 @dataclass(frozen=True)
-class PhaseGadget(Gate):
+class PhaseGadget(UnitGate):
     qubits: list[int]
     angle: float
-    kind: UnitGate = UnitGate.PhaseGadget
+    kind: UnitGateKind = UnitGateKind.PhaseGadget
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
     def get_matrix(self) -> NDArray:
@@ -96,7 +103,7 @@ class MacroMultiGate(Gate):
 class Identity(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0), J(self.qubit, 0)]
 
 
@@ -104,7 +111,7 @@ class Identity(MacroSingleGate):
 class X(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, np.pi), J(self.qubit, 0)]
 
 
@@ -112,7 +119,7 @@ class X(MacroSingleGate):
 class Y(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [
             J(self.qubit, np.pi / 2),
             J(self.qubit, np.pi),
@@ -125,7 +132,7 @@ class Y(MacroSingleGate):
 class Z(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0), J(self.qubit, np.pi)]
 
 
@@ -133,7 +140,7 @@ class Z(MacroSingleGate):
 class H(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0)]
 
 
@@ -141,7 +148,7 @@ class H(MacroSingleGate):
 class S(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0), J(self.qubit, np.pi / 2)]
 
 
@@ -149,7 +156,7 @@ class S(MacroSingleGate):
 class T(MacroSingleGate):
     qubit: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0), J(self.qubit, np.pi / 4)]
 
 
@@ -158,7 +165,7 @@ class Rx(MacroSingleGate):
     qubit: int
     angle: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [
             J(self.qubit, self.angle),
             J(self.qubit, 0),
@@ -170,7 +177,7 @@ class Ry(MacroSingleGate):
     qubit: int
     angle: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [
             J(self.qubit, np.pi / 2),
             J(self.qubit, self.angle),
@@ -184,7 +191,7 @@ class Rz(MacroSingleGate):
     qubit: int
     angle: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [J(self.qubit, 0), J(self.qubit, self.angle)]
 
 
@@ -195,7 +202,7 @@ class U3(MacroSingleGate):
     angle2: float
     angle3: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [
             J(self.qubit, 0),
             J(self.qubit, -self.angle1),
@@ -209,7 +216,7 @@ class CNOT(MacroMultiGate):
     control: int
     target: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         return [
             J(self.target, 0),
             CZ((self.control, self.target)),
@@ -225,13 +232,13 @@ class SWAP(MacroMultiGate):
     qubit1: int
     qubit2: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             CNOT(self.qubit1, self.qubit2),
             CNOT(self.qubit2, self.qubit1),
             CNOT(self.qubit1, self.qubit2),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
@@ -253,14 +260,14 @@ class CRz(MacroMultiGate):
     target: int
     angle: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             Rz(self.target, self.angle / 2),
             CNOT(self.control, self.target),
             Rz(self.target, -self.angle / 2),
             CNOT(self.control, self.target),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
@@ -282,7 +289,7 @@ class CRx(MacroMultiGate):
     target: int
     angle: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             Rz(self.target, np.pi / 2),
             CNOT(self.control, self.target),
@@ -290,7 +297,7 @@ class CRx(MacroMultiGate):
             CNOT(self.control, self.target),
             U3(self.target, self.angle / 2, -np.pi / 2, 0),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
@@ -314,7 +321,7 @@ class CU3(MacroMultiGate):
     angle2: float
     angle3: float
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             Rz(self.control, self.angle3 / 2 + self.angle2 / 2),
             Rz(self.target, self.angle3 / 2 - self.angle2 / 2),
@@ -323,7 +330,7 @@ class CU3(MacroMultiGate):
             CNOT(self.control, self.target),
             U3(self.target, self.angle1 / 2, self.angle2, 0),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
@@ -355,7 +362,7 @@ class CCZ(MacroMultiGate):
     control2: int
     target: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             CRz(self.control2, self.target, np.pi / 2),
             CNOT(self.control1, self.control2),
@@ -363,7 +370,7 @@ class CCZ(MacroMultiGate):
             CNOT(self.control1, self.control2),
             CRz(self.control1, self.target, np.pi / 2),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
@@ -389,7 +396,7 @@ class Toffoli(MacroMultiGate):
     control2: int
     target: int
 
-    def get_unit_gates(self) -> list[Gate]:
+    def get_unit_gates(self) -> list[UnitGate]:
         macro_gates = [
             H(self.target),
             CRz(self.control2, self.target, np.pi / 2),
@@ -399,7 +406,7 @@ class Toffoli(MacroMultiGate):
             CRz(self.control1, self.target, np.pi / 2),
             H(self.target),
         ]
-        unit_gates = []
+        unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
