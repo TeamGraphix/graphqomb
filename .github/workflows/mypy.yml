@@ -24,7 +24,7 @@ jobs:
       - name: Run mypy
         run: |
           python3 -m pip install -U pip
-          pip install mypy
+          pip install mypy pytest
           pip install .
           mypy graphix_zx/ tests/ examples/
 
