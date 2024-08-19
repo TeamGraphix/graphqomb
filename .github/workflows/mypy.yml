@@ -1,0 +1,30 @@
+name: mypy
+
+on:
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup update
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+
+      - name: Run mypy
+        run: |
+          python3 -m pip install -U pip
+          pip install mypy
+          pip install .
+          mypy graphix-zx/ tests/ examples/
+
