@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray
 
     from graphix_zx.common import Plane
@@ -17,7 +19,7 @@ class BaseSimulatorBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def evolve(self, operator: NDArray, qubits: list[int]) -> None:
+    def evolve(self, operator: NDArray, qubits: Sequence[int]) -> None:
         raise NotImplementedError
 
     @abstractmethod

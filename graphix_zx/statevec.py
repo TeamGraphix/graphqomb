@@ -9,6 +9,8 @@ from graphix_zx.common import Plane
 from graphix_zx.simulator_backend import BaseSimulatorBackend
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray
 
 CZ_TENSOR = np.array(
@@ -32,7 +34,7 @@ class BaseStateVector(BaseSimulatorBackend):
         raise NotImplementedError
 
     @abstractmethod
-    def evolve(self, operator: NDArray, qubits: list[int]) -> None:
+    def evolve(self, operator: NDArray, qubits: Sequence[int]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -48,11 +50,11 @@ class BaseStateVector(BaseSimulatorBackend):
         raise NotImplementedError
 
     @abstractmethod
-    def reorder(self, permutation: list[int]) -> None:
+    def reorder(self, permutation: Sequence[int]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
+    def expectation_value(self, operator: NDArray, qubits: Sequence[int]) -> float:
         raise NotImplementedError
 
     @abstractmethod
@@ -73,7 +75,7 @@ class StateVector(BaseStateVector):
     def num_qubits(self) -> int:
         return self.__num_qubits
 
-    def evolve(self, operator: NDArray, qubits: list[int]) -> None:
+    def evolve(self, operator: NDArray, qubits: Sequence[int]) -> None:
         """Apply operator to state
 
         Args:
@@ -83,10 +85,10 @@ class StateVector(BaseStateVector):
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
-        axes = (list(range(len(qubits), 2 * len(qubits))), qubits)
+        axes = (range(len(qubits), 2 * len(qubits)), qubits)
         state = np.tensordot(operator, state, axes=axes)
 
-        state = np.moveaxis(state, list(range(len(qubits))), qubits)
+        state = np.moveaxis(state, range(len(qubits)), qubits)
 
         state = state.reshape(2**self.__num_qubits)
 
@@ -124,7 +126,7 @@ class StateVector(BaseStateVector):
         Args:
             qubits (tuple[int, int]): target qubits
         """
-        self.evolve(CZ_TENSOR, list(qubits))
+        self.evolve(CZ_TENSOR, qubits)
 
     def tensor_product(self, other: BaseStateVector) -> None:
         """Tensor product with other state vector
@@ -139,7 +141,7 @@ class StateVector(BaseStateVector):
         """Normalize state vector"""
         self.__state /= np.linalg.norm(self.__state)
 
-    def reorder(self, permutation: list[int]) -> None:
+    def reorder(self, permutation: Sequence[int]) -> None:
         """Permute qubits
 
         if permutation is [2, 0, 1], then
@@ -193,7 +195,7 @@ class StateVector(BaseStateVector):
         """
         return float(np.linalg.norm(self.__state))
 
-    def expectation_value(self, operator: NDArray, qubits: list[int]) -> float:
+    def expectation_value(self, operator: NDArray, qubits: Sequence[int]) -> float:
         """Calculate expectation value of operator
 
         Args:
@@ -208,10 +210,10 @@ class StateVector(BaseStateVector):
         state = self.__state.reshape([2] * self.__num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
-        axes = (list(range(len(qubits), 2 * len(qubits))), qubits)
+        axes = (range(len(qubits), 2 * len(qubits)), qubits)
         state = np.tensordot(operator, state, axes=axes)
 
-        state = np.moveaxis(state, list(range(len(qubits))), qubits).reshape(2**self.__num_qubits)
+        state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self.__num_qubits)
 
         return np.dot(self.__state.conjugate(), state) / np.linalg.norm(self.__state) ** 2
 

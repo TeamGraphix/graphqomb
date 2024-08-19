@@ -11,6 +11,8 @@ from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from graphix_zx.circuit import MBQCCircuit
     from graphix_zx.command import Command
     from graphix_zx.pattern import ImmutablePattern
@@ -62,9 +64,7 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         # may be refactored
         if isinstance(gate, J):
             self.__state.evolve(operator, [gate.qubit])
-        elif isinstance(gate, CZ):
-            self.__state.evolve(operator, list(gate.qubits))
-        elif isinstance(gate, PhaseGadget):
+        elif isinstance(gate, (CZ, PhaseGadget)):
             self.__state.evolve(operator, gate.qubits)
         else:
             msg = f"Invalid gate: {gate}"
@@ -108,6 +108,7 @@ class PatternSimulator(BasePatternSimulator):
         self,
         pattern: ImmutablePattern,
         backend: SimulatorBackend,
+        *,
         calc_prob: bool = False,
     ) -> None:
         q_indices = pattern.get_q_indices()
@@ -184,7 +185,7 @@ class PatternSimulator(BasePatternSimulator):
         if self.__calc_prob:
             raise NotImplementedError
         rng = np.random.default_rng()
-        result = rng.choice([0, 1])
+        result = rng.uniform() < 0.5
 
         s_bool = 0
         t_bool = 0
@@ -229,7 +230,7 @@ class PatternSimulator(BasePatternSimulator):
 
 
 # return permutation
-def parse_q_indices(node_indices: list[int], q_indices: dict[int, int]) -> list[int]:
+def parse_q_indices(node_indices: Sequence[int], q_indices: Mapping[int, int]) -> list[int]:
     ancilla = set()
     permutation = [-1 for _ in range(len(node_indices))]
     # check

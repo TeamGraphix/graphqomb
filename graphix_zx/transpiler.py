@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Set
+from collections.abc import Iterable, Mapping
+from collections.abc import Set as AbstractSet
+from typing import TYPE_CHECKING
 
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import Plane
@@ -15,8 +17,9 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState, GraphState
     from graphix_zx.pattern import ImmutablePattern
 
-Correction = Set[int]
-CorrectionMap = Dict[int, Correction]
+# May need to be concrete
+Correction = AbstractSet[int]
+CorrectionMap = Mapping[int, Correction]
 
 
 # extended MBQC
@@ -60,8 +63,8 @@ def generate_m_cmd(
         node=node,
         plane=meas_plane,
         angle=meas_angle,
-        s_domain=s_domain,
-        t_domain=t_domain,
+        s_domain=set(s_domain),
+        t_domain=set(t_domain),
     )
 
 
@@ -89,7 +92,7 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
     return corrections
 
 
-def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: bool = True) -> ImmutablePattern:
+def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
     """Transpile pattern from gflow object
 
     Args:
@@ -117,7 +120,7 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, correct_output: 
     for node in graph.output_nodes:
         dag[node] = set()
 
-    pattern = transpile(graph, x_corrections, z_corrections, dag, correct_output)
+    pattern = transpile(graph, x_corrections, z_corrections, dag, correct_output=correct_output)
     pattern.mark_runnable()
     pattern.mark_deterministic()
     return pattern.freeze()
@@ -127,7 +130,8 @@ def transpile(
     graph: BaseGraphState,
     x_corrections: CorrectionMap,
     z_corrections: CorrectionMap,
-    dag: dict[int, set[int]],
+    dag: Mapping[int, AbstractSet[int]],
+    *,
     correct_output: bool = True,
 ) -> MutablePattern:
     """Transpile pattern from graph, corrections, and dag
@@ -151,30 +155,28 @@ def transpile(
 
     input_q_indices = {node: q_indices[node] for node in input_nodes}
 
-    internal_nodes = set(graph.physical_nodes) - set(input_nodes) - set(output_nodes)
+    internal_nodes = graph.physical_nodes - input_nodes - output_nodes
 
     topo_order = topological_sort_kahn(dag)
 
     pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
-    pattern.extend([N(node=node, q_index=q_indices[node]) for node in internal_nodes])
-    pattern.extend([N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes])
-    pattern.extend([E(nodes=edge) for edge in graph.physical_edges])
+    pattern.extend(N(node=node, q_index=q_indices[node]) for node in internal_nodes)
+    pattern.extend(N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes)
+    pattern.extend(E(nodes=edge) for edge in graph.physical_edges)
     pattern.extend(
-        [
-            generate_m_cmd(
-                node,
-                meas_planes[node],
-                meas_angles[node],
-                x_corrections[node],
-                z_corrections[node],
-            )
-            for node in topo_order
-            if node not in output_nodes
-        ]
+        generate_m_cmd(
+            node,
+            meas_planes[node],
+            meas_angles[node],
+            x_corrections[node],
+            z_corrections[node],
+        )
+        for node in topo_order
+        if node not in output_nodes
     )
     if correct_output:
-        pattern.extend([X(node=node, domain=x_corrections[node]) for node in output_nodes])
-        pattern.extend([Z(node=node, domain=z_corrections[node]) for node in output_nodes])
+        pattern.extend(X(node=node, domain=set(x_corrections[node])) for node in output_nodes)
+        pattern.extend(Z(node=node, domain=set(z_corrections[node])) for node in output_nodes)
     # TODO: add Clifford commands on the output nodes
 
     return pattern
@@ -182,7 +184,7 @@ def transpile(
 
 def transpile_from_subgraphs(
     graph: BaseGraphState,
-    subgraphs: list[GraphState],
+    subgraphs: Iterable[GraphState],
     gflow: FlowLike,
 ) -> ImmutablePattern:
     """Generate a pattern from subgraph sequence
@@ -231,8 +233,8 @@ def transpile_from_subgraphs(
         pattern = pattern.append_pattern(sub_pattern)
 
     for output_node in graph.output_nodes:
-        pattern.extend([X(node=output_node, domain=x_corrections[output_node])])
-        pattern.extend([Z(node=output_node, domain=z_corrections[output_node])])
+        pattern.add(X(node=output_node, domain=set(x_corrections[output_node])))
+        pattern.add(Z(node=output_node, domain=set(z_corrections[output_node])))
 
     pattern.mark_runnable()
     pattern.mark_deterministic()

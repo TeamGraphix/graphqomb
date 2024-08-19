@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-import numpy as np
 
 from graphix_zx.common import Plane
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 
 class BaseGraphState(ABC):
@@ -48,17 +42,18 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def q_indices(self) -> Mapping[int, int]:
+    # Generics?
+    def q_indices(self) -> dict[int, int]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def meas_planes(self) -> Mapping[int, Plane]:
+    def meas_planes(self) -> dict[int, Plane]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def meas_angles(self) -> Mapping[int, float]:
+    def meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
     @abstractmethod
@@ -66,6 +61,7 @@ class BaseGraphState(ABC):
         self,
         node: int,
         q_index: int,
+        *,
         is_input: bool,
         is_output: bool,
     ) -> None:
@@ -99,15 +95,23 @@ class BaseGraphState(ABC):
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState"""
 
+    __input_nodes: set[int]
+    __output_nodes: set[int]
+    __physical_nodes: set[int]
+    __physical_edges: dict[int, set[int]]
+    __meas_planes: dict[int, Plane]
+    __meas_angles: dict[int, float]
+    __q_indices: dict[int, int]
+
     def __init__(self) -> None:
-        self.__input_nodes: set[int] = set()
-        self.__output_nodes: set[int] = set()
-        self.__physical_nodes: set[int] = set()
-        self.__physical_edges: dict[int, set[int]] = {}
-        self.__meas_planes: dict[int, Plane] = {}
-        self.__meas_angles: dict[int, float] = {}
+        self.__input_nodes = set()
+        self.__output_nodes = set()
+        self.__physical_nodes = set()
+        self.__physical_edges = {}
+        self.__meas_planes = {}
+        self.__meas_angles = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
-        self.__q_indices: dict[int, int] = {}
+        self.__q_indices = {}
 
     @property
     def input_nodes(self) -> set[int]:
@@ -123,7 +127,7 @@ class GraphState(BaseGraphState):
 
     @property
     def num_physical_edges(self) -> int:
-        return np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
+        return sum(len(edges) for edges in self.__physical_edges.values()) // 2
 
     @property
     def physical_nodes(self) -> set[int]:
@@ -139,21 +143,22 @@ class GraphState(BaseGraphState):
         return edges
 
     @property
-    def q_indices(self) -> Mapping[int, int]:
+    def q_indices(self) -> dict[int, int]:
         return self.__q_indices
 
     @property
-    def meas_planes(self) -> Mapping[int, Plane]:
+    def meas_planes(self) -> dict[int, Plane]:
         return self.__meas_planes
 
     @property
-    def meas_angles(self) -> Mapping[int, float]:
+    def meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
 
     def add_physical_node(
         self,
         node: int,
         q_index: int = -1,
+        *,
         is_input: bool = False,
         is_output: bool = False,
     ) -> None:
@@ -237,10 +242,10 @@ class GraphState(BaseGraphState):
                 self._reset_input_output(node)
             else:
                 self.add_physical_node(node)
-                if node in set(other.input_nodes) - set(self.output_nodes):
+                if node in other.input_nodes - self.output_nodes:
                     self.set_input(node)
 
-            if node in set(other.output_nodes):
+            if node in other.output_nodes:
                 self.set_output(node)
             else:
                 self.set_meas_plane(node, other.meas_planes.get(node, Plane.XY))

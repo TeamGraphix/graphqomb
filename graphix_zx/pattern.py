@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import typing
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Iterator
 
 from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.common import Plane
 
 
@@ -29,6 +33,12 @@ class BasePattern(ABC):
 
     def __iter__(self) -> Iterator[Command]:
         return iter(self.get_commands())
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Command: ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> list[Command]: ...
 
     def __getitem__(self, index: int | slice) -> Command | list[Command]:
         commands = self.get_commands()
@@ -119,8 +129,8 @@ class ImmutablePattern(BasePattern):
 class MutablePattern(BasePattern):
     def __init__(
         self,
-        input_nodes: set[int] | None = None,
-        q_indices: dict[int, int] | None = None,
+        input_nodes: AbstractSet[int] | None = None,
+        q_indices: Mapping[int, int] | None = None,
     ) -> None:
         if input_nodes is None:
             input_nodes = set()
@@ -137,7 +147,7 @@ class MutablePattern(BasePattern):
             for i, input_node in enumerate(input_nodes):
                 q_indices[input_node] = i
 
-        self.__q_indices: dict[int, int] = q_indices  # qubit index. used for simulation
+        self.__q_indices: dict[int, int] = dict(q_indices)  # qubit index. used for simulation
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
@@ -160,7 +170,7 @@ class MutablePattern(BasePattern):
         self.__runnable = False
         self.__deterministic = False
 
-    def extend(self, cmds: list[Command]) -> None:
+    def extend(self, cmds: Iterable[Command]) -> None:
         for cmd in cmds:
             self.add(cmd)
 
@@ -169,7 +179,7 @@ class MutablePattern(BasePattern):
         self.__seq = []
         self.__output_nodes = set(self.__input_nodes)
 
-    def replace(self, cmds: list[Command], input_nodes: set[int] | None = None) -> None:
+    def replace(self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None) -> None:
         if input_nodes is not None:
             self.__input_nodes = set(input_nodes)
         self.clear()
@@ -395,6 +405,7 @@ def check_rule3(pattern: BasePattern) -> bool:
 
 def print_command(cmd: Command) -> None:
     if isinstance(cmd, N):
+        # MEMO: DO NOT use global logger
         logging.info("N, node = %s", cmd.node)
     elif isinstance(cmd, E):
         logging.info("E, nodes = %s", cmd.nodes)
