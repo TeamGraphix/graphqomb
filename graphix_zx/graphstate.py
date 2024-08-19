@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from graphix_zx.common import Plane
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class BaseGraphState(ABC):
@@ -30,6 +34,31 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def num_physical_edges(self) -> int:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def physical_nodes(self) -> set[int]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def physical_edges(self) -> set[tuple[int, int]]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def q_indices(self) -> Mapping[int, int]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def meas_planes(self) -> Mapping[int, Plane]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def meas_angles(self) -> Mapping[int, float]:
         raise NotImplementedError
 
     @abstractmethod
@@ -63,27 +92,7 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_physical_nodes(self) -> set[int]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_physical_edges(self) -> set[tuple[int, int]]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_q_indices(self) -> dict[int, int]:
-        raise NotImplementedError
-
-    @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_meas_planes(self) -> dict[int, Plane]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
 
@@ -115,6 +124,31 @@ class GraphState(BaseGraphState):
     @property
     def num_physical_edges(self) -> int:
         return np.sum([len(edges) for edges in self.__physical_edges.values()]) // 2
+
+    @property
+    def physical_nodes(self) -> set[int]:
+        return self.__physical_nodes
+
+    @property
+    def physical_edges(self) -> set[tuple[int, int]]:
+        edges = set()
+        for node1 in self.__physical_edges:
+            for node2 in self.__physical_edges[node1]:
+                if node1 < node2:
+                    edges |= {(node1, node2)}
+        return edges
+
+    @property
+    def q_indices(self) -> Mapping[int, int]:
+        return self.__q_indices
+
+    @property
+    def meas_planes(self) -> Mapping[int, Plane]:
+        return self.__meas_planes
+
+    @property
+    def meas_angles(self) -> Mapping[int, float]:
+        return self.__meas_angles
 
     def add_physical_node(
         self,
@@ -177,28 +211,11 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__meas_angles[node] = angle
 
-    def get_physical_nodes(self) -> set[int]:
-        return self.__physical_nodes
-
-    def get_physical_edges(self) -> set[tuple[int, int]]:
-        edges = set()
-        for node1 in self.__physical_edges:
-            for node2 in self.__physical_edges[node1]:
-                if node1 < node2:
-                    edges |= {(node1, node2)}
-        return edges
-
-    def get_q_indices(self) -> dict[int, int]:
-        return self.__q_indices
-
     def get_neighbors(self, node: int) -> set[int]:
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
         return self.__physical_edges[node]
-
-    def get_meas_planes(self) -> dict[int, Plane]:
-        return self.__meas_planes
-
-    def get_meas_angles(self) -> dict[int, float]:
-        return self.__meas_angles
 
     def _reset_input_output(self, node: int) -> None:
         if node in self.__input_nodes:
@@ -208,14 +225,14 @@ class GraphState(BaseGraphState):
 
     # TODO: overload with pattern
     def append(self, other: BaseGraphState) -> None:
-        common_nodes = self.get_physical_nodes() & other.get_physical_nodes()
+        common_nodes = self.physical_nodes & other.physical_nodes
         border_nodes = self.output_nodes & other.input_nodes
 
         if common_nodes != border_nodes:
             msg = "Qubit index mismatch"
             raise ValueError(msg)
 
-        for node in other.get_physical_nodes():
+        for node in other.physical_nodes:
             if node in border_nodes:
                 self._reset_input_output(node)
             else:
@@ -226,15 +243,15 @@ class GraphState(BaseGraphState):
             if node in set(other.output_nodes):
                 self.set_output(node)
             else:
-                self.set_meas_plane(node, other.get_meas_planes().get(node, Plane.XY))
-                self.set_meas_angle(node, other.get_meas_angles().get(node, 0.0))
+                self.set_meas_plane(node, other.meas_planes.get(node, Plane.XY))
+                self.set_meas_angle(node, other.meas_angles.get(node, 0.0))
 
-        for edge in other.get_physical_edges():
+        for edge in other.physical_edges:
             self.add_physical_edge(edge[0], edge[1])
 
         # q_index update
-        for node, q_index in other.get_q_indices().items():
-            if (node in common_nodes) and (self.get_q_indices()[node] != q_index):
+        for node, q_index in other.q_indices.items():
+            if (node in common_nodes) and (self.q_indices[node] != q_index):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)

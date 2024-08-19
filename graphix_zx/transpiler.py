@@ -76,7 +76,7 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
     -------
         CorrectionMap : correction dictionary
     """
-    corrections: dict[int, set[int]] = {node: set() for node in graph.get_physical_nodes()}
+    corrections: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
 
     for node in flowlike:
         for correction in flowlike[node]:
@@ -145,20 +145,20 @@ def transpile(
     """
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
-    meas_planes = graph.get_meas_planes()
-    meas_angles = graph.get_meas_angles()
-    q_indices = graph.get_q_indices()
+    meas_planes = graph.meas_planes
+    meas_angles = graph.meas_angles
+    q_indices = graph.q_indices
 
     input_q_indices = {node: q_indices[node] for node in input_nodes}
 
-    internal_nodes = set(graph.get_physical_nodes()) - set(input_nodes) - set(output_nodes)
+    internal_nodes = set(graph.physical_nodes) - set(input_nodes) - set(output_nodes)
 
     topo_order = topological_sort_kahn(dag)
 
     pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
     pattern.extend([N(node=node, q_index=q_indices[node]) for node in internal_nodes])
     pattern.extend([N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes])
-    pattern.extend([E(nodes=edge) for edge in graph.get_physical_edges()])
+    pattern.extend([E(nodes=edge) for edge in graph.physical_edges])
     pattern.extend(
         [
             generate_m_cmd(
@@ -209,10 +209,10 @@ def transpile_from_subgraphs(
     z_corrections = generate_corrections(graph, zflow)
 
     for subgraph in subgraphs:
-        sub_nodes = subgraph.get_physical_nodes()
+        sub_nodes = subgraph.physical_nodes
 
-        sub_x_corrections = {node: x_corrections[node] for node in subgraph.get_physical_nodes()}
-        sub_z_corrections = {node: z_corrections[node] for node in subgraph.get_physical_nodes()}
+        sub_x_corrections = {node: x_corrections[node] for node in subgraph.physical_nodes}
+        sub_z_corrections = {node: z_corrections[node] for node in subgraph.physical_nodes}
 
         sub_dag = {
             node: ((xflow[node] | zflow[node]) - {node}) & sub_nodes for node in sub_nodes - subgraph.output_nodes

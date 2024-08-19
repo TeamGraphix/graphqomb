@@ -13,7 +13,7 @@ def graph() -> GraphState:
 
 def test_add_physical_node(graph: GraphState) -> None:
     graph.add_physical_node(1)
-    assert 1 in graph.get_physical_nodes()
+    assert 1 in graph.physical_nodes
     assert graph.num_physical_nodes == 1
 
 
@@ -33,7 +33,7 @@ def test_add_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
-    assert (1, 2) in graph.get_physical_edges() or (2, 1) in graph.get_physical_edges()
+    assert (1, 2) in graph.physical_edges or (2, 1) in graph.physical_edges
     assert graph.num_physical_edges == 1
 
 
@@ -66,13 +66,13 @@ def test_set_output(graph: GraphState) -> None:
 def test_set_meas_plane(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_meas_plane(1, Plane.XZ)
-    assert graph.get_meas_planes()[1] == Plane.XZ
+    assert graph.meas_planes[1] == Plane.XZ
 
 
 def test_set_meas_angle(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_meas_angle(1, 45.0)
-    assert graph.get_meas_angles()[1] == 45.0
+    assert graph.meas_angles[1] == 45.0
 
 
 def test_append_graph() -> None:

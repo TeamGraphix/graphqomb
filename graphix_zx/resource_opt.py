@@ -9,7 +9,7 @@ from graphix_zx.graphstate import BaseGraphState, GraphState
 def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[GraphState]:
     """Get the subgraph sequences."""
     subgraphs = []
-    q_indices = graph.get_q_indices()
+    q_indices = graph.q_indices
     # initial graph
     initial_graph = GraphState()
     for node in graph.input_nodes:
@@ -29,8 +29,8 @@ def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list
         else:
             subgraph.add_physical_node(target_node, q_index=q_indices[target_node])
         activated_nodes |= {target_node}
-        subgraph.set_meas_angle(target_node, graph.get_meas_angles()[target_node])
-        subgraph.set_meas_plane(target_node, graph.get_meas_planes()[target_node])
+        subgraph.set_meas_angle(target_node, graph.meas_angles[target_node])
+        subgraph.set_meas_plane(target_node, graph.meas_planes[target_node])
 
         for prepared_node in neighboring_prepared_nodes:
             subgraph.add_physical_node(
@@ -71,7 +71,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
     """Get the minimized space measurement order."""
     inverted_dag = get_dependencies(graph, gflow)
     activated_nodes = set(graph.input_nodes)
-    unmeasured_nodes = graph.get_physical_nodes() - set(graph.output_nodes)
+    unmeasured_nodes = graph.physical_nodes - set(graph.output_nodes)
 
     meas_order = []
 
