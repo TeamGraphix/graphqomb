@@ -1,10 +1,10 @@
-import enum
+from enum import Enum, auto
 
 
-class Plane(enum.Enum):
-    XY = "XY"
-    YZ = "YZ"
-    ZX = "ZX"
+class Plane(Enum):
+    XY = auto()
+    YZ = auto()
+    ZX = auto()
     YX = XY
     ZY = YZ
     XZ = ZX
