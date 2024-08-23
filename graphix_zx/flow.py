@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,9 +11,14 @@ if TYPE_CHECKING:
 
     from graphix_zx.graphstate import BaseGraphState
 
-# May need version switcher
-FlowLike = dict[int, set[int]]
-Layer = dict[int, int]
+if sys.version_info < (3, 9):
+    from typing import Dict, Set
+
+    FlowLike = Dict[int, Set[int]]
+    Layer = Dict[int, int]
+else:
+    FlowLike = dict[int, set[int]]
+    Layer = dict[int, int]
 
 
 def oddneighbors(nodes: AbstractSet[int], graph: BaseGraphState) -> set[int]:
@@ -22,7 +28,9 @@ def oddneighbors(nodes: AbstractSet[int], graph: BaseGraphState) -> set[int]:
     return odd_neighbors
 
 
-def construct_dag(gflow: FlowLike, graph: BaseGraphState, *, check: bool = False) -> dict[int, set[int]]:
+def construct_dag(
+    gflow: FlowLike, graph: BaseGraphState, *, check: bool = False
+) -> dict[int, set[int]]:
     dag = {}
     outputs = graph.physical_nodes - gflow.keys()
     for node in gflow:
