@@ -185,7 +185,7 @@ class PatternSimulator(BasePatternSimulator):
         if self.__calc_prob:
             raise NotImplementedError
         rng = np.random.default_rng()
-        result = rng.uniform() < 0.5
+        result = rng.uniform() < 1 / 2
 
         s_bool = 0
         t_bool = 0
