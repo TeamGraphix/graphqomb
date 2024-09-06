@@ -61,6 +61,28 @@ def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
         graph.add_physical_edge(1, 2)
 
 
+def test_delete_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.delete_physical_edge(1, 2)
+
+
+def test_delete_physical_edge_with_nonexistent_edge(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    with pytest.raises(ValueError, match="Edge does not exist"):
+        graph.delete_physical_edge(1, 2)
+
+
+def test_delete_physical_edge(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_edge(1, 2)
+    graph.delete_physical_edge(1, 2)
+    assert (1, 2) not in graph.physical_edges
+    assert (2, 1) not in graph.physical_edges
+    assert graph.num_physical_edges == 0
+
+
 def test_set_input(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_input(1)
