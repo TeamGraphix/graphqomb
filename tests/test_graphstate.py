@@ -29,6 +29,16 @@ def test_add_duplicate_physical_node(graph: GraphState) -> None:
         graph.add_physical_node(1)
 
 
+def test_ensure_node_exists_raises(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.ensure_node_exists(1)
+
+
+def test_ensure_node_exists(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    assert graph.ensure_node_exists(1) is None
+
+
 def test_add_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
@@ -47,7 +57,7 @@ def test_add_duplicate_physical_edge(graph: GraphState) -> None:
 
 def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
     graph.add_physical_node(1)
-    with pytest.raises(ValueError, match="Node does not exist node2=2"):
+    with pytest.raises(ValueError, match="Node does not exist node=2"):
         graph.add_physical_edge(1, 2)
 
 
