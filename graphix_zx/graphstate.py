@@ -168,13 +168,14 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
+    def ensure_node_exists(self, node: int) -> None:
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
+
     def add_physical_edge(self, node1: int, node2: int) -> None:
-        if node1 not in self.__physical_nodes:
-            msg = f"Node does not exist {node1=}"
-            raise ValueError(msg)
-        if node2 not in self.__physical_nodes:
-            msg = f"Node does not exist {node2=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node1)
+        self.ensure_node_exists(node2)
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
             msg = f"Edge already exists {node1=}, {node2=}"
             raise ValueError(msg)
@@ -182,15 +183,11 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] |= {node1}
 
     def set_input(self, node: int) -> None:
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         self.__input_nodes |= {node}
 
     def set_output(self, node: int) -> None:
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:
@@ -200,21 +197,15 @@ class GraphState(BaseGraphState):
         self.__q_indices[node] = q_index
 
     def set_meas_plane(self, node: int, plane: Plane) -> None:
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         self.__meas_planes[node] = plane
 
     def set_meas_angle(self, node: int, angle: float) -> None:
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         self.__meas_angles[node] = angle
 
     def get_neighbors(self, node: int) -> set[int]:
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         return self.__physical_edges[node]
 
     def _reset_input_output(self, node: int) -> None:
