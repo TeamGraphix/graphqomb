@@ -266,3 +266,18 @@ class ZXGraphState(GraphState):
 
     def __init__(self) -> None:
         super().__init__()
+
+    def local_complement(self, node: int) -> None:
+        adjacencies: set[int] = self.adjacent_nodes(node)
+        _smallest_adjacencies_num = 2
+        if len(adjacencies) < _smallest_adjacencies_num:
+            return
+
+        adjacent_pairs = {(a, b) for a, b in product(adjacencies, repeat=2) if a < b}
+        new_edges = adjacent_pairs - self.physical_edges
+        remove_target_edges = self.physical_edges.intersection(adjacent_pairs)
+
+        for edge in new_edges:
+            self.add_physical_edge(edge[0], edge[1])
+        for edge in remove_target_edges:
+            self.remove_physical_edge(edge[0], edge[1])
