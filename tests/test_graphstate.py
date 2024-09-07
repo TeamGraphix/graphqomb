@@ -176,5 +176,58 @@ def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     assert original_edges == zx_graph.physical_edges
 
 
+def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    original_edges = zx_graph.physical_edges.copy()
+    zx_graph.pivot(2, 3)
+    assert {(1, 3), (2, 3)} == zx_graph.physical_edges
+
+    zx_graph.pivot(2, 3)
+    assert original_edges == zx_graph.physical_edges
+
+
+def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_node(4)
+    zx_graph.add_physical_node(5)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.add_physical_edge(2, 4)
+    zx_graph.add_physical_edge(3, 4)
+    zx_graph.add_physical_edge(3, 5)
+    original_edges = zx_graph.physical_edges.copy()
+    zx_graph.pivot(2, 3)
+    assert {(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5), (3, 4), (4, 5)} == zx_graph.physical_edges
+
+    zx_graph.pivot(2, 3)
+    assert original_edges == zx_graph.physical_edges
+
+
+def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_node(4)
+    zx_graph.add_physical_node(5)
+    zx_graph.add_physical_node(6)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.add_physical_edge(2, 5)
+    zx_graph.add_physical_edge(4, 5)
+    zx_graph.add_physical_edge(5, 6)
+    original_edges = zx_graph.physical_edges.copy()
+    zx_graph.pivot(2, 5)
+    assert {(1, 4), (1, 5), (1, 6), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (3, 6)} == zx_graph.physical_edges
+
+    zx_graph.pivot(2, 5)
+    assert original_edges == zx_graph.physical_edges
+
+
 if __name__ == "__main__":
     pytest.main()
