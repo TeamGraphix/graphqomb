@@ -131,29 +131,5 @@ def test_append_graph() -> None:
     assert 3 in graph1.output_nodes
 
 
-def test_get_neighbors(zx_graph: ZXGraphState) -> None:
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_node(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-
-    assert zx_graph.get_neighbors(1) == {2}
-    assert zx_graph.get_neighbors(2) == {1, 3}
-    assert zx_graph.get_neighbors(3) == {2}
-
-
-def test_adjacent_edges(zx_graph: ZXGraphState) -> None:
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_node(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-
-    assert zx_graph.adjacent_edges(1).issubset({(1, 2), (2, 1)})
-    assert zx_graph.adjacent_edges(2).issubset({(1, 2), (2, 3), (3, 2), (2, 1)})
-    assert zx_graph.adjacent_edges(3).issubset({(2, 3), (3, 2)})
-
-
 if __name__ == "__main__":
     pytest.main()

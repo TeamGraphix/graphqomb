@@ -263,17 +263,3 @@ class ZXGraphState(GraphState):
 
     def __init__(self) -> None:
         super().__init__()
-
-    def get_neighbors(self, node: int) -> set[int]:
-        neighbors = set()
-        for edge in self.physical_edges:
-            if node in edge:
-                neighbors |= set(edge) - {node}
-        return neighbors
-
-    def adjacent_edges(self, node: int) -> set[tuple[int, int]]:
-        edges = set()
-        for edge in self.physical_edges:
-            if node in edge:
-                edges |= {edge}
-        return edges
