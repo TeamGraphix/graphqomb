@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from itertools import product
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -255,3 +256,24 @@ class GraphState(BaseGraphState):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
+
+
+class ZXGraphState(GraphState):
+    """Graph State for the ZX-calculus"""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_neighbors(self, node: int) -> set[int]:
+        neighbors = set()
+        for edge in self.physical_edges:
+            if node in edge:
+                neighbors |= set(edge) - {node}
+        return neighbors
+
+    def connected_edges(self, node: int) -> set[tuple[int, int]]:
+        edges = set()
+        for edge in self.physical_edges:
+            if node in edge:
+                edges |= {edge}
+        return edges
