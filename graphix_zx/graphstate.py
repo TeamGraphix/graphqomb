@@ -169,6 +169,9 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
+    def adjacent_nodes(self, node: int) -> set[int]:
+        return self.__physical_edges[node]
+
     def ensure_node_exists(self, node: int) -> None:
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
