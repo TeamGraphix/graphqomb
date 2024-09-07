@@ -44,6 +44,17 @@ def test_ensure_node_exists(graph: GraphState) -> None:
     assert graph.ensure_node_exists(1) is None
 
 
+def test_adjacent_nodes(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_node(3)
+    graph.add_physical_edge(1, 2)
+    graph.add_physical_edge(2, 3)
+    assert graph.adjacent_nodes(1) == {2}
+    assert graph.adjacent_nodes(2) == {1, 3}
+    assert graph.adjacent_nodes(3) == {2}
+
+
 def test_add_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
