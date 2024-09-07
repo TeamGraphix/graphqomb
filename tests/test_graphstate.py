@@ -142,6 +142,21 @@ def test_append_graph() -> None:
     assert 3 in graph1.output_nodes
 
 
+def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.local_complement(1)
+    assert set() == zx_graph.physical_edges
+
+
+def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_edge(1, 2)
+    original_edges = zx_graph.physical_edges.copy()
+    zx_graph.local_complement(1)
+    assert original_edges == zx_graph.physical_edges
+
+
 def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
