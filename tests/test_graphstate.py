@@ -3,12 +3,17 @@ from __future__ import annotations
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState
+from graphix_zx.graphstate import GraphState, ZXGraphState
 
 
 @pytest.fixture
 def graph() -> GraphState:
     return GraphState()
+
+
+@pytest.fixture
+def zx_graph() -> ZXGraphState:
+    return ZXGraphState()
 
 
 def test_add_physical_node(graph: GraphState) -> None:
@@ -124,6 +129,30 @@ def test_append_graph() -> None:
     assert graph1.num_physical_edges == 2
     assert 1 in graph1.input_nodes
     assert 3 in graph1.output_nodes
+
+
+def test_get_neighbors(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+
+    assert zx_graph.get_neighbors(1) == {2}
+    assert zx_graph.get_neighbors(2) == {1, 3}
+    assert zx_graph.get_neighbors(3) == {2}
+
+
+def test_connected_edges(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+
+    assert zx_graph.connected_edges(1).issubset({(1, 2), (2, 1)})
+    assert zx_graph.connected_edges(2).issubset({(1, 2), (2, 3), (3, 2), (2, 1)})
+    assert zx_graph.connected_edges(3).issubset({(2, 3), (3, 2)})
 
 
 if __name__ == "__main__":
