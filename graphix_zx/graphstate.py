@@ -281,3 +281,8 @@ class ZXGraphState(GraphState):
             self.add_physical_edge(edge[0], edge[1])
         for edge in remove_target_edges:
             self.remove_physical_edge(edge[0], edge[1])
+
+    def pivot(self, node1: int, node2: int) -> None:
+        self.local_complement(node1)
+        self.local_complement(node2)
+        self.local_complement(node1)
