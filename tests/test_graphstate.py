@@ -66,23 +66,23 @@ def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
         graph.add_physical_edge(1, 2)
 
 
-def test_delete_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
+def test_remove_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
     with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.delete_physical_edge(1, 2)
+        graph.remove_physical_edge(1, 2)
 
 
-def test_delete_physical_edge_with_nonexistent_edge(graph: GraphState) -> None:
+def test_remove_physical_edge_with_nonexistent_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     with pytest.raises(ValueError, match="Edge does not exist"):
-        graph.delete_physical_edge(1, 2)
+        graph.remove_physical_edge(1, 2)
 
 
-def test_delete_physical_edge(graph: GraphState) -> None:
+def test_remove_physical_edge(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
-    graph.delete_physical_edge(1, 2)
+    graph.remove_physical_edge(1, 2)
     assert (1, 2) not in graph.physical_edges
     assert (2, 1) not in graph.physical_edges
     assert graph.num_physical_edges == 0
@@ -143,16 +143,16 @@ def test_get_neighbors(zx_graph: ZXGraphState) -> None:
     assert zx_graph.get_neighbors(3) == {2}
 
 
-def test_connected_edges(zx_graph: ZXGraphState) -> None:
+def test_adjacent_edges(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_node(3)
     zx_graph.add_physical_edge(1, 2)
     zx_graph.add_physical_edge(2, 3)
 
-    assert zx_graph.connected_edges(1).issubset({(1, 2), (2, 1)})
-    assert zx_graph.connected_edges(2).issubset({(1, 2), (2, 3), (3, 2), (2, 1)})
-    assert zx_graph.connected_edges(3).issubset({(2, 3), (3, 2)})
+    assert zx_graph.adjacent_edges(1).issubset({(1, 2), (2, 1)})
+    assert zx_graph.adjacent_edges(2).issubset({(1, 2), (2, 3), (3, 2), (2, 1)})
+    assert zx_graph.adjacent_edges(3).issubset({(2, 3), (3, 2)})
 
 
 if __name__ == "__main__":

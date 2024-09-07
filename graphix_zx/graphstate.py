@@ -183,7 +183,7 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
-    def delete_physical_edge(self, node1: int, node2: int) -> None:
+    def remove_physical_edge(self, node1: int, node2: int) -> None:
         self.ensure_node_exists(node1)
         self.ensure_node_exists(node2)
         if node1 not in self.__physical_edges[node2] or node2 not in self.__physical_edges[node1]:
@@ -271,7 +271,7 @@ class ZXGraphState(GraphState):
                 neighbors |= set(edge) - {node}
         return neighbors
 
-    def connected_edges(self, node: int) -> set[tuple[int, int]]:
+    def adjacent_edges(self, node: int) -> set[tuple[int, int]]:
         edges = set()
         for edge in self.physical_edges:
             if node in edge:
