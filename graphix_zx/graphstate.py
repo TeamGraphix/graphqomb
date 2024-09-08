@@ -267,6 +267,14 @@ class ZXGraphState(GraphState):
     def __init__(self) -> None:
         super().__init__()
 
+    def is_zx_graph(self) -> bool:
+        for v in self.physical_nodes - self.output_nodes:
+            if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
+                return False
+            if self.meas_planes[v] not in [Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY]:
+                return False
+        return True
+
     def local_complement(self, node: int) -> None:
         adjacent_nodes: set[int] = self.adjacent_nodes(node)
         adjacent_pairs = {(a, b) for a, b in product(adjacent_nodes, repeat=2) if a < b}
