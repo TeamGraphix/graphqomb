@@ -119,8 +119,8 @@ def test_set_meas_plane(graph: GraphState) -> None:
 
 def test_set_meas_angle(graph: GraphState) -> None:
     graph.add_physical_node(1)
-    graph.set_meas_angle(1, 45.0)
-    assert graph.meas_angles[1] == 45.0
+    graph.set_meas_angle(1, 0.5)
+    assert graph.meas_angles[1] == 0.5
 
 
 def test_append_graph() -> None:
