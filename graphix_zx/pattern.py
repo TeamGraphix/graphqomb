@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import dataclasses
-import logging
+import typing
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Iterator
 
 from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.common import Plane
 
 
@@ -29,6 +32,12 @@ class BasePattern(ABC):
 
     def __iter__(self) -> Iterator[Command]:
         return iter(self.get_commands())
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Command: ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> list[Command]: ...
 
     def __getitem__(self, index: int | slice) -> Command | list[Command]:
         commands = self.get_commands()
@@ -119,12 +128,14 @@ class ImmutablePattern(BasePattern):
 class MutablePattern(BasePattern):
     def __init__(
         self,
-        input_nodes: set[int] | None = None,
-        q_indices: dict[int, int] | None = None,
+        input_nodes: AbstractSet[int] | None = None,
+        q_indices: Mapping[int, int] | None = None,
     ) -> None:
         if input_nodes is None:
             input_nodes = set()
-        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
+        self.__input_nodes: set[int] = set(
+            input_nodes
+        )  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: list[Command] = []
@@ -133,11 +144,12 @@ class MutablePattern(BasePattern):
 
         if q_indices is None:
             q_indices = {}
-            _count = 0
             for i, input_node in enumerate(input_nodes):
                 q_indices[input_node] = i
 
-        self.__q_indices: dict[int, int] = q_indices  # qubit index. used for simulation
+        self.__q_indices: dict[int, int] = dict(
+            q_indices
+        )  # qubit index. used for simulation
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
@@ -160,7 +172,7 @@ class MutablePattern(BasePattern):
         self.__runnable = False
         self.__deterministic = False
 
-    def extend(self, cmds: list[Command]) -> None:
+    def extend(self, cmds: Iterable[Command]) -> None:
         for cmd in cmds:
             self.add(cmd)
 
@@ -169,13 +181,17 @@ class MutablePattern(BasePattern):
         self.__seq = []
         self.__output_nodes = set(self.__input_nodes)
 
-    def replace(self, cmds: list[Command], input_nodes: set[int] | None = None) -> None:
+    def replace(
+        self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None
+    ) -> None:
         if input_nodes is not None:
             self.__input_nodes = set(input_nodes)
         self.clear()
         self.extend(cmds)
 
-    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
+    def append_pattern(
+        self, pattern: MutablePattern | ImmutablePattern
+    ) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
@@ -190,7 +206,9 @@ class MutablePattern(BasePattern):
             else:
                 new_input_q_indices[node] = pattern.get_q_indices()[node]
 
-        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
+        new_pattern = MutablePattern(
+            input_nodes=new_input_nodes, q_indices=new_input_q_indices
+        )
         for cmd in self.get_commands():
             new_pattern.add(cmd)
 
@@ -313,7 +331,9 @@ def is_standardized(pattern: BasePattern) -> bool:
         if cmd.kind not in standardized_order:
             msg = f"Unknown command kind: {cmd.kind}"
             raise ValueError(msg)
-        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
+        if standardized_order.index(cmd.kind) < standardized_order.index(
+            current_cmd_kind
+        ):
             standardized = False
             break
         current_cmd_kind = cmd.kind
@@ -395,42 +415,30 @@ def check_rule3(pattern: BasePattern) -> bool:
 
 def print_command(cmd: Command) -> None:
     if isinstance(cmd, N):
-        logging.info("N, node = %s", cmd.node)
+        print(f"N, node = {cmd.node}")  # noqa: T201
     elif isinstance(cmd, E):
-        logging.info("E, nodes = %s", cmd.nodes)
+        print(f"E, nodes = {cmd.nodes}")  # noqa: T201
     elif isinstance(cmd, M):
-        logging.info(
-            "M, node = %s, plane = %s, angle = %s, s-domain = %s, t_domain = %s",
-            cmd.node,
-            cmd.plane,
-            cmd.angle,
-            cmd.s_domain,
-            cmd.t_domain,
+        print(  # noqa: T201
+            f"M, node = {cmd.node}",
+            f"plane = {cmd.plane}",
+            f"angle = {cmd.angle}",
+            f"s-domain = {cmd.s_domain}",
+            f"t_domain = {cmd.t_domain}",
         )
     elif isinstance(cmd, X):
-        logging.info(
-            "X byproduct, node = %s, domain = %s",
-            cmd.node,
-            cmd.domain,
-        )
+        print(f"X, node = {cmd.node}, domain = {cmd.domain}")  # noqa: T201
     elif isinstance(cmd, Z):
-        logging.info(
-            "Z byproduct, node = %s, domain = %s",
-            cmd.node,
-            cmd.domain,
-        )
+        print(f"Z, node = {cmd.node}, domain = {cmd.domain}")  # noqa: T201
     elif isinstance(cmd, C):
-        logging.info(
-            "Clifford, node = %s, Clifford index = %s",
-            cmd.node,
-            cmd.cliff_index,
-        )
+        print(f"C, node = {cmd.node}, cliff_index = {cmd.cliff_index}")  # noqa: T201
     else:
-        logging.warning("Command %s not recognized", cmd.kind)
+        print(f"Unknown command: {cmd}")  # noqa: T201
 
 
-def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
-    logging.basicConfig(level=logging.INFO)
+def print_pattern(
+    pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
+) -> None:
     if cmd_filter is None:
         cmd_filter = [
             CommandKind.N,
@@ -448,8 +456,7 @@ def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandK
             print_count += 1
 
         if print_count > nmax:
-            logging.info(
-                "%d more commands truncated. Change lim argument of print_pattern() to show more",
-                len(pattern) - i - 1,
+            print(  # noqa: T201
+                f"{len(pattern) - i - 1} more commands truncated. Change lim argument of print_pattern() to show more"
             )
             break

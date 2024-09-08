@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from graphix_zx.flow import FlowLike, construct_dag
 from graphix_zx.graphstate import BaseGraphState, GraphState
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from collections.abc import Set as AbstractSet
 
-def get_subgraph_sequences(graph: BaseGraphState, meas_order: list[int]) -> list[GraphState]:
+
+def get_subgraph_sequences(graph: BaseGraphState, meas_order: Iterable[int]) -> list[GraphState]:
     """Get the subgraph sequences."""
     subgraphs = []
     q_indices = graph.q_indices
@@ -71,7 +77,7 @@ def get_minimized_sp_meas_order(graph: BaseGraphState, gflow: FlowLike) -> list[
     """Get the minimized space measurement order."""
     inverted_dag = get_dependencies(graph, gflow)
     activated_nodes = set(graph.input_nodes)
-    unmeasured_nodes = graph.physical_nodes - set(graph.output_nodes)
+    unmeasured_nodes = graph.physical_nodes - graph.output_nodes
 
     meas_order = []
 
@@ -108,19 +114,18 @@ def get_dependencies(graph: BaseGraphState, gflow: FlowLike) -> dict[int, set[in
     return inverted_dag
 
 
-def get_activation_nodes(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> set[int]:
+def get_activation_nodes(graph: BaseGraphState, target_node: int, activated_nodes: AbstractSet[int]) -> set[int]:
     """Get the nodes to be activated."""
-    neighbors = set(graph.get_neighbors(target_node))
-    return neighbors - activated_nodes
+    return graph.get_neighbors(target_node) - activated_nodes
 
 
-def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nodes: set[int]) -> int:
+def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nodes: AbstractSet[int]) -> int:
     """Count the activation cost."""
     activation_nodes = get_activation_nodes(graph, target_node, activated_nodes)
     return len(activation_nodes)
 
 
-def find_min_from_dict(d: dict[int, int]) -> int:
+def find_min_from_dict(d: Mapping[int, int]) -> int:
     """Find the minimum value from a dictionary."""
     min_value = float("inf")
     for key, value in d.items():

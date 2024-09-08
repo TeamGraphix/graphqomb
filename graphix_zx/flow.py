@@ -2,25 +2,37 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Set
+import sys
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.graphstate import BaseGraphState
 
-FlowLike = Dict[int, Set[int]]
-Layer = Dict[int, int]
+if sys.version_info < (3, 9):
+    from typing import Dict, Set
+
+    FlowLike = Dict[int, Set[int]]
+    Layer = Dict[int, int]
+else:
+    FlowLike = dict[int, set[int]]
+    Layer = dict[int, int]
 
 
-def oddneighbors(nodes: set[int], graph: BaseGraphState) -> set[int]:
+def oddneighbors(nodes: AbstractSet[int], graph: BaseGraphState) -> set[int]:
     odd_neighbors: set[int] = set()
     for node in nodes:
-        odd_neighbors ^= set(graph.get_neighbors(node))
+        odd_neighbors ^= graph.get_neighbors(node)
     return odd_neighbors
 
 
-def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -> dict[int, set[int]]:
+def construct_dag(
+    gflow: FlowLike, graph: BaseGraphState, *, check: bool = False
+) -> dict[int, set[int]]:
     dag = {}
-    outputs = set(graph.physical_nodes) - set(gflow)
+    outputs = graph.physical_nodes - gflow.keys()
     for node in gflow:
         dag[node] = (gflow[node] | oddneighbors(gflow[node], graph)) - {node}
     for output in outputs:
@@ -33,9 +45,9 @@ def construct_dag(gflow: FlowLike, graph: BaseGraphState, check: bool = False) -
     return dag
 
 
-def check_dag(dag: dict[int, set[int]]) -> bool:
-    for node in dag:
-        for child in dag[node]:
+def check_dag(dag: Mapping[int, Iterable[int]]) -> bool:
+    for node, children in dag.items():
+        for child in children:
             if node in dag[child]:
                 return False
     return True

@@ -8,14 +8,17 @@ from graphix_zx.common import Plane
 from graphix_zx.flow import construct_dag, oddneighbors
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.flow import FlowLike
     from graphix_zx.graphstate import BaseGraphState
 
 
-def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
-    in_degree = {node: 0 for node in dag}
-    for node in dag:
-        for child in dag[node]:
+def topological_sort_kahn(dag: Mapping[int, AbstractSet[int]]) -> list[int]:
+    in_degree = dict.fromkeys(dag, 0)
+    for children in dag.values():
+        for child in children:
             in_degree[child] += 1
 
     queue = [node for node in in_degree if in_degree[node] == 0]
@@ -39,7 +42,7 @@ def topological_sort_kahn(dag: dict[int, set[int]]) -> list[int]:
 
 def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:
     # TODO: check the validity of the gflow if possible in fast way
-    outputs = set(graph.physical_nodes) - set(gflow)
+    outputs = graph.physical_nodes - gflow.keys()
     topo_order = topological_sort_kahn(construct_dag(gflow, graph))
 
     for output in outputs:
@@ -51,12 +54,7 @@ def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:
     return gflow
 
 
-def focus(
-    target: int,
-    gflow: FlowLike,
-    graph: BaseGraphState,
-    topo_order: list[int],
-) -> FlowLike:
+def focus(target: int, gflow: FlowLike, graph: BaseGraphState, topo_order: Sequence[int]) -> FlowLike:
     k = 0
     s_k = find_non_focused_signals(target, gflow, graph)
     while s_k:
@@ -70,7 +68,7 @@ def focus(
 
 def find_non_focused_signals(target: int, gflow: FlowLike, graph: BaseGraphState) -> set[int]:
     meas_planes = graph.meas_planes
-    non_outputs = set(gflow)
+    non_outputs = gflow.keys()
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
     s_xz_candidate = gflow[target] & non_outputs - {target}
@@ -83,16 +81,16 @@ def find_non_focused_signals(target: int, gflow: FlowLike, graph: BaseGraphState
     return s_xy | s_xz | s_yz
 
 
-def update_gflow(target: int, gflow: FlowLike, s_k: set[int], topo_order: list[int]) -> FlowLike:
-    minimal_in_s_k = min(s_k, key=lambda node: topo_order.index(node))  # TODO: check
-    gflow[target] = gflow[target] ^ gflow[minimal_in_s_k]
+def update_gflow(target: int, gflow: FlowLike, s_k: Iterable[int], topo_order: Sequence[int]) -> FlowLike:
+    minimal_in_s_k = min(s_k, key=topo_order.index)  # TODO: check
+    gflow[target] ^= gflow[minimal_in_s_k]
 
     return gflow
 
 
 def is_focused(gflow: FlowLike, graph: BaseGraphState) -> bool:
     meas_planes = graph.meas_planes
-    outputs = set(graph.physical_nodes) - set(gflow)
+    outputs = graph.physical_nodes - gflow.keys()
 
     focused = True
     for node in gflow:

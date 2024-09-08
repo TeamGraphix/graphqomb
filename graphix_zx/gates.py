@@ -57,7 +57,8 @@ class CZ(UnitGate):
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
-    def get_matrix(self) -> NDArray:
+    @staticmethod
+    def get_matrix() -> NDArray:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
 
@@ -223,7 +224,8 @@ class CNOT(MacroMultiGate):
             J(self.target, 0),
         ]
 
-    def get_matrix(self) -> NDArray:
+    @staticmethod
+    def get_matrix() -> NDArray:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
 
@@ -243,7 +245,8 @@ class SWAP(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    @staticmethod
+    def get_matrix() -> NDArray:
         return np.array(
             [
                 [1, 0, 0, 0],
@@ -375,7 +378,8 @@ class CCZ(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    @staticmethod
+    def get_matrix() -> NDArray:
         return np.array(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],
@@ -411,7 +415,8 @@ class Toffoli(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    @staticmethod
+    def get_matrix() -> NDArray:
         return np.array(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],

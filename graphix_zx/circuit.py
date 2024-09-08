@@ -8,6 +8,8 @@ from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from graphix_zx.flow import FlowLike
 
 
@@ -16,6 +18,7 @@ class BaseCircuit(ABC):
     def __init__(self) -> None:
         pass
 
+    # May be reused?
     @property
     @abstractmethod
     def num_qubits(self) -> int:
@@ -27,9 +30,12 @@ class BaseCircuit(ABC):
 
 
 class MBQCCircuit(BaseCircuit):
+    __num_qubits: int
+    __gate_instructions: list[UnitGate]
+
     def __init__(self, qubits: int) -> None:
-        self.__num_qubits: int = qubits
-        self.__gate_instructions: list[UnitGate] = []
+        self.__num_qubits = qubits
+        self.__gate_instructions = []
 
     @property
     def num_qubits(self) -> int:
@@ -44,14 +50,18 @@ class MBQCCircuit(BaseCircuit):
     def cz(self, qubit1: int, qubit2: int) -> None:
         self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
 
-    def phase_gadget(self, qubits: list[int], angle: float) -> None:
-        self.__gate_instructions.append(PhaseGadget(qubits=qubits, angle=angle))
+    def phase_gadget(self, qubits: Iterable[int], angle: float) -> None:
+        # No need to copy as frozen?
+        self.__gate_instructions.append(PhaseGadget(qubits=list(qubits), angle=angle))
 
 
 class MacroCircuit(BaseCircuit):
+    __num_qubits: int
+    __macro_gate_instructions: list[Gate]
+
     def __init__(self, qubits: int) -> None:
-        self.__num_qubits: int = qubits
-        self.__macro_gate_instructions: list[Gate] = []
+        self.__num_qubits = qubits
+        self.__macro_gate_instructions = []
 
     @property
     def num_qubits(self) -> int:
