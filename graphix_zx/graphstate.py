@@ -276,6 +276,14 @@ class ZXGraphState(GraphState):
         return True
 
     def local_complement(self, node: int) -> None:
+        self.ensure_node_exists(node)
+        if node in self.input_nodes:
+            msg = "Cannot apply local complement to input node"
+            raise ValueError(msg)
+        if not self.is_zx_graph():
+            msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
+            raise ValueError(msg)
+
         adjacent_nodes: set[int] = self.adjacent_nodes(node)
         adjacent_pairs = {(a, b) for a, b in product(adjacent_nodes, repeat=2) if a < b}
         new_edges = adjacent_pairs - self.physical_edges
@@ -285,6 +293,29 @@ class ZXGraphState(GraphState):
             self.add_physical_edge(edge[0], edge[1])
         for edge in remove_target_edges:
             self.remove_physical_edge(edge[0], edge[1])
+
+        # update node measurement
+        measurement_action = {
+            Plane.XY: (Plane.XZ, 0.5 - self.meas_angles[node]),
+            Plane.XZ: (Plane.XY, self.meas_angles[node] - 0.5),
+            Plane.YZ: (Plane.YZ, self.meas_angles[node] + 0.5),
+        }
+        new_plane, new_angle = measurement_action[self.meas_planes[node]]
+        if new_plane:
+            self.set_meas_plane(node, new_plane)
+            self.set_meas_angle(node, new_angle % 2.0)
+
+        # update adjacent nodes measurement
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5),
+            Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+        }
+        for v in adjacent_nodes:
+            new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
+            if new_plane:
+                self.set_meas_plane(v, new_plane)
+                self.set_meas_angle(v, new_angle_func(v) % 2.0)
 
     def pivot(self, node1: int, node2: int) -> None:
         self.local_complement(node1)

@@ -176,17 +176,40 @@ def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
 
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
     zx_graph.local_complement(1)
-    assert set() == zx_graph.physical_edges
+    assert zx_graph.physical_edges == set()
+    assert zx_graph.meas_planes[1] == Plane.XZ
+    assert pytest.approx(zx_graph.meas_angles[1]) == 1.4
+
+    zx_graph.set_meas_plane(1, Plane.XZ)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.local_complement(1)
+    assert zx_graph.meas_planes[1] == Plane.XY
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
+
+    zx_graph.set_meas_plane(1, Plane.YZ)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.local_complement(1)
+    assert zx_graph.meas_planes[1] == Plane.YZ
+    assert pytest.approx(zx_graph.meas_angles[1]) == 1.6
 
 
 def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_edge(1, 2)
+    zx_graph.set_meas_plane(1, Plane.XZ)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
     original_edges = zx_graph.physical_edges.copy()
     zx_graph.local_complement(1)
     assert original_edges == zx_graph.physical_edges
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.2
 
 
 def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
@@ -195,12 +218,26 @@ def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(3)
     zx_graph.add_physical_edge(1, 2)
     zx_graph.add_physical_edge(2, 3)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
     original_edges = zx_graph.physical_edges.copy()
     zx_graph.local_complement(2)
-    assert {(1, 2), (2, 3), (1, 3)} == zx_graph.physical_edges
+    assert zx_graph.physical_edges == {(1, 2), (2, 3), (1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XY, 3: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
+    assert pytest.approx(zx_graph.meas_angles[2]) == 0.7
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
 
     zx_graph.local_complement(2)
-    assert original_edges == zx_graph.physical_edges
+    assert zx_graph.physical_edges == original_edges
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XZ, 3: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.1
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.8
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
 
 
 def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
@@ -210,17 +247,45 @@ def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(4)
     zx_graph.add_physical_node(5)
     zx_graph.add_physical_node(6)
+    zx_graph.set_input(1)
+    zx_graph.set_input(4)
     zx_graph.add_physical_edge(1, 2)
     zx_graph.add_physical_edge(2, 3)
     zx_graph.add_physical_edge(2, 5)
     zx_graph.add_physical_edge(4, 5)
     zx_graph.add_physical_edge(5, 6)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    zx_graph.set_meas_plane(4, Plane.XY)
+    zx_graph.set_meas_angle(4, 1.4)
+    zx_graph.set_meas_plane(5, Plane.XZ)
+    zx_graph.set_meas_angle(5, 1.5)
+    zx_graph.set_meas_plane(6, Plane.YZ)
+    zx_graph.set_meas_angle(6, 1.6)
     original_edges = zx_graph.physical_edges.copy()
     zx_graph.local_complement(2)
-    assert {(1, 2), (1, 3), (1, 5), (2, 3), (2, 5), (3, 5), (4, 5), (5, 6)} == zx_graph.physical_edges
+    assert zx_graph.physical_edges == {(1, 2), (1, 3), (1, 5), (2, 3), (2, 5), (3, 5), (4, 5), (5, 6)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XY, 3: Plane.XZ, 4: Plane.XY, 5: Plane.YZ, 6: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
+    assert pytest.approx(zx_graph.meas_angles[2]) == 0.7
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
+    assert pytest.approx(zx_graph.meas_angles[4]) == 1.4
+    assert pytest.approx(zx_graph.meas_angles[5]) == 1.5
+    assert pytest.approx(zx_graph.meas_angles[6]) == 1.6
 
     zx_graph.local_complement(2)
-    assert original_edges == zx_graph.physical_edges
+    assert zx_graph.physical_edges == original_edges
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XZ, 3: Plane.YZ, 4: Plane.XY, 5: Plane.XZ, 6: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.1
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.8
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
+    assert pytest.approx(zx_graph.meas_angles[4]) == 1.4
+    assert pytest.approx(zx_graph.meas_angles[5]) == 0.5
+    assert pytest.approx(zx_graph.meas_angles[6]) == 1.6
 
 
 def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
