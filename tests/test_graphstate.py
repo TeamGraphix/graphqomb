@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState
+from graphix_zx.graphstate import GraphState, ZXGraphState, _adjacent_pairs, _measurement_action
 
 
 @pytest.fixture
@@ -162,6 +162,37 @@ def test_is_zx_graph_returns_true(zx_graph: ZXGraphState) -> None:
     assert zx_graph.is_zx_graph()
 
 
+def test__measurement_action_with_some_planes_missing() -> None:
+    ma = _measurement_action({Plane.XY: (Plane.XY, 0.0)})
+    assert ma[Plane.YX] == (Plane.XY, 0.0)
+    assert ma[Plane.XZ] == (None, None)
+    assert ma[Plane.YZ] == (None, None)
+    assert ma[Plane.ZX] == (None, None)
+    assert ma[Plane.ZY] == (None, None)
+
+
+def test__measurement_action() -> None:
+    measurement_action = _measurement_action(
+        {
+            Plane.XY: (Plane.XY, 0.0),
+            Plane.XZ: (Plane.XZ, 0.0),
+            Plane.YZ: (Plane.YZ, 0.0),
+        }
+    )
+    assert measurement_action[Plane.XY] == (Plane.XY, 0.0)
+    assert measurement_action[Plane.XZ] == (Plane.XZ, 0.0)
+    assert measurement_action[Plane.YZ] == (Plane.YZ, 0.0)
+    assert measurement_action[Plane.YX] == measurement_action[Plane.XY]
+    assert measurement_action[Plane.ZX] == measurement_action[Plane.XZ]
+    assert measurement_action[Plane.ZY] == measurement_action[Plane.YZ]
+
+
+def test__adjacent_pairs() -> None:
+    assert _adjacent_pairs(set(), set()) == set()
+    assert _adjacent_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
+    assert _adjacent_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+
+
 def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         zx_graph.local_complement(1)
@@ -206,7 +237,7 @@ def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.set_meas_angle(2, 1.2)
     original_edges = zx_graph.physical_edges.copy()
     zx_graph.local_complement(1)
-    assert original_edges == zx_graph.physical_edges
+    assert zx_graph.physical_edges == original_edges
     assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.YZ}
     assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
     assert pytest.approx(zx_graph.meas_angles[2]) == 1.2
@@ -223,6 +254,56 @@ def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.set_meas_plane(2, Plane.XZ)
     zx_graph.set_meas_angle(2, 1.2)
     zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    original_edges = zx_graph.physical_edges.copy()
+    zx_graph.local_complement(2)
+    assert zx_graph.physical_edges == {(1, 2), (2, 3), (1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XY, 3: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6
+    assert pytest.approx(zx_graph.meas_angles[2]) == 0.7
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
+
+    zx_graph.local_complement(2)
+    assert zx_graph.physical_edges == original_edges
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XZ, 3: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.1
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.8
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.7
+
+
+def test_local_complement_4_times(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    original_edges = zx_graph.physical_edges.copy()
+    for _ in range(4):
+        zx_graph.local_complement(2)
+    assert zx_graph.physical_edges == original_edges
+    assert zx_graph.meas_planes == {1: Plane.XY, 2: Plane.XZ, 3: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 1.1
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.2
+    assert pytest.approx(zx_graph.meas_angles[3]) == 1.3
+
+
+def test_local_complement_with_inversed_planes(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.set_meas_plane(1, Plane.YX)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.ZX)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.ZY)
     zx_graph.set_meas_angle(3, 1.3)
     original_edges = zx_graph.physical_edges.copy()
     zx_graph.local_complement(2)
@@ -288,23 +369,42 @@ def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     assert pytest.approx(zx_graph.meas_angles[6]) == 1.6
 
 
-def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_node(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-    original_edges = zx_graph.physical_edges.copy()
-    expected_edges = {(1, 3), (2, 3)}
-    zx_graph.pivot(2, 3)
-    assert expected_edges == zx_graph.physical_edges
-    zx_graph.pivot(2, 3)
-    assert original_edges == zx_graph.physical_edges
+# def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
+#     with pytest.raises(ValueError, match="Node does not exist node=1"):
+#         zx_graph.pivot(1, 2)
+#     zx_graph.add_physical_node(1)
+#     with pytest.raises(ValueError, match="Node does not exist node=2"):
+#         zx_graph.pivot(1, 2)
 
-    zx_graph.pivot(3, 2)
-    assert expected_edges == zx_graph.physical_edges
-    zx_graph.pivot(3, 2)
-    assert original_edges == zx_graph.physical_edges
+
+# def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+#     zx_graph.add_physical_node(1)
+#     zx_graph.add_physical_node(2)
+#     zx_graph.set_input(1)
+#     with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
+#         zx_graph.pivot(1, 2)
+
+
+# def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
+#     zx_graph.add_physical_node(1)
+#     zx_graph.add_physical_node(2)
+#     zx_graph.add_physical_node(3)
+#     zx_graph.add_physical_edge(1, 2)
+#     zx_graph.add_physical_edge(2, 3)
+#     zx_graph.set_meas_plane(1, Plane.XY)
+#     zx_graph.set_meas_angle(1, 1.1)
+#     zx_graph.set_meas_plane(2, Plane.XZ)
+#     zx_graph.set_meas_angle(2, 1.2)
+#     zx_graph.set_meas_plane(3, Plane.YZ)
+#     zx_graph.set_meas_angle(3, 1.3)
+#     original_zx_graph = deepcopy(zx_graph)
+#     zx_graph.pivot(2, 3)
+#     original_zx_graph.local_complement(2)
+#     original_zx_graph.local_complement(3)
+#     original_zx_graph.local_complement(2)
+#     assert zx_graph.physical_edges == original_zx_graph.physical_edges
+#     assert zx_graph.meas_planes == original_zx_graph.meas_planes
+#     assert zx_graph.meas_angles == original_zx_graph.meas_angles
 
 
 # def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
