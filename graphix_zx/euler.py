@@ -33,6 +33,7 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     return alpha, beta, gamma
 
 
+# TODO: there is room to improve the data type for angles
 class LocalUnitary:
     alpha: float
     beta: float
