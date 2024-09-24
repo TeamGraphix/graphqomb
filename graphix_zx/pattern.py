@@ -133,9 +133,7 @@ class MutablePattern(BasePattern):
     ) -> None:
         if input_nodes is None:
             input_nodes = set()
-        self.__input_nodes: set[int] = set(
-            input_nodes
-        )  # input nodes (list() makes our own copy of the list)
+        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
         self.__seq: list[Command] = []
@@ -147,9 +145,7 @@ class MutablePattern(BasePattern):
             for i, input_node in enumerate(input_nodes):
                 q_indices[input_node] = i
 
-        self.__q_indices: dict[int, int] = dict(
-            q_indices
-        )  # qubit index. used for simulation
+        self.__q_indices: dict[int, int] = dict(q_indices)  # qubit index. used for simulation
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
@@ -181,17 +177,13 @@ class MutablePattern(BasePattern):
         self.__seq = []
         self.__output_nodes = set(self.__input_nodes)
 
-    def replace(
-        self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None
-    ) -> None:
+    def replace(self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None) -> None:
         if input_nodes is not None:
             self.__input_nodes = set(input_nodes)
         self.clear()
         self.extend(cmds)
 
-    def append_pattern(
-        self, pattern: MutablePattern | ImmutablePattern
-    ) -> MutablePattern:
+    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
         common_nodes = self.get_nodes() & pattern.get_nodes()
         border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
 
@@ -206,9 +198,7 @@ class MutablePattern(BasePattern):
             else:
                 new_input_q_indices[node] = pattern.get_q_indices()[node]
 
-        new_pattern = MutablePattern(
-            input_nodes=new_input_nodes, q_indices=new_input_q_indices
-        )
+        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
         for cmd in self.get_commands():
             new_pattern.add(cmd)
 
@@ -331,9 +321,7 @@ def is_standardized(pattern: BasePattern) -> bool:
         if cmd.kind not in standardized_order:
             msg = f"Unknown command kind: {cmd.kind}"
             raise ValueError(msg)
-        if standardized_order.index(cmd.kind) < standardized_order.index(
-            current_cmd_kind
-        ):
+        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
             standardized = False
             break
         current_cmd_kind = cmd.kind
@@ -436,9 +424,7 @@ def print_command(cmd: Command) -> None:
         print(f"Unknown command: {cmd}")  # noqa: T201
 
 
-def print_pattern(
-    pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
-) -> None:
+def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
     if cmd_filter is None:
         cmd_filter = [
             CommandKind.N,
