@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from typing import TYPE_CHECKING
@@ -17,9 +18,15 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState, GraphState
     from graphix_zx.pattern import ImmutablePattern
 
-# May need to be concrete
-Correction = AbstractSet[int]
-CorrectionMap = Mapping[int, Correction]
+if sys.version_info >= (3, 9):
+    # May need to be concrete
+    Correction = AbstractSet[int]
+    CorrectionMap = Mapping[int, Correction]
+else:
+    from typing import Mapping, Set
+
+    Correction = Set[int]
+    CorrectionMap = Mapping[int, Correction]
 
 
 # extended MBQC
