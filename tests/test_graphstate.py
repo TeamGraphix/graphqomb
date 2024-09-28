@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 import pytest
 
 from graphix_zx.common import Plane
@@ -369,91 +371,123 @@ def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     assert pytest.approx(zx_graph.meas_angles[6]) == 1.6
 
 
-# def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
-#     with pytest.raises(ValueError, match="Node does not exist node=1"):
-#         zx_graph.pivot(1, 2)
-#     zx_graph.add_physical_node(1)
-#     with pytest.raises(ValueError, match="Node does not exist node=2"):
-#         zx_graph.pivot(1, 2)
+def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        zx_graph.pivot(1, 2)
+    zx_graph.add_physical_node(1)
+    with pytest.raises(ValueError, match="Node does not exist node=2"):
+        zx_graph.pivot(1, 2)
 
 
-# def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
-#     zx_graph.add_physical_node(1)
-#     zx_graph.add_physical_node(2)
-#     zx_graph.set_input(1)
-#     with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
-#         zx_graph.pivot(1, 2)
+def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.set_input(1)
+    with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
+        zx_graph.pivot(1, 2)
 
 
-# def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
-#     zx_graph.add_physical_node(1)
-#     zx_graph.add_physical_node(2)
-#     zx_graph.add_physical_node(3)
-#     zx_graph.add_physical_edge(1, 2)
-#     zx_graph.add_physical_edge(2, 3)
-#     zx_graph.set_meas_plane(1, Plane.XY)
-#     zx_graph.set_meas_angle(1, 1.1)
-#     zx_graph.set_meas_plane(2, Plane.XZ)
-#     zx_graph.set_meas_angle(2, 1.2)
-#     zx_graph.set_meas_plane(3, Plane.YZ)
-#     zx_graph.set_meas_angle(3, 1.3)
-#     original_zx_graph = deepcopy(zx_graph)
-#     zx_graph.pivot(2, 3)
-#     original_zx_graph.local_complement(2)
-#     original_zx_graph.local_complement(3)
-#     original_zx_graph.local_complement(2)
-#     assert zx_graph.physical_edges == original_zx_graph.physical_edges
-#     assert zx_graph.meas_planes == original_zx_graph.meas_planes
-#     assert zx_graph.meas_angles == original_zx_graph.meas_angles
+def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
+    # 1---2---3
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    original_zx_graph = deepcopy(zx_graph)
+    zx_graph.pivot(2, 3)
+    original_zx_graph.local_complement(2)
+    original_zx_graph.local_complement(3)
+    original_zx_graph.local_complement(2)
+    assert zx_graph.physical_edges == original_zx_graph.physical_edges
+    assert zx_graph.meas_planes == original_zx_graph.meas_planes
 
 
-# def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
-#     zx_graph.add_physical_node(1)
-#     zx_graph.add_physical_node(2)
-#     zx_graph.add_physical_node(3)
-#     zx_graph.add_physical_node(4)
-#     zx_graph.add_physical_node(5)
-#     zx_graph.add_physical_edge(1, 2)
-#     zx_graph.add_physical_edge(2, 3)
-#     zx_graph.add_physical_edge(2, 4)
-#     zx_graph.add_physical_edge(3, 4)
-#     zx_graph.add_physical_edge(3, 5)
-#     original_edges = zx_graph.physical_edges.copy()
-#     expected_edges = {(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5), (3, 4), (4, 5)}
-#     zx_graph.pivot(2, 3)
-#     assert expected_edges == zx_graph.physical_edges
-#     zx_graph.pivot(2, 3)
-#     assert original_edges == zx_graph.physical_edges
+def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
+    # 1---2---3---5
+    #      \ /
+    #       4
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_node(4)
+    zx_graph.add_physical_node(5)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.add_physical_edge(2, 4)
+    zx_graph.add_physical_edge(3, 4)
+    zx_graph.add_physical_edge(3, 5)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    zx_graph.set_meas_plane(4, Plane.XY)
+    zx_graph.set_meas_angle(4, 1.4)
+    zx_graph.set_meas_plane(5, Plane.XZ)
+    zx_graph.set_meas_angle(5, 1.5)
+    original_edges = zx_graph.physical_edges.copy()
+    expected_edges = {(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5), (3, 4), (4, 5)}
+    zx_graph.pivot(2, 3)
+    assert zx_graph.physical_edges == expected_edges
 
-#     zx_graph.pivot(3, 2)
-#     assert expected_edges == zx_graph.physical_edges
-#     zx_graph.pivot(3, 2)
-#     assert original_edges == zx_graph.physical_edges
+    zx_graph.pivot(2, 3)
+    assert zx_graph.physical_edges == original_edges
+
+    zx_graph.pivot(3, 2)
+    assert zx_graph.physical_edges == expected_edges
+    zx_graph.pivot(3, 2)
+    assert zx_graph.physical_edges == original_edges
 
 
-# def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
-#     zx_graph.add_physical_node(1)
-#     zx_graph.add_physical_node(2)
-#     zx_graph.add_physical_node(3)
-#     zx_graph.add_physical_node(4)
-#     zx_graph.add_physical_node(5)
-#     zx_graph.add_physical_node(6)
-#     zx_graph.add_physical_edge(1, 2)
-#     zx_graph.add_physical_edge(2, 3)
-#     zx_graph.add_physical_edge(2, 5)
-#     zx_graph.add_physical_edge(4, 5)
-#     zx_graph.add_physical_edge(5, 6)
-#     original_edges = zx_graph.physical_edges.copy()
-#     expected_edges = {(1, 4), (1, 5), (1, 6), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (3, 6)}
-#     zx_graph.pivot(2, 5)
-#     assert expected_edges == zx_graph.physical_edges
-#     zx_graph.pivot(2, 5)
-#     assert original_edges == zx_graph.physical_edges
+def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
+    # 3   6
+    # |   |
+    # 2---5
+    # |   |
+    # 1   4
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.add_physical_node(3)
+    zx_graph.add_physical_node(4)
+    zx_graph.add_physical_node(5)
+    zx_graph.add_physical_node(6)
+    zx_graph.add_physical_edge(1, 2)
+    zx_graph.add_physical_edge(2, 3)
+    zx_graph.add_physical_edge(2, 5)
+    zx_graph.add_physical_edge(4, 5)
+    zx_graph.add_physical_edge(5, 6)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 1.1)
+    zx_graph.set_meas_plane(2, Plane.XZ)
+    zx_graph.set_meas_angle(2, 1.2)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(3, 1.3)
+    zx_graph.set_meas_plane(4, Plane.XY)
+    zx_graph.set_meas_angle(4, 1.4)
+    zx_graph.set_meas_plane(5, Plane.XZ)
+    zx_graph.set_meas_angle(5, 1.5)
+    zx_graph.set_meas_plane(6, Plane.YZ)
+    zx_graph.set_meas_angle(6, 1.6)
+    original_edges = zx_graph.physical_edges.copy()
+    expected_edges = {(1, 4), (1, 5), (1, 6), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (3, 6)}
+    zx_graph.pivot(2, 5)
+    assert zx_graph.physical_edges == expected_edges
 
-#     zx_graph.pivot(5, 2)
-#     assert expected_edges == zx_graph.physical_edges
-#     zx_graph.pivot(5, 2)
-#     assert original_edges == zx_graph.physical_edges
+    zx_graph.pivot(2, 5)
+    assert zx_graph.physical_edges == original_edges
+
+    zx_graph.pivot(5, 2)
+    assert zx_graph.physical_edges == expected_edges
+    zx_graph.pivot(5, 2)
+    assert zx_graph.physical_edges == original_edges
 
 
 if __name__ == "__main__":
