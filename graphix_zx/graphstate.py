@@ -288,6 +288,7 @@ class ZXGraphState(GraphState):
             self.add_physical_edge(edge[0], edge[1])
 
     def local_complement(self, node: int) -> None:
+        """Local complement operation on the graph state: G*u"""
         self.ensure_node_exists(node)
         if node in self.input_nodes:
             msg = "Cannot apply local complement to input node"
@@ -330,68 +331,76 @@ class ZXGraphState(GraphState):
                 self.set_meas_plane(v, new_plane)
                 self.set_meas_angle(v, new_angle_func(v) % 2.0)
 
-    # def _swap(self, node1: int, node2: int) -> None:
-    #     node1_adjs = self.adjacent_nodes(node1) - {node2}
-    #     node2_adjs = self.adjacent_nodes(node2) - {node1}
-    #     adj_b = node1_adjs - node2_adjs
-    #     adj_c = node2_adjs - node1_adjs
-    #     for b in adj_b:
-    #         self.remove_physical_edge(node1, b)
-    #         self.add_physical_edge(node2, b)
-    #     for c in adj_c:
-    #         self.remove_physical_edge(node2, c)
-    #         self.add_physical_edge(node1, c)
+    def _swap(self, node1: int, node2: int) -> None:
+        node1_adjs = self.adjacent_nodes(node1) - {node2}
+        node2_adjs = self.adjacent_nodes(node2) - {node1}
+        adj_b = node1_adjs - node2_adjs
+        adj_c = node2_adjs - node1_adjs
+        for b in adj_b:
+            self.remove_physical_edge(node1, b)
+            self.add_physical_edge(node2, b)
+        for c in adj_c:
+            self.remove_physical_edge(node2, c)
+            self.add_physical_edge(node1, c)
 
-    # def pivot(self, node1: int, node2: int) -> None:
-    #     self.ensure_node_exists(node1)
-    #     self.ensure_node_exists(node2)
-    #     if node1 in self.input_nodes or node2 in self.input_nodes:
-    #         msg = "Cannot apply pivot to input node"
-    #         raise ValueError(msg)
+    def pivot(self, node1: int, node2: int) -> None:
+        """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for adjacent nodes u and v.
 
-    #     node1_adjs = self.adjacent_nodes(node1) - {node2}
-    #     node2_adjs = self.adjacent_nodes(node2) - {node1}
-    #     adj_a = node1_adjs & node2_adjs
-    #     adj_b = node1_adjs - node2_adjs
-    #     adj_c = node2_adjs - node1_adjs
-    #     adj_pairs = [
-    #         _adjacent_pairs(adj_a, adj_b),
-    #         _adjacent_pairs(adj_a, adj_c),
-    #         _adjacent_pairs(adj_b, adj_c),
-    #     ]
-    #     rmv_edges = set().union(*(p & self.physical_edges for p in adj_pairs))
-    #     add_edges = set().union(*(p - self.physical_edges for p in adj_pairs))
+        In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
+        """
+        self.ensure_node_exists(node1)
+        self.ensure_node_exists(node2)
+        if node1 in self.input_nodes or node2 in self.input_nodes:
+            msg = "Cannot apply pivot to input node"
+            raise ValueError(msg)
 
-    #     self._local_complement(rmv_edges, add_edges)
-    #     self._swap(node1, node2)
+        node1_adjs = self.adjacent_nodes(node1) - {node2}
+        node2_adjs = self.adjacent_nodes(node2) - {node1}
+        adj_a = node1_adjs & node2_adjs
+        adj_b = node1_adjs - node2_adjs
+        adj_c = node2_adjs - node1_adjs
+        adj_pairs = [
+            _adjacent_pairs(adj_a, adj_b),
+            _adjacent_pairs(adj_a, adj_c),
+            _adjacent_pairs(adj_b, adj_c),
+        ]
+        rmv_edges = set().union(*(p & self.physical_edges for p in adj_pairs))
+        add_edges = set().union(*(p - self.physical_edges for p in adj_pairs))
 
-    #     # update node1 and node2 measurement
-    #     measurement_action = _measurement_action(
-    #         {
-    #             Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-    #             Plane.XZ: (Plane.XZ, lambda v: (0.5 - self.meas_angles[v])),
-    #             Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
-    #         }
-    #     )
-    #     for a in [node1, node2]:
-    #         new_plane, new_angle_func = measurement_action[self.meas_planes[a]]
-    #         if new_plane:
-    #             self.set_meas_plane(a, new_plane)
-    #             self.set_meas_angle(a, new_angle_func(a) % 2.0)
+        self._local_complement(rmv_edges, add_edges)
+        self._swap(node1, node2)
 
-    #     # update nodes measurement of adj_a
-    #     measurement_action = _measurement_action(
-    #         {
-    #             Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + 1.0)),
-    #             Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
-    #             Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
-    #         }
-    #     )
-    #     for w in adj_a:
-    #         new_plane, new_angle_func = measurement_action[self.meas_planes[w]]
-    #         if new_plane:
-    #             self.set_meas_plane(w, new_plane)
-    #             self.set_meas_angle(w, new_angle_func(w) % 2.0)
+        # update node1 and node2 measurement
+        measurement_action = _measurement_action(
+            {
+                Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
+                Plane.XZ: (Plane.XZ, lambda v: (0.5 - self.meas_angles[v])),
+                Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
+            }
+        )
+        for a in [node1, node2]:
+            new_plane, new_angle_func = measurement_action[self.meas_planes[a]]
+            if new_plane:
+                self.set_meas_plane(a, new_plane)
+                self.set_meas_angle(a, new_angle_func(a) % 2.0)
+
+        # update nodes measurement of adj_a
+        measurement_action = _measurement_action(
+            {
+                Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + 1.0)),
+                Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
+                Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+            }
+        )
+
+        def _update_node_measurement(v: int) -> None:
+            new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
+            if new_plane:
+                self.set_meas_plane(v, new_plane)
+                self.set_meas_angle(v, new_angle_func(v) % 2.0)
+
+        for w in adj_a:
+            _update_node_measurement(w)
 
 
 def _measurement_action(
@@ -405,4 +414,4 @@ def _measurement_action(
 
 
 def _adjacent_pairs(adj_nodes_a: set[int], adj_nodes_b: set[int]) -> set[tuple[int, int]]:
-    return {(a, b) for a, b in product(adj_nodes_a, adj_nodes_b) if a < b}
+    return {(min(a, b), max(a, b)) for a, b in product(adj_nodes_a, adj_nodes_b) if a != b}
