@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
+
+if TYPE_CHECKING:
+    from graphix_zx.euler import LocalClifford
 
 
 class BaseGraphState(ABC):
@@ -56,6 +60,11 @@ class BaseGraphState(ABC):
     def meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def local_cliffords(self) -> dict[int, LocalClifford]:
+        raise NotImplementedError
+
     @abstractmethod
     def add_physical_node(
         self,
@@ -87,6 +96,11 @@ class BaseGraphState(ABC):
     def set_meas_angle(self, node: int, angle: float) -> None:
         raise NotImplementedError
 
+    # NOTE: on internal nodes -> update measurement basis, on input or output -> set local clifford object
+    @abstractmethod
+    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        raise NotImplementedError
+
     @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
         raise NotImplementedError
@@ -102,6 +116,7 @@ class GraphState(BaseGraphState):
     __meas_planes: dict[int, Plane]
     __meas_angles: dict[int, float]
     __q_indices: dict[int, int]
+    __local_cliffords: dict[int, LocalClifford]
 
     def __init__(self) -> None:
         self.__input_nodes = set()
@@ -112,6 +127,7 @@ class GraphState(BaseGraphState):
         self.__meas_angles = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
+        self.__local_cliffords = {}
 
     @property
     def input_nodes(self) -> set[int]:
@@ -153,6 +169,10 @@ class GraphState(BaseGraphState):
     @property
     def meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
+
+    @property
+    def local_cliffords(self) -> dict[int, LocalClifford]:
+        return self.__local_cliffords
 
     def add_physical_node(
         self,
@@ -216,6 +236,17 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__meas_angles[node] = angle
 
+    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
+        if node in self.input_nodes or node in self.output_nodes:
+            self.__local_cliffords[node] = lc
+        else:
+            meas_plane, meas_angle = update_meas_basis(lc, self.meas_planes[node], self.meas_angles[node])
+            self.set_meas_plane(node, meas_plane)
+            self.set_meas_angle(node, meas_angle)
+
     def get_neighbors(self, node: int) -> set[int]:
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
@@ -228,7 +259,6 @@ class GraphState(BaseGraphState):
         if node in self.__output_nodes:
             self.__output_nodes.remove(node)
 
-    # TODO: overload with pattern
     def append(self, other: BaseGraphState) -> None:
         common_nodes = self.physical_nodes & other.physical_nodes
         border_nodes = self.output_nodes & other.input_nodes
@@ -260,3 +290,11 @@ class GraphState(BaseGraphState):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
+
+
+def update_meas_basis(
+    lc: LocalClifford,  # noqa: ARG001
+    plane: Plane,  # noqa: ARG001
+    angle: float,  # noqa: ARG001
+) -> tuple[Plane, float]:
+    raise NotImplementedError
