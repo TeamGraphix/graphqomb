@@ -1,5 +1,3 @@
-"""generate standardized or resource optimized pattern from underlying graph and gflow. extended MC is included"""
-
 from __future__ import annotations
 
 import sys
@@ -115,11 +113,21 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_outpu
     if not check_causality(graph, gflow):
         msg = "Invalid flow"
         raise ValueError(msg)
-    # stabilizer check?
 
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow}
+    return transpile_from_xz_flow(graph, x_flow, z_flow, correct_output=correct_output)
+
+
+# NOTE: this function is intended to be used with non-Unitary programming
+def transpile_from_xz_flow(
+    graph: BaseGraphState,
+    x_flow: FlowLike,
+    z_flow: FlowLike,
+    *,
+    correct_output: bool = True,
+) -> ImmutablePattern:
     x_corrections = generate_corrections(graph, x_flow)
     z_corrections = generate_corrections(graph, z_flow)
 
