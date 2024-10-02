@@ -45,12 +45,13 @@ ignore = [
   "PD",
 
   # Manually disabled
-  "ANN10", # `self`/`cls` not annotated
-  "CPY",   # copyright missing
-  "D105",  # undocumented magic method
-  "ERA",   # commented-out code
-  "FBT",   # boolean-trap
-  "FIX",   # fixme
+  "ANN10",   # `self`/`cls` not annotated
+  "CPY",     # copyright missing
+  "D105",    # undocumented magic method
+  "ERA",     # commented-out code
+  "FBT",     # boolean-trap
+  "FIX",     # fixme
+  "PLR0904", # too-many-public-methods
 
   # will be activated future,
   "TD003",
@@ -61,6 +62,7 @@ ignore = [
   "D103",
   "D104",
   "D400",
+  "DOC",
 ]
 
 [tool.ruff.lint.pydocstyle]
