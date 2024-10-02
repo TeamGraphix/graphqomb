@@ -13,41 +13,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.8
-
       - uses: actions/checkout@v4
 
-      - name: Setup Ruff
-        run: |
-          python3 -m pip install -U pip
-          pip install ruff
-
-      - name: Run ruff check
-        run: |
-          pip install ruff
-          ruff check
+      - uses: chartboost/ruff-action@v1
 
   ruff_format:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.8
-
       - uses: actions/checkout@v4
 
-      - name: Setup Ruff
-        run: |
-          python3 -m pip install -U pip
-          pip install ruff
+      - uses: chartboost/ruff-action@v1
+        with:
+          args: "format --check"
 
-      - name: Run ruff format
-        run: |
-          ruff format
-
-      - name: Run ruff isort
-        run: |
-          ruff check --select I --fix
+      - uses: chartboost/ruff-action@v1
+        with:
+          args: "check --select I"
