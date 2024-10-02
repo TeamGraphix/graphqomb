@@ -26,5 +26,4 @@ jobs:
           python3 -m pip install -U pip
           pip install mypy pytest
           pip install .
-          mypy graphix_zx/ tests/ examples/
-
+          mypy
