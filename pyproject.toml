@@ -92,3 +92,6 @@ ignore_missing_imports = true
 files = ["graphix_zx", "tests", "examples"]
 # Disabled for now
 disable_error_code = ["type-arg"]
+
+[tool.pyright]
+include = ["graphix_zx", "tests", "examples"]
