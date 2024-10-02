@@ -40,7 +40,7 @@ def test_mbqc_circuit_simulator() -> None:
 
     # Test for expected state vector (simplified example)
     expected_state = (
-        np.array(
+        np.asarray(
             [
                 (1 + np.exp(1j * np.pi / 4)),
                 (1 + np.exp(1j * np.pi / 4)),

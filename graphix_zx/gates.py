@@ -46,7 +46,7 @@ class J(UnitGate):
         return [self]
 
     def get_matrix(self) -> NDArray:
-        return np.array([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
+        return np.asarray([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ class CZ(UnitGate):
 
     @staticmethod
     def get_matrix() -> NDArray:
-        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
+        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
 
 @dataclass(frozen=True)
@@ -226,7 +226,7 @@ class CNOT(MacroMultiGate):
 
     @staticmethod
     def get_matrix() -> NDArray:
-        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
 
 @dataclass(frozen=True)
@@ -247,7 +247,7 @@ class SWAP(MacroMultiGate):
 
     @staticmethod
     def get_matrix() -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0],
                 [0, 0, 1, 0],
@@ -276,7 +276,7 @@ class CRz(MacroMultiGate):
         return unit_gates
 
     def get_matrix(self) -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0],
                 [0, np.exp(-1j * self.angle / 2), 0, 0],
@@ -306,7 +306,7 @@ class CRx(MacroMultiGate):
         return unit_gates
 
     def get_matrix(self) -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0],
                 [0, 1, 0, 0],
@@ -339,7 +339,7 @@ class CU3(MacroMultiGate):
         return unit_gates
 
     def get_matrix(self) -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0],
                 [0, 1, 0, 0],
@@ -380,7 +380,7 @@ class CCZ(MacroMultiGate):
 
     @staticmethod
     def get_matrix() -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],
                 [0, 1, 0, 0, 0, 0, 0, 0],
@@ -417,7 +417,7 @@ class Toffoli(MacroMultiGate):
 
     @staticmethod
     def get_matrix() -> NDArray:
-        return np.array(
+        return np.asarray(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],
                 [0, 1, 0, 0, 0, 0, 0, 0],
