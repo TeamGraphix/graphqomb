@@ -65,7 +65,7 @@ class LocalUnitary:
         NDArray
             2x2 unitary matrix
         """
-        return np.array(
+        return np.asarray(
             [
                 [
                     np.cos(self.beta / 2) * np.exp(-1j * (self.alpha + self.gamma) / 2),
