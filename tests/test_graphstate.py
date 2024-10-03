@@ -479,5 +479,65 @@ def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     assert zx_graph.physical_edges == original_edges
 
 
+def test_pivot_with_8_nodes_graph(zx_graph: ZXGraphState) -> None:
+    # 1   4   7
+    #  \ / \ /
+    #   3 - 6
+    #  / \ / \
+    # 2   5   8
+    for i in range(1, 9):
+        zx_graph.add_physical_node(i)
+
+    for i, j in [(1, 3), (2, 3), (3, 4), (3, 5), (3, 6), (4, 6), (5, 6), (6, 7), (6, 8)]:
+        zx_graph.add_physical_edge(i, j)
+
+    measurements = [
+        (1, Plane.XY, 1.1),
+        (2, Plane.XZ, 1.2),
+        (3, Plane.YZ, 1.3),
+        (4, Plane.XY, 1.4),
+        (5, Plane.XZ, 1.5),
+        (6, Plane.YZ, 1.6),
+        (7, Plane.XY, 1.7),
+        (8, Plane.XZ, 1.8),
+    ]
+    for node_id, plane, angle in measurements:
+        zx_graph.set_meas_plane(node_id, plane)
+        zx_graph.set_meas_angle(node_id, angle)
+
+    original_edges = zx_graph.physical_edges.copy()
+    expected_edges = {
+        (1, 4),
+        (1, 5),
+        (1, 6),
+        (1, 7),
+        (1, 8),
+        (2, 4),
+        (2, 5),
+        (2, 6),
+        (2, 7),
+        (2, 8),
+        (3, 4),
+        (3, 5),
+        (3, 6),
+        (3, 7),
+        (3, 8),
+        (4, 6),
+        (4, 7),
+        (4, 8),
+        (5, 6),
+        (5, 7),
+        (5, 8),
+    }
+    zx_graph.pivot(3, 6)
+    assert zx_graph.physical_edges == expected_edges
+    zx_graph.pivot(3, 6)
+    assert zx_graph.physical_edges == original_edges
+    zx_graph.pivot(6, 3)
+    assert zx_graph.physical_edges == expected_edges
+    zx_graph.pivot(6, 3)
+    assert zx_graph.physical_edges == original_edges
+
+
 if __name__ == "__main__":
     pytest.main()
