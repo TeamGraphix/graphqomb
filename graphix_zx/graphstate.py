@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import Callable
 
+import numpy as np
+
 from graphix_zx.common import Plane
 
 
@@ -307,20 +309,20 @@ class ZXGraphState(GraphState):
         # update node measurement
         measurement_action = _measurement_action(
             {
-                Plane.XY: (Plane.XZ, 0.5 - self.meas_angles[node]),
-                Plane.XZ: (Plane.XY, self.meas_angles[node] - 0.5),
-                Plane.YZ: (Plane.YZ, self.meas_angles[node] + 0.5),
+                Plane.XY: (Plane.XZ, 0.5 * np.pi - self.meas_angles[node]),
+                Plane.XZ: (Plane.XY, self.meas_angles[node] - 0.5 * np.pi),
+                Plane.YZ: (Plane.YZ, self.meas_angles[node] + 0.5 * np.pi),
             }
         )
         new_plane, new_angle = measurement_action[self.meas_planes[node]]
         if new_plane:
             self.set_meas_plane(node, new_plane)
-            self.set_meas_angle(node, new_angle % 2.0)
+            self.set_meas_angle(node, new_angle % (2.0 * np.pi))
 
         # update adjacent nodes measurement
         measurement_action = _measurement_action(
             {
-                Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5),
+                Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
                 Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
                 Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
             }
@@ -329,7 +331,7 @@ class ZXGraphState(GraphState):
             new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
             if new_plane:
                 self.set_meas_plane(v, new_plane)
-                self.set_meas_angle(v, new_angle_func(v) % 2.0)
+                self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
 
     def _swap(self, node1: int, node2: int) -> None:
         node1_adjs = self.adjacent_nodes(node1) - {node2}
@@ -374,7 +376,7 @@ class ZXGraphState(GraphState):
         measurement_action = _measurement_action(
             {
                 Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-                Plane.XZ: (Plane.XZ, lambda v: (0.5 - self.meas_angles[v])),
+                Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
                 Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
             }
         )
@@ -382,12 +384,12 @@ class ZXGraphState(GraphState):
             new_plane, new_angle_func = measurement_action[self.meas_planes[a]]
             if new_plane:
                 self.set_meas_plane(a, new_plane)
-                self.set_meas_angle(a, new_angle_func(a) % 2.0)
+                self.set_meas_angle(a, new_angle_func(a) % (2.0 * np.pi))
 
         # update nodes measurement of adj_a
         measurement_action = _measurement_action(
             {
-                Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + 1.0)),
+                Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
                 Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
                 Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
             }
@@ -397,7 +399,7 @@ class ZXGraphState(GraphState):
             new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
             if new_plane:
                 self.set_meas_plane(v, new_plane)
-                self.set_meas_angle(v, new_angle_func(v) % 2.0)
+                self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
 
         for w in adj_a:
             _update_node_measurement(w)
