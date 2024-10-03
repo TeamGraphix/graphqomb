@@ -325,10 +325,11 @@ def test_local_complement_with_inversed_planes(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
-    zx_graph.set_input(1)
-    zx_graph.set_input(4)
     for i in range(1, 7):
         zx_graph.add_physical_node(i)
+
+    zx_graph.set_input(1)
+    zx_graph.set_input(4)
 
     for i, j in [(1, 2), (2, 3), (2, 5), (4, 5), (5, 6)]:
         zx_graph.add_physical_edge(i, j)
@@ -434,10 +435,8 @@ def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
     expected_edges = {(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5), (3, 4), (4, 5)}
     zx_graph.pivot(2, 3)
     assert zx_graph.physical_edges == expected_edges
-
     zx_graph.pivot(2, 3)
     assert zx_graph.physical_edges == original_edges
-
     zx_graph.pivot(3, 2)
     assert zx_graph.physical_edges == expected_edges
     zx_graph.pivot(3, 2)
@@ -472,10 +471,8 @@ def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     expected_edges = {(1, 4), (1, 5), (1, 6), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (3, 6)}
     zx_graph.pivot(2, 5)
     assert zx_graph.physical_edges == expected_edges
-
     zx_graph.pivot(2, 5)
     assert zx_graph.physical_edges == original_edges
-
     zx_graph.pivot(5, 2)
     assert zx_graph.physical_edges == expected_edges
     zx_graph.pivot(5, 2)
