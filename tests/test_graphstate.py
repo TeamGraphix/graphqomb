@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState, _adjacent_pairs, _measurement_action
+from graphix_zx.graphstate import GraphState, ZXGraphState, adj_pairs, meas_action
 
 
 @pytest.fixture
@@ -165,8 +165,8 @@ def test_is_zx_graph_returns_true(zx_graph: ZXGraphState) -> None:
     assert zx_graph.is_zx_graph()
 
 
-def test__measurement_action_with_some_planes_missing() -> None:
-    ma = _measurement_action({Plane.XY: (Plane.XY, 0.0)})
+def test_meas_action_with_some_planes_missing() -> None:
+    ma = meas_action({Plane.XY: (Plane.XY, 0.0)})
     assert ma[Plane.YX] == (Plane.XY, 0.0)
     assert ma[Plane.XZ] == (None, None)
     assert ma[Plane.YZ] == (None, None)
@@ -174,8 +174,8 @@ def test__measurement_action_with_some_planes_missing() -> None:
     assert ma[Plane.ZY] == (None, None)
 
 
-def test__measurement_action() -> None:
-    measurement_action = _measurement_action(
+def test_meas_action() -> None:
+    measurement_action = meas_action(
         {
             Plane.XY: (Plane.XY, 0.0),
             Plane.XZ: (Plane.XZ, 0.0),
@@ -190,10 +190,10 @@ def test__measurement_action() -> None:
     assert measurement_action[Plane.ZY] == measurement_action[Plane.YZ]
 
 
-def test__adjacent_pairs() -> None:
-    assert _adjacent_pairs(set(), set()) == set()
-    assert _adjacent_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
-    assert _adjacent_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+def test_adj_pairs() -> None:
+    assert adj_pairs(set(), set()) == set()
+    assert adj_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
+    assert adj_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
 
 
 def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
