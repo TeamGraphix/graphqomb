@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-CZ_TENSOR = np.array(
+CZ_TENSOR = np.asarray(
     [
         [1, 0, 0, 0],
         [0, 1, 0, 0],
@@ -243,9 +243,9 @@ def get_basis(plane: Plane, angle: float) -> NDArray:
         NDArray: basis
     """
     if plane == Plane.XY:
-        basis = np.array([1, np.exp(1j * angle)]) / np.sqrt(2)
+        basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
     elif plane == Plane.YZ:
-        basis = np.array([np.cos(angle / 2), 1j * np.sin(angle / 2)])
+        basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
     elif plane == Plane.ZX:
-        basis = np.array([np.cos(angle / 2), np.sin(angle / 2)])
+        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
     return basis

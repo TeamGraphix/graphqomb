@@ -1,4 +1,4 @@
-name: mypy
+name: pyright
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  typecheck-mypy:
+  typecheck-pyright:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,4 +22,4 @@ jobs:
       - run: |
           python3 -m pip install -U pip
           pip install .[dev]
-          mypy
+          pyright

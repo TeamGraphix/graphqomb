@@ -24,7 +24,7 @@ def test_initialization(state_vector: StateVector) -> None:
 
 
 def test_evolve(state_vector: StateVector) -> None:
-    operator = np.array([[1, 0], [0, -1]])  # Z gate
+    operator = np.asarray([[1, 0], [0, -1]])  # Z gate
     state_vector.evolve(operator, [0])
     expected_state = np.arange(2**state_vector.num_qubits)
     expected_state[len(expected_state) // 2 :] *= -1  # apply Z gate to qubit 0
@@ -41,7 +41,7 @@ def test_measure(state_vector: StateVector) -> None:
 
 
 def test_tensor_product(state_vector: StateVector) -> None:
-    expected_state = np.array([i // 2 for i in range(2 ** (state_vector.num_qubits + 1))] / np.sqrt(2))
+    expected_state = np.asarray([i // 2 for i in range(2 ** (state_vector.num_qubits + 1))] / np.sqrt(2))
     other_vector = StateVector(1)
     state_vector.tensor_product(other_vector)
 
@@ -65,7 +65,7 @@ def test_is_isolated(plus_state: StateVector) -> None:
 
 
 def test_is_not_isolated(plus_state: StateVector) -> None:
-    cz = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
+    cz = np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
     plus_state.evolve(cz, [0, 1])
     isolated = plus_state.is_isolated(0)
@@ -79,7 +79,7 @@ def test_get_norm(state_vector: StateVector) -> None:
 
 
 def test_expectation_value(plus_state: StateVector) -> None:
-    operator = np.array([[1, 0], [0, -1]])  # Z gate
+    operator = np.asarray([[1, 0], [0, -1]])  # Z gate
     exp_value = plus_state.expectation_value(operator, [0])
     expected_value = 0.0  # <++|Z|++> = 0
     assert np.isclose(exp_value, expected_value)

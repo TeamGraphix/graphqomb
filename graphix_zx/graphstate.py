@@ -2,11 +2,30 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from itertools import product
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from graphix_zx.common import Plane
+
+if TYPE_CHECKING:
+    from typing import Callable
+
+    from graphix_zx.euler import LocalClifford
+
+
+def meas_action(
+    base_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]],
+) -> dict[Plane, tuple[Plane, float | Callable[[float], float]]]:
+    action = base_action.copy()
+    action[Plane.YX] = action.get(Plane.XY, (None, None))
+    action[Plane.ZX] = action.get(Plane.XZ, (None, None))
+    action[Plane.ZY] = action.get(Plane.YZ, (None, None))
+    return action
+
+
+def adj_pairs(adj_nodes_a: set[int], adj_nodes_b: set[int]) -> set[tuple[int, int]]:
+    return {(min(a, b), max(a, b)) for a, b in product(adj_nodes_a, adj_nodes_b) if a != b}
 
 
 class BaseGraphState(ABC):
@@ -60,6 +79,11 @@ class BaseGraphState(ABC):
     def meas_angles(self) -> dict[int, float]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def local_cliffords(self) -> dict[int, LocalClifford]:
+        raise NotImplementedError
+
     @abstractmethod
     def add_physical_node(
         self,
@@ -91,6 +115,11 @@ class BaseGraphState(ABC):
     def set_meas_angle(self, node: int, angle: float) -> None:
         raise NotImplementedError
 
+    # NOTE: on internal nodes -> update measurement basis, on input or output -> set local clifford object
+    @abstractmethod
+    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        raise NotImplementedError
+
     @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
         raise NotImplementedError
@@ -106,6 +135,7 @@ class GraphState(BaseGraphState):
     __meas_planes: dict[int, Plane]
     __meas_angles: dict[int, float]
     __q_indices: dict[int, int]
+    __local_cliffords: dict[int, LocalClifford]
 
     def __init__(self) -> None:
         self.__input_nodes = set()
@@ -116,6 +146,7 @@ class GraphState(BaseGraphState):
         self.__meas_angles = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
+        self.__local_cliffords = {}
 
     @property
     def input_nodes(self) -> set[int]:
@@ -157,6 +188,10 @@ class GraphState(BaseGraphState):
     @property
     def meas_angles(self) -> dict[int, float]:
         return self.__meas_angles
+
+    @property
+    def local_cliffords(self) -> dict[int, LocalClifford]:
+        return self.__local_cliffords
 
     def add_physical_node(
         self,
@@ -225,6 +260,17 @@ class GraphState(BaseGraphState):
         self.ensure_node_exists(node)
         self.__meas_angles[node] = angle
 
+    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
+        if node in self.input_nodes or node in self.output_nodes:
+            self.__local_cliffords[node] = lc
+        else:
+            meas_plane, meas_angle = update_meas_basis(lc, self.meas_planes[node], self.meas_angles[node])
+            self.set_meas_plane(node, meas_plane)
+            self.set_meas_angle(node, meas_angle)
+
     def get_neighbors(self, node: int) -> set[int]:
         self.ensure_node_exists(node)
         return self.__physical_edges[node]
@@ -235,7 +281,6 @@ class GraphState(BaseGraphState):
         if node in self.__output_nodes:
             self.__output_nodes.remove(node)
 
-    # TODO: overload with pattern
     def append(self, other: BaseGraphState) -> None:
         common_nodes = self.physical_nodes & other.physical_nodes
         border_nodes = self.output_nodes & other.input_nodes
@@ -279,7 +324,7 @@ class ZXGraphState(GraphState):
         for v in self.physical_nodes - self.output_nodes:
             if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
                 return False
-            if self.meas_planes[v] not in [Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY]:
+            if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
                 return False
         return True
 
@@ -300,14 +345,14 @@ class ZXGraphState(GraphState):
             raise ValueError(msg)
 
         adjacent_nodes: set[int] = self.adjacent_nodes(node)
-        adjacent_pairs = _adjacent_pairs(adjacent_nodes, adjacent_nodes)
+        adjacent_pairs = adj_pairs(adjacent_nodes, adjacent_nodes)
         new_edges = adjacent_pairs - self.physical_edges
         rmv_edges = self.physical_edges & adjacent_pairs
 
         self._local_complement(rmv_edges, new_edges)
 
         # update node measurement
-        measurement_action = _measurement_action(
+        measurement_action = meas_action(
             {
                 Plane.XY: (Plane.XZ, 0.5 * np.pi - self.meas_angles[node]),
                 Plane.XZ: (Plane.XY, self.meas_angles[node] - 0.5 * np.pi),
@@ -320,7 +365,7 @@ class ZXGraphState(GraphState):
             self.set_meas_angle(node, new_angle % (2.0 * np.pi))
 
         # update adjacent nodes measurement
-        measurement_action = _measurement_action(
+        measurement_action = meas_action(
             {
                 Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
                 Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
@@ -361,19 +406,19 @@ class ZXGraphState(GraphState):
         adj_a = node1_adjs & node2_adjs
         adj_b = node1_adjs - node2_adjs
         adj_c = node2_adjs - node1_adjs
-        adj_pairs = [
-            _adjacent_pairs(adj_a, adj_b),
-            _adjacent_pairs(adj_a, adj_c),
-            _adjacent_pairs(adj_b, adj_c),
+        adjacent_pairs = [
+            adj_pairs(adj_a, adj_b),
+            adj_pairs(adj_a, adj_c),
+            adj_pairs(adj_b, adj_c),
         ]
-        rmv_edges = set().union(*(p & self.physical_edges for p in adj_pairs))
-        add_edges = set().union(*(p - self.physical_edges for p in adj_pairs))
+        rmv_edges = set().union(*(p & self.physical_edges for p in adjacent_pairs))
+        add_edges = set().union(*(p - self.physical_edges for p in adjacent_pairs))
 
         self._local_complement(rmv_edges, add_edges)
         self._swap(node1, node2)
 
         # update node1 and node2 measurement
-        measurement_action = _measurement_action(
+        measurement_action = meas_action(
             {
                 Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
                 Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
@@ -387,7 +432,7 @@ class ZXGraphState(GraphState):
                 self.set_meas_angle(a, new_angle_func(a) % (2.0 * np.pi))
 
         # update nodes measurement of adj_a
-        measurement_action = _measurement_action(
+        measurement_action = meas_action(
             {
                 Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
                 Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
@@ -405,15 +450,9 @@ class ZXGraphState(GraphState):
             _update_node_measurement(w)
 
 
-def _measurement_action(
-    base_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]],
-) -> dict[Plane, tuple[Plane, float | Callable[[float], float]]]:
-    action = base_action.copy()
-    action[Plane.YX] = action.get(Plane.XY, (None, None))
-    action[Plane.ZX] = action.get(Plane.XZ, (None, None))
-    action[Plane.ZY] = action.get(Plane.YZ, (None, None))
-    return action
-
-
-def _adjacent_pairs(adj_nodes_a: set[int], adj_nodes_b: set[int]) -> set[tuple[int, int]]:
-    return {(min(a, b), max(a, b)) for a, b in product(adj_nodes_a, adj_nodes_b) if a != b}
+def update_meas_basis(
+    lc: LocalClifford,
+    plane: Plane,
+    angle: float,
+) -> tuple[Plane, float]:
+    raise NotImplementedError
