@@ -24,8 +24,8 @@ def meas_action(
     return action
 
 
-def adj_pairs(adj_nodes_a: set[int], adj_nodes_b: set[int]) -> set[tuple[int, int]]:
-    return {(min(a, b), max(a, b)) for a, b in product(adj_nodes_a, adj_nodes_b) if a != b}
+def neighboring_pairs(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
+    return {(min(a, b), max(a, b)) for a, b in product(nbr_nodes_a, nbr_nodes_b) if a != b}
 
 
 class BaseGraphState(ABC):
@@ -325,11 +325,19 @@ class ZXGraphState(GraphState):
     def __init__(self) -> None:
         super().__init__()
 
-    def _local_complement(self, rmv_edges: set[tuple[int, int]], new_edges: set[tuple[int, int]]) -> None:
+    def _update_connections(self, rmv_edges: set[tuple[int, int]], new_edges: set[tuple[int, int]]) -> None:
         for edge in rmv_edges:
             self.remove_physical_edge(edge[0], edge[1])
         for edge in new_edges:
             self.add_physical_edge(edge[0], edge[1])
+
+    def _update_node_measurement(
+        self, measurement_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]], v: int
+    ) -> None:
+        new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
+        if new_plane:
+            self.set_meas_plane(v, new_plane)
+            self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
 
     def local_complement(self, node: int) -> None:
         """Local complement operation on the graph state: G*u"""
@@ -342,26 +350,23 @@ class ZXGraphState(GraphState):
             raise ValueError(msg)
 
         nbrs: set[int] = self.get_neighbors(node)
-        nbr_pairs = adj_pairs(nbrs, nbrs)
+        nbr_pairs = neighboring_pairs(nbrs, nbrs)
         new_edges = nbr_pairs - self.physical_edges
         rmv_edges = self.physical_edges & nbr_pairs
 
-        self._local_complement(rmv_edges, new_edges)
+        self._update_connections(rmv_edges, new_edges)
 
         # update node measurement
         measurement_action = meas_action(
             {
-                Plane.XY: (Plane.XZ, 0.5 * np.pi - self.meas_angles[node]),
-                Plane.XZ: (Plane.XY, self.meas_angles[node] - 0.5 * np.pi),
-                Plane.YZ: (Plane.YZ, self.meas_angles[node] + 0.5 * np.pi),
+                Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_angles[v]),
+                Plane.XZ: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
+                Plane.YZ: (Plane.YZ, lambda v: self.meas_angles[v] + 0.5 * np.pi),
             }
         )
-        new_plane, new_angle = measurement_action[self.meas_planes[node]]
-        if new_plane:
-            self.set_meas_plane(node, new_plane)
-            self.set_meas_angle(node, new_angle % (2.0 * np.pi))
+        self._update_node_measurement(measurement_action, node)
 
-        # update adjacent nodes measurement
+        # update neighbors measurement
         measurement_action = meas_action(
             {
                 Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
@@ -370,10 +375,7 @@ class ZXGraphState(GraphState):
             }
         )
         for v in nbrs:
-            new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
-            if new_plane:
-                self.set_meas_plane(v, new_plane)
-                self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
+            self._update_node_measurement(measurement_action, v)
 
     def _swap(self, node1: int, node2: int) -> None:
         node1_nbrs = self.get_neighbors(node1) - {node2}
@@ -388,7 +390,7 @@ class ZXGraphState(GraphState):
             self.add_physical_edge(node1, c)
 
     def pivot(self, node1: int, node2: int) -> None:
-        """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for adjacent nodes u and v.
+        """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
 
         In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
         """
@@ -400,18 +402,18 @@ class ZXGraphState(GraphState):
 
         node1_nbrs = self.get_neighbors(node1) - {node2}
         node2_nbrs = self.get_neighbors(node2) - {node1}
-        adj_a = node1_nbrs & node2_nbrs
+        nbr_a = node1_nbrs & node2_nbrs
         nbr_b = node1_nbrs - node2_nbrs
         nbr_c = node2_nbrs - node1_nbrs
         nbr_pairs = [
-            adj_pairs(adj_a, nbr_b),
-            adj_pairs(adj_a, nbr_c),
-            adj_pairs(nbr_b, nbr_c),
+            neighboring_pairs(nbr_a, nbr_b),
+            neighboring_pairs(nbr_a, nbr_c),
+            neighboring_pairs(nbr_b, nbr_c),
         ]
         rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
         add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
 
-        self._local_complement(rmv_edges, add_edges)
+        self._update_connections(rmv_edges, add_edges)
         self._swap(node1, node2)
 
         # update node1 and node2 measurement
@@ -423,12 +425,9 @@ class ZXGraphState(GraphState):
             }
         )
         for a in [node1, node2]:
-            new_plane, new_angle_func = measurement_action[self.meas_planes[a]]
-            if new_plane:
-                self.set_meas_plane(a, new_plane)
-                self.set_meas_angle(a, new_angle_func(a) % (2.0 * np.pi))
+            self._update_node_measurement(measurement_action, a)
 
-        # update nodes measurement of adj_a
+        # update nodes measurement of nbr_a
         measurement_action = meas_action(
             {
                 Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
@@ -437,14 +436,8 @@ class ZXGraphState(GraphState):
             }
         )
 
-        def _update_node_measurement(v: int) -> None:
-            new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
-            if new_plane:
-                self.set_meas_plane(v, new_plane)
-                self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
-
-        for w in adj_a:
-            _update_node_measurement(w)
+        for w in nbr_a:
+            self._update_node_measurement(measurement_action, w)
 
 
 def update_meas_basis(

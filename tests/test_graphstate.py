@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState, adj_pairs, meas_action
+from graphix_zx.graphstate import GraphState, ZXGraphState, meas_action, neighboring_pairs
 
 
 @pytest.fixture
@@ -197,10 +197,10 @@ def test_meas_action() -> None:
     assert measurement_action[Plane.ZY] == measurement_action[Plane.YZ]
 
 
-def test_adj_pairs() -> None:
-    assert adj_pairs(set(), set()) == set()
-    assert adj_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
-    assert adj_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+def test_neighboring_pairs() -> None:
+    assert neighboring_pairs(set(), set()) == set()
+    assert neighboring_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
+    assert neighboring_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
 
 
 def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
