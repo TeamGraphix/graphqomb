@@ -1,3 +1,5 @@
+"""Tests for the GraphState class."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -11,43 +13,59 @@ from graphix_zx.graphstate import GraphState, ZXGraphState, meas_action, neighbo
 
 @pytest.fixture
 def graph() -> GraphState:
+    """Generate an empty GraphState object.
+
+    Returns:
+        GraphState: An empty GraphState object.
+    """
     return GraphState()
 
 
 @pytest.fixture
 def zx_graph() -> ZXGraphState:
+    """Generate an empty ZXGraphState object.
+
+    Returns:
+        ZXGraphState: An empty ZXGraphState object.
+    """
     return ZXGraphState()
 
 
 def test_add_physical_node(graph: GraphState) -> None:
+    """Test adding a physical node to the graph."""
     graph.add_physical_node(1)
     assert 1 in graph.physical_nodes
     assert graph.num_physical_nodes == 1
 
 
 def test_add_physical_node_input_output(graph: GraphState) -> None:
+    """Test adding a physical node as input and output."""
     graph.add_physical_node(1, is_input=True, is_output=True)
     assert 1 in graph.input_nodes
     assert 1 in graph.output_nodes
 
 
 def test_add_duplicate_physical_node(graph: GraphState) -> None:
+    """Test adding a duplicate physical node to the graph."""
     graph.add_physical_node(1)
     with pytest.raises(Exception, match="Node already exists"):
         graph.add_physical_node(1)
 
 
 def test_ensure_node_exists_raises(graph: GraphState) -> None:
+    """Test ensuring a node exists in the graph."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         graph.ensure_node_exists(1)
 
 
 def test_ensure_node_exists(graph: GraphState) -> None:
+    """Test ensuring a node exists in the graph."""
     graph.add_physical_node(1)
     assert graph.ensure_node_exists(1) is None
 
 
 def test_get_neighbors(graph: GraphState) -> None:
+    """Test getting the neighbors of a node in the graph."""
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_node(3)
@@ -59,6 +77,7 @@ def test_get_neighbors(graph: GraphState) -> None:
 
 
 def test_add_physical_edge(graph: GraphState) -> None:
+    """Test adding a physical edge to the graph."""
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -67,6 +86,7 @@ def test_add_physical_edge(graph: GraphState) -> None:
 
 
 def test_add_duplicate_physical_edge(graph: GraphState) -> None:
+    """Test adding a duplicate physical edge to the graph."""
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -75,17 +95,20 @@ def test_add_duplicate_physical_edge(graph: GraphState) -> None:
 
 
 def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
+    """Test adding an edge with a nonexistent node to the graph."""
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Node does not exist node=2"):
         graph.add_physical_edge(1, 2)
 
 
 def test_remove_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
+    """Test removing an edge with nonexistent nodes from the graph."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         graph.remove_physical_edge(1, 2)
 
 
 def test_remove_physical_edge_with_nonexistent_edge(graph: GraphState) -> None:
+    """Test removing a nonexistent edge from the graph."""
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     with pytest.raises(ValueError, match="Edge does not exist"):
@@ -93,6 +116,7 @@ def test_remove_physical_edge_with_nonexistent_edge(graph: GraphState) -> None:
 
 
 def test_remove_physical_edge(graph: GraphState) -> None:
+    """Test removing a physical edge from the graph."""
     graph.add_physical_node(1)
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -103,30 +127,35 @@ def test_remove_physical_edge(graph: GraphState) -> None:
 
 
 def test_set_input(graph: GraphState) -> None:
+    """Test setting a physical node as input."""
     graph.add_physical_node(1)
     graph.set_input(1)
     assert 1 in graph.input_nodes
 
 
 def test_set_output(graph: GraphState) -> None:
+    """Test setting a physical node as output."""
     graph.add_physical_node(1)
     graph.set_output(1)
     assert 1 in graph.output_nodes
 
 
 def test_set_meas_plane(graph: GraphState) -> None:
+    """Test setting the measurement plane of a physical node."""
     graph.add_physical_node(1)
     graph.set_meas_plane(1, Plane.XZ)
     assert graph.meas_planes[1] == Plane.XZ
 
 
 def test_set_meas_angle(graph: GraphState) -> None:
+    """Test setting the measurement angle of a physical node."""
     graph.add_physical_node(1)
     graph.set_meas_angle(1, 0.5 * np.pi)
     assert graph.meas_angles[1] == 0.5 * np.pi
 
 
 def test_append_graph() -> None:
+    """Test appending a graph to another graph."""
     graph1 = GraphState()
     graph1.add_physical_node(1, is_input=True)
     graph1.add_physical_node(2, is_output=True)
@@ -146,6 +175,7 @@ def test_append_graph() -> None:
 
 
 def test_is_zx_graph_returns_false(graph: GraphState) -> None:
+    """Test if a graph is not a ZX-diagram."""
     graph.add_physical_node(1)
     assert not graph.is_zx_graph()
     graph.set_meas_plane(1, "invalid plane")
@@ -153,6 +183,7 @@ def test_is_zx_graph_returns_false(graph: GraphState) -> None:
 
 
 def test_is_zx_graph_returns_false2(zx_graph: ZXGraphState) -> None:
+    """Test if a graph is not a ZX-diagram."""
     zx_graph.add_physical_node(1)
     assert not zx_graph.is_zx_graph()
     zx_graph.set_meas_plane(1, "invalid plane")
@@ -160,6 +191,7 @@ def test_is_zx_graph_returns_false2(zx_graph: ZXGraphState) -> None:
 
 
 def test_is_zx_graph_returns_true(zx_graph: ZXGraphState) -> None:
+    """Test if a graph is a ZX-diagram."""
     assert zx_graph.is_zx_graph()
     zx_graph.add_physical_node(1)
     zx_graph.set_meas_plane(1, Plane.XZ)
@@ -173,6 +205,7 @@ def test_is_zx_graph_returns_true(zx_graph: ZXGraphState) -> None:
 
 
 def test_meas_action_with_some_planes_missing() -> None:
+    """Test the measurement action function with some planes missing."""
     ma = meas_action({Plane.XY: (Plane.XY, 0.0)})
     assert ma[Plane.YX] == (Plane.XY, 0.0)
     assert ma[Plane.XZ] == (None, None)
@@ -182,6 +215,7 @@ def test_meas_action_with_some_planes_missing() -> None:
 
 
 def test_meas_action() -> None:
+    """Test the measurement action function."""
     measurement_action = meas_action(
         {
             Plane.XY: (Plane.XY, 0.0),
@@ -198,6 +232,7 @@ def test_meas_action() -> None:
 
 
 def test_neighboring_pairs() -> None:
+    """Test the neighboring pairs function correctly returns the neighboring pairs of two sets."""
     assert neighboring_pairs(set(), set()) == set()
     assert neighboring_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
     assert neighboring_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
@@ -216,6 +251,7 @@ def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
+    """Test local complement with a graph with no edge."""
     zx_graph.add_physical_node(1)
     zx_graph.set_meas_plane(1, Plane.XY)
     zx_graph.set_meas_angle(1, 1.1 * np.pi)
@@ -238,6 +274,7 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
+    """Test local complement with a graph with two nodes."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_edge(1, 2)
@@ -254,6 +291,7 @@ def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
+    """Test local complement with a minimal graph."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_node(3)
@@ -282,6 +320,7 @@ def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_4_times(zx_graph: ZXGraphState) -> None:
+    """Test local complement is applied 4 times and the graph goes back to the original shape."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_node(3)
@@ -304,6 +343,7 @@ def test_local_complement_4_times(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_inversed_planes(zx_graph: ZXGraphState) -> None:
+    """Test local complement with inversed planes (e.g. YX would be equivalent to XY)."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_node(3)
@@ -332,6 +372,7 @@ def test_local_complement_with_inversed_planes(zx_graph: ZXGraphState) -> None:
 
 
 def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
+    """Test local complement with an H-shaped graph."""
     for i in range(1, 7):
         zx_graph.add_physical_node(i)
 
@@ -376,6 +417,7 @@ def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
+    """Test pivot fails with nonexistent nodes."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         zx_graph.pivot(1, 2)
     zx_graph.add_physical_node(1)
@@ -384,6 +426,7 @@ def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    """Test pivot fails with input node."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.set_input(1)
@@ -392,6 +435,7 @@ def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
+    """Test pivot with an obvious graph."""
     # 1---2---3
     for i in range(1, 4):
         zx_graph.add_physical_node(i)
@@ -418,6 +462,7 @@ def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
+    """Test pivot with a minimal graph."""
     # 1---2---3---5
     #      \ /
     #       4
@@ -451,6 +496,7 @@ def test_pivot_with_minimal_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
+    """Test pivot with an H-shaped graph."""
     # 3   6
     # |   |
     # 2---5
@@ -487,6 +533,7 @@ def test_pivot_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
 
 
 def test_pivot_with_8_nodes_graph(zx_graph: ZXGraphState) -> None:
+    """Test pivot with a graph with 8 nodes."""
     # 1   4   7
     #  \ / \ /
     #   3 - 6

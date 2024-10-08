@@ -1,3 +1,5 @@
+"""Graph State for the ZX-calculus"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -17,6 +19,14 @@ if TYPE_CHECKING:
 def meas_action(
     base_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]],
 ) -> dict[Plane, tuple[Plane, float | Callable[[float], float]]]:
+    """Add missing measurement actions to the original action.
+
+    Args:
+        base_action (dict[Plane, tuple[Plane, float  |  Callable[[float], float]]]): original measurement action
+
+    Returns:
+        dict[Plane, tuple[Plane, float | Callable[[float], float]]]: completed measurement action
+    """
     action = base_action.copy()
     action[Plane.YX] = action.get(Plane.XY, (None, None))
     action[Plane.ZX] = action.get(Plane.XZ, (None, None))
@@ -25,10 +35,21 @@ def meas_action(
 
 
 def neighboring_pairs(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
+    """Return all pairs of neighboring nodes between two sets of nodes.
+
+    Args:
+        nbr_nodes_a (set[int]): set of nodes
+        nbr_nodes_b (set[int]): set of nodes
+
+    Returns:
+        set[tuple[int, int]]: set of neighboring pairs
+    """
     return {(min(a, b), max(a, b)) for a, b in product(nbr_nodes_a, nbr_nodes_b) if a != b}
 
 
 class BaseGraphState(ABC):
+    """Abstract base class for Graph State"""
+
     @abstractmethod
     def __init__(self) -> None:
         pass
@@ -36,52 +57,62 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def input_nodes(self) -> set[int]:
+        """Return set of input nodes"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def output_nodes(self) -> set[int]:
+        """Return set of output nodes"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def num_physical_nodes(self) -> int:
+        """Return the number of physical nodes"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def num_physical_edges(self) -> int:
+        """Return the number of physical edges"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def physical_nodes(self) -> set[int]:
+        """Return set of physical nodes"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def physical_edges(self) -> set[tuple[int, int]]:
+        """Return set of physical edges"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     # Generics?
     def q_indices(self) -> dict[int, int]:
+        """Return qubit indices"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def meas_planes(self) -> dict[int, Plane]:
+        """Return measurement planes"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def meas_angles(self) -> dict[int, float]:
+        """Return measurement angles"""
         raise NotImplementedError
 
     @property
     @abstractmethod
     def local_cliffords(self) -> dict[int, LocalClifford]:
+        """Return local clifford nodes"""
         raise NotImplementedError
 
     @abstractmethod
@@ -93,35 +124,43 @@ class BaseGraphState(ABC):
         is_input: bool,
         is_output: bool,
     ) -> None:
+        """Add a physical node to the graph state"""
         raise NotImplementedError
 
     @abstractmethod
     def add_physical_edge(self, node1: int, node2: int) -> None:
+        """Add a physical edge to the graph state"""
         raise NotImplementedError
 
     @abstractmethod
     def set_input(self, node: int) -> None:
+        """Set the node as an input node"""
         raise NotImplementedError
 
     @abstractmethod
     def set_output(self, node: int) -> None:
+        """Set the node as an output node"""
         raise NotImplementedError
 
     @abstractmethod
     def set_meas_plane(self, node: int, plane: Plane) -> None:
+        """Set the measurement plane of the node"""
         raise NotImplementedError
 
     @abstractmethod
     def set_meas_angle(self, node: int, angle: float) -> None:
+        """Set the measurement angle of the node"""
         raise NotImplementedError
 
     # NOTE: on internal nodes -> update measurement basis, on input or output -> set local clifford object
     @abstractmethod
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        """Apply a local clifford to the node"""
         raise NotImplementedError
 
     @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
+        """Return the neighbors of the node"""
         raise NotImplementedError
 
 
@@ -150,26 +189,32 @@ class GraphState(BaseGraphState):
 
     @property
     def input_nodes(self) -> set[int]:
+        """Return set of input nodes"""
         return self.__input_nodes
 
     @property
     def output_nodes(self) -> set[int]:
+        """Return set of output nodes"""
         return self.__output_nodes
 
     @property
     def num_physical_nodes(self) -> int:
+        """Return the number of physical nodes"""
         return len(self.__physical_nodes)
 
     @property
     def num_physical_edges(self) -> int:
+        """Return the number of physical edges"""
         return sum(len(edges) for edges in self.__physical_edges.values()) // 2
 
     @property
     def physical_nodes(self) -> set[int]:
+        """Return set of physical nodes"""
         return self.__physical_nodes
 
     @property
     def physical_edges(self) -> set[tuple[int, int]]:
+        """Return set of physical edges"""
         edges = set()
         for node1 in self.__physical_edges:
             for node2 in self.__physical_edges[node1]:
@@ -179,21 +224,30 @@ class GraphState(BaseGraphState):
 
     @property
     def q_indices(self) -> dict[int, int]:
+        """Return qubit indices"""
         return self.__q_indices
 
     @property
     def meas_planes(self) -> dict[int, Plane]:
+        """Return measurement planes"""
         return self.__meas_planes
 
     @property
     def meas_angles(self) -> dict[int, float]:
+        """Return measurement angles"""
         return self.__meas_angles
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
+        """Return local clifford nodes"""
         return self.__local_cliffords
 
     def is_zx_graph(self) -> bool:
+        """Check if the graph is a ZX-diagram
+
+        Returns:
+            bool: True if the graph is a ZX-diagram
+        """
         for v in self.physical_nodes - self.output_nodes:
             if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
                 return False
@@ -209,6 +263,17 @@ class GraphState(BaseGraphState):
         is_input: bool = False,
         is_output: bool = False,
     ) -> None:
+        """Add a physical node to the graph state
+
+        Args:
+            node (int): node index
+            q_index (int, optional): qubit index. Defaults to -1.
+            is_input (bool, optional): input node. Defaults to False.
+            is_output (bool, optional): output node. Defaults to False.
+
+        Raises:
+            ValueError: If the node already exists in the graph state.
+        """
         if node in self.__physical_nodes:
             msg = f"Node already exists {node=}"
             raise ValueError(msg)
@@ -221,11 +286,25 @@ class GraphState(BaseGraphState):
             self.__output_nodes |= {node}
 
     def ensure_node_exists(self, node: int) -> None:
+        """Ensure that the node exists in the graph state
+
+        Raises:
+            ValueError: If the node does not exist in the graph state.
+        """
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
             raise ValueError(msg)
 
     def add_physical_edge(self, node1: int, node2: int) -> None:
+        """Add a physical edge to the graph state
+
+        Args:
+            node1 (int): node index
+            node2 (int): node index
+
+        Raises:
+            ValueError: If the edge already exists.
+        """
         self.ensure_node_exists(node1)
         self.ensure_node_exists(node2)
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
@@ -235,6 +314,15 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] |= {node1}
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
+        """Remove a physical edge from the graph state
+
+        Args:
+            node1 (int): node index
+            node2 (int): node index
+
+        Raises:
+            ValueError: If the edge does not exist.
+        """
         self.ensure_node_exists(node1)
         self.ensure_node_exists(node2)
         if node1 not in self.__physical_edges[node2] or node2 not in self.__physical_edges[node1]:
@@ -244,28 +332,69 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     def set_input(self, node: int) -> None:
+        """Set the node as an input node
+
+        Args:
+            node (int): node index
+        """
         self.ensure_node_exists(node)
         self.__input_nodes |= {node}
 
     def set_output(self, node: int) -> None:
+        """Set the node as an output node
+
+        Args:
+            node (int): node index
+        """
         self.ensure_node_exists(node)
         self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:
+        """Set the qubit index of the node
+
+        Args:
+            node (int): node index
+            q_index (int, optional): qubit index. Defaults to -1.
+
+        Raises:
+            ValueError: If the qubit index is invalid.
+        """
+        self.ensure_node_exists(node)
         if q_index < -1:
             msg = f"Invalid qubit index {q_index}. Must be -1 or greater"
             raise ValueError(msg)
         self.__q_indices[node] = q_index
 
     def set_meas_plane(self, node: int, plane: Plane) -> None:
+        """Set the measurement plane of the node
+
+        Args:
+            node (int): node index
+            plane (Plane): measurement plane
+        """
         self.ensure_node_exists(node)
         self.__meas_planes[node] = plane
 
     def set_meas_angle(self, node: int, angle: float) -> None:
+        """Set the measurement angle of the node
+
+        Args:
+            node (int): node index
+            angle (float): measurement angle
+        """
         self.ensure_node_exists(node)
         self.__meas_angles[node] = angle
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        """Apply a local clifford to the node
+
+        Args:
+            node (int): node index
+            lc (LocalClifford): local clifford node
+
+        Raises:
+            ValueError: If the node does not exist.
+        """
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
             raise ValueError(msg)
@@ -277,16 +406,37 @@ class GraphState(BaseGraphState):
             self.set_meas_angle(node, meas_angle)
 
     def get_neighbors(self, node: int) -> set[int]:
+        """Return the neighbors of the node
+
+        Args:
+            node (int): node index
+
+        Returns:
+            set[int]: set of neighboring nodes
+        """
         self.ensure_node_exists(node)
         return self.__physical_edges[node]
 
     def _reset_input_output(self, node: int) -> None:
+        """Reset the input/output status of the node
+
+        Args:
+            node (int): node index
+        """
         if node in self.__input_nodes:
             self.__input_nodes.remove(node)
         if node in self.__output_nodes:
             self.__output_nodes.remove(node)
 
     def append(self, other: BaseGraphState) -> None:
+        """Append another graph state to the current graph state
+
+        Args:
+            other (BaseGraphState): another graph state
+
+        Raises:
+            ValueError: If the qubit indices do not match.
+        """
         common_nodes = self.physical_nodes & other.physical_nodes
         border_nodes = self.output_nodes & other.input_nodes
 
@@ -340,7 +490,14 @@ class ZXGraphState(GraphState):
             self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
 
     def local_complement(self, node: int) -> None:
-        """Local complement operation on the graph state: G*u"""
+        """Local complement operation on the graph state: G*u
+
+        Args:
+            node (int): node index
+
+        Raises:
+            ValueError: If the node is an input node, an output node, or the graph is not a ZX-diagram.
+        """
         self.ensure_node_exists(node)
         if node in self.input_nodes:
             msg = "Cannot apply local complement to input node"
@@ -378,6 +535,12 @@ class ZXGraphState(GraphState):
             self._update_node_measurement(measurement_action, v)
 
     def _swap(self, node1: int, node2: int) -> None:
+        """Swap nodes u and v in the graph state
+
+        Args:
+            node1 (int): node index
+            node2 (int): node index
+        """
         node1_nbrs = self.get_neighbors(node1) - {node2}
         node2_nbrs = self.get_neighbors(node2) - {node1}
         nbr_b = node1_nbrs - node2_nbrs
@@ -445,4 +608,11 @@ def update_meas_basis(
     plane: Plane,
     angle: float,
 ) -> tuple[Plane, float]:
+    """Update the measurement basis of the node
+
+    Args:
+        lc (LocalClifford): local clifford node
+        plane (Plane): measurement plane
+        angle (float): measurement angle
+    """
     raise NotImplementedError
