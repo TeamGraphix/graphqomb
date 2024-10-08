@@ -212,9 +212,6 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
-    def adjacent_nodes(self, node: int) -> set[int]:
-        return self.__physical_edges[node]
-
     def ensure_node_exists(self, node: int) -> None:
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
@@ -344,10 +341,10 @@ class ZXGraphState(GraphState):
             msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
             raise ValueError(msg)
 
-        adjacent_nodes: set[int] = self.adjacent_nodes(node)
-        adjacent_pairs = adj_pairs(adjacent_nodes, adjacent_nodes)
-        new_edges = adjacent_pairs - self.physical_edges
-        rmv_edges = self.physical_edges & adjacent_pairs
+        nbrs: set[int] = self.get_neighbors(node)
+        nbr_pairs = adj_pairs(nbrs, nbrs)
+        new_edges = nbr_pairs - self.physical_edges
+        rmv_edges = self.physical_edges & nbr_pairs
 
         self._local_complement(rmv_edges, new_edges)
 
@@ -372,21 +369,21 @@ class ZXGraphState(GraphState):
                 Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
             }
         )
-        for v in adjacent_nodes:
+        for v in nbrs:
             new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
             if new_plane:
                 self.set_meas_plane(v, new_plane)
                 self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
 
     def _swap(self, node1: int, node2: int) -> None:
-        node1_adjs = self.adjacent_nodes(node1) - {node2}
-        node2_adjs = self.adjacent_nodes(node2) - {node1}
-        adj_b = node1_adjs - node2_adjs
-        adj_c = node2_adjs - node1_adjs
-        for b in adj_b:
+        node1_nbrs = self.get_neighbors(node1) - {node2}
+        node2_nbrs = self.get_neighbors(node2) - {node1}
+        nbr_b = node1_nbrs - node2_nbrs
+        nbr_c = node2_nbrs - node1_nbrs
+        for b in nbr_b:
             self.remove_physical_edge(node1, b)
             self.add_physical_edge(node2, b)
-        for c in adj_c:
+        for c in nbr_c:
             self.remove_physical_edge(node2, c)
             self.add_physical_edge(node1, c)
 
@@ -401,18 +398,18 @@ class ZXGraphState(GraphState):
             msg = "Cannot apply pivot to input node"
             raise ValueError(msg)
 
-        node1_adjs = self.adjacent_nodes(node1) - {node2}
-        node2_adjs = self.adjacent_nodes(node2) - {node1}
-        adj_a = node1_adjs & node2_adjs
-        adj_b = node1_adjs - node2_adjs
-        adj_c = node2_adjs - node1_adjs
-        adjacent_pairs = [
-            adj_pairs(adj_a, adj_b),
-            adj_pairs(adj_a, adj_c),
-            adj_pairs(adj_b, adj_c),
+        node1_nbrs = self.get_neighbors(node1) - {node2}
+        node2_nbrs = self.get_neighbors(node2) - {node1}
+        adj_a = node1_nbrs & node2_nbrs
+        nbr_b = node1_nbrs - node2_nbrs
+        nbr_c = node2_nbrs - node1_nbrs
+        nbr_pairs = [
+            adj_pairs(adj_a, nbr_b),
+            adj_pairs(adj_a, nbr_c),
+            adj_pairs(nbr_b, nbr_c),
         ]
-        rmv_edges = set().union(*(p & self.physical_edges for p in adjacent_pairs))
-        add_edges = set().union(*(p - self.physical_edges for p in adjacent_pairs))
+        rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
+        add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
 
         self._local_complement(rmv_edges, add_edges)
         self._swap(node1, node2)
