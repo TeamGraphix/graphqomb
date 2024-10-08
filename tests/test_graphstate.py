@@ -145,10 +145,17 @@ def test_append_graph() -> None:
     assert 3 in graph1.output_nodes
 
 
-def test_is_zx_graph_returns_false(zx_graph: GraphState) -> None:
+def test_is_zx_graph_returns_false(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    assert not graph.is_zx_graph()
+    graph.set_meas_plane(1, "invalid plane")
+    assert not graph.is_zx_graph()
+
+
+def test_is_zx_graph_returns_false2(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     assert not zx_graph.is_zx_graph()
-    zx_graph.set_meas_plane(1, "test plane")
+    zx_graph.set_meas_plane(1, "invalid plane")
     assert not zx_graph.is_zx_graph()
 
 

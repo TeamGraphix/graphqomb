@@ -193,6 +193,14 @@ class GraphState(BaseGraphState):
     def local_cliffords(self) -> dict[int, LocalClifford]:
         return self.__local_cliffords
 
+    def is_zx_graph(self) -> bool:
+        for v in self.physical_nodes - self.output_nodes:
+            if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
+                return False
+            if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
+                return False
+        return True
+
     def add_physical_node(
         self,
         node: int,
@@ -316,14 +324,6 @@ class ZXGraphState(GraphState):
 
     def __init__(self) -> None:
         super().__init__()
-
-    def is_zx_graph(self) -> bool:
-        for v in self.physical_nodes - self.output_nodes:
-            if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
-                return False
-            if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
-                return False
-        return True
 
     def _local_complement(self, rmv_edges: set[tuple[int, int]], new_edges: set[tuple[int, int]]) -> None:
         for edge in rmv_edges:
