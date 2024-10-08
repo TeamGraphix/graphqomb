@@ -499,8 +499,8 @@ class ZXGraphState(GraphState):
             ValueError: If the node is an input node, an output node, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node)
-        if node in self.input_nodes:
-            msg = "Cannot apply local complement to input node"
+        if node in self.input_nodes or node in self.output_nodes:
+            msg = "Cannot apply local complement to input node nor output node."
             raise ValueError(msg)
         if not self.is_zx_graph():
             msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
@@ -556,11 +556,24 @@ class ZXGraphState(GraphState):
         """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
 
         In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
+
+        Args:
+            node1 (int): node index
+            node2 (int): node index
+
+        Raises:
+            ValueError: If the nodes are input nodes, output nodes, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node1)
         self.ensure_node_exists(node2)
         if node1 in self.input_nodes or node2 in self.input_nodes:
             msg = "Cannot apply pivot to input node"
+            raise ValueError(msg)
+        if node1 in self.output_nodes or node2 in self.output_nodes:
+            msg = "Cannot apply pivot to output node"
+            raise ValueError(msg)
+        if not self.is_zx_graph():
+            msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
             raise ValueError(msg)
 
         node1_nbrs = self.get_neighbors(node1) - {node2}

@@ -238,16 +238,39 @@ def test_neighboring_pairs() -> None:
     assert neighboring_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
 
 
-def test_local_complement_raises(zx_graph: ZXGraphState) -> None:
+def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
+    """Test local complement raises an error if the node does not exist."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         zx_graph.local_complement(1)
+    zx_graph.add_physical_node(1)
+    with pytest.raises(ValueError, match="Node does not exist node=2"):
+        zx_graph.local_complement(2)
+
+
+def test_local_complement_fails_if_not_zx_graph(zx_graph: ZXGraphState) -> None:
+    """Test local complement raises an error if the graph is not a ZX-diagram."""
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        zx_graph.local_complement(1)
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    with pytest.raises(ValueError, match="The graph is not a ZX-diagram. Set measurement planes and angles properly."):
+        zx_graph.local_complement(2)
+
+
+def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    """Test local complement fails with input node."""
     zx_graph.add_physical_node(1)
     zx_graph.set_input(1)
     with pytest.raises(ValueError, match="Cannot apply local complement to input node"):
         zx_graph.local_complement(1)
-    zx_graph.add_physical_node(2)
-    with pytest.raises(ValueError, match="The graph is not a ZX-diagram. Set measurement planes and angles properly."):
-        zx_graph.local_complement(2)
+
+
+def test_local_complement_fails_with_output_node(zx_graph: ZXGraphState) -> None:
+    """Test local complement fails with output node."""
+    zx_graph.add_physical_node(1)
+    zx_graph.set_output(1)
+    with pytest.raises(ValueError, match="Cannot apply local complement to input node nor output node"):
+        zx_graph.local_complement(1)
 
 
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
@@ -431,6 +454,15 @@ def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(2)
     zx_graph.set_input(1)
     with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
+        zx_graph.pivot(1, 2)
+
+
+def test_pivot_fails_with_output_node(zx_graph: ZXGraphState) -> None:
+    """Test pivot fails with output node."""
+    zx_graph.add_physical_node(1)
+    zx_graph.add_physical_node(2)
+    zx_graph.set_output(1)
+    with pytest.raises(ValueError, match="Cannot apply pivot to output node"):
         zx_graph.pivot(1, 2)
 
 
