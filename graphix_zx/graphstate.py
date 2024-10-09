@@ -16,24 +16,6 @@ if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
 
 
-def meas_action(
-    base_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]],
-) -> dict[Plane, tuple[Plane, float | Callable[[float], float]]]:
-    """Add missing measurement actions to the original action.
-
-    Args:
-        base_action (dict[Plane, tuple[Plane, float  |  Callable[[float], float]]]): original measurement action
-
-    Returns:
-        dict[Plane, tuple[Plane, float | Callable[[float], float]]]: completed measurement action
-    """
-    action = base_action.copy()
-    action[Plane.YX] = action.get(Plane.XY, (None, None))
-    action[Plane.ZX] = action.get(Plane.XZ, (None, None))
-    action[Plane.ZY] = action.get(Plane.YZ, (None, None))
-    return action
-
-
 def neighboring_pairs(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
     """Return all pairs of neighboring nodes between two sets of nodes.
 
@@ -511,23 +493,21 @@ class ZXGraphState(GraphState):
         self._update_connections(rmv_edges, new_edges)
 
         # update node measurement
-        measurement_action = meas_action(
-            {
-                Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_angles[v]),
-                Plane.XZ: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-                Plane.YZ: (Plane.YZ, lambda v: self.meas_angles[v] + 0.5 * np.pi),
-            }
-        )
+        measurement_action = {
+            Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_angles[v]),
+            Plane.XZ: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
+            Plane.YZ: (Plane.YZ, lambda v: self.meas_angles[v] + 0.5 * np.pi),
+        }
+
         self._update_node_measurement(measurement_action, node)
 
         # update neighbors measurement
-        measurement_action = meas_action(
-            {
-                Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-                Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
-                Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
-            }
-        )
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
+            Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+        }
+
         for v in nbrs:
             self._update_node_measurement(measurement_action, v)
 
@@ -588,24 +568,21 @@ class ZXGraphState(GraphState):
         self._swap(node1, node2)
 
         # update node1 and node2 measurement
-        measurement_action = meas_action(
-            {
-                Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-                Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
-                Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
-            }
-        )
+        measurement_action = {
+            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
+            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
+            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
+        }
+
         for a in [node1, node2]:
             self._update_node_measurement(measurement_action, a)
 
         # update nodes measurement of nbr_a
-        measurement_action = meas_action(
-            {
-                Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
-                Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
-                Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
-            }
-        )
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+        }
 
         for w in nbr_a:
             self._update_node_measurement(measurement_action, w)

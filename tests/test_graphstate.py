@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState, meas_action, neighboring_pairs
+from graphix_zx.graphstate import GraphState, ZXGraphState, neighboring_pairs
 
 
 @pytest.fixture
@@ -197,33 +197,6 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
     graph.add_physical_edge(1, 2)
     graph.set_output(2)
     assert graph.check_meas_basis() is None
-
-
-def test_meas_action_with_some_planes_missing() -> None:
-    """Test the measurement action function with some planes missing."""
-    ma = meas_action({Plane.XY: (Plane.XY, 0.0)})
-    assert ma[Plane.YX] == (Plane.XY, 0.0)
-    assert ma[Plane.XZ] == (None, None)
-    assert ma[Plane.YZ] == (None, None)
-    assert ma[Plane.ZX] == (None, None)
-    assert ma[Plane.ZY] == (None, None)
-
-
-def test_meas_action() -> None:
-    """Test the measurement action function."""
-    measurement_action = meas_action(
-        {
-            Plane.XY: (Plane.XY, 0.0),
-            Plane.XZ: (Plane.XZ, 0.0),
-            Plane.YZ: (Plane.YZ, 0.0),
-        }
-    )
-    assert measurement_action[Plane.XY] == (Plane.XY, 0.0)
-    assert measurement_action[Plane.XZ] == (Plane.XZ, 0.0)
-    assert measurement_action[Plane.YZ] == (Plane.YZ, 0.0)
-    assert measurement_action[Plane.YX] == measurement_action[Plane.XY]
-    assert measurement_action[Plane.ZX] == measurement_action[Plane.XZ]
-    assert measurement_action[Plane.ZY] == measurement_action[Plane.YZ]
 
 
 def test_neighboring_pairs() -> None:
