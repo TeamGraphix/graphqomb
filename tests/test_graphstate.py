@@ -174,34 +174,29 @@ def test_append_graph() -> None:
     assert 3 in graph1.output_nodes
 
 
-def test_is_zx_graph_returns_false(graph: GraphState) -> None:
-    """Test if a graph is not a ZX-diagram."""
+def test_check_meas_raises_value_error(graph: GraphState) -> None:
+    """Test if measurement planes and angles are set improperly."""
     graph.add_physical_node(1)
-    assert not graph.is_zx_graph()
+    with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
+        graph.check_meas_basis()
+    graph.set_meas_angle(1, 0.5 * np.pi)
     graph.set_meas_plane(1, "invalid plane")
-    assert not graph.is_zx_graph()
+    with pytest.raises(ValueError, match="Invalid measurement plane 'invalid plane' for node 1"):
+        graph.check_meas_basis()
 
 
-def test_is_zx_graph_returns_false2(zx_graph: ZXGraphState) -> None:
-    """Test if a graph is not a ZX-diagram."""
-    zx_graph.add_physical_node(1)
-    assert not zx_graph.is_zx_graph()
-    zx_graph.set_meas_plane(1, "invalid plane")
-    assert not zx_graph.is_zx_graph()
+def test_check_meas_basis_success(graph: GraphState) -> None:
+    """Test if measurement planes and angles are set properly."""
+    assert graph.check_meas_basis() is None
+    graph.add_physical_node(1)
+    graph.set_meas_plane(1, Plane.XZ)
+    graph.set_meas_angle(1, 0.5 * np.pi)
+    assert graph.check_meas_basis() is None
 
-
-def test_is_zx_graph_returns_true(zx_graph: ZXGraphState) -> None:
-    """Test if a graph is a ZX-diagram."""
-    assert zx_graph.is_zx_graph()
-    zx_graph.add_physical_node(1)
-    zx_graph.set_meas_plane(1, Plane.XZ)
-    zx_graph.set_meas_angle(1, 0.5 * np.pi)
-    assert zx_graph.is_zx_graph()
-
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.set_output(2)
-    assert zx_graph.is_zx_graph()
+    graph.add_physical_node(2)
+    graph.add_physical_edge(1, 2)
+    graph.set_output(2)
+    assert graph.check_meas_basis() is None
 
 
 def test_meas_action_with_some_planes_missing() -> None:
@@ -253,7 +248,7 @@ def test_local_complement_fails_if_not_zx_graph(zx_graph: ZXGraphState) -> None:
         zx_graph.local_complement(1)
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
-    with pytest.raises(ValueError, match="The graph is not a ZX-diagram. Set measurement planes and angles properly."):
+    with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
         zx_graph.local_complement(2)
 
 

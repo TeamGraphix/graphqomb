@@ -242,18 +242,17 @@ class GraphState(BaseGraphState):
         """Return local clifford nodes"""
         return self.__local_cliffords
 
-    def is_zx_graph(self) -> bool:
-        """Check if the graph is a ZX-diagram
+    def check_meas_basis(self) -> bool:
+        """Check if the measurement basis is set for all physical nodes except output nodes
 
-        Returns:
-            bool: True if the graph is a ZX-diagram
+        Raises:
+            ValueError: If the measurement basis is not set for a node or the measurement plane is invalid.
         """
         for v in self.physical_nodes - self.output_nodes:
             if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
-                return False
+                raise ValueError(f"Measurement basis not set for node {v}")
             if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
-                return False
-        return True
+                raise ValueError(f"Invalid measurement plane '{self.meas_planes[v]}' for node {v}")
 
     def add_physical_node(
         self,
@@ -502,9 +501,7 @@ class ZXGraphState(GraphState):
         if node in self.input_nodes or node in self.output_nodes:
             msg = "Cannot apply local complement to input node nor output node."
             raise ValueError(msg)
-        if not self.is_zx_graph():
-            msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
-            raise ValueError(msg)
+        self.check_meas_basis()
 
         nbrs: set[int] = self.get_neighbors(node)
         nbr_pairs = neighboring_pairs(nbrs, nbrs)
@@ -572,9 +569,7 @@ class ZXGraphState(GraphState):
         if node1 in self.output_nodes or node2 in self.output_nodes:
             msg = "Cannot apply pivot to output node"
             raise ValueError(msg)
-        if not self.is_zx_graph():
-            msg = "The graph is not a ZX-diagram. Set measurement planes and angles properly."
-            raise ValueError(msg)
+        self.check_meas_basis()
 
         node1_nbrs = self.get_neighbors(node1) - {node2}
         node2_nbrs = self.get_neighbors(node2) - {node1}
