@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState, neighboring_pairs
+from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
 
 
 @pytest.fixture
@@ -199,11 +199,11 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
     assert graph.check_meas_basis() is None
 
 
-def test_neighboring_pairs() -> None:
-    """Test the neighboring pairs function correctly returns the neighboring pairs of two sets."""
-    assert neighboring_pairs(set(), set()) == set()
-    assert neighboring_pairs({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
-    assert neighboring_pairs({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+def test_bipartite_edges() -> None:
+    """Test the function that generate complete bipartite edges"""
+    assert bipartite_edges(set(), set()) == set()
+    assert bipartite_edges({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
+    assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
 
 
 def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:

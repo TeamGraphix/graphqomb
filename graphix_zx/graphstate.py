@@ -16,15 +16,15 @@ if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
 
 
-def neighboring_pairs(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
-    """Return all pairs of neighboring nodes between two sets of nodes.
+def bipartite_edges(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
+    """Returns a set of edges for the complete bipartite graph between two sets of nodes
 
     Args:
         nbr_nodes_a (set[int]): set of nodes
         nbr_nodes_b (set[int]): set of nodes
 
     Returns:
-        set[tuple[int, int]]: set of neighboring pairs
+        set[tuple[int, int]]: set of edges for the complete bipartite graph
     """
     return {(min(a, b), max(a, b)) for a, b in product(nbr_nodes_a, nbr_nodes_b) if a != b}
 
@@ -486,7 +486,7 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
 
         nbrs: set[int] = self.get_neighbors(node)
-        nbr_pairs = neighboring_pairs(nbrs, nbrs)
+        nbr_pairs = bipartite_edges(nbrs, nbrs)
         new_edges = nbr_pairs - self.physical_edges
         rmv_edges = self.physical_edges & nbr_pairs
 
@@ -557,9 +557,9 @@ class ZXGraphState(GraphState):
         nbr_b = node1_nbrs - node2_nbrs
         nbr_c = node2_nbrs - node1_nbrs
         nbr_pairs = [
-            neighboring_pairs(nbr_a, nbr_b),
-            neighboring_pairs(nbr_a, nbr_c),
-            neighboring_pairs(nbr_b, nbr_c),
+            bipartite_edges(nbr_a, nbr_b),
+            bipartite_edges(nbr_a, nbr_c),
+            bipartite_edges(nbr_b, nbr_c),
         ]
         rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
         add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
