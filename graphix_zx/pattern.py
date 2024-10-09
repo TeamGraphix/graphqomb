@@ -3,7 +3,8 @@ from __future__ import annotations
 import dataclasses
 import typing
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
 

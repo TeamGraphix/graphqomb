@@ -23,7 +23,8 @@ def bipartite_edges(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[i
         nbr_nodes_a (set[int]): set of nodes
         nbr_nodes_b (set[int]): set of nodes
 
-    Returns:
+    Returns
+    -------
         set[tuple[int, int]]: set of edges for the complete bipartite graph
     """
     return {(min(a, b), max(a, b)) for a, b in product(nbr_nodes_a, nbr_nodes_b) if a != b}
@@ -227,7 +228,8 @@ class GraphState(BaseGraphState):
     def check_meas_basis(self) -> bool:
         """Check if the measurement basis is set for all physical nodes except output nodes
 
-        Raises:
+        Raises
+        ------
             ValueError: If the measurement basis is not set for a node or the measurement plane is invalid.
         """
         for v in self.physical_nodes - self.output_nodes:
@@ -252,7 +254,8 @@ class GraphState(BaseGraphState):
             is_input (bool, optional): input node. Defaults to False.
             is_output (bool, optional): output node. Defaults to False.
 
-        Raises:
+        Raises
+        ------
             ValueError: If the node already exists in the graph state.
         """
         if node in self.__physical_nodes:
@@ -269,7 +272,8 @@ class GraphState(BaseGraphState):
     def ensure_node_exists(self, node: int) -> None:
         """Ensure that the node exists in the graph state
 
-        Raises:
+        Raises
+        ------
             ValueError: If the node does not exist in the graph state.
         """
         if node not in self.__physical_nodes:
@@ -283,7 +287,8 @@ class GraphState(BaseGraphState):
             node1 (int): node index
             node2 (int): node index
 
-        Raises:
+        Raises
+        ------
             ValueError: If the edge already exists.
         """
         self.ensure_node_exists(node1)
@@ -301,7 +306,8 @@ class GraphState(BaseGraphState):
             node1 (int): node index
             node2 (int): node index
 
-        Raises:
+        Raises
+        ------
             ValueError: If the edge does not exist.
         """
         self.ensure_node_exists(node1)
@@ -337,7 +343,8 @@ class GraphState(BaseGraphState):
             node (int): node index
             q_index (int, optional): qubit index. Defaults to -1.
 
-        Raises:
+        Raises
+        ------
             ValueError: If the qubit index is invalid.
         """
         self.ensure_node_exists(node)
@@ -373,7 +380,8 @@ class GraphState(BaseGraphState):
             node (int): node index
             lc (LocalClifford): local clifford node
 
-        Raises:
+        Raises
+        ------
             ValueError: If the node does not exist.
         """
         if node not in self.__physical_nodes:
@@ -392,7 +400,8 @@ class GraphState(BaseGraphState):
         Args:
             node (int): node index
 
-        Returns:
+        Returns
+        -------
             set[int]: set of neighboring nodes
         """
         self.ensure_node_exists(node)
@@ -415,7 +424,8 @@ class GraphState(BaseGraphState):
         Args:
             other (BaseGraphState): another graph state
 
-        Raises:
+        Raises
+        ------
             ValueError: If the qubit indices do not match.
         """
         common_nodes = self.physical_nodes & other.physical_nodes
@@ -476,7 +486,8 @@ class ZXGraphState(GraphState):
         Args:
             node (int): node index
 
-        Raises:
+        Raises
+        ------
             ValueError: If the node is an input node, an output node, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node)
@@ -538,7 +549,8 @@ class ZXGraphState(GraphState):
             node1 (int): node index
             node2 (int): node index
 
-        Raises:
+        Raises
+        ------
             ValueError: If the nodes are input nodes, output nodes, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node1)

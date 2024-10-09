@@ -15,7 +15,8 @@ from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
 def graph() -> GraphState:
     """Generate an empty GraphState object.
 
-    Returns:
+    Returns
+    -------
         GraphState: An empty GraphState object.
     """
     return GraphState()
@@ -25,7 +26,8 @@ def graph() -> GraphState:
 def zx_graph() -> ZXGraphState:
     """Generate an empty ZXGraphState object.
 
-    Returns:
+    Returns
+    -------
         ZXGraphState: An empty ZXGraphState object.
     """
     return ZXGraphState()
