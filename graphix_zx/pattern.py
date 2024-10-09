@@ -3,13 +3,12 @@ from __future__ import annotations
 import dataclasses
 import typing
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Iterator, Mapping
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.common import Plane

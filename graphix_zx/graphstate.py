@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 def bipartite_edges(nbr_nodes_a: set[int], nbr_nodes_b: set[int]) -> set[tuple[int, int]]:
-    """Returns a set of edges for the complete bipartite graph between two sets of nodes
+    """Return a set of edges for the complete bipartite graph between two sets of nodes
 
     Args:
         nbr_nodes_a (set[int]): set of nodes
@@ -234,9 +234,11 @@ class GraphState(BaseGraphState):
         """
         for v in self.physical_nodes - self.output_nodes:
             if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
-                raise ValueError(f"Measurement basis not set for node {v}")
+                msg = f"Measurement basis not set for node {v}"
+                raise ValueError(msg)
             if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
-                raise ValueError(f"Invalid measurement plane '{self.meas_planes[v]}' for node {v}")
+                msg = f"Invalid measurement plane '{self.meas_planes[v]}' for node {v}"
+                raise ValueError(msg)
 
     def add_physical_node(
         self,

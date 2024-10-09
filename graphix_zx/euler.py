@@ -24,7 +24,7 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
         euler angles (alpha, beta, gamma)
     """
     global_phase = np.angle(u[0, 0])
-    u = u * np.exp(-1j * global_phase)
+    u *= np.exp(-1j * global_phase)
 
     alpha = np.angle(u[1, 0]) + np.angle(u[0, 0])
     beta = 2 * np.arccos(np.abs(u[0, 0]))
@@ -117,7 +117,8 @@ class LocalClifford(LocalUnitary):
         self._angle_check(alpha, beta, gamma)
         super().__init__(alpha, beta, gamma)
 
-    def _angle_check(self, alpha: float, beta: float, gamma: float, atol: float = 1e-9) -> None:
+    @classmethod
+    def _angle_check(cls, alpha: float, beta: float, gamma: float, atol: float = 1e-9) -> None:
         """Check if the angles are Clifford angles.
 
         Parameters
