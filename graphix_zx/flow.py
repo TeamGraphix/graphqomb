@@ -11,14 +11,9 @@ if TYPE_CHECKING:
 
     from graphix_zx.graphstate import BaseGraphState
 
-if sys.version_info < (3, 9):
-    from typing import Dict, Set
 
-    FlowLike = Dict[int, Set[int]]
-    Layer = Dict[int, int]
-else:
-    FlowLike = dict[int, set[int]]
-    Layer = dict[int, int]
+FlowLike = dict[int, set[int]]
+Layer = dict[int, int]
 
 
 def oddneighbors(nodes: AbstractSet[int], graph: BaseGraphState) -> set[int]:

@@ -16,15 +16,8 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState, GraphState
     from graphix_zx.pattern import ImmutablePattern
 
-if sys.version_info >= (3, 9):
-    # May need to be concrete
-    Correction = AbstractSet[int]
-    CorrectionMap = Mapping[int, Correction]
-else:
-    from typing import Mapping, Set
-
-    Correction = Set[int]
-    CorrectionMap = Mapping[int, Correction]
+Correction = AbstractSet[int]
+CorrectionMap = Mapping[int, Correction]
 
 
 # extended MBQC
