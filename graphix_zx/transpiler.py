@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import E, M, N, X, Z
+from graphix_zx.command import C, E, M, N, X, Z
 from graphix_zx.common import Plane
 from graphix_zx.flow import check_causality, oddneighbors
 from graphix_zx.focus_flow import topological_sort_kahn
@@ -159,6 +159,7 @@ def transpile(
     meas_planes = graph.meas_planes
     meas_angles = graph.meas_angles
     q_indices = graph.q_indices
+    local_cliffords = graph.local_cliffords
 
     input_q_indices = {node: q_indices[node] for node in input_nodes}
 
@@ -170,6 +171,7 @@ def transpile(
     pattern.extend(N(node=node, q_index=q_indices[node]) for node in internal_nodes)
     pattern.extend(N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes)
     pattern.extend(E(nodes=edge) for edge in graph.physical_edges)
+    # TODO: local clifford on input nodes if we want to have arbitrary input states
     pattern.extend(
         generate_m_cmd(
             node,
@@ -184,7 +186,11 @@ def transpile(
     if correct_output:
         pattern.extend(X(node=node, domain=set(x_corrections[node])) for node in output_nodes)
         pattern.extend(Z(node=node, domain=set(z_corrections[node])) for node in output_nodes)
-    # TODO: add Clifford commands on the output nodes
+    pattern.extend(
+        C(node=node, local_clifford=local_cliffords[node])
+        for node in output_nodes
+        if local_cliffords.get(node, None) is not None
+    )
 
     return pattern
 
