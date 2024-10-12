@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import Plane
+from graphix_zx.euler import MeasBasis, update_lc_basis
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -225,7 +226,7 @@ class GraphState(BaseGraphState):
         """Return local clifford nodes"""
         return self.__local_cliffords
 
-    def check_meas_basis(self) -> bool:
+    def check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes
 
         Raises
@@ -609,9 +610,10 @@ def update_meas_basis(
 ) -> tuple[Plane, float]:
     """Update the measurement basis of the node
 
-    Args:
-        lc (LocalClifford): local clifford node
-        plane (Plane): measurement plane
-        angle (float): measurement angle
+    Returns
+    -------
+        tuple[Plane, float]: updated measurement basis
     """
-    raise NotImplementedError
+    meas_basis = MeasBasis(plane, angle)
+    new_basis = update_lc_basis(lc, meas_basis)
+    return new_basis.plane, new_basis.angle
