@@ -54,7 +54,7 @@ def test_pattern_sim(random_circ: MBQCCircuit) -> None:
     simulator.simulate()
     state = simulator.get_state()
     assert np.isclose(state.get_norm(), 1.0)
-    assert set(simulator.node_indices) == pattern.get_output_nodes()
+    assert set(simulator.node_indices) == pattern.output_nodes
 
 
 def test_minimum_circ_pattern() -> None:

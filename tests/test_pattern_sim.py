@@ -34,7 +34,7 @@ def test_apply_command_add_node(setup_pattern: ImmutablePattern) -> None:
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     cmd = N(node=2)
     simulator.apply_cmd(cmd)
-    assert len(simulator.node_indices) == len(pattern.get_input_nodes()) + 1
+    assert len(simulator.node_indices) == len(pattern.input_nodes) + 1
 
 
 def test_apply_command_measure(setup_pattern: ImmutablePattern) -> None:

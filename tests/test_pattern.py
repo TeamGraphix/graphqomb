@@ -7,8 +7,8 @@ from graphix_zx.pattern import MutablePattern, NodeAlreadyPreparedError, is_stan
 
 def test_pattern_initialization() -> None:
     pattern = MutablePattern({0, 1, 2})
-    assert pattern.get_input_nodes() == {0, 1, 2}
-    assert pattern.get_output_nodes() == {0, 1, 2}
+    assert pattern.input_nodes == {0, 1, 2}
+    assert pattern.output_nodes == {0, 1, 2}
     assert len(pattern) == 0
 
 
@@ -17,7 +17,7 @@ def test_pattern_add_command() -> None:
     cmd = N(node=2)
     pattern.add(cmd)
     assert len(pattern) == 1
-    assert pattern.get_output_nodes() == {0, 1, 2}
+    assert pattern.output_nodes == {0, 1, 2}
 
 
 def test_pattern_add_command_already_prepared() -> None:
@@ -32,7 +32,7 @@ def test_pattern_add_measurement_command() -> None:
     cmd = M(node=1)
     pattern.add(cmd)
     assert len(pattern) == 1
-    assert pattern.get_output_nodes() == {0}  # 1 is measured and removed from output_nodes
+    assert pattern.output_nodes == {0}  # 1 is measured and removed from output_nodes
 
 
 def test_pattern_clear() -> None:
@@ -41,15 +41,15 @@ def test_pattern_clear() -> None:
     pattern.add(cmd)
     pattern.clear()
     assert len(pattern) == 0
-    assert pattern.get_output_nodes() == {0, 1}
+    assert pattern.output_nodes == {0, 1}
 
 
 def test_pattern_replace() -> None:
     pattern = MutablePattern({0, 1})
     cmds = [N(node=2), M(node=3)]
     pattern.replace(cmds, input_nodes={3, 4})
-    assert pattern.get_input_nodes() == {3, 4}
-    assert pattern.get_output_nodes() == {4, 2}
+    assert pattern.input_nodes == {3, 4}
+    assert pattern.output_nodes == {4, 2}
     assert len(pattern) == 2  # 2 replaced commands
 
 
@@ -61,7 +61,7 @@ def test_pattern_get_space_list() -> None:
         M(node=1),
     ]
     pattern.extend(cmds)
-    space_list = pattern.get_space_list()
+    space_list = pattern.space_list
     assert space_list == [1, 2, 3, 2]  # Space changes with each N and M command
 
 
@@ -73,7 +73,7 @@ def test_pattern_calc_max_space() -> None:
         M(node=1),
     ]
     pattern.extend(cmds)
-    max_space = pattern.calc_max_space()
+    max_space = pattern.max_space
     assert max_space == 3  # Maximum space needed during execution
 
 
