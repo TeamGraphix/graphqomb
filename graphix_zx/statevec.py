@@ -177,7 +177,7 @@ class StateVector(BaseStateVector):
 
         match_rate = np.dot(state0.conjugate(), state1)
 
-        return np.isclose(match_rate, 1.0)
+        return bool(np.isclose(match_rate, 1.0))
 
     def get_array(self) -> NDArray:
         """Get state vector as numpy array
@@ -217,7 +217,7 @@ class StateVector(BaseStateVector):
 
         state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self.__num_qubits)
 
-        return np.dot(self.__state.conjugate(), state) / np.linalg.norm(self.__state) ** 2
+        return float(np.dot(self.__state.conjugate(), state) / np.linalg.norm(self.__state) ** 2)
 
     def get_density_matrix(self) -> NDArray:
         """Get density matrix
