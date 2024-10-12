@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
-from graphix_zx.euler import LocalClifford
+
+if TYPE_CHECKING:
+    from graphix_zx.euler import LocalClifford
 
 Node = int
 
