@@ -74,7 +74,12 @@ class BasePattern(ABC):
 
     @cached_property
     @abstractmethod
-    def calc_max_space(self) -> int:
+    def max_space(self) -> int:
+        raise NotImplementedError
+
+    @cached_property
+    @abstractmethod
+    def space_list(self) -> list[int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -87,13 +92,19 @@ class BasePattern(ABC):
 
 
 @dataclasses.dataclass(frozen=True)
-class ImmutablePattern(BasePattern):
+class ImmutablePattern:
     input_nodes: set[int]
     output_nodes: set[int]
     q_indices: dict[int, int]
     commands: list[Command]
     runnable: bool = False
     deterministic: bool = False
+
+    def __len__(self) -> int:
+        return len(self.commands)
+
+    def __iter__(self) -> Iterator[Command]:
+        return iter(self.commands)
 
     @cached_property
     def nodes(self) -> set[int]:
@@ -104,7 +115,7 @@ class ImmutablePattern(BasePattern):
         return nodes
 
     @cached_property
-    def calc_max_space(self) -> int:
+    def max_space(self) -> int:
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.commands:
@@ -114,6 +125,19 @@ class ImmutablePattern(BasePattern):
                 nodes -= 1
             max_nodes = max(nodes, max_nodes)
         return max_nodes
+
+    @cached_property
+    def space_list(self) -> list[int]:
+        nodes = len(self.input_nodes)
+        space_list = [nodes]
+        for cmd in self.commands:
+            if cmd.kind == CommandKind.N:
+                nodes += 1
+                space_list.append(nodes)
+            elif cmd.kind == CommandKind.M:
+                nodes -= 1
+                space_list.append(nodes)
+        return space_list
 
     def is_runnable(self) -> bool:
         return self.runnable
@@ -146,6 +170,25 @@ class MutablePattern(BasePattern):
 
         self.__runnable: bool = False
         self.__deterministic: bool = False
+
+    def __len__(self) -> int:
+        return len(self.__commands)
+
+    def __iter__(self) -> Iterator[Command]:
+        return iter(self.__commands)
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Command: ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> list[Command]: ...
+
+    def __getitem__(self, index: int | slice) -> Command | list[Command]:
+        commands = self.__commands
+        if isinstance(index, (int, slice)):
+            return commands[index]
+        msg = f"Index type not supported: {type(index)}"
+        raise TypeError(msg)
 
     def __add(self, cmd: Command) -> None:
         if isinstance(cmd, N):
@@ -235,7 +278,7 @@ class MutablePattern(BasePattern):
         return self.__commands
 
     @cached_property
-    def calc_max_space(self) -> int:
+    def max_space(self) -> int:
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.commands:
@@ -247,7 +290,7 @@ class MutablePattern(BasePattern):
         return max_nodes
 
     @cached_property
-    def get_space_list(self) -> list[int]:
+    def space_list(self) -> list[int]:
         nodes = len(self.input_nodes)
         space_list = [nodes]
         for cmd in self.commands:
@@ -310,7 +353,7 @@ class MutablePattern(BasePattern):
         raise NotImplementedError
 
 
-def is_standardized(pattern: BasePattern) -> bool:
+def is_standardized(pattern: BasePattern | ImmutablePattern) -> bool:
     standardized = True
     standardized_order = [
         CommandKind.N,
@@ -431,7 +474,9 @@ def print_command(cmd: Command) -> None:
         print(f"Unknown command: {cmd}")  # noqa: T201
 
 
-def print_pattern(pattern: BasePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None) -> None:
+def print_pattern(
+    pattern: BasePattern | ImmutablePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
+) -> None:
     if cmd_filter is None:
         cmd_filter = [
             CommandKind.N,
