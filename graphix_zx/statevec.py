@@ -5,13 +5,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane
+from graphix_zx.euler import get_basis
 from graphix_zx.simulator_backend import BaseSimulatorBackend
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from numpy.typing import NDArray
+
+    from graphix_zx.common import Plane
 
 CZ_TENSOR = np.asarray(
     [
@@ -229,23 +231,3 @@ class StateVector(BaseStateVector):
             NDArray: density matrix
         """
         raise NotImplementedError
-
-
-def get_basis(plane: Plane, angle: float) -> NDArray:
-    """Get basis
-
-    Args:
-        plane (Plane): plane
-        angle (float): angle
-
-    Returns
-    -------
-        NDArray: basis
-    """
-    if plane == Plane.XY:
-        basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
-    elif plane == Plane.YZ:
-        basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
-    elif plane == Plane.ZX:
-        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
-    return basis
