@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
@@ -28,10 +29,10 @@ class NodeAlreadyPreparedError(Exception):
 
 class BasePattern(ABC):
     def __len__(self) -> int:
-        return len(self.get_commands())
+        return len(self.commands)
 
     def __iter__(self) -> Iterator[Command]:
-        return iter(self.get_commands())
+        return iter(self.commands)
 
     @typing.overload
     def __getitem__(self, index: int) -> Command: ...
@@ -40,32 +41,38 @@ class BasePattern(ABC):
     def __getitem__(self, index: slice) -> list[Command]: ...
 
     def __getitem__(self, index: int | slice) -> Command | list[Command]:
-        commands = self.get_commands()
+        commands = self.commands
         if isinstance(index, (int, slice)):
             return commands[index]
         msg = f"Index type not supported: {type(index)}"
         raise TypeError(msg)
 
+    @property
     @abstractmethod
-    def get_input_nodes(self) -> set[int]:
+    def input_nodes(self) -> set[int]:
         raise NotImplementedError
 
+    @property
     @abstractmethod
-    def get_output_nodes(self) -> set[int]:
+    def output_nodes(self) -> set[int]:
         raise NotImplementedError
 
+    @property
     @abstractmethod
-    def get_nodes(self) -> set[int]:
+    def nodes(self) -> set[int]:
         raise NotImplementedError
 
+    @property
     @abstractmethod
-    def get_q_indices(self) -> dict[int, int]:
+    def q_indices(self) -> dict[int, int]:
         raise NotImplementedError
 
+    @property
     @abstractmethod
-    def get_commands(self) -> list[Command]:
+    def commands(self) -> list[Command]:
         raise NotImplementedError
 
+    @cached_property
     @abstractmethod
     def calc_max_space(self) -> int:
         raise NotImplementedError
@@ -84,33 +91,23 @@ class ImmutablePattern(BasePattern):
     input_nodes: set[int]
     output_nodes: set[int]
     q_indices: dict[int, int]
-    seq: list[Command]
+    commands: list[Command]
     runnable: bool = False
     deterministic: bool = False
 
-    def get_input_nodes(self) -> set[int]:
-        return set(self.input_nodes)
-
-    def get_output_nodes(self) -> set[int]:
-        return set(self.output_nodes)
-
-    def get_nodes(self) -> set[int]:
+    @cached_property
+    def nodes(self) -> set[int]:
         nodes = set(self.input_nodes)
-        for cmd in self.seq:
+        for cmd in self.commands:
             if isinstance(cmd, N):
                 nodes |= {cmd.node}
         return nodes
 
-    def get_q_indices(self) -> dict[int, int]:
-        return dict(self.q_indices)
-
-    def get_commands(self) -> list[Command]:
-        return self.seq
-
+    @cached_property
     def calc_max_space(self) -> int:
         nodes = len(self.input_nodes)
         max_nodes = nodes
-        for cmd in self.seq:
+        for cmd in self.commands:
             if cmd.kind == CommandKind.N:
                 nodes += 1
             elif cmd.kind == CommandKind.M:
@@ -136,7 +133,7 @@ class MutablePattern(BasePattern):
         self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__Nnode: int = len(input_nodes)  # total number of nodes in the graph state
 
-        self.__seq: list[Command] = []
+        self.__commands: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
         self.__output_nodes: set[int] = set(self.__input_nodes)
 
@@ -159,7 +156,7 @@ class MutablePattern(BasePattern):
             self.__q_indices[cmd.node] = cmd.q_index
         elif isinstance(cmd, M):
             self.__output_nodes -= {cmd.node}
-        self.__seq.append(cmd)
+        self.__commands.append(cmd)
 
     def add(self, cmd: Command) -> None:
         self.__add(cmd)
@@ -174,7 +171,7 @@ class MutablePattern(BasePattern):
 
     def clear(self) -> None:
         self.__Nnode = len(self.__input_nodes)
-        self.__seq = []
+        self.__commands = []
         self.__output_nodes = set(self.__input_nodes)
 
     def replace(self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None) -> None:
@@ -184,25 +181,25 @@ class MutablePattern(BasePattern):
         self.extend(cmds)
 
     def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
-        common_nodes = self.get_nodes() & pattern.get_nodes()
-        border_nodes = self.get_output_nodes() & pattern.get_input_nodes()
+        common_nodes = self.nodes & pattern.nodes
+        border_nodes = self.output_nodes & pattern.input_nodes
 
         if common_nodes != border_nodes:
             msg = f"Detect duplicated nodes without border of two patterns. duplicated nodes: {common_nodes}"
             raise ValueError(msg)
-        new_input_nodes = self.get_input_nodes() | pattern.get_input_nodes()
+        new_input_nodes = self.input_nodes | pattern.input_nodes
         new_input_q_indices = {}
         for node in new_input_nodes:
-            if node in self.get_input_nodes():
-                new_input_q_indices[node] = self.__q_indices[node]
+            if node in self.input_nodes:
+                new_input_q_indices[node] = self.q_indices[node]
             else:
-                new_input_q_indices[node] = pattern.get_q_indices()[node]
+                new_input_q_indices[node] = pattern.q_indices[node]
 
         new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
-        for cmd in self.get_commands():
+        for cmd in self.commands:
             new_pattern.add(cmd)
 
-        for cmd in pattern.get_commands():
+        for cmd in pattern.commands:
             new_pattern.add(cmd)
 
         if self.is_runnable() and pattern.is_runnable():
@@ -213,29 +210,35 @@ class MutablePattern(BasePattern):
 
         return new_pattern
 
-    def get_input_nodes(self) -> set[int]:
+    @property
+    def input_nodes(self) -> set[int]:
         return set(self.__input_nodes)
 
-    def get_output_nodes(self) -> set[int]:
+    @property
+    def output_nodes(self) -> set[int]:
         return set(self.__output_nodes)
 
-    def get_q_indices(self) -> dict[int, int]:
+    @property
+    def q_indices(self) -> dict[int, int]:
         return dict(self.__q_indices)
 
-    def get_nodes(self) -> set[int]:
+    @cached_property
+    def nodes(self) -> set[int]:
         nodes = set(self.__input_nodes)
-        for cmd in self.__seq:
+        for cmd in self.commands:
             if isinstance(cmd, N):
                 nodes |= {cmd.node}
         return nodes
 
-    def get_commands(self) -> list[Command]:
-        return self.__seq
+    @property
+    def commands(self) -> list[Command]:
+        return self.__commands
 
+    @cached_property
     def calc_max_space(self) -> int:
-        nodes = len(self.get_input_nodes())
+        nodes = len(self.input_nodes)
         max_nodes = nodes
-        for cmd in self.__seq:
+        for cmd in self.commands:
             if cmd.kind == CommandKind.N:
                 nodes += 1
             elif cmd.kind == CommandKind.M:
@@ -243,10 +246,11 @@ class MutablePattern(BasePattern):
             max_nodes = max(nodes, max_nodes)
         return max_nodes
 
+    @cached_property
     def get_space_list(self) -> list[int]:
-        nodes = len(self.get_input_nodes())
+        nodes = len(self.input_nodes)
         space_list = [nodes]
-        for cmd in self.__seq:
+        for cmd in self.commands:
             if cmd.kind == CommandKind.N:
                 nodes += 1
                 space_list.append(nodes)
@@ -255,17 +259,19 @@ class MutablePattern(BasePattern):
                 space_list.append(nodes)
         return space_list
 
-    def get_meas_planes(self) -> dict[int, Plane]:
+    @property
+    def meas_planes(self) -> dict[int, Plane]:
         meas_plane = {}
-        for cmd in self.__seq:
+        for cmd in self.commands:
             if isinstance(cmd, M):
                 mplane = cmd.plane
                 meas_plane[cmd.node] = mplane
         return meas_plane
 
-    def get_meas_angles(self) -> dict[int, float]:
+    @property
+    def meas_angles(self) -> dict[int, float]:
         angles = {}
-        for cmd in self.__seq:
+        for cmd in self.commands:
             if isinstance(cmd, M):
                 angles[cmd.node] = cmd.angle
         return angles
@@ -286,12 +292,12 @@ class MutablePattern(BasePattern):
 
     def freeze(self) -> ImmutablePattern:
         return ImmutablePattern(
-            input_nodes=self.__input_nodes,
-            output_nodes=self.__output_nodes,
-            q_indices=self.__q_indices,
-            seq=self.__seq,
-            runnable=self.__runnable,
-            deterministic=self.__deterministic,
+            input_nodes=self.input_nodes,
+            output_nodes=self.output_nodes,
+            q_indices=self.q_indices,
+            commands=self.commands,
+            runnable=self.is_runnable(),
+            deterministic=self.is_deterministic(),
         )
 
     def standardize(self) -> None:
@@ -378,7 +384,7 @@ def check_rule1(pattern: BasePattern) -> bool:
 
 # no command acts on a qubit not yet prepared, unless it is an input qubit
 def check_rule2(pattern: BasePattern) -> bool:
-    prepared = set(pattern.get_input_nodes())
+    prepared = set(pattern.input_nodes)
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
@@ -392,7 +398,7 @@ def check_rule2(pattern: BasePattern) -> bool:
 
 # a qubit i is measured if and only if i is not an output
 def check_rule3(pattern: BasePattern) -> bool:
-    output_nodes = pattern.get_output_nodes()
+    output_nodes = pattern.output_nodes
     return all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
 
 
