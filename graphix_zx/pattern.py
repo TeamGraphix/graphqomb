@@ -419,7 +419,8 @@ def print_command(cmd: Command) -> None:
     elif isinstance(cmd, Z):
         print(f"Z, node = {cmd.node}, domain = {cmd.domain}")  # noqa: T201
     elif isinstance(cmd, C):
-        print(f"C, node = {cmd.node}, cliff_index = {cmd.cliff_index}")  # noqa: T201
+        print(f"C, node = {cmd.node}")  # noqa: T201
+        cmd.local_clifford.print_angles()
     else:
         print(f"Unknown command: {cmd}")  # noqa: T201
 
