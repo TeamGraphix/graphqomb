@@ -59,6 +59,10 @@ class LocalUnitary:
         self.beta = beta
         self.gamma = gamma
 
+    def print_angles(self) -> None:
+        """Print the Euler angles."""
+        print(f"alpha: {self.alpha}, beta: {self.beta}, gamma: {self.gamma}")  # noqa: T201
+
     def get_matrix(self) -> NDArray:
         """Return the 2x2 unitary matrix corresponding to the Euler angles.
 
