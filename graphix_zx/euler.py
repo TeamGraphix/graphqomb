@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from graphix_zx.common import Plane
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
@@ -140,3 +142,89 @@ class LocalClifford(LocalUnitary):
         if not any(is_clifford_angle(angle, atol=atol) for angle in [alpha, beta, gamma]):
             msg = "The angles must be multiples of pi/2"
             raise ValueError(msg)
+
+
+class MeasBasis:
+    plane: Plane
+    angle: float
+
+    def __init__(self, plane: Plane, angle: float) -> None:
+        self.plane = plane
+        self.angle = angle
+
+    def get_vector(self) -> NDArray:
+        return get_basis(self.plane, self.angle)
+
+
+def get_basis(plane: Plane, angle: float) -> NDArray:
+    """Return the basis vector corresponding to the plane and angle.
+
+    Parameters
+    ----------
+    plane : Plane
+        measurement plane
+    angle : float
+        measurement angle
+
+    Returns
+    -------
+    NDArray
+        _description_
+    """
+    if plane == Plane.XY:
+        basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
+    elif plane == Plane.YZ:
+        basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
+    elif plane == Plane.ZX:
+        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
+    return basis
+
+
+def get_basis_info(vector: NDArray) -> tuple[Plane, float]:
+    raise NotImplementedError
+
+
+def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
+    """Update a LocalClifford object with another LocalClifford object.
+
+    Parameters
+    ----------
+    lc1 : LocalClifford
+        left LocalClifford
+    lc2 : LocalClifford
+        right LocalClifford
+
+    Returns
+    -------
+    LocalClifford
+        multiplied LocalClifford
+    """
+    matrix1 = lc1.get_matrix()
+    matrix2 = lc2.get_matrix()
+
+    matrix = matrix1 @ matrix2
+    alpha, beta, gamma = euler_decomposition(matrix)
+    return LocalClifford(alpha, beta, gamma)
+
+
+def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
+    """Update a LocalClifford object with a MeasBasis object.
+
+    Parameters
+    ----------
+    lc : LocalClifford
+        LocalClifford
+    basis : MeasBasis
+        MeasBasis
+
+    Returns
+    -------
+    MeasBasis
+        updated MeasBasis
+    """
+    matrix = lc.get_matrix()
+    vector = basis.get_vector()
+
+    vector = matrix @ vector
+    plane, angle = get_basis_info(vector)
+    return MeasBasis(plane, angle)
