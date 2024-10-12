@@ -156,7 +156,7 @@ class MeasBasis:
         return get_basis(self.plane, self.angle)
 
 
-def get_basis(plane: Plane, angle: float) -> NDArray:
+def get_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
     """Return the basis vector corresponding to the plane and angle.
 
     Parameters
@@ -169,7 +169,7 @@ def get_basis(plane: Plane, angle: float) -> NDArray:
     Returns
     -------
     NDArray
-        _description_
+        basis vector
     """
     if plane == Plane.XY:
         basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
@@ -177,11 +177,63 @@ def get_basis(plane: Plane, angle: float) -> NDArray:
         basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
     elif plane == Plane.ZX:
         basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
+    else:
+        msg = "The plane must be one of XY, YZ, ZX"
+        raise ValueError(msg)
     return basis
 
 
-def get_basis_info(vector: NDArray) -> tuple[Plane, float]:
-    raise NotImplementedError
+def _get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
+    """Return the Bloch sphere coordinates corresponding to a vector.
+
+    |psi> = cos(theta/2)|0> + exp(i*phi)sin(theta/2)|1>
+
+    Parameters
+    ----------
+    vector : NDArray
+        1 qubit state vector
+
+    Returns
+    -------
+    tuple[float, float]
+        Bloch sphere coordinates (theta, phi)
+    """
+    # normalize
+    vector /= np.linalg.norm(vector)
+    theta = 2 * np.arccos(np.abs(vector[0]))
+    phi = np.angle(vector[1]) - np.angle(vector[0])
+    return theta, phi
+
+
+def get_basis_meas_info(vector: NDArray) -> tuple[Plane, float]:
+    """Return the measurement plane and angle corresponding to a vector.
+
+    Parameters
+    ----------
+    vector : NDArray
+        1 qubit state vector
+
+    Returns
+    -------
+    tuple[Plane, float]
+        measurement plane and angle
+
+    Raises
+    ------
+    ValueError
+        if the vector does not lie on any of 3 planes
+    """
+    theta, phi = _get_bloch_sphere_coordinates(vector)
+    if is_clifford_angle(phi):
+        # YZ or ZX plane
+        if is_clifford_angle(phi / 2):
+            return Plane.ZX, theta + np.pi * (((phi / np.pi) % 2) - 1 / 2)
+        return Plane.YZ, theta + np.pi * ((phi / np.pi) % 2)
+    if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
+        # XY plane
+        return Plane.XY, phi + np.pi * (((theta / np.pi) % 2) - 1 / 2)
+    msg = "The vector does not lie on any of 3 planes"
+    raise ValueError(msg)
 
 
 def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
@@ -226,5 +278,5 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
     vector = basis.get_vector()
 
     vector = matrix @ vector
-    plane, angle = get_basis_info(vector)
+    plane, angle = get_basis_meas_info(vector)
     return MeasBasis(plane, angle)
