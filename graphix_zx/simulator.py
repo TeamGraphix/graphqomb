@@ -111,8 +111,8 @@ class PatternSimulator(BasePatternSimulator):
         *,
         calc_prob: bool = False,
     ) -> None:
-        q_indices = pattern.get_q_indices()
-        self.__node_indices: list[int] = [q_indices[input_node] for input_node in pattern.get_input_nodes()]
+        q_indices = pattern.q_indices
+        self.__node_indices: list[int] = [q_indices[input_node] for input_node in pattern.input_nodes]
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
@@ -126,7 +126,7 @@ class PatternSimulator(BasePatternSimulator):
             if not self.__pattern.is_deterministic():
                 msg = "Pattern is not deterministic. Please use DensityMatrix backend instead."
                 raise ValueError(msg)
-            self.__state = StateVector(len(self.__pattern.get_input_nodes()))
+            self.__state = StateVector(len(self.__pattern.input_nodes))
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
@@ -159,10 +159,10 @@ class PatternSimulator(BasePatternSimulator):
             raise TypeError(msg)
 
     def simulate(self) -> None:
-        for cmd in self.__pattern.get_commands():
+        for cmd in self.__pattern.commands:
             self.apply_cmd(cmd)
 
-        permutation = parse_q_indices(self.__node_indices, self.__pattern.get_q_indices())
+        permutation = parse_q_indices(self.__node_indices, self.__pattern.q_indices)
         new_indices = [-1 for _ in range(len(permutation))]
         for i in range(len(permutation)):
             new_indices[permutation[i]] = self.__node_indices[i]
