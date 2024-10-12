@@ -6,6 +6,7 @@ import enum
 from dataclasses import dataclass, field
 
 from graphix_zx.common import Plane
+from graphix_zx.euler import LocalClifford
 
 Node = int
 
@@ -59,7 +60,7 @@ class C(Command):
     """Clifford command."""
 
     node: Node
-    cliff_index: int
+    local_clifford: LocalClifford
     kind: CommandKind = CommandKind.C
 
 
