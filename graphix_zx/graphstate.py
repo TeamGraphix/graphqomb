@@ -476,7 +476,7 @@ class ZXGraphState(GraphState):
             self.add_physical_edge(edge[0], edge[1])
 
     def _update_node_measurement(
-        self, measurement_action: dict[Plane, tuple[Plane, float | Callable[[float], float]]], v: int
+        self, measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]], v: int
     ) -> None:
         new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
         if new_plane:
