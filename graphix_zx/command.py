@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import enum
+import sys
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from graphix_zx.common import Plane
 
@@ -14,32 +14,16 @@ if TYPE_CHECKING:
 Node = int
 
 
-class CommandKind(str, enum.Enum):
-    N = "N"
-    M = "M"
-    E = "E"
-    C = "C"
-    X = "X"
-    Z = "Z"
-
-
-class Command:
-    """Base command class."""
-
-    kind: CommandKind | None = None
-
-
 @dataclass
-class N(Command):
+class N:
     """Preparation command."""
 
     node: Node
     q_index: int = -1
-    kind: CommandKind = CommandKind.N
 
 
 @dataclass
-class M(Command):
+class M:
     """Measurement command. By default the plane is set to 'XY', the angle to 0, empty domains and identity vop."""
 
     node: Node
@@ -47,28 +31,25 @@ class M(Command):
     angle: float = 0.0
     s_domain: set[Node] = field(default_factory=set)
     t_domain: set[Node] = field(default_factory=set)
-    kind: CommandKind = CommandKind.M
 
 
 @dataclass
-class E(Command):
+class E:
     """Entanglement command."""
 
     nodes: tuple[Node, Node]
-    kind: CommandKind = CommandKind.E
 
 
 @dataclass
-class C(Command):
+class C:
     """Clifford command."""
 
     node: Node
     local_clifford: LocalClifford
-    kind: CommandKind = CommandKind.C
 
 
 @dataclass
-class Correction(Command):
+class Correction:
     """Correction command.Either X or Z."""
 
     node: Node
@@ -79,11 +60,13 @@ class Correction(Command):
 class X(Correction):
     """X correction command."""
 
-    kind: CommandKind = CommandKind.X
-
 
 @dataclass
 class Z(Correction):
     """Z correction command."""
 
-    kind: CommandKind = CommandKind.Z
+
+if sys.version_info >= (3, 10):
+    Command = N | M | E | C | X | Z
+else:
+    Command = Union[N, M, E, C, X, Z]
