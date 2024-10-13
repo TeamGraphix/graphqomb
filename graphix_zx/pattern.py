@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import C, Command, CommandKind, E, M, N, X, Z
+from graphix_zx.command import C, Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -119,9 +119,9 @@ class ImmutablePattern:
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.commands:
-            if cmd.kind == CommandKind.N:
+            if isinstance(cmd, N):
                 nodes += 1
-            elif cmd.kind == CommandKind.M:
+            elif isinstance(cmd, M):
                 nodes -= 1
             max_nodes = max(nodes, max_nodes)
         return max_nodes
@@ -131,10 +131,10 @@ class ImmutablePattern:
         nodes = len(self.input_nodes)
         space_list = [nodes]
         for cmd in self.commands:
-            if cmd.kind == CommandKind.N:
+            if isinstance(cmd, N):
                 nodes += 1
                 space_list.append(nodes)
-            elif cmd.kind == CommandKind.M:
+            elif isinstance(cmd, M):
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
@@ -282,9 +282,9 @@ class MutablePattern(BasePattern):
         nodes = len(self.input_nodes)
         max_nodes = nodes
         for cmd in self.commands:
-            if cmd.kind == CommandKind.N:
+            if isinstance(cmd, N):
                 nodes += 1
-            elif cmd.kind == CommandKind.M:
+            elif isinstance(cmd, M):
                 nodes -= 1
             max_nodes = max(nodes, max_nodes)
         return max_nodes
@@ -294,10 +294,10 @@ class MutablePattern(BasePattern):
         nodes = len(self.input_nodes)
         space_list = [nodes]
         for cmd in self.commands:
-            if cmd.kind == CommandKind.N:
+            if isinstance(cmd, N):
                 nodes += 1
                 space_list.append(nodes)
-            elif cmd.kind == CommandKind.M:
+            elif isinstance(cmd, M):
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
@@ -356,24 +356,24 @@ class MutablePattern(BasePattern):
 def is_standardized(pattern: BasePattern | ImmutablePattern) -> bool:
     standardized = True
     standardized_order = [
-        CommandKind.N,
-        CommandKind.E,
-        CommandKind.M,
-        CommandKind.X,
-        CommandKind.Z,
-        CommandKind.C,
+        N,
+        E,
+        M,
+        X,
+        Z,
+        C,
     ]
-    current_cmd_kind = CommandKind.N
+    current_cmd_type: type[Command] = N
     for cmd in pattern:
-        if cmd.kind == current_cmd_kind:
+        if isinstance(cmd, current_cmd_type):
             continue
-        if cmd.kind not in standardized_order:
-            msg = f"Unknown command kind: {cmd.kind}"
+        if type(cmd) not in standardized_order:
+            msg = f"Unknown command: {cmd}"
             raise ValueError(msg)
-        if standardized_order.index(cmd.kind) < standardized_order.index(current_cmd_kind):
+        if standardized_order.index(type(cmd)) < standardized_order.index(current_cmd_type):
             standardized = False
             break
-        current_cmd_kind = cmd.kind
+        current_cmd_type = type(cmd)
     return standardized
 
 
@@ -475,21 +475,21 @@ def print_command(cmd: Command) -> None:
 
 
 def print_pattern(
-    pattern: BasePattern | ImmutablePattern, lim: int = 40, cmd_filter: list[CommandKind] | None = None
+    pattern: BasePattern | ImmutablePattern, lim: int = 40, cmd_filter: list[type[Command]] | None = None
 ) -> None:
     if cmd_filter is None:
         cmd_filter = [
-            CommandKind.N,
-            CommandKind.E,
-            CommandKind.M,
-            CommandKind.X,
-            CommandKind.Z,
-            CommandKind.C,
+            N,
+            E,
+            M,
+            X,
+            Z,
+            C,
         ]
     nmax = min(lim, len(pattern))
     print_count = 0
     for i, cmd in enumerate(pattern):
-        if cmd.kind in cmd_filter:
+        if type(cmd) in cmd_filter:
             print_command(cmd)
             print_count += 1
 
