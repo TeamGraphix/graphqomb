@@ -25,7 +25,7 @@ class Gate(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_matrix(self) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
         raise NotImplementedError
 
 
@@ -45,8 +45,11 @@ class J(UnitGate):
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
-    def get_matrix(self) -> NDArray:
-        return np.asarray([[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]) / np.sqrt(2)
+    def get_matrix(self) -> NDArray[np.complex128]:
+        array: NDArray[np.complex128] = np.asarray(
+            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
+        ) / np.sqrt(2)
+        return array
 
 
 @dataclass(frozen=True)
@@ -71,22 +74,23 @@ class PhaseGadget(UnitGate):
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
-    def get_matrix(self) -> NDArray:
-        def count_ones_in_binary(array: NDArray) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
+        def count_ones_in_binary(array: NDArray) -> NDArray[np.uint64]:
             count_ones = np.vectorize(lambda x: bin(x).count("1"))
-            return count_ones(array)
+            binary_array: NDArray[np.uint64] = count_ones(array)
+            return binary_array
 
         index_array = np.arange(2 ** len(self.qubits))
         z_sign = (-1) ** count_ones_in_binary(index_array)
-        return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
+        return np.diag(np.exp(1j * self.angle / 2 * z_sign))
 
 
 # Macro gates
 
 
 class MacroSingleGate(Gate):
-    def get_matrix(self) -> NDArray:
-        matrix = np.eye(2)
+    def get_matrix(self) -> NDArray[np.complex128]:
+        matrix = np.eye(2, dtype=np.complex128)
         for unit_gate in self.get_unit_gates():
             matrix = unit_gate.get_matrix() @ matrix
         return matrix

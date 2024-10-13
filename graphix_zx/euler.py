@@ -175,6 +175,7 @@ def get_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
     NDArray
         basis vector
     """
+    basis: NDArray[np.complex128]
     if plane == Plane.XY:
         basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
     elif plane == Plane.YZ:
