@@ -34,7 +34,7 @@ focused_flow = focus_gflow(gflow, graphstate)
 # transpile into standardized and signal shifted pattern
 pattern = transpile_from_flow(graphstate, focused_flow)
 print("pattern is standardized:", is_standardized(pattern))
-print("get max space of pattern:", pattern.calc_max_space())
+print("get max space of pattern:", pattern.max_space)
 # we can see focus property, aka signal shifting in measurement calculus
 print_pattern(pattern)
 

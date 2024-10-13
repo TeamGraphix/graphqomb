@@ -28,7 +28,7 @@ graphstate, gflow = circuit2graph(circuit)
 # first, transpile it to standardized pattern
 pattern = transpile_from_flow(graphstate, gflow)
 print("pattern is standardized:", is_standardized(pattern))
-print("get max space of pattern:", pattern.calc_max_space())
+print("get max space of pattern:", pattern.max_space)
 print_pattern(pattern)
 
 # %%

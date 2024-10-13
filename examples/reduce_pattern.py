@@ -29,7 +29,7 @@ graphstate, gflow = circuit2graph(circuit)
 # first, naively transpile it to standardized pattern
 pattern = transpile_from_flow(graphstate, gflow)
 print("pattern is standardized:", is_standardized(pattern))
-print("get max space of pattern:", pattern.calc_max_space())
+print("get max space of pattern:", pattern.max_space)
 print_pattern(pattern)
 
 # %%
@@ -38,7 +38,7 @@ reduced_order = get_minimized_sp_meas_order(graphstate, gflow)
 
 graph_seq = get_subgraph_sequences(graphstate, reduced_order)
 reduced_pattern = transpile_from_subgraphs(graphstate, graph_seq, gflow)
-print("get max space of reduced pattern:", reduced_pattern.calc_max_space())
+print("get max space of reduced pattern:", reduced_pattern.max_space)
 print_pattern(reduced_pattern)
 
 # %%
