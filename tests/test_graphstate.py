@@ -63,7 +63,7 @@ def test_ensure_node_exists_raises(graph: GraphState) -> None:
 def test_ensure_node_exists(graph: GraphState) -> None:
     """Test ensuring a node exists in the graph."""
     graph.add_physical_node(1)
-    assert graph.ensure_node_exists(1) is None
+    graph.ensure_node_exists(1)
 
 
 def test_get_neighbors(graph: GraphState) -> None:
@@ -182,23 +182,23 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
         graph.check_meas_basis()
     graph.set_meas_angle(1, 0.5 * np.pi)
-    graph.set_meas_plane(1, "invalid plane")
+    graph.set_meas_plane(1, "invalid plane")  # type: ignore[reportArgumentType, arg-type, unused-ignore]
     with pytest.raises(ValueError, match="Invalid measurement plane 'invalid plane' for node 1"):
         graph.check_meas_basis()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
-    assert graph.check_meas_basis() is None
+    graph.check_meas_basis()
     graph.add_physical_node(1)
     graph.set_meas_plane(1, Plane.XZ)
     graph.set_meas_angle(1, 0.5 * np.pi)
-    assert graph.check_meas_basis() is None
+    graph.check_meas_basis()
 
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
     graph.set_output(2)
-    assert graph.check_meas_basis() is None
+    graph.check_meas_basis()
 
 
 def test_bipartite_edges() -> None:
@@ -256,7 +256,8 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
     zx_graph.set_meas_plane(1, Plane.XZ)
     zx_graph.set_meas_angle(1, 1.1 * np.pi)
     zx_graph.local_complement(1)
-    assert zx_graph.meas_planes[1] == Plane.XY
+    # this might be a bug in mypy, as it's useful comparison
+    assert zx_graph.meas_planes[1] == Plane.XY  # type: ignore[comparison-overlap]
     assert pytest.approx(zx_graph.meas_angles[1]) == 0.6 * np.pi
 
     zx_graph.set_meas_plane(1, Plane.YZ)
