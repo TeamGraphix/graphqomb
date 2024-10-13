@@ -57,7 +57,7 @@ class BasePattern(ABC):
     def output_nodes(self) -> set[int]:
         raise NotImplementedError
 
-    @property
+    @cached_property
     @abstractmethod
     def nodes(self) -> set[int]:
         raise NotImplementedError
