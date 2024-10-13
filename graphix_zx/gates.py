@@ -40,7 +40,10 @@ class UnitGate(Gate):
 class J(UnitGate):
     qubit: int
     angle: float
-    kind: UnitGateKind = UnitGateKind.J
+
+    @property
+    def kind(self) -> UnitGateKind:
+        return UnitGateKind.J
 
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
@@ -55,13 +58,15 @@ class J(UnitGate):
 @dataclass(frozen=True)
 class CZ(UnitGate):
     qubits: tuple[int, int]
-    kind: UnitGateKind = UnitGateKind.CZ
+
+    @property
+    def kind(self) -> UnitGateKind:
+        return UnitGateKind.CZ
 
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
 
-    @staticmethod
-    def get_matrix() -> NDArray:
+    def get_matrix(self) -> NDArray:  # noqa: PLR6301 to align with pyright checks
         return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
 
 
@@ -69,7 +74,10 @@ class CZ(UnitGate):
 class PhaseGadget(UnitGate):
     qubits: list[int]
     angle: float
-    kind: UnitGateKind = UnitGateKind.PhaseGadget
+
+    @property
+    def kind(self) -> UnitGateKind:
+        return UnitGateKind.PhaseGadget
 
     def get_unit_gates(self) -> list[UnitGate]:
         return [self]
@@ -82,7 +90,7 @@ class PhaseGadget(UnitGate):
 
         index_array = np.arange(2 ** len(self.qubits))
         z_sign = (-1) ** count_ones_in_binary(index_array)
-        return np.diag(np.exp(1j * self.angle / 2 * z_sign))
+        return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
 
 # Macro gates
@@ -228,8 +236,7 @@ class CNOT(MacroMultiGate):
             J(self.target, 0),
         ]
 
-    @staticmethod
-    def get_matrix() -> NDArray:
+    def get_matrix(self) -> NDArray:  # noqa: PLR6301
         return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
 
@@ -249,8 +256,7 @@ class SWAP(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    @staticmethod
-    def get_matrix() -> NDArray:
+    def get_matrix(self) -> NDArray:  # noqa: PLR6301
         return np.asarray(
             [
                 [1, 0, 0, 0],
@@ -382,8 +388,7 @@ class CCZ(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    @staticmethod
-    def get_matrix() -> NDArray:
+    def get_matrix(self) -> NDArray:  # noqa: PLR6301
         return np.asarray(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],
@@ -419,8 +424,7 @@ class Toffoli(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    @staticmethod
-    def get_matrix() -> NDArray:
+    def get_matrix(self) -> NDArray:  # noqa: PLR6301
         return np.asarray(
             [
                 [1, 0, 0, 0, 0, 0, 0, 0],
