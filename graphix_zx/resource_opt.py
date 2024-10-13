@@ -31,7 +31,7 @@ def get_subgraph_sequences(graph: BaseGraphState, meas_order: Iterable[int]) -> 
         neighboring_prepared_nodes = neighbors - activation_nodes
 
         if target_node in activated_nodes:
-            subgraph.add_physical_node(target_node, q_index=q_indices[node], is_input=True)
+            subgraph.add_physical_node(target_node, q_index=q_indices[target_node], is_input=True)
         else:
             subgraph.add_physical_node(target_node, q_index=q_indices[target_node])
         activated_nodes |= {target_node}
@@ -127,9 +127,13 @@ def count_activation_cost(graph: BaseGraphState, target_node: int, activated_nod
 
 def find_min_from_dict(d: Mapping[int, int]) -> int:
     """Find the minimum value from a dictionary."""
+    min_index = None
     min_value = float("inf")
     for key, value in d.items():
         if value < min_value:
             min_index = key
             min_value = value
+    if min_index is None:
+        msg = "No minimum value found"
+        raise ValueError(msg)
     return min_index
