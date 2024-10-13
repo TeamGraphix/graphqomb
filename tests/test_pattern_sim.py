@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from graphix_zx.command import E, M, N, X, Z
+from graphix_zx.command import Command, E, M, N, X, Z
 from graphix_zx.common import Plane
 from graphix_zx.pattern import MutablePattern
 from graphix_zx.simulator import PatternSimulator, SimulatorBackend
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def setup_pattern() -> ImmutablePattern:
     pattern = MutablePattern({0}, {0: 0})
-    cmds = [
+    cmds: list[Command] = [
         N(node=1),
         E(nodes=(0, 1)),
         M(node=1, plane=Plane.XY, angle=0.5, s_domain=set(), t_domain=set()),

@@ -1,7 +1,7 @@
 import pytest
 
 # Assuming Command and CommandKind are defined somewhere
-from graphix_zx.command import E, M, N, X
+from graphix_zx.command import Command, E, M, N, X
 from graphix_zx.pattern import MutablePattern, NodeAlreadyPreparedError, is_standardized
 
 
@@ -46,7 +46,7 @@ def test_pattern_clear() -> None:
 
 def test_pattern_replace() -> None:
     pattern = MutablePattern({0, 1})
-    cmds = [N(node=2), M(node=3)]
+    cmds: list[Command] = [N(node=2), M(node=3)]
     pattern.replace(cmds, input_nodes={3, 4})
     assert pattern.input_nodes == {3, 4}
     assert pattern.output_nodes == {4, 2}
@@ -55,7 +55,7 @@ def test_pattern_replace() -> None:
 
 def test_pattern_get_space_list() -> None:
     pattern = MutablePattern({0})
-    cmds = [
+    cmds: list[Command] = [
         N(node=1),
         N(node=2),
         M(node=1),
@@ -67,7 +67,7 @@ def test_pattern_get_space_list() -> None:
 
 def test_pattern_calc_max_space() -> None:
     pattern = MutablePattern({0})
-    cmds = [
+    cmds: list[Command] = [
         N(node=1),
         N(node=2),
         M(node=1),
@@ -79,7 +79,7 @@ def test_pattern_calc_max_space() -> None:
 
 def test_is_standardized() -> None:
     pattern = MutablePattern({0})
-    cmds = [
+    cmds: list[Command] = [
         N(node=1),
         E(nodes=(0, 1)),
         M(node=1),
