@@ -1,4 +1,12 @@
-"""not refactored yet"""
+"""We will use fastflow once published.
+
+This module provides:
+- FlowLike: Type alias for a flowlike object.
+- Layer: Type alias for a layer object.
+- oddneighbors: Return the set of odd neighbors of a set of nodes.
+- construct_dag: Construct a directed acyclic graph (DAG) from a flowlike object.
+- check_causality: Check if the flowlike object is causal with respect to the graph state.
+"""
 
 from __future__ import annotations
 
@@ -16,13 +24,48 @@ Layer = dict[int, int]
 
 
 def oddneighbors(nodes: AbstractSet[int], graph: BaseGraphState) -> set[int]:
+    """Return the set of odd neighbors of a set of nodes.
+
+    Parameters
+    ----------
+    nodes : AbstractSet[int]
+        A set of nodes, of which we want to find the odd neighbors.
+    graph : BaseGraphState
+        The graph state.
+
+    Returns
+    -------
+    set[int]
+        Odd neighbors of the nodes.
+    """
     odd_neighbors: set[int] = set()
     for node in nodes:
         odd_neighbors ^= graph.get_neighbors(node)
     return odd_neighbors
 
 
-def construct_dag(gflow: FlowLike, graph: BaseGraphState, *, check: bool = False) -> dict[int, set[int]]:
+def construct_dag(gflow: FlowLike, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]:
+    """Construct a directed acyclic graph (DAG) from a flowlike object.
+
+    Parameters
+    ----------
+    gflow : FlowLike
+        A flowlike object
+    graph : BaseGraphState
+        The graph state
+    check : bool, optional
+        Raise an error if a cycle is detected, by default True
+
+    Returns
+    -------
+    dict[int, set[int]]
+        The directed acyclic graph
+
+    Raises
+    ------
+    ValueError
+        If a cycle is detected
+    """
     dag = {}
     outputs = graph.physical_nodes - gflow.keys()
     for node in gflow:
@@ -30,63 +73,50 @@ def construct_dag(gflow: FlowLike, graph: BaseGraphState, *, check: bool = False
     for output in outputs:
         dag[output] = set()
 
-    if check and not check_dag(dag):
+    if check and not _check_dag(dag):
         msg = "Cycle detected in the graph"
         raise ValueError(msg)
 
     return dag
 
 
-def check_dag(dag: Mapping[int, Iterable[int]]) -> bool:
+def check_causality(
+    graph: BaseGraphState,
+    gflow: FlowLike,
+) -> bool:
+    """Check if the flowlike object is causal with respect to the graph state.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        The graph state
+    gflow : FlowLike
+        The flowlike object
+
+    Returns
+    -------
+    bool
+        True if the flowlike object is causal, False otherwise
+    """
+    dag = construct_dag(gflow, graph)
+    return _check_dag(dag)
+
+
+def _check_dag(dag: Mapping[int, Iterable[int]]) -> bool:
+    """Check if a directed acyclic graph (DAG) does not contain a cycle.
+
+    Parameters
+    ----------
+    dag : Mapping[int, Iterable[int]]
+        directed acyclic graph
+
+    Returns
+    -------
+    bool
+        True if the graph is valid, False otherwise
+    """
     for node, children in dag.items():
         for child in children:
             if node in dag[child]:
                 return False
     return True
-
-
-# def find_flow(
-#     graph: BaseGraphState,
-# ) -> tuple[FlowLike, Layer]:
-#     raise NotImplementedError
-
-
-# def find_gflow(
-#     graph: BaseGraphState,
-# ) -> tuple[FlowLike, Layer]:
-#     l_k: Layer = {}
-#     g: FlowLike = {}
-#     for node in graph.physical_nodes:
-#         l_k[node] = 0
-#     return gflowaux(graph, 1, l_k, g)
-
-
-# def find_pflow(
-#     graph: BaseGraphState,
-# ) -> tuple[FlowLike, Layer]:
-#     raise NotImplementedError
-
-
-# def gflowaux(
-#     graph: BaseGraphState,
-#     k: int,
-#     l_k: Layer,
-#     g: FlowLike,
-# ) -> tuple[FlowLike, Layer]:
-#     raise NotImplementedError
-
-
-def check_causality(
-    graph: BaseGraphState,
-    gflow: FlowLike,
-) -> bool:
-    dag = construct_dag(gflow, graph)
-    return check_dag(dag)
-
-
-# # NOTE: want to include Pauli simplification effect
-# def check_stablizers(
-#     graph: BaseGraphState,
-#     gflow: dict[int, set[int]],
-# ) -> bool:
-#     raise NotImplementedError
