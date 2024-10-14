@@ -1,10 +1,22 @@
+"""Euler angles and related functions.
+
+This module provides:
+- euler_decomposition: Decompose a 2x2 unitary matrix into Euler angles.
+- get_bloch_sphere_coordinates: Get the Bloch sphere coordinates corresponding to a vector.
+- is_clifford_angle: Check if an angle is a Clifford angle.
+- LocalUnitary: Class to represent a local unitary.
+- LocalClifford: Class to represent a local Clifford.
+- update_lc_lc: Update a LocalClifford object with another LocalClifford object.
+- update_lc_basis: Update a LocalClifford object with a MeasBasis object.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane, get_meas_basis
+from graphix_zx.common import MeasBasis, Plane
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -35,26 +47,67 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     return alpha, beta, gamma
 
 
+def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
+    """Get the Bloch sphere coordinates corresponding to a vector.
+
+    |psi> = cos(theta/2)|0> + exp(i*phi)sin(theta/2)|1>
+
+    Parameters
+    ----------
+    vector : NDArray
+        1 qubit state vector
+
+    Returns
+    -------
+    tuple[float, float]
+        Bloch sphere coordinates (theta, phi)
+    """
+    # normalize
+    vector /= np.linalg.norm(vector)
+    theta = 2 * np.arccos(np.abs(vector[0]))
+    phi = np.angle(vector[1]) - np.angle(vector[0])
+    return theta, phi
+
+
+def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
+    """Check if an angle is a Clifford angle.
+
+    Parameters
+    ----------
+    angle : float
+        angle to check
+    atol : float, optional
+        absolute tolerance, by default 1e-9
+
+    Returns
+    -------
+    bool
+        True if the angle is a Clifford angle
+    """
+    return bool(np.isclose(angle % (np.pi / 2), 0, atol=atol))
+
+
 # TODO: there is room to improve the data type for angles
 class LocalUnitary:
+    """Class to represent a local unitary.
+
+    U -> Rz(alpha)Rx(beta)Rz(gamma)
+
+    Attributes
+    ----------
+    alpha : float
+        angle for the first Rz, by default 0
+    beta : float
+        angle for the Rx, by default 0
+    gamma : float
+        angle for the last Rz, by default 0
+    """
+
     alpha: float
     beta: float
     gamma: float
 
     def __init__(self, alpha: float = 0, beta: float = 0, gamma: float = 0) -> None:
-        """Initialize the Euler angles.
-
-        U -> Rz(alpha)Rx(beta)Rz(gamma)
-
-        Parameters
-        ----------
-        alpha : float, optional
-            angle for the first Rz, by default 0
-        beta : float, optional
-            angle for the Rx, by default 0
-        gamma : float, optional
-            angle for the last Rz, by default 0
-        """
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -85,25 +138,22 @@ class LocalUnitary:
         )
 
 
-def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
-    """Check if an angle is a Clifford angle.
-
-    Parameters
-    ----------
-    angle : float
-        angle to check
-    atol : float, optional
-        absolute tolerance, by default 1e-9
-
-    Returns
-    -------
-    bool
-        True if the angle is a Clifford angle
-    """
-    return bool(np.isclose(angle % (np.pi / 2), 0, atol=atol))
-
-
 class LocalClifford(LocalUnitary):
+    """Class to represent a local Clifford.
+
+    U -> Rz(alpha)Rx(beta)Rz(gamma)
+    Each angle must be a multiple of pi/2.
+
+    Attributes
+    ----------
+    alpha : float
+        angle for the first Rz, by default 0
+    beta : float
+        angle for the Rx, by default 0
+    gamma : float
+        angle for the last Rz, by default 0
+    """
+
     alpha: float
     beta: float
     gamma: float
@@ -148,41 +198,7 @@ class LocalClifford(LocalUnitary):
             raise ValueError(msg)
 
 
-class MeasBasis:
-    plane: Plane
-    angle: float
-
-    def __init__(self, plane: Plane, angle: float) -> None:
-        self.plane = plane
-        self.angle = angle
-
-    def get_vector(self) -> NDArray:
-        return get_meas_basis(self.plane, self.angle)
-
-
-def _get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
-    """Return the Bloch sphere coordinates corresponding to a vector.
-
-    |psi> = cos(theta/2)|0> + exp(i*phi)sin(theta/2)|1>
-
-    Parameters
-    ----------
-    vector : NDArray
-        1 qubit state vector
-
-    Returns
-    -------
-    tuple[float, float]
-        Bloch sphere coordinates (theta, phi)
-    """
-    # normalize
-    vector /= np.linalg.norm(vector)
-    theta = 2 * np.arccos(np.abs(vector[0]))
-    phi = np.angle(vector[1]) - np.angle(vector[0])
-    return theta, phi
-
-
-def get_meas_basis_meas_info(vector: NDArray) -> tuple[Plane, float]:
+def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     """Return the measurement plane and angle corresponding to a vector.
 
     Parameters
@@ -200,7 +216,7 @@ def get_meas_basis_meas_info(vector: NDArray) -> tuple[Plane, float]:
     ValueError
         if the vector does not lie on any of 3 planes
     """
-    theta, phi = _get_bloch_sphere_coordinates(vector)
+    theta, phi = get_bloch_sphere_coordinates(vector)
     if is_clifford_angle(phi):
         # YZ or ZX plane
         if is_clifford_angle(phi / 2):
@@ -255,5 +271,5 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
     vector = basis.get_vector()
 
     vector = matrix @ vector
-    plane, angle = get_meas_basis_meas_info(vector)
+    plane, angle = _get_meas_basis_info(vector)
     return MeasBasis(plane, angle)
