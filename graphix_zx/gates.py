@@ -1,4 +1,31 @@
-"""Module for gates used in circuit representation."""
+"""Module for gates used in circuit representation.
+
+This module provides:
+- UnitGateKind: Enum class for unit gate set.
+- Gate: Abstract class for gates.
+- UnitGate: Abstract class for unit gates.
+- J: Class for the J gate.
+- CZ: Class for the CZ gate.
+- PhaseGadget: Class for the PhaseGadget gate.
+- Identity: Class for the Identity gate.
+- X: Class for the X gate.
+- Y: Class for the Y gate.
+- Z: Class for the Z gate.
+- H: Class for the H gate.
+- S: Class for the S gate.
+- T: Class for the T gate.
+- Rx: Class for the Rx gate.
+- Ry: Class for the Ry gate.
+- Rz: Class for the Rz gate.
+- U3: Class for the U3 gate.
+- CNOT: Class for the CNOT gate.
+- SWAP: Class for the SWAP gate.
+- CRz: Class for the CRz gate.
+- CRx: Class for the CRx gate.
+- CU3: Class for the CU3 gate.
+- CCZ: Class for the CCZ gate.
+- Toffoli: Class for the Toffoli gate.
+"""
 
 from __future__ import annotations
 
