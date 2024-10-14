@@ -35,7 +35,7 @@ class N:
         The node index to be prepared.
     q_index : int
         The logical qubit index.
-        If not provided, it is set to -1(ancilla).
+        Default is -1, which means the node is an ancilla.
     """
 
     node: Node
