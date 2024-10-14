@@ -1,3 +1,12 @@
+"""Circuit classes for encoding quantum operations.
+
+This module provides:
+- BaseCircuit: An abstract base class for quantum circuits.
+- MBQCCircuit: A circuit class composed solely of a unit gate set.
+- MacroCircuit: A class for circuits that include macro instructions.
+- circuit2graph: A function that converts a circuit to a graph state and gflow.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -14,70 +23,196 @@ if TYPE_CHECKING:
 
 
 class BaseCircuit(ABC):
-    @abstractmethod
-    def __init__(self) -> None:
-        pass
+    """
+    Abstract base class for quantum circuits.
 
-    # May be reused?
+    This class defines the interface for quantum circuit objects.
+    It enforces implementation of core methods that must be present
+    in any subclass representing a specific type of quantum circuit.
+
+    Attributes
+    ----------
+    num_qubits : int
+        The number of qubits in the circuit.
+    """
+
     @property
     @abstractmethod
     def num_qubits(self) -> int:
+        """Get the number of qubits in the circuit.
+
+        Returns
+        -------
+        int
+            The number of qubits in the circuit
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented in a subclass.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_instructions(self) -> list[UnitGate]:
+        """Get the list of instructions in the circuit.
+
+        Returns
+        -------
+        list[UnitGate]
+            List of unit instructions in the circuit.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented in a subclass.
+        """
         raise NotImplementedError
 
 
 class MBQCCircuit(BaseCircuit):
+    """A circuit class composed solely of a unit gate set.
+
+    Attributes
+    ----------
+    num_qubits : int
+        The number of qubits in the circuit.
+    """
+
     __num_qubits: int
     __gate_instructions: list[UnitGate]
 
-    def __init__(self, qubits: int) -> None:
-        self.__num_qubits = qubits
+    def __init__(self, num_qubits: int) -> None:
+        self.__num_qubits = num_qubits
         self.__gate_instructions = []
 
     @property
     def num_qubits(self) -> int:
+        """Get the number of qubits in the circuit.
+
+        Returns
+        -------
+        int
+            The number of qubits in the circuit.
+        """
         return self.__num_qubits
 
     def get_instructions(self) -> list[UnitGate]:
+        """Get the list of instructions in the circuit.
+
+        Returns
+        -------
+        list[UnitGate]
+            List of unit instructions in the circuit.
+        """
         return self.__gate_instructions
 
     def j(self, qubit: int, angle: float) -> None:
+        """Add a J gate to the circuit.
+
+        Parameters
+        ----------
+        qubit : int
+            The qubit index.
+        angle : float
+            The angle of the J gate.
+        """
         self.__gate_instructions.append(J(qubit=qubit, angle=angle))
 
     def cz(self, qubit1: int, qubit2: int) -> None:
+        """Add a CZ gate to the circuit.
+
+        Parameters
+        ----------
+        qubit1 : int
+            The first qubit index.
+        qubit2 : int
+            The second qubit index.
+        """
         self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
 
     def phase_gadget(self, qubits: Iterable[int], angle: float) -> None:
-        # No need to copy as frozen?
+        """Add a phase gadget to the circuit.
+
+        Parameters
+        ----------
+        qubits : Iterable[int]
+            The qubit indices.
+        angle : float
+            The angle of the phase gadget
+        """
         self.__gate_instructions.append(PhaseGadget(qubits=list(qubits), angle=angle))
 
 
 class MacroCircuit(BaseCircuit):
+    """A class for circuits that include macro instructions.
+
+    Attributes
+    ----------
+    num_qubits : int
+        The number of qubits in the circuit.
+    """
+
     __num_qubits: int
     __macro_gate_instructions: list[Gate]
 
-    def __init__(self, qubits: int) -> None:
-        self.__num_qubits = qubits
+    def __init__(self, num_qubits: int) -> None:
+        self.__num_qubits = num_qubits
         self.__macro_gate_instructions = []
 
     @property
     def num_qubits(self) -> int:
+        """Get the number of qubits in the circuit.
+
+        Returns
+        -------
+        int
+            The number of qubits in the circuit.
+        """
         return self.__num_qubits
 
     def get_instructions(self) -> list[UnitGate]:
+        """Get the list of instructions in the circuit.
+
+        Returns
+        -------
+        list[UnitGate]
+            The list of unit instructions in the circuit.
+        """
         gate_instructions = []
         for macro_gate in self.__macro_gate_instructions:
             gate_instructions.extend(macro_gate.get_unit_gates())
         return gate_instructions
 
     def apply_macro_gate(self, gate: Gate) -> None:
+        """Apply a macro gate to the circuit.
+
+        Parameters
+        ----------
+        gate : Gate
+            The macro gate to apply.
+        """
         self.__macro_gate_instructions.append(gate)
 
 
 def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
+    """Convert a circuit to a graph state and gflow.
+
+    Parameters
+    ----------
+    circuit : BaseCircuit
+        The quantum circuit to convert.
+
+    Returns
+    -------
+    tuple[GraphState, FlowLike]
+        The graph state and gflow converted from the circuit.
+
+    Raises
+    ------
+    TypeError
+        If the circuit contains an invalid instruction.
+    """
     graph = GraphState()
     gflow = {}
 
