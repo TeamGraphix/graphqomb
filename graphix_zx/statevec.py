@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.euler import get_basis
+from graphix_zx.common import get_meas_basis
 from graphix_zx.simulator_backend import BaseSimulatorBackend
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ class StateVector(BaseStateVector):
             angle (float): measurement angle
             result (int): measurement result
         """
-        basis = get_basis(plane, angle + np.pi * result)
+        basis = get_meas_basis(plane, angle + np.pi * result)
         state = self.__state.reshape([2] * self.__num_qubits)
         state = np.tensordot(basis.conjugate(), state, axes=(0, qubit))
         state = state.reshape(2 ** (self.__num_qubits - 1))

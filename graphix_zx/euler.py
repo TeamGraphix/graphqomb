@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane
+from graphix_zx.common import Plane, get_meas_basis
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -157,35 +157,7 @@ class MeasBasis:
         self.angle = angle
 
     def get_vector(self) -> NDArray:
-        return get_basis(self.plane, self.angle)
-
-
-def get_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
-    """Return the basis vector corresponding to the plane and angle.
-
-    Parameters
-    ----------
-    plane : Plane
-        measurement plane
-    angle : float
-        measurement angle
-
-    Returns
-    -------
-    NDArray
-        basis vector
-    """
-    basis: NDArray[np.complex128]
-    if plane == Plane.XY:
-        basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
-    elif plane == Plane.YZ:
-        basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
-    elif plane == Plane.ZX:
-        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
-    else:
-        msg = "The plane must be one of XY, YZ, ZX"
-        raise ValueError(msg)
-    return basis
+        return get_meas_basis(self.plane, self.angle)
 
 
 def _get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
@@ -210,7 +182,7 @@ def _get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
     return theta, phi
 
 
-def get_basis_meas_info(vector: NDArray) -> tuple[Plane, float]:
+def get_meas_basis_meas_info(vector: NDArray) -> tuple[Plane, float]:
     """Return the measurement plane and angle corresponding to a vector.
 
     Parameters
@@ -283,5 +255,5 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
     vector = basis.get_vector()
 
     vector = matrix @ vector
-    plane, angle = get_basis_meas_info(vector)
+    plane, angle = get_meas_basis_meas_info(vector)
     return MeasBasis(plane, angle)
