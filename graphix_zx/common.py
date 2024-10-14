@@ -2,6 +2,7 @@
 
 This module provides:
 - Plane: Measurement planes for the MBQC.
+- MeasBasis: Class to represent a measurement basis.
 - get_meas_basis: Function to get the measurement basis vector.
 """
 
@@ -20,6 +21,35 @@ class Plane(Enum):
     YX = XY
     ZY = YZ
     XZ = ZX
+
+
+class MeasBasis:
+    """Class to represent a measurement basis.
+
+    Attributes
+    ----------
+    plane : Plane
+        measurement plane
+    angle : float
+        measurement angle
+    """
+
+    plane: Plane
+    angle: float
+
+    def __init__(self, plane: Plane, angle: float) -> None:
+        self.plane = plane
+        self.angle = angle
+
+    def get_vector(self) -> NDArray:
+        """Return the measurement basis vector.
+
+        Returns
+        -------
+        NDArray
+            measurement basis vector
+        """
+        return get_meas_basis(self.plane, self.angle)
 
 
 def get_meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
