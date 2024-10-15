@@ -59,11 +59,6 @@ class Gate(ABC):
         -------
         list[UnitGate]
             List of unit gates that make up the gate.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented.
         """
         raise NotImplementedError
 
@@ -75,11 +70,6 @@ class Gate(ABC):
         -------
         NDArray[np.complex128]
             Matrix representation of the gate.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented.
         """
         raise NotImplementedError
 
