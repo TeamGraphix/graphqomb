@@ -3,7 +3,7 @@ import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.pattern import is_standardized, print_pattern
-from graphix_zx.resource_opt import get_minimized_sp_meas_order, get_subgraph_sequences
+from graphix_zx.resource_opt import get_reduced_space_meas_order, get_subgraph_sequences
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
@@ -34,7 +34,7 @@ print_pattern(pattern)
 
 # %%
 # max space of the standardized pattern is 6, but we can reduce it to 4 by different transpiler strategy
-reduced_order = get_minimized_sp_meas_order(graphstate, gflow)
+reduced_order = get_reduced_space_meas_order(graphstate, gflow)
 
 graph_seq = get_subgraph_sequences(graphstate, reduced_order)
 reduced_pattern = transpile_from_subgraphs(graphstate, graph_seq, gflow)
