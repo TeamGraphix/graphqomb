@@ -1,3 +1,14 @@
+"""Compiler module for Measurement-Based Quantum Computation (MBQC).
+
+This module provides:
+- generate_m_cmd: Generate a measurement command.
+- generate_corrections: Generate correction from flowlike object.
+- transpile_from_flow: Compile graph state into pattern with gflow.
+- transpile_from_xz_flow: Compile graph state into pattern with x/z correction flows.
+- transpile: Compile graph state into pattern with correctionmaps and directed acyclic graph.
+- transpile_from_subgraphs: Compile graph state into pattern with subgraphs and gflow.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
@@ -12,11 +23,11 @@ from graphix_zx.pattern import MutablePattern
 
 if TYPE_CHECKING:
     from graphix_zx.flow import FlowLike
-    from graphix_zx.graphstate import BaseGraphState, GraphState
+    from graphix_zx.graphstate import BaseGraphState
     from graphix_zx.pattern import ImmutablePattern
 
-Correction = AbstractSet[int]
-CorrectionMap = Mapping[int, Correction]
+CorrectionSet = AbstractSet[int]
+CorrectionMap = Mapping[int, CorrectionSet]
 
 
 # extended MBQC
@@ -24,25 +35,33 @@ def generate_m_cmd(
     node: int,
     meas_plane: Plane,
     meas_angle: float,
-    x_correction: Correction,
-    z_correction: Correction,
+    x_correction: CorrectionSet,
+    z_correction: CorrectionSet,
 ) -> M:
     """Generate a measurement command.
 
-    Args:
-        node (int): node to be measured
-        meas_plane (Plane): measurement plane
-        meas_angle (float): measurement angle
-        x_correction (Correction): x correction applied to the node
-        z_correction (Correction): z correction applied to the node
+    Parameters
+    ----------
+    node : int
+        node to be measured
+    meas_plane : Plane
+        measurement plane
+    meas_angle : float
+        measurement angle
+    x_correction : Correction
+        x correction applied to the node
+    z_correction : Correction
+        z correction applied to the node
 
     Raises
     ------
-        ValueError: invalid measurement plane
+    ValueError
+        invalid measurement plane
 
     Returns
     -------
-        M: measurement command
+    M
+        measurement command
     """
     if meas_plane == Plane.XY:
         s_domain = x_correction
@@ -66,15 +85,19 @@ def generate_m_cmd(
 
 
 def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> CorrectionMap:
-    """Generate correction from flowlike object
+    """Generate correction from flowlike object.
 
-    Args:
-        graph (BaseGraphState): graph state
-        flowlike (FlowLike): flowlike object
+    Parameters
+    ----------
+    graph : BaseGraphState
+        graph state
+    flowlike : FlowLike
+        flowlike object
 
     Returns
     -------
-        CorrectionMap : correction dictionary
+    CorrectionMap
+        correction mapping
     """
     corrections: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
 
@@ -90,16 +113,26 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
 
 
 def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
-    """Transpile pattern from gflow object
+    """Compile graph state into pattern with gflow.
 
-    Args:
-        graph (BaseGraphState): graph state
-        gflow (FlowLike): gflow
-        correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
+    Parameters
+    ----------
+    graph : BaseGraphState
+        graph state
+    gflow : FlowLike
+        gflow
+    correct_output : bool, optional
+        whether to correct outputs or not. Defaults to True.
 
     Returns
     -------
-        ImmutablePattern: immutable pattern
+    ImmutablePattern
+        immutable pattern
+
+    Raises
+    ------
+    ValueError
+        if the flow is invalid
     """
     # TODO: check the validity of the flows
     if not check_causality(graph, gflow):
@@ -120,6 +153,24 @@ def transpile_from_xz_flow(
     *,
     correct_output: bool = True,
 ) -> ImmutablePattern:
+    """Compile graph state into pattern with x/z correction flows.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        graph state
+    x_flow : FlowLike
+        x correction flow
+    z_flow : FlowLike
+        z correction flow
+    correct_output : bool, optional
+        whether to correct outputs or not, by default True
+
+    Returns
+    -------
+    ImmutablePattern
+        immutable pattern
+    """
     x_corrections = generate_corrections(graph, x_flow)
     z_corrections = generate_corrections(graph, z_flow)
 
@@ -141,18 +192,25 @@ def transpile(
     *,
     correct_output: bool = True,
 ) -> MutablePattern:
-    """Transpile pattern from graph, corrections, and dag
+    """Compile graph state into pattern with correctionmaps and directed acyclic graph.
 
-    Args:
-        graph (BaseGraphState): graph state
-        x_corrections (CorrectionMap): x corrections
-        z_corrections (CorrectionMap): z corrections
-        dag (dict[int, set[int]]): directed acyclic graph
-        correct_output (bool, optional): whether to correct outputs or not. Defaults to True.
+    Parameters
+    ----------
+    graph : BaseGraphState
+        graph state
+    x_corrections : CorrectionMap
+        x corrections
+    z_corrections : CorrectionMap
+        z corrections
+    dag : dict[int, set[int]]
+        directed acyclic graph representation of the causality of flow
+    correct_output : bool, optional
+        whether to correct outputs or not, by default True
 
     Returns
     -------
-        MutablePattern: mutable pattern
+    MutablePattern
+        mutable pattern
     """
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
@@ -197,19 +255,29 @@ def transpile(
 
 def transpile_from_subgraphs(
     graph: BaseGraphState,
-    subgraphs: Iterable[GraphState],
+    subgraphs: Iterable[BaseGraphState],
     gflow: FlowLike,
 ) -> ImmutablePattern:
-    """Generate a pattern from subgraph sequence
+    """Compile graph state into pattern with subgraphs and gflow.
 
-    Args:
-        graph (BaseGraphState): graph state
-        subgraphs (list[BaseGraphState]): subgraph sequence
-        gflow (FlowLike): gflow
+    Parameters
+    ----------
+    graph : BaseGraphState
+        graph state
+    subgraphs : Iterable[BaseGraphState]
+        snapshots of graph state at each step in the computation
+    gflow : FlowLike
+        gflow
 
     Returns
     -------
-        ImmutablePattern: immutable pattern
+    ImmutablePattern
+        immutable pattern
+
+    Raises
+    ------
+    ValueError
+        if the flow is invalid
     """
     if not check_causality(graph, gflow):
         msg = "Invalid flow"
