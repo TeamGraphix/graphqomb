@@ -3,13 +3,13 @@ import numpy as np
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.pattern import is_standardized, print_pattern
+from graphix_zx.qompiler import qompile_from_flow, qompile_from_subgraphs
 from graphix_zx.resource_opt import get_reduced_space_meas_order, get_subgraph_sequences
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
     SimulatorBackend,
 )
-from graphix_zx.transpiler import transpile_from_flow, transpile_from_subgraphs
 
 # %%
 # generate circuit
@@ -26,18 +26,18 @@ circuit.cz(1, 2)
 # convert circuit to graph and flow
 graphstate, gflow = circuit2graph(circuit)
 
-# first, naively transpile it to standardized pattern
-pattern = transpile_from_flow(graphstate, gflow)
+# first, naively qompile it to standardized pattern
+pattern = qompile_from_flow(graphstate, gflow)
 print("pattern is standardized:", is_standardized(pattern))
 print("get max space of pattern:", pattern.max_space)
 print_pattern(pattern)
 
 # %%
-# max space of the standardized pattern is 6, but we can reduce it to 4 by different transpiler strategy
+# max space of the standardized pattern is 6, but we can reduce it to 4 by different qompiler strategy
 reduced_order = get_reduced_space_meas_order(graphstate, gflow)
 
 graph_seq = get_subgraph_sequences(graphstate, reduced_order)
-reduced_pattern = transpile_from_subgraphs(graphstate, graph_seq, gflow)
+reduced_pattern = qompile_from_subgraphs(graphstate, graph_seq, gflow)
 print("get max space of reduced pattern:", reduced_pattern.max_space)
 print_pattern(reduced_pattern)
 

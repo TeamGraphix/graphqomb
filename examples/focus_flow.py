@@ -4,12 +4,12 @@ import numpy as np
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.focus_flow import focus_gflow
 from graphix_zx.pattern import is_standardized, print_pattern
+from graphix_zx.qompiler import qompile_from_flow
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
     SimulatorBackend,
 )
-from graphix_zx.transpiler import transpile_from_flow
 
 # %%
 # generate circuit
@@ -31,8 +31,8 @@ focused_flow = focus_gflow(gflow, graphstate)
 
 # %%
 
-# transpile into standardized and signal shifted pattern
-pattern = transpile_from_flow(graphstate, focused_flow)
+# qompile into standardized and signal shifted pattern
+pattern = qompile_from_flow(graphstate, focused_flow)
 print("pattern is standardized:", is_standardized(pattern))
 print("get max space of pattern:", pattern.max_space)
 # we can see focus property, aka signal shifting in measurement calculus

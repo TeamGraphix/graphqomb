@@ -1,12 +1,14 @@
-"""Compiler module for Measurement-Based Quantum Computation (MBQC).
+"""Quantum Compiler(qompiler) module for Measurement-Based Quantum Computation (MBQC).
+
+note: `compile` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
 - generate_m_cmd: Generate a measurement command.
 - generate_corrections: Generate correction from flowlike object.
-- transpile_from_flow: Compile graph state into pattern with gflow.
-- transpile_from_xz_flow: Compile graph state into pattern with x/z correction flows.
-- transpile: Compile graph state into pattern with correctionmaps and directed acyclic graph.
-- transpile_from_subgraphs: Compile graph state into pattern with subgraph sequence and gflow.
+- qompile_from_flow: Compile graph state into pattern with gflow.
+- qompile_from_xz_flow: Compile graph state into pattern with x/z correction flows.
+- qompile: Compile graph state into pattern with correctionmaps and directed acyclic graph.
+- qompile_from_subgraphs: Compile graph state into pattern with subgraph sequence and gflow.
 """
 
 from __future__ import annotations
@@ -112,7 +114,7 @@ def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correctio
     return corrections
 
 
-def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
+def qompile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
     """Compile graph state into pattern with gflow.
 
     Parameters
@@ -142,11 +144,10 @@ def transpile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_outpu
     # generate corrections
     x_flow = gflow
     z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow}
-    return transpile_from_xz_flow(graph, x_flow, z_flow, correct_output=correct_output)
+    return qompile_from_xz_flow(graph, x_flow, z_flow, correct_output=correct_output)
 
 
-# NOTE: this function is intended to be used with non-Unitary programming
-def transpile_from_xz_flow(
+def qompile_from_xz_flow(
     graph: BaseGraphState,
     x_flow: FlowLike,
     z_flow: FlowLike,
@@ -178,13 +179,13 @@ def transpile_from_xz_flow(
     for node in graph.output_nodes:
         dag[node] = set()
 
-    pattern = transpile(graph, x_corrections, z_corrections, dag, correct_output=correct_output)
+    pattern = qompile(graph, x_corrections, z_corrections, dag, correct_output=correct_output)
     pattern.mark_runnable()
     pattern.mark_deterministic()
     return pattern.freeze()
 
 
-def transpile(
+def qompile(
     graph: BaseGraphState,
     x_corrections: CorrectionMap,
     z_corrections: CorrectionMap,
@@ -253,7 +254,7 @@ def transpile(
     return pattern
 
 
-def transpile_from_subgraphs(
+def qompile_from_subgraphs(
     graph: BaseGraphState,
     subgraphs: Iterable[BaseGraphState],
     gflow: FlowLike,
@@ -303,7 +304,7 @@ def transpile_from_subgraphs(
         for node in subgraph.output_nodes:
             sub_dag[node] = set()
 
-        sub_pattern = transpile(
+        sub_pattern = qompile(
             subgraph,
             sub_x_corrections,
             sub_z_corrections,
