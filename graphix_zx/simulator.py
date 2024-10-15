@@ -1,3 +1,14 @@
+"""Module for simulating circuits and Measurement Patterns.
+
+This module provides:
+- BaseCircuitSimulator: Base class for circuit simulators.
+- SimulatorBackend: Enum class for circuit
+- MBQCCircuitSimulator: Class for simulating MBQC circuits.
+- BasePatternSimulator: Base class for pattern simulators.
+- PatternSimulator: Class for simulating Measurement Pattern.
+- parse_q_indices: Parse qubit indices and return permutation to sort the logical qubit indices.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -21,25 +32,47 @@ if TYPE_CHECKING:
 
 
 class BaseCircuitSimulator(ABC):
+    """Base class for circuit simulators."""
+
     @abstractmethod
     def __init__(self) -> None:
         pass
 
     @abstractmethod
     def apply_gate(self, gate: Gate) -> None:
+        """Apply a gate to the circuit.
+
+        Parameters
+        ----------
+        gate : Gate
+            The gate to apply.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def simulate(self) -> None:
+        """Simulate the circuit."""
         raise NotImplementedError
 
     @abstractmethod
     def get_state(self) -> BaseStateVector:
+        """Get the quantum state as a state vector.
+
+        Returns
+        -------
+        BaseStateVector
+            The quantum state as a state vector.
+        """
         raise NotImplementedError
 
 
 class SimulatorBackend(Enum):
-    """Enum class for circuit simulator backend"""
+    """Enum class for circuit simulator backend.
+
+    Available backends are:
+    - StateVector
+    - DensityMatrix
+    """
 
     StateVector = auto()
     DensityMatrix = auto()
@@ -47,8 +80,17 @@ class SimulatorBackend(Enum):
 
 # NOTE: Currently, only XY plane is supported
 class MBQCCircuitSimulator(BaseCircuitSimulator):
+    """Class for simulating MBQC circuits.
+
+    Attributes
+    ----------
+    __state : BaseStateVector
+        The quantum state.
+    __gate_instructions : list[UnitGate]
+        The list of gate instructions in the circuit.
+    """
+
     def __init__(self, mbqc_circuit: MBQCCircuit, backend: SimulatorBackend) -> None:
-        # NOTE: is it a correct backend switch?
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(mbqc_circuit.num_qubits)
         elif backend == SimulatorBackend.DensityMatrix:
@@ -60,6 +102,18 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
         self.__gate_instructions: list[UnitGate] = mbqc_circuit.get_instructions()
 
     def apply_gate(self, gate: Gate) -> None:
+        """Apply a gate to the circuit.
+
+        Parameters
+        ----------
+        gate : Gate
+            The gate to apply.
+
+        Raises
+        ------
+        TypeError
+            If the gate is not a valid gate.
+        """
         operator = gate.get_matrix()
         # may be refactored
         if isinstance(gate, J):
@@ -71,14 +125,24 @@ class MBQCCircuitSimulator(BaseCircuitSimulator):
             raise TypeError(msg)
 
     def simulate(self) -> None:
+        """Simulate the circuit."""
         for gate in self.__gate_instructions:
             self.apply_gate(gate)
 
     def get_state(self) -> StateVector:
+        """Get the quantum state as a state vector.
+
+        Returns
+        -------
+        StateVector
+            The quantum state as a state vector.
+        """
         return self.__state
 
 
 class BasePatternSimulator(ABC):
+    """Base class for pattern simulators."""
+
     @abstractmethod
     def __init__(self) -> None:
         raise NotImplementedError
@@ -86,24 +150,62 @@ class BasePatternSimulator(ABC):
     @property
     @abstractmethod
     def results(self) -> dict[int, bool]:
+        """Get the map from node index to measurement result.
+
+        Returns
+        -------
+        dict[int, bool]
+            Map from node index to measurement result.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def apply_cmd(self, cmd: Command) -> None:
+        """Apply a command to the pattern.
+
+        Parameters
+        ----------
+        cmd : Command
+            The command to apply.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def simulate(self) -> None:
+        """Simulate the pattern."""
         raise NotImplementedError
 
     @abstractmethod
     def get_state(
         self,
     ) -> BaseSimulatorBackend:
+        """Get the quantum state in a specified backend.
+
+        Returns
+        -------
+        BaseSimulatorBackend
+            The quantum state in a specified backend.
+        """
         raise NotImplementedError
 
 
 class PatternSimulator(BasePatternSimulator):
+    """Class for simulating Measurement Pattern.
+
+    Attributes
+    ----------
+    __pattern : ImmutablePattern
+        The measurement pattern to simulate.
+    __state : SimulatorBackend
+        The simulator backend.
+    __node_indices : list[int]
+        Mapping from qubit index of the state to node index of the pattern.
+    __results : dict[int, bool]
+        The map from node index to measurement result.
+    __calc_prob : bool
+        Flag to calculate probability.
+    """
+
     def __init__(
         self,
         pattern: ImmutablePattern,
@@ -111,8 +213,7 @@ class PatternSimulator(BasePatternSimulator):
         *,
         calc_prob: bool = False,
     ) -> None:
-        q_indices = pattern.q_indices
-        self.__node_indices: list[int] = [q_indices[input_node] for input_node in pattern.input_nodes]
+        self.__node_indices: list[int] = [pattern.q_indices[input_node] for input_node in pattern.input_nodes]
         self.__results: dict[int, bool] = {}
 
         self.__calc_prob: bool = calc_prob
@@ -135,13 +236,39 @@ class PatternSimulator(BasePatternSimulator):
 
     @property
     def node_indices(self) -> list[int]:
+        """Get the mapping from qubit index of the state to node index of the pattern.
+
+        Returns
+        -------
+        list[int]
+            The mapping from qubit index of the state to node index of the pattern
+        """
         return self.__node_indices
 
     @property
     def results(self) -> dict[int, bool]:
+        """Get the map from node index to measurement result.
+
+        Returns
+        -------
+        dict[int, bool]
+            The map from node index to measurement result.
+        """
         return self.__results
 
     def apply_cmd(self, cmd: Command) -> None:
+        """Apply a command to the state.
+
+        Parameters
+        ----------
+        cmd : Command
+            The command to apply.
+
+        Raises
+        ------
+        TypeError
+            If the command is invalid
+        """
         if isinstance(cmd, N):
             self._apply_n(cmd)
         elif isinstance(cmd, E):
@@ -159,6 +286,7 @@ class PatternSimulator(BasePatternSimulator):
             raise TypeError(msg)
 
     def simulate(self) -> None:
+        """Simulate the pattern."""
         for cmd in self.__pattern.commands:
             self.apply_cmd(cmd)
 
@@ -170,6 +298,13 @@ class PatternSimulator(BasePatternSimulator):
         self.__state.reorder(permutation)
 
     def get_state(self) -> BaseSimulatorBackend:
+        """Get the quantum state in a specified backend.
+
+        Returns
+        -------
+        BaseSimulatorBackend
+            The quantum state in a specified backend.
+        """
         return self.__state
 
     def _apply_n(self, cmd: N) -> None:
@@ -226,11 +361,32 @@ class PatternSimulator(BasePatternSimulator):
             pass
 
     def _apply_c(self, cmd: C) -> None:
-        raise NotImplementedError
+        clifford = C.local_clifford.get_matrix()
+        node_id = self.__node_indices.index(cmd.node)
+        self.__state.evolve(clifford, [node_id])
 
 
 # return permutation
 def parse_q_indices(node_indices: Sequence[int], q_indices: Mapping[int, int]) -> list[int]:
+    """Parse qubit indices and return permutation to sort the logical qubit indices.
+
+    Parameters
+    ----------
+    node_indices : Sequence[int]
+        mapping from qubit index of the state to node index of the pattern
+    q_indices : Mapping[int, int]
+        mapping from node index of the pattern to logical qubit index
+
+    Returns
+    -------
+    list[int]
+        The permutation to sort the logical qubit indices
+
+    Raises
+    ------
+    ValueError
+        If the qubit index is invalid
+    """
     ancilla = set()
     permutation = [-1 for _ in range(len(node_indices))]
     # check
