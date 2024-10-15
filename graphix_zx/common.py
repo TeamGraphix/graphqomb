@@ -13,7 +13,13 @@ from numpy.typing import NDArray
 
 
 class Plane(Enum):
-    """Measurement planes for the ZX-calculus."""
+    """Measurement planes for the ZX-calculus.
+
+    The measurement planes are:
+    - XY(YX)
+    - YZ(ZY)
+    - ZX(XZ)
+    """
 
     XY = auto()
     YZ = auto()
