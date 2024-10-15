@@ -271,10 +271,20 @@ class MutablePattern(BasePattern):
 
     Attributes
     ----------
-    input_nodes : set[int]
+    __input_nodes : set[int]
         Input nodes of the pattern
-    q_indices : dict[int, int]
+    __output_nodes : set[int]
+        Output nodes of the pattern
+    __q_indices : dict[int, int]
         Logical qubit indices map of the pattern
+    __num_nodes : int
+        Total number of nodes in the graph state
+    __commands : list[Command]
+        Commands of the pattern
+    __runnable : bool
+        True if the pattern is runnable
+    __deterministic : bool
+        True if the pattern is deterministic
     """
 
     def __init__(
