@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
+from graphix_zx.qompiler import qompile_from_flow
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
     SimulatorBackend,
 )
-from graphix_zx.transpiler import transpile_from_flow
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def test_circuit_sim(random_circ: MBQCCircuit) -> None:
 
 def test_pattern_sim(random_circ: MBQCCircuit) -> None:
     graph, gflow = circuit2graph(random_circ)
-    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    pattern = qompile_from_flow(graph, gflow, correct_output=True)
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
     simulator.simulate()
     state = simulator.get_state()
@@ -61,7 +61,7 @@ def test_minimum_circ_pattern() -> None:
     circuit = MBQCCircuit(1)
     circuit.j(0, 0.3 * np.pi)
     graph, gflow = circuit2graph(circuit)
-    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    pattern = qompile_from_flow(graph, gflow, correct_output=True)
     circ_simulator = MBQCCircuitSimulator(circuit, SimulatorBackend.StateVector)
     circ_simulator.simulate()
     pattern_sim = PatternSimulator(pattern, SimulatorBackend.StateVector)
@@ -76,7 +76,7 @@ def test_minimum_circ_pattern() -> None:
 
 def test_match_circ_pattern(random_circ: MBQCCircuit) -> None:
     graph, gflow = circuit2graph(random_circ)
-    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    pattern = qompile_from_flow(graph, gflow, correct_output=True)
 
     circ_sim = MBQCCircuitSimulator(random_circ, SimulatorBackend.StateVector)
     circ_sim.simulate()
@@ -93,7 +93,7 @@ def test_match_circ_pattern_with_phase_gadget(
     random_circ_with_phase_gadget: MBQCCircuit,
 ) -> None:
     graph, gflow = circuit2graph(random_circ_with_phase_gadget)
-    pattern = transpile_from_flow(graph, gflow, correct_output=True)
+    pattern = qompile_from_flow(graph, gflow, correct_output=True)
 
     circ_sim = MBQCCircuitSimulator(random_circ_with_phase_gadget, SimulatorBackend.StateVector)
     circ_sim.simulate()
