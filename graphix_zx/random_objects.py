@@ -1,3 +1,9 @@
+"""Random object generator.
+
+This module provides:
+- get_random_flow_graph: Generate a random flow graph.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -17,7 +23,28 @@ def get_random_flow_graph(
     edge_p: float = 0.5,
     rng: Generator | None = None,
 ) -> tuple[GraphState, dict[int, set[int]]]:
-    """Generate a random flow graph."""
+    """Generate a random flow graph.
+
+    Parameters
+    ----------
+    width : int
+        The width of the graph.
+    depth : int
+        The depth of the graph.
+    edge_p : float, optional
+        The probability of adding an edge between two adjacent nodes.
+        Default is 0.5.
+    rng : Generator, optional
+        The random number generator.
+        Default is None.
+
+    Returns
+    -------
+    GraphState
+        The generated graph.
+    dict[int, set[int]]
+        The flow of the graph.
+    """
     graph = GraphState()
     flow: dict[int, set[int]] = {}
     num_nodes = 0
