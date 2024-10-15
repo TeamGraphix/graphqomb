@@ -45,11 +45,6 @@ class BaseCircuit(ABC):
         -------
         int
             The number of qubits in the circuit
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented in a subclass.
         """
         raise NotImplementedError
 
@@ -61,11 +56,6 @@ class BaseCircuit(ABC):
         -------
         list[UnitGate]
             List of unit instructions in the circuit.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented in a subclass.
         """
         raise NotImplementedError
 
