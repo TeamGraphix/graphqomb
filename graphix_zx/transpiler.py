@@ -6,7 +6,7 @@ This module provides:
 - transpile_from_flow: Compile graph state into pattern with gflow.
 - transpile_from_xz_flow: Compile graph state into pattern with x/z correction flows.
 - transpile: Compile graph state into pattern with correctionmaps and directed acyclic graph.
-- transpile_from_subgraphs: Compile graph state into pattern with subgraphs and gflow.
+- transpile_from_subgraphs: Compile graph state into pattern with subgraph sequence and gflow.
 """
 
 from __future__ import annotations
@@ -258,14 +258,14 @@ def transpile_from_subgraphs(
     subgraphs: Iterable[BaseGraphState],
     gflow: FlowLike,
 ) -> ImmutablePattern:
-    """Compile graph state into pattern with subgraphs and gflow.
+    """Compile graph state into pattern with subgraph sequence and gflow.
 
     Parameters
     ----------
     graph : BaseGraphState
         graph state
     subgraphs : Iterable[BaseGraphState]
-        snapshots of graph state at each step in the computation
+        sequence of graph structures at each step of the computation.
     gflow : FlowLike
         gflow
 
