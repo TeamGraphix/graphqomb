@@ -69,22 +69,14 @@ docstring-code-format = true
   "S101",    # `assert` detected
   "PLR2004", # magic value in test(should be removed)
   "D100",
-  "D101",
-  "D102",
   "D103",
   "D104",
   "D400",
-  "DOC",
 ]
 "examples/*.py" = [
   "T201", # print
   "D100",
-  "D101",
-  "D102",
-  "D103",
   "D104",
-  "D400",
-  "DOC",
 ]
 
 [tool.pytest.ini_options]
