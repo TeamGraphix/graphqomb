@@ -168,11 +168,6 @@ class BasePattern(ABC):
         -------
         set[int]
             Set of input nodes of the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -185,11 +180,6 @@ class BasePattern(ABC):
         -------
         set[int]
             Set of output nodes of the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -202,11 +192,6 @@ class BasePattern(ABC):
         -------
         set[int]
             Set of nodes of the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -219,11 +204,6 @@ class BasePattern(ABC):
         -------
         dict[int, int]
             Map of logical qubit indices
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -236,11 +216,6 @@ class BasePattern(ABC):
         -------
         list[Command]
             List of commands of the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -253,11 +228,6 @@ class BasePattern(ABC):
         -------
         int
             Maximum number of qubits prepared at any point in the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -270,11 +240,6 @@ class BasePattern(ABC):
         -------
         list[int]
             List of qubits prepared at each point in the pattern
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -286,11 +251,6 @@ class BasePattern(ABC):
         -------
         bool
             True if the pattern is runnable
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
@@ -302,11 +262,6 @@ class BasePattern(ABC):
         -------
         bool
             True if the pattern is deterministic
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented
         """
         raise NotImplementedError
 
