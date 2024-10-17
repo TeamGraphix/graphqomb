@@ -6,7 +6,7 @@ This module provides:
 
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState
 
 
-class ColorMap(StrEnum):
+class ColorMap(Enum):
     """Color map for the nodes."""
 
     XY = "green"
