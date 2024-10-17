@@ -53,18 +53,20 @@ def get_random_flow_graph(
         rng = np.random.default_rng()
 
     # input nodes
-    for _ in range(width):
+    for q_index in range(width):
         graph.add_physical_node(num_nodes, is_input=True)
         graph.set_meas_plane(num_nodes, Plane.XY)
         graph.set_meas_angle(num_nodes, 0.0)
+        graph.set_q_index(num_nodes, q_index)
         num_nodes += 1
 
     # internal nodes
     for _ in range(depth - 2):
-        for _ in range(width):
+        for q_index in range(width):
             graph.add_physical_node(num_nodes)
             graph.set_meas_plane(num_nodes, Plane.XY)
             graph.set_meas_angle(num_nodes, 0.0)
+            graph.set_q_index(num_nodes, q_index)
             graph.add_physical_edge(num_nodes - width, num_nodes)
             flow[num_nodes - width] = {num_nodes}
             num_nodes += 1
@@ -74,8 +76,9 @@ def get_random_flow_graph(
                 graph.add_physical_edge(num_nodes - width + w, num_nodes - width + w + 1)
 
     # output nodes
-    for _ in range(width):
+    for q_index in range(width):
         graph.add_physical_node(num_nodes, is_output=True)
+        graph.set_q_index(num_nodes, q_index)
         graph.add_physical_edge(num_nodes - width, num_nodes)
         flow[num_nodes - width] = {num_nodes}
         num_nodes += 1
