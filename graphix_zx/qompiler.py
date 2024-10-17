@@ -3,8 +3,6 @@
 note: `compile` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
-- generate_m_cmd: Generate a measurement command.
-- generate_corrections: Generate correction from flowlike object.
 - qompile_from_flow: Compile graph state into pattern with gflow.
 - qompile_from_xz_flow: Compile graph state into pattern with x/z correction flows.
 - qompile: Compile graph state into pattern with correctionmaps and directed acyclic graph.
@@ -33,7 +31,7 @@ CorrectionMap = Mapping[int, CorrectionSet]
 
 
 # extended MBQC
-def generate_m_cmd(
+def _generate_m_cmd(
     node: int,
     meas_plane: Plane,
     meas_angle: float,
@@ -86,7 +84,7 @@ def generate_m_cmd(
     )
 
 
-def generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> CorrectionMap:
+def _generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> CorrectionMap:
     """Generate correction from flowlike object.
 
     Parameters
@@ -172,8 +170,8 @@ def qompile_from_xz_flow(
     ImmutablePattern
         immutable pattern
     """
-    x_corrections = generate_corrections(graph, x_flow)
-    z_corrections = generate_corrections(graph, z_flow)
+    x_corrections = _generate_corrections(graph, x_flow)
+    z_corrections = _generate_corrections(graph, z_flow)
 
     dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow}
     for node in graph.output_nodes:
@@ -232,7 +230,7 @@ def qompile(
     pattern.extend(E(nodes=edge) for edge in graph.physical_edges)
     # TODO: local clifford on input nodes if we want to have arbitrary input states
     pattern.extend(
-        generate_m_cmd(
+        _generate_m_cmd(
             node,
             meas_planes[node],
             meas_angles[node],
@@ -289,8 +287,8 @@ def qompile_from_subgraphs(
 
     xflow = gflow
     zflow = {node: oddneighbors(gflow[node], graph) for node in gflow}
-    x_corrections = generate_corrections(graph, xflow)
-    z_corrections = generate_corrections(graph, zflow)
+    x_corrections = _generate_corrections(graph, xflow)
+    z_corrections = _generate_corrections(graph, zflow)
 
     for subgraph in subgraphs:
         sub_nodes = subgraph.physical_nodes
