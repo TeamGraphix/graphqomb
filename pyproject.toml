@@ -75,8 +75,6 @@ docstring-code-format = true
 ]
 "examples/*.py" = [
   "T201", # print
-  "D100",
-  "D104",
 ]
 
 [tool.pytest.ini_options]
