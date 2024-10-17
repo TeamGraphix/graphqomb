@@ -11,7 +11,7 @@ import numpy as np
 from graphix_zx.circuit import MBQCCircuit, circuit2graph
 from graphix_zx.pattern import is_standardized, print_pattern
 from graphix_zx.qompiler import qompile_from_flow, qompile_from_subgraphs
-from graphix_zx.resource_opt import get_reduced_space_meas_order, get_subgraph_sequences
+from graphix_zx.scheduler import get_reduced_space_meas_order, get_subgraph_sequences
 from graphix_zx.simulator import (
     MBQCCircuitSimulator,
     PatternSimulator,
