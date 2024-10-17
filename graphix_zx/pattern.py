@@ -423,7 +423,7 @@ class MutablePattern(BasePattern):
         if common_nodes != border_nodes:
             msg = f"Detect duplicated nodes without border of two patterns. duplicated nodes: {common_nodes}"
             raise ValueError(msg)
-        new_input_nodes = self.input_nodes | pattern.input_nodes
+        new_input_nodes = self.input_nodes | (pattern.input_nodes - self.output_nodes)
         new_input_q_indices = {}
         for node in new_input_nodes:
             if node in self.input_nodes:
