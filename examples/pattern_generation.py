@@ -1,3 +1,5 @@
+"""Basic example of generating a pattern from a circuit and simulating it."""
+
 # %%
 import numpy as np
 

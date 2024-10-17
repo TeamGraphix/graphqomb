@@ -1,3 +1,10 @@
+"""Demonstrates how to schedule a pattern within limited qubit resources.
+
+We optimize qubit usage by dividing the entire graph into a sequence of subgraphs at each measurement step.
+
+A simple algorithm is employed to determine a measurement order that reduces the pattern space incrementally.
+"""
+
 # %%
 import numpy as np
 

@@ -1,3 +1,5 @@
+"""Example to generate a pattern from a circuit with focus gflow."""
+
 # %%
 import numpy as np
 
