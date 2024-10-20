@@ -103,6 +103,52 @@ def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
         graph.add_physical_edge(1, 2)
 
 
+def test_remove_physical_node_with_nonexistent_node(graph: GraphState) -> None:
+    """Test removing a nonexistent physical node from the graph."""
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.remove_physical_node(1)
+
+
+def test_remove_physical_node(graph: GraphState) -> None:
+    """Test removing a physical node from the graph."""
+    graph.add_physical_node(1)
+    graph.remove_physical_node(1)
+    assert 1 not in graph.physical_nodes
+    assert graph.num_physical_nodes == 0
+
+
+def test_remove_physical_node_from_minimal_graph(graph: GraphState) -> None:
+    """Test removing a physical node from the graph with edges."""
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_edge(1, 2)
+    graph.remove_physical_node(1)
+    assert 1 not in graph.physical_nodes
+    assert 2 in graph.physical_nodes
+    assert (1, 2) not in graph.physical_edges
+    assert (2, 1) not in graph.physical_edges
+    assert graph.num_physical_nodes == 1
+    assert graph.num_physical_edges == 0
+
+
+def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
+    """Test removing a physical node from the graph with 3 nodes and edges."""
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_node(3)
+    graph.add_physical_edge(1, 2)
+    graph.add_physical_edge(2, 3)
+    graph.set_input(2)
+    graph.set_output(2)
+    graph.remove_physical_node(2)
+    assert graph.physical_nodes == {1, 3}
+    assert graph.physical_edges == set()
+    assert graph.num_physical_nodes == 2
+    assert graph.num_physical_edges == 0
+    assert graph.input_nodes == set()
+    assert graph.output_nodes == set()
+
+
 def test_remove_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
     """Test removing an edge with nonexistent nodes from the graph."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
