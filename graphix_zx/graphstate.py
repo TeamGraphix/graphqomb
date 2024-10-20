@@ -526,6 +526,33 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
+    def remove_physical_node(self, node: int) -> None:
+        """Remove a physical node from the graph state.
+
+        Parameters
+        ----------
+            node : int
+
+            Raises
+            ------
+            ValueError
+                If the node does not exist.
+        """
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
+        self.ensure_node_exists(node)
+        self.__physical_nodes -= {node}
+        del self.__physical_edges[node]
+        self.__input_nodes -= {node}
+        self.__output_nodes -= {node}
+        self.__meas_planes.pop(node, None)
+        self.__meas_angles.pop(node, None)
+        self.__q_indices.pop(node, None)
+        self.__local_cliffords.pop(node, None)
+        for neighbor in self.__physical_edges:
+            self.__physical_edges[neighbor] -= {node}
+
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
 
