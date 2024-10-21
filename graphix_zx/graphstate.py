@@ -533,10 +533,10 @@ class GraphState(BaseGraphState):
         ----------
             node : int
 
-            Raises
-            ------
-            ValueError
-                If the node does not exist.
+        Raises
+        ------
+        ValueError
+            If the node does not exist.
         """
         if node not in self.__physical_nodes:
             msg = f"Node does not exist {node=}"
