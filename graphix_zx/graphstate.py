@@ -828,9 +828,9 @@ class ZXGraphState(GraphState):
 
         # update node measurement
         measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_angles[v]),
-            Plane.XZ: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-            Plane.YZ: (Plane.YZ, lambda v: self.meas_angles[v] + 0.5 * np.pi),
+            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: (self.meas_angles[v] + 0.5 * np.pi) % (2.0 * np.pi)),
         }
 
         self._update_node_measurement(measurement_action, node)
