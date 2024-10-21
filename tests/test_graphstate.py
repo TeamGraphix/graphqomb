@@ -642,5 +642,223 @@ def test_pivot_with_8_nodes_graph(zx_graph: ZXGraphState) -> None:
     assert zx_graph.physical_edges == original_edges
 
 
+def test_remove_clifford_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
+    """Test remove_clifford raises an error if the node does not exist."""
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        zx_graph.remove_clifford(1)
+
+
+def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.set_input(1)
+    with pytest.raises(ValueError, match="Clifford vertex removal not allowed for input node"):
+        zx_graph.remove_clifford(1)
+
+
+def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> None:
+    """Test remove_clifford fails if the measurement plane is invalid."""
+    zx_graph.add_physical_node(1)
+    zx_graph.set_meas_plane(1, "test_plane")
+    zx_graph.set_meas_angle(1, 0.5 * np.pi)
+    with pytest.raises(ValueError, match="Invalid measurement plane 'test_plane' for Clifford removal."):
+        zx_graph.remove_clifford(1)
+
+
+def test_remove_clifford_fails_for_non_clifford_vertex(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node(1)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_angle(1, 0.1 * np.pi)
+    with pytest.raises(ValueError, match="This node is not a Clifford vertex"):
+        zx_graph.remove_clifford(1)
+
+
+def test_remove_clifford_with_xz_0(zx_graph: ZXGraphState) -> None:
+    """Test removing a Clifford vertex with measurement plane XZ and angle 0."""
+    # 4---1---2
+    #     |
+    #     3
+    for i in range(1, 5):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (1, 3), (1, 4)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XZ)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_plane(4, Plane.YZ)
+    zx_graph.set_meas_angle(1, 0)
+    zx_graph.set_meas_angle(2, 0.1 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.set_meas_angle(4, 0.3 * np.pi)
+    zx_graph.remove_clifford(1)
+
+    assert zx_graph.physical_nodes == {2, 3, 4}
+    assert zx_graph.physical_edges == set()
+    assert zx_graph.meas_planes == {2: Plane.XY, 3: Plane.YZ, 4: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[2]) == 0.1 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 1.8 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[4]) == 0.3 * np.pi
+
+
+def test_remove_clifford_with_xz_pi(zx_graph: ZXGraphState) -> None:
+    """Test removing a Clifford vertex with measurement plane XZ and angle pi."""
+    # 4---1---2
+    #     |
+    #     3
+    for i in range(1, 5):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (1, 3), (1, 4)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XZ)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_plane(4, Plane.YZ)
+    zx_graph.set_meas_angle(1, np.pi)
+    zx_graph.set_meas_angle(2, 0.1 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.set_meas_angle(4, 0.3 * np.pi)
+    zx_graph.remove_clifford(1)
+
+    assert zx_graph.physical_nodes == {2, 3, 4}
+    assert zx_graph.physical_edges == set()
+    assert zx_graph.meas_planes == {2: Plane.XY, 3: Plane.YZ, 4: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.1 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 1.8 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[4]) == 0.3 * np.pi
+
+
+def test_remove_clifford_with_yz_0(zx_graph: ZXGraphState) -> None:
+    """Test removing a Clifford vertex with measurement plane YZ and angle 0."""
+    # 4---1---2
+    #     |
+    #     3
+    for i in range(1, 5):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (1, 3), (1, 4)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.YZ)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_plane(4, Plane.YZ)
+    zx_graph.set_meas_angle(1, 0)
+    zx_graph.set_meas_angle(2, 0.1 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.set_meas_angle(4, 0.3 * np.pi)
+    zx_graph.remove_clifford(1)
+
+    assert zx_graph.physical_nodes == {2, 3, 4}
+    assert zx_graph.physical_edges == set()
+    assert zx_graph.meas_planes == {2: Plane.XY, 3: Plane.YZ, 4: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[2]) == 0.1 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 1.8 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[4]) == 0.3 * np.pi
+
+
+def test_remove_clifford_with_yz_pi(zx_graph: ZXGraphState) -> None:
+    """Test removing a Clifford vertex with measurement plane YZ and angle pi."""
+    # 4---1---2
+    #     |
+    #     3
+    for i in range(1, 5):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (1, 3), (1, 4)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.YZ)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_plane(4, Plane.YZ)
+    zx_graph.set_meas_angle(1, np.pi)
+    zx_graph.set_meas_angle(2, 0.1 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.set_meas_angle(4, 0.3 * np.pi)
+    zx_graph.remove_clifford(1)
+
+    assert zx_graph.physical_nodes == {2, 3, 4}
+    assert zx_graph.physical_edges == set()
+    assert zx_graph.meas_planes == {2: Plane.XY, 3: Plane.YZ, 4: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[2]) == 1.1 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 1.8 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[4]) == 0.3 * np.pi
+
+
+def test_remove_clifford_with_xy_0p5_pi(zx_graph: ZXGraphState) -> None:
+    for i in range(1, 4):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (2, 3)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(1, 0.1 * np.pi)
+    zx_graph.set_meas_angle(2, 0.5 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.remove_clifford(2)
+
+    assert zx_graph.physical_nodes == {1, 3}
+    assert zx_graph.physical_edges == {(1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 3: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 1.6 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.2 * np.pi
+
+
+def test_remove_clifford_with_xy_1p5_pi(zx_graph: ZXGraphState) -> None:
+    for i in range(1, 4):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (2, 3)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_plane(2, Plane.XY)
+    zx_graph.set_meas_plane(3, Plane.YZ)
+    zx_graph.set_meas_angle(1, 0.1 * np.pi)
+    zx_graph.set_meas_angle(2, 1.5 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.remove_clifford(2)
+
+    assert zx_graph.physical_nodes == {1, 3}
+    assert zx_graph.physical_edges == {(1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 3: Plane.YZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.2 * np.pi
+
+
+def test_remove_clifford_with_yz_0p5_pi(zx_graph: ZXGraphState) -> None:
+    for i in range(1, 4):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (2, 3)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_plane(2, Plane.YZ)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_angle(1, 0.1 * np.pi)
+    zx_graph.set_meas_angle(2, 0.5 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.remove_clifford(2)
+
+    assert zx_graph.physical_nodes == {1, 3}
+    assert zx_graph.physical_edges == {(1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 3: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 0.6 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.2 * np.pi
+
+
+def test_remove_clifford_with_yz_1p5_pi(zx_graph: ZXGraphState) -> None:
+    for i in range(1, 4):
+        zx_graph.add_physical_node(i)
+    for i, j in [(1, 2), (2, 3)]:
+        zx_graph.add_physical_edge(i, j)
+    zx_graph.set_meas_plane(1, Plane.XY)
+    zx_graph.set_meas_plane(2, Plane.YZ)
+    zx_graph.set_meas_plane(3, Plane.XZ)
+    zx_graph.set_meas_angle(1, 0.1 * np.pi)
+    zx_graph.set_meas_angle(2, 1.5 * np.pi)
+    zx_graph.set_meas_angle(3, 0.2 * np.pi)
+    zx_graph.remove_clifford(2)
+
+    assert zx_graph.physical_nodes == {1, 3}
+    assert zx_graph.physical_edges == {(1, 3)}
+    assert zx_graph.meas_planes == {1: Plane.XY, 3: Plane.XZ}
+    assert pytest.approx(zx_graph.meas_angles[1]) == 1.6 * np.pi
+    assert pytest.approx(zx_graph.meas_angles[3]) == 0.2 * np.pi
+
+
 if __name__ == "__main__":
     pytest.main()
