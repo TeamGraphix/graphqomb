@@ -929,6 +929,51 @@ class ZXGraphState(GraphState):
         for w in nbr_a:
             self._update_node_measurement(measurement_action, w)
 
+    def remove_clifford(self, node: int) -> None:
+        """Remove the local clifford node.
+
+        Now supports:
+          - measurement planes YZ and XZ with angles 0, pi (mod 2 pi).
+          - measurement plane YZ and XY with angles 0.5 pi, 1.5 pi (mod 2 pi).
+
+        Raises
+        ------
+        ValueError
+            If the node is an input node or not a Clifford vertex.
+        """
+        self.ensure_node_exists(node)
+        if node in self.input_nodes:
+            msg = "Clifford vertex removal not allowed for input node"
+            raise ValueError(msg)
+        alpha = self.meas_angles[node] % (2 * np.pi)
+        atol = 1e-15
+        if abs(alpha % (0.5 * np.pi)) > atol:
+            msg = "This node is not a Clifford vertex."
+            raise ValueError(msg)
+        if self.meas_planes[node] not in {Plane.XY, Plane.XZ, Plane.YZ}:
+            msg = f"Invalid measurement plane '{self.meas_planes[node]}' for Clifford removal."
+            raise ValueError(msg)
+
+        if abs((alpha + 0.5 * np.pi) % (np.pi)) < atol:
+            self.local_complement(node)
+            alpha = self.meas_angles[node] % (2 * np.pi)
+
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: (alpha + self.meas_angles[v]) % (2.0 * np.pi)),
+            Plane.XZ: (
+                Plane.YZ,
+                lambda v: -self.meas_angles[v] % (2 * np.pi) if abs(alpha % np.pi) < atol else self.meas_angles[v],
+            ),
+            Plane.YZ: (
+                Plane.XZ,
+                lambda v: self.meas_angles[v] if abs(alpha % np.pi) < atol else -self.meas_angles[v] % (2 * np.pi),
+            ),
+        }
+        for v in self.get_neighbors(node):
+            self._update_node_measurement(measurement_action, v)
+
+        self.remove_physical_node(node)
+
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
     """Return a set of edges for the complete bipartite graph between two sets of nodes.
