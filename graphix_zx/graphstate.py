@@ -837,9 +837,9 @@ class ZXGraphState(GraphState):
 
         # update neighbors measurement
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-            Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: (self.meas_angles[v]) % (2.0 * np.pi)),
+            Plane.YZ: (Plane.XZ, lambda v: (-self.meas_angles[v]) % (2.0 * np.pi)),
         }
 
         for v in nbrs:
@@ -912,7 +912,7 @@ class ZXGraphState(GraphState):
         # update node1 and node2 measurement
         measurement_action = {
             Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
+            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
             Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
         }
 
@@ -921,9 +921,9 @@ class ZXGraphState(GraphState):
 
         # update nodes measurement of nbr_a
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
         }
 
         for w in nbr_a:
