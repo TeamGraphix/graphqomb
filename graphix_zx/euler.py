@@ -88,7 +88,11 @@ def _is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
     bool
         True if the angle is close to the target angle
     """
-    return bool(np.isclose(angle % (2 * np.pi), target % (2 * np.pi), atol=atol))
+    diff_angle = np.abs(angle - target)
+
+    if diff_angle > np.pi:
+        diff_angle = 2 * np.pi - diff_angle
+    return bool(np.isclose(diff_angle, 0, atol=atol))
 
 
 def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
