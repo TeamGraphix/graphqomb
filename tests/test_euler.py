@@ -87,13 +87,13 @@ def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
 
 
 @pytest.mark.skip
-def test_get_bloch_sphere_coordinates(rng: np.random.Generator) -> None:
-    for plane in Plane:
-        angle = rng.uniform(0, 2 * np.pi)
-        basis = get_meas_basis(plane, angle)
-        plane_get, angle_get = _get_meas_basis_info(basis)
-        assert plane == plane_get, f"Expected {plane}, got {plane_get}"
-        assert _is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
+    angle = rng.uniform(0, 2 * np.pi)
+    basis = get_meas_basis(plane, angle)
+    plane_get, angle_get = _get_meas_basis_info(basis)
+    assert plane == plane_get, f"Expected {plane}, got {plane_get}"
+    assert _is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
 
 
 def test_local_clifford(random_clifford_angles: tuple[float, float, float]) -> None:
