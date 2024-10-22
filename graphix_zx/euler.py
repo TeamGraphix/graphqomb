@@ -37,13 +37,27 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     tuple[float, float, float]
         euler angles (alpha, beta, gamma)
     """
-    global_phase = np.angle(u[0, 0])
-    u /= np.exp(1j * global_phase)
+    global_phase = np.sqrt(np.linalg.det(u))
+    u /= global_phase
 
-    beta = 2 * np.arccos(np.abs(u[0, 0]))
+    alpha_p_gamma = np.angle(u[0, 0] / u[1, 1])
+    alpha_m_gamma = np.angle(u[0, 1] / u[1, 0])
 
-    alpha = -np.angle(u[1, 0] / np.sin(beta / 2)) - np.pi / 2
-    gamma = -np.angle(u[0, 1] / np.sin(beta / 2)) - np.pi / 2
+    alpha = (alpha_p_gamma + alpha_m_gamma) / 2
+    gamma = (alpha_p_gamma - alpha_m_gamma) / 2
+
+    cos_term = u[0, 0] / np.exp(1j * alpha_p_gamma / 2)
+    beta_c = 2 * np.arccos(cos_term)
+
+    sin_term = u[0, 1] / (-1j * np.exp(1j * alpha_m_gamma / 2))
+    beta_s = 2 * np.arcsin(sin_term)
+
+    if _is_close_angle(beta_c, beta_s) or ((beta_c > np.pi / 2) and (beta_s > 0)):  # [0, pi]
+        beta = beta_c
+    elif (beta_c < np.pi / 2) and (beta_s < 0):  # [3*pi/2, 2*pi]
+        beta = beta_s
+    else:  # [pi, 3*pi/2]
+        beta = -beta_c
 
     return alpha, beta, gamma
 
