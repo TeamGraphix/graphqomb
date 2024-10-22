@@ -40,9 +40,10 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     global_phase = np.angle(u[0, 0])
     u /= np.exp(1j * global_phase)
 
-    alpha = -np.angle(u[1, 0]) - np.pi / 2
     beta = 2 * np.arccos(np.abs(u[0, 0]))
-    gamma = -np.angle(u[0, 1]) - np.pi / 2
+
+    alpha = -np.angle(u[1, 0] / np.sin(beta / 2)) - np.pi / 2
+    gamma = -np.angle(u[0, 1] / np.sin(beta / 2)) - np.pi / 2
 
     return alpha, beta, gamma
 
