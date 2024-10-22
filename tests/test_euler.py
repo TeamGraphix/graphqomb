@@ -30,6 +30,42 @@ def random_clifford_angles(rng: np.random.Generator) -> tuple[float, float, floa
     return tuple(rng.choice([0, np.pi / 2, np.pi, 3 * np.pi / 2], 3))
 
 
+def test_is_clifford_angle() -> None:
+    assert is_clifford_angle(0)
+    assert is_clifford_angle(np.pi / 2)
+    assert is_clifford_angle(np.pi)
+    assert is_clifford_angle(3 * np.pi / 2)
+    assert not is_clifford_angle(np.pi / 3)
+    assert not is_clifford_angle(np.pi / 4)
+    assert not is_clifford_angle(np.pi / 6)
+
+
+def test_is_close_angle() -> None:
+    assert _is_close_angle(0, 0)
+    assert _is_close_angle(np.pi / 2, np.pi / 2)
+    assert _is_close_angle(np.pi, np.pi)
+    assert _is_close_angle(3 * np.pi / 2, 3 * np.pi / 2)
+    assert not _is_close_angle(0, np.pi / 2)
+    assert not _is_close_angle(np.pi / 2, np.pi)
+    assert not _is_close_angle(np.pi, 3 * np.pi / 2)
+    assert not _is_close_angle(3 * np.pi / 2, 0)
+
+    # add 2 * np.pi to the second angle
+    assert _is_close_angle(0, 2 * np.pi)
+    assert _is_close_angle(np.pi / 2, 2 * np.pi + np.pi / 2)
+    assert _is_close_angle(np.pi, 2 * np.pi + np.pi)
+    assert _is_close_angle(3 * np.pi / 2, 2 * np.pi + 3 * np.pi / 2)
+
+    # minus 2 * np.pi to the second angle
+    assert _is_close_angle(0, -2 * np.pi)
+    assert _is_close_angle(np.pi / 2, -2 * np.pi + np.pi / 2)
+    assert _is_close_angle(np.pi, -2 * np.pi + np.pi)
+    assert _is_close_angle(3 * np.pi / 2, -2 * np.pi + 3 * np.pi / 2)
+
+    # boundary cases
+    assert _is_close_angle(-1e-10, 1e-10)
+
+
 def test_identity() -> None:
     lc = LocalUnitary(0, 0, 0)
     assert np.allclose(lc.get_matrix(), np.eye(2))
