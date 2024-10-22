@@ -87,7 +87,7 @@ def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
 
 @pytest.mark.skip
 @pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi / 2, 0, 0), (0, np.pi / 2, 0), (0, 0, np.pi / 2)])
-def test_euler_decomposition_corner(angles) -> None:
+def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     array = LocalUnitary(*angles).get_matrix()
     alpha, beta, gamma = euler_decomposition(array)
 
