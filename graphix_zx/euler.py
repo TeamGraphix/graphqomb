@@ -38,11 +38,11 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
         euler angles (alpha, beta, gamma)
     """
     global_phase = np.angle(u[0, 0])
-    u *= np.exp(-1j * global_phase)
+    u /= np.exp(1j * global_phase)
 
-    alpha = np.angle(u[1, 0]) + np.angle(u[0, 0])
+    alpha = -np.angle(u[1, 0]) - np.pi / 2
     beta = 2 * np.arccos(np.abs(u[0, 0]))
-    gamma = np.angle(u[0, 1]) - np.angle(u[1, 1])
+    gamma = -np.angle(u[0, 1]) - np.pi / 2
 
     return alpha, beta, gamma
 
@@ -64,9 +64,31 @@ def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
     """
     # normalize
     vector /= np.linalg.norm(vector)
+    global_phase = np.angle(vector[0])
+    vector /= np.exp(1j * global_phase)
     theta = 2 * np.arccos(np.abs(vector[0]))
     phi = np.angle(vector[1]) - np.angle(vector[0])
     return theta, phi
+
+
+def _is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
+    """Check if an angle is close to a target angle.
+
+    Parameters
+    ----------
+    angle : float
+        angle to check
+    target : float
+        target angle
+    atol : float, optional
+        absolute tolerance, by default 1e-9
+
+    Returns
+    -------
+    bool
+        True if the angle is close to the target angle
+    """
+    return bool(np.isclose(angle % (2 * np.pi), target % (2 * np.pi), atol=atol))
 
 
 def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
@@ -124,18 +146,7 @@ class LocalUnitary:
         NDArray
             2x2 unitary matrix
         """
-        return np.asarray(
-            [
-                [
-                    np.cos(self.beta / 2) * np.exp(-1j * (self.alpha + self.gamma) / 2),
-                    -1j * np.sin(self.beta / 2) * np.exp(-1j * (self.alpha - self.gamma) / 2),
-                ],
-                [
-                    -1j * np.sin(self.beta / 2) * np.exp(1j * (self.alpha - self.gamma) / 2),
-                    np.cos(self.beta / 2) * np.exp(1j * (self.alpha + self.gamma) / 2),
-                ],
-            ]
-        )
+        return _rz(self.alpha) @ _rx(self.beta) @ _rz(self.gamma)
 
 
 class LocalClifford(LocalUnitary):
@@ -273,3 +284,21 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
     vector = matrix @ vector
     plane, angle = _get_meas_basis_info(vector)
     return MeasBasis(plane, angle)
+
+
+def _rx(angle: float) -> NDArray[np.complex128]:
+    return np.asarray(
+        [
+            [np.cos(angle / 2), -1j * np.sin(angle / 2)],
+            [-1j * np.sin(angle / 2), np.cos(angle / 2)],
+        ]
+    )
+
+
+def _rz(angle: float) -> NDArray[np.complex128]:
+    return np.asarray(
+        [
+            [np.exp(1j * angle / 2), 0],
+            [0, np.exp(-1j * angle / 2)],
+        ]
+    )
