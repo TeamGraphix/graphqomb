@@ -132,10 +132,9 @@ def test_local_clifford(random_clifford_angles: tuple[float, float, float]) -> N
     assert is_clifford_angle(lc.gamma)
 
 
-@pytest.mark.skip
-def test_lc_lc_update(random_angles: tuple[float, float, float]) -> None:
-    lc1 = LocalClifford(*random_angles)
-    lc2 = LocalClifford(*random_angles)
+def test_lc_lc_update(random_clifford_angles: tuple[float, float, float]) -> None:
+    lc1 = LocalClifford(*random_clifford_angles)
+    lc2 = LocalClifford(*random_clifford_angles)
     lc = update_lc_lc(lc1, lc2)
     assert is_unitary(lc.get_matrix())
 
@@ -144,13 +143,14 @@ def test_lc_lc_update(random_angles: tuple[float, float, float]) -> None:
     assert is_clifford_angle(lc.gamma)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
-def test_lc_basis_update(plane: Plane, random_angles: tuple[float, float, float], rng: np.random.Generator) -> None:
-    lc = LocalClifford(*random_angles)
+def test_lc_basis_update(
+    plane: Plane, random_clifford_angles: tuple[float, float, float], rng: np.random.Generator
+) -> None:
+    lc = LocalClifford(*random_clifford_angles)
     angle = rng.uniform(0, 2 * np.pi)
     basis = MeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
-    assert np.allclose(basis_updated.get_vector(), lc.get_matrix() @ basis.get_vector())
-    assert basis_updated.plane == plane
-    assert _is_close_angle(basis_updated.angle, angle)
+    ref_updated_basis = lc.get_matrix() @ basis.get_vector()
+    inner_product = np.abs(np.vdot(basis_updated.get_vector(), ref_updated_basis))
+    assert np.allclose(inner_product, 1)
