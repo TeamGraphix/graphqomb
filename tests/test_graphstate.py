@@ -660,7 +660,7 @@ def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> Non
     zx_graph.add_physical_node(1)
     zx_graph.set_meas_plane(1, "test_plane")  # type: ignore[reportArgumentType, arg-type, unused-ignore]
     zx_graph.set_meas_angle(1, 0.5 * np.pi)
-    with pytest.raises(ValueError, match="Invalid measurement plane 'test_plane' for Clifford removal."):
+    with pytest.raises(ValueError, match="This node is not a Clifford vertex"):
         zx_graph.remove_clifford(1)
 
 

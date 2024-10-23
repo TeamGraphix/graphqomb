@@ -743,6 +743,24 @@ class GraphState(BaseGraphState):
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
 
+    def is_clifford(self, node: int) -> bool:
+        """Check if the node is a Clifford vertex.
+
+        Parameters
+        ----------
+        node : int
+            node index
+
+        Returns
+        -------
+        bool
+            True if the node is a Clifford vertex.
+        """
+        atol = 1e-15
+        angle = self.meas_angles[node] % (2 * np.pi)
+        is_valid_plane = self.meas_planes[node] in {Plane.XY, Plane.XZ, Plane.YZ}
+        return abs(angle % (0.5 * np.pi)) < atol and is_valid_plane
+
 
 def _update_meas_basis(
     lc: LocalClifford,
@@ -929,47 +947,70 @@ class ZXGraphState(GraphState):
         for w in nbr_a:
             self._update_node_measurement(measurement_action, w)
 
-    def remove_clifford(self, node: int) -> None:
-        """Remove the local clifford node.
+    def _needs_nop(self, node: int) -> bool:
+        """Check if the node needs no operation in order to perform _remove_clifford.
 
-        Raises
-        ------
-        ValueError
-            1. If the node is an input node.
-            2. If the node is not a Clifford vertex.
-            3. If the measurement plane is invalid.
-            4. If all neighbors are input nodes
-                in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
+        Parameters
+        ----------
+        node : int
+            node index
+
+        Returns
+        -------
+        bool
+            True if the node needs no operation
         """
-        self.ensure_node_exists(node)
-        if node in self.input_nodes:
-            msg = "Clifford vertex removal not allowed for input node"
-            raise ValueError(msg)
-        alpha = self.meas_angles[node] % (2 * np.pi)
         atol = 1e-15
-        if abs(alpha % (0.5 * np.pi)) > atol:
-            msg = "This node is not a Clifford vertex."
-            raise ValueError(msg)
-        if self.meas_planes[node] not in {Plane.XY, Plane.XZ, Plane.YZ}:
-            msg = f"Invalid measurement plane '{self.meas_planes[node]}' for Clifford removal."
-            raise ValueError(msg)
+        alpha = self.meas_angles[node] % (2 * np.pi)
+        return abs(alpha % np.pi) < atol and (self.meas_planes[node] in {Plane.YZ, Plane.XZ})
 
-        if abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}:
-            self.local_complement(node)
-            alpha = self.meas_angles[node] % (2 * np.pi)
+    def _needs_lc(self, node: int) -> bool:
+        """Check if the node needs a local complementation in order to perform _remove_clifford.
 
+        Parameters
+        ----------
+        node : int
+            node index
+
+        Returns
+        -------
+        bool
+            True if the node needs a local complementation.
+        """
+        atol = 1e-15
+        alpha = self.meas_angles[node] % (2 * np.pi)
+        return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}
+
+    def _needs_pivot(self, node: int) -> bool:
+        """Check if the nodes need a pivot operation in order to perform _remove_clifford.
+
+        Parameters
+        ----------
+        node : int
+            node index
+
+        Returns
+        -------
+        bool
+            True if the nodes need a pivot operation.
+        """
+        atol = 1e-15
+        alpha = self.meas_angles[node] % (2 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
-        if case_a or case_b:
-            non_input_neighbors = self.get_neighbors(node) & (self.physical_nodes - self.input_nodes)
-            if len(non_input_neighbors) == 0:
-                msg = "All neighbors are input nodes."
-                raise ValueError(msg)
+        non_input_nbrs = self.get_neighbors(node) - self.input_nodes
+        return (case_a or case_b) and len(non_input_nbrs) > 0
 
-            v = non_input_neighbors.pop()
-            self.pivot(node, v)
-            alpha = self.meas_angles[node] % (2 * np.pi)
+    def _remove_clifford(self, node: int) -> None:
+        """Perform the Clifford vertex removal.
 
+        Parameters
+        ----------
+        node : int
+            node index
+        """
+        atol = 1e-15
+        alpha = self.meas_angles[node] % (2 * np.pi)
         measurement_action = {
             Plane.XY: (Plane.XY, lambda v: (alpha + self.meas_angles[v]) % (2.0 * np.pi)),
             Plane.XZ: (
@@ -985,6 +1026,40 @@ class ZXGraphState(GraphState):
             self._update_node_measurement(measurement_action, v)
 
         self.remove_physical_node(node)
+
+    def remove_clifford(self, node: int) -> None:
+        """Remove the local clifford node.
+
+        Raises
+        ------
+        ValueError
+            1. If the node is an input node.
+            2. If the node is not a Clifford vertex.
+            3. If all neighbors are input nodes
+                in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
+        """
+        self.ensure_node_exists(node)
+        if node in self.input_nodes:
+            msg = "Clifford vertex removal not allowed for input node"
+            raise ValueError(msg)
+
+        if not self.is_clifford(node):
+            msg = "This node is not a Clifford vertex."
+            raise ValueError(msg)
+
+        if self._needs_nop(node):
+            pass
+        elif self._needs_lc(node):
+            self.local_complement(node)
+        elif self._needs_pivot(node):
+            non_input_nbrs = self.get_neighbors(node) - self.input_nodes
+            v = non_input_nbrs.pop()
+            self.pivot(node, v)
+        else:
+            msg = "All neighbors are input nodes."
+            raise ValueError(msg)
+
+        self._remove_clifford(node)
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
