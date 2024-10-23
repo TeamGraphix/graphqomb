@@ -114,7 +114,6 @@ def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
 def test_get_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
