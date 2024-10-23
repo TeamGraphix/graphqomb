@@ -86,10 +86,10 @@ def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
     else:
         global_phase = np.angle(vector[0])
         vector /= np.exp(1j * global_phase)
+        phi = 0 if np.isclose(vector[1], 0) else np.angle(vector[1])
         cos_term = np.real(vector[0])
-        sin_term = np.abs(vector[1])
+        sin_term = np.real(vector[1] / np.exp(1j * phi))
         theta = 2 * np.angle(cos_term + 1j * sin_term)
-        phi = 0 if _is_close_angle(theta, 0) else np.angle(vector[1] / np.sin(theta / 2))
     return theta, phi
 
 
@@ -110,7 +110,7 @@ def _is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
     bool
         True if the angle is close to the target angle
     """
-    diff_angle = np.abs(angle - target)
+    diff_angle = (angle - target) % (2 * np.pi)
 
     if diff_angle > np.pi:
         diff_angle = 2 * np.pi - diff_angle
@@ -132,7 +132,7 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     bool
         True if the angle is a Clifford angle
     """
-    return bool(np.isclose(angle % (np.pi / 2), 0, atol=atol))
+    return bool(_is_close_angle(angle % (np.pi / 2), 0, atol=atol))
 
 
 # TODO: there is room to improve the data type for angles
@@ -256,12 +256,18 @@ def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     theta, phi = get_bloch_sphere_coordinates(vector)
     if is_clifford_angle(phi):
         # YZ or ZX plane
-        if is_clifford_angle(phi / 2):
-            return Plane.ZX, theta + np.pi * (((phi / np.pi) % 2) - 1 / 2)
-        return Plane.YZ, theta + np.pi * ((phi / np.pi) % 2)
+        if is_clifford_angle(phi / 2):  # 0 or pi
+            if _is_close_angle(phi, np.pi):
+                theta = -theta
+            return Plane.ZX, theta
+        if _is_close_angle(phi, 3 * np.pi / 2):
+            theta = -theta
+        return Plane.YZ, theta
     if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
         # XY plane
-        return Plane.XY, phi + np.pi * (((theta / np.pi) % 2) - 1 / 2)
+        if _is_close_angle(theta, 3 * np.pi / 2):
+            phi += np.pi
+        return Plane.XY, phi
     msg = "The vector does not lie on any of 3 planes"
     raise ValueError(msg)
 
