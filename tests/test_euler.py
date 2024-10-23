@@ -8,6 +8,7 @@ from graphix_zx.euler import (
     _get_meas_basis_info,
     _is_close_angle,
     euler_decomposition,
+    get_bloch_sphere_coordinates,
     is_clifford_angle,
     update_lc_basis,
     update_lc_lc,
@@ -93,9 +94,29 @@ def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
 def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
+    angle = rng.uniform(0, 2 * np.pi)
+    basis = get_meas_basis(plane, angle)
+    theta, phi = get_bloch_sphere_coordinates(basis)
+    reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
+    inner_product = np.abs(np.vdot(reconst_vec, basis))
+    assert np.allclose(inner_product, 1)
+
+
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("angle", [0, np.pi / 2, np.pi])
+def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
+    basis = get_meas_basis(plane, angle)
+    theta, phi = get_bloch_sphere_coordinates(basis)
+    reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
+    inner_product = np.abs(np.vdot(reconst_vec, basis))
+    assert np.allclose(inner_product, 1)
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+def test_get_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = get_meas_basis(plane, angle)
     plane_get, angle_get = _get_meas_basis_info(basis)
