@@ -132,7 +132,10 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     bool
         True if the angle is a Clifford angle
     """
-    return bool(_is_close_angle(angle % (np.pi / 2), 0, atol=atol))
+    angle_preprocessed = angle % (2 * np.pi)
+    return any(
+        _is_close_angle(angle_preprocessed, target, atol=atol) for target in [0, np.pi / 2, np.pi, 3 * np.pi / 2]
+    )
 
 
 # TODO: there is room to improve the data type for angles
