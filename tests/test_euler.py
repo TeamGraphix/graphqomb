@@ -81,19 +81,16 @@ def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
     alpha, beta, gamma = euler_decomposition(array)
 
     array_reconstructed = LocalUnitary(alpha, beta, gamma).get_matrix()
-    global_phase_diff = np.angle(array[0, 0] / array_reconstructed[0, 0])
-    assert np.allclose(array, array_reconstructed * np.exp(1j * global_phase_diff))
+    assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.skip
-@pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi / 2, 0, 0), (0, np.pi / 2, 0), (0, 0, np.pi / 2)])
+@pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)])
 def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     array = LocalUnitary(*angles).get_matrix()
     alpha, beta, gamma = euler_decomposition(array)
 
     array_reconstructed = LocalUnitary(alpha, beta, gamma).get_matrix()
-    global_phase_diff = np.angle(array[0, 0] / array_reconstructed[0, 0])
-    assert np.allclose(array, array_reconstructed * np.exp(1j * global_phase_diff))
+    assert np.allclose(array, array_reconstructed)
 
 
 @pytest.mark.skip
