@@ -56,20 +56,9 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
         gamma = (alpha_p_gamma - alpha_m_gamma) / 2
 
         cos_term = np.real(u[0, 0] / np.exp(1j * alpha_p_gamma / 2))
-        beta_c = 2 * np.arccos(cos_term)  # beta_c/2 -> [0, pi]
-
         sin_term = np.real(u[0, 1] / (-1j * np.exp(1j * alpha_m_gamma / 2)))
-        beta_s = 2 * np.arcsin(sin_term)  # beta_s/2 -> [-pi/2, pi/2]
 
-        # Choose the correct beta angle based on the quadrant.
-        if (beta_c / 2 > np.pi / 2) and (beta_s > 0):  # [pi/2, pi]
-            beta = beta_c
-        elif (beta_c / 2 < np.pi / 2) and (beta_s < 0):  # [3*pi/2, 2*pi]
-            beta = beta_s
-        elif _is_close_angle(beta_c / 2, beta_s / 2):  # [0, pi/2]
-            beta = beta_c
-        else:  # [pi, 3*pi/2]
-            beta = -beta_c
+        beta = 2 * np.angle(cos_term + 1j * sin_term)
 
     return alpha, beta, gamma
 
@@ -91,10 +80,16 @@ def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
     """
     # normalize
     vector /= np.linalg.norm(vector)
-    global_phase = np.angle(vector[0])
-    vector /= np.exp(1j * global_phase)
-    theta = 2 * np.arccos(np.abs(vector[0]))
-    phi = np.angle(vector[1]) - np.angle(vector[0])
+    if np.isclose(vector[0], 0):
+        theta = np.pi
+        phi = np.angle(vector[1])
+    else:
+        global_phase = np.angle(vector[0])
+        vector /= np.exp(1j * global_phase)
+        cos_term = np.real(vector[0])
+        sin_term = np.abs(vector[1])
+        theta = 2 * np.angle(cos_term + 1j * sin_term)
+        phi = 0 if _is_close_angle(theta, 0) else np.angle(vector[1] / np.sin(theta / 2))
     return theta, phi
 
 
