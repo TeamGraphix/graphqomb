@@ -84,7 +84,7 @@ def get_meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
     elif plane == Plane.YZ:
         basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
     elif plane == Plane.ZX:
-        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)])
+        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)]).astype(np.complex128)
     else:
         msg = "The plane must be one of XY, YZ, ZX"
         raise ValueError(msg)
