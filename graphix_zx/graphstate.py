@@ -932,14 +932,14 @@ class ZXGraphState(GraphState):
     def remove_clifford(self, node: int) -> None:
         """Remove the local clifford node.
 
-        Now supports:
-          - measurement planes YZ and XZ with angles 0, pi (mod 2 pi).
-          - measurement plane YZ and XY with angles 0.5 pi, 1.5 pi (mod 2 pi).
-
         Raises
         ------
         ValueError
-            If the node is an input node or not a Clifford vertex.
+            1. If the node is an input node.
+            2. If the node is not a Clifford vertex.
+            3. If the measurement plane is invalid.
+            4. If there are no non-input neighbors
+                in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
         """
         self.ensure_node_exists(node)
         if node in self.input_nodes:
