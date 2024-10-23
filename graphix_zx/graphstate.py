@@ -938,7 +938,7 @@ class ZXGraphState(GraphState):
             1. If the node is an input node.
             2. If the node is not a Clifford vertex.
             3. If the measurement plane is invalid.
-            4. If there are no non-input neighbors
+            4. If all neighbors are input nodes
                 in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
         """
         self.ensure_node_exists(node)
@@ -954,8 +954,20 @@ class ZXGraphState(GraphState):
             msg = f"Invalid measurement plane '{self.meas_planes[node]}' for Clifford removal."
             raise ValueError(msg)
 
-        if abs((alpha + 0.5 * np.pi) % (np.pi)) < atol:
+        if abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}:
             self.local_complement(node)
+            alpha = self.meas_angles[node] % (2 * np.pi)
+
+        case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
+        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
+        if case_a or case_b:
+            non_input_neighbors = self.get_neighbors(node) & (self.physical_nodes - self.input_nodes)
+            if len(non_input_neighbors) == 0:
+                msg = "All neighbors are input nodes."
+                raise ValueError(msg)
+
+            v = non_input_neighbors.pop()
+            self.pivot(node, v)
             alpha = self.meas_angles[node] % (2 * np.pi)
 
         measurement_action = {
