@@ -1035,5 +1035,21 @@ def test_remove_clifford_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
         assert pytest.approx(zx_graph.meas_angles[node_id]) == angle
 
 
+def test_remove_clifford_2_with_xy_0(zx_graph: ZXGraphState) -> None:
+    pass
+
+
+def test_remove_clifford_2_with_xy_pi(zx_graph: ZXGraphState) -> None:
+    pass
+
+
+def test_remove_clifford_2_with_xz_0p5_pi(zx_graph: ZXGraphState) -> None:
+    pass
+
+
+def test_remove_clifford_2_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
+    pass
+
+
 if __name__ == "__main__":
     pytest.main()
