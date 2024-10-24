@@ -1,0 +1,119 @@
+from collections.abc import Sequence
+from copy import copy
+
+import numpy as np
+import pytest
+
+from graphix_zx.gates import (
+    CCZ,
+    CNOT,
+    CU3,
+    CZ,
+    SWAP,
+    U3,
+    CRx,
+    CRz,
+    Gate,
+    H,
+    Identity,
+    J,
+    PhaseGadget,
+    Rx,
+    Ry,
+    Rz,
+    S,
+    SingleGate,
+    T,
+    Toffoli,
+    X,
+    Y,
+    Z,
+)
+from graphix_zx.statevec import StateVector
+
+SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
+TWO_GATES = [CZ, CNOT, SWAP, CRz, CRx, CU3]
+MULTI_GATES = [PhaseGadget, CCZ, Toffoli]
+
+NUM_ANGLES: dict[type, int] = {
+    Identity: 0,
+    X: 0,
+    Y: 0,
+    Z: 0,
+    H: 0,
+    S: 0,
+    T: 0,
+    Rx: 1,
+    Ry: 1,
+    Rz: 1,
+    U3: 3,
+    CZ: 0,
+    CNOT: 0,
+    SWAP: 0,
+    CRz: 1,
+    CRx: 1,
+    CU3: 3,
+    CCZ: 0,
+    Toffoli: 0,
+}
+
+
+@pytest.fixture
+def rng() -> np.random.Generator:
+    return np.random.default_rng()
+
+
+def apply_gates(state: StateVector, gates: Sequence[Gate], qubits: Sequence[int]) -> StateVector:
+    for gate in gates:
+        indices = [qubits[0]] if isinstance(gate, SingleGate) else qubits
+        qubit_indices = [qubits.index(i) for i in indices]
+        state.evolve(gate.get_matrix(), qubit_indices)
+    return state
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("gate_class", SINGLE_GATES)
+def test_single_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
+    num_qubits = 1
+    state = StateVector(num_qubits)
+    qubits = [0]
+
+    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+
+    result1 = apply_gates(copy(state), [gate], qubits)
+    result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
+
+    inner_product = np.vdot(result1.get_array(), result2.get_array())
+    assert np.isclose(inner_product, 1)
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("gate_class", TWO_GATES)
+def test_two_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
+    num_qubits = 2
+    state = StateVector(num_qubits)
+    qubits = [0, 1]
+
+    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+
+    result1 = apply_gates(copy(state), [gate], qubits)
+    result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
+
+    inner_product = np.vdot(result1.get_array(), result2.get_array())
+    assert np.isclose(inner_product, 1)
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("gate_class", MULTI_GATES)
+def test_multi_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
+    num_qubits = 3
+    state = StateVector(num_qubits)
+    qubits = [0, 1, 2]
+
+    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+
+    result1 = apply_gates(copy(state), [gate], qubits)
+    result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
+
+    inner_product = np.vdot(result1.get_array(), result2.get_array())
+    assert np.isclose(inner_product, 1)
