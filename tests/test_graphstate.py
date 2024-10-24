@@ -675,13 +675,19 @@ def test_remove_clifford_fails_for_non_clifford_vertex(zx_graph: ZXGraphState) -
 def test_remove_clifford_fails_for_special_clifford_vertex(zx_graph: ZXGraphState) -> None:
     for i in range(1, 4):
         zx_graph.add_physical_node(i)
-        zx_graph.set_meas_plane(i, Plane.XY)
-        zx_graph.set_meas_angle(i, i * np.pi)
+    measurements = [
+        (1, Plane.XY, 0.5 * np.pi),
+        (2, Plane.XY, np.pi),
+        (3, Plane.XY, 0.5 * np.pi),
+    ]
+    for node_id, plane, angle in measurements:
+        zx_graph.set_meas_plane(node_id, plane)
+        zx_graph.set_meas_angle(node_id, angle)
     zx_graph.set_input(1)
     zx_graph.set_input(3)
     zx_graph.add_physical_edge(1, 2)
     zx_graph.add_physical_edge(2, 3)
-    with pytest.raises(ValueError, match="All neighbors are input nodes."):
+    with pytest.raises(ValueError, match="Invalid case for Clifford vertex removal."):
         zx_graph.remove_clifford(2)
 
 
