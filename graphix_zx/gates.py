@@ -28,6 +28,7 @@ This module provides:
 
 from __future__ import annotations
 
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -36,6 +37,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
     from numpy.typing import NDArray
 
 
@@ -65,12 +67,26 @@ class Gate(ABC):
         raise NotImplementedError
 
 
-class UnitGate(Gate):
-    """Abstract class for unit gates."""
+class SingleGate(Gate):
+    """Base class for single qubit macro gates."""
+
+    qubit: int
+
+
+class TwoQubitGate(Gate):
+    """Base class for two qubit macro gates."""
+
+    qubits: tuple[int, int]
+
+
+class MultiGate(Gate):
+    """Base class for multi qubit macro gates."""
+
+    qubits: Sequence[int]
 
 
 @dataclass(frozen=True)
-class J(UnitGate):
+class J(SingleGate):
     r"""Class for the J gate.
 
     Attributes
@@ -116,7 +132,7 @@ class J(UnitGate):
 
 
 @dataclass(frozen=True)
-class CZ(UnitGate):
+class CZ(TwoQubitGate):
     """Class for the CZ gate.
 
     Attributes
@@ -149,18 +165,18 @@ class CZ(UnitGate):
 
 
 @dataclass(frozen=True)
-class PhaseGadget(UnitGate):
+class PhaseGadget(MultiGate):
     """Class for the PhaseGadget gate.
 
     Attributes
     ----------
-    qubits : list[int]
+    qubits : Sequence[int]
         The qubits the gate acts on.
     angle : float
         The angle of the PhaseGadget gate.
     """
 
-    qubits: list[int]
+    qubits: Sequence[int]
     angle: float
 
     def get_unit_gates(self) -> list[UnitGate]:
@@ -194,29 +210,16 @@ class PhaseGadget(UnitGate):
         return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
 
-# Macro gates
+if sys.version_info >= (3, 10):
+    UnitGate = J | CZ | PhaseGadget
+else:
+    from typing import Union
 
-
-class MacroSingleGate(Gate):
-    """Base class for single qubit macro gates."""
-
-    qubit: int
-
-
-class MacroTwoQubitGate(Gate):
-    """Base class for two qubit macro gates."""
-
-    qubits: tuple[int, int]
-
-
-class MacroMultiGate(Gate):
-    """Base class for multi qubit macro gates."""
-
-    qubits: Sequence[int]
+    UnitGate = Union[J, CZ, PhaseGadget]
 
 
 @dataclass(frozen=True)
-class Identity(MacroSingleGate):
+class Identity(SingleGate):
     """Class for the Identity gate.
 
     Attributes
@@ -249,7 +252,7 @@ class Identity(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class X(MacroSingleGate):
+class X(SingleGate):
     """Class for the X gate.
 
     Attributes
@@ -282,7 +285,7 @@ class X(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class Y(MacroSingleGate):
+class Y(SingleGate):
     """Class for the Y gate.
 
     Attributes
@@ -320,7 +323,7 @@ class Y(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class Z(MacroSingleGate):
+class Z(SingleGate):
     """Class for the Z gate.
 
     Attributes
@@ -353,7 +356,7 @@ class Z(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class H(MacroSingleGate):
+class H(SingleGate):
     """Class for the H gate.
 
     Attributes
@@ -387,7 +390,7 @@ class H(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class S(MacroSingleGate):
+class S(SingleGate):
     """Class for the S gate.
 
     Attributes
@@ -420,7 +423,7 @@ class S(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class T(MacroSingleGate):
+class T(SingleGate):
     """Class for the T gate.
 
     Attributes
@@ -453,7 +456,7 @@ class T(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class Rx(MacroSingleGate):
+class Rx(SingleGate):
     """Class for the Rx gate.
 
     Attributes
@@ -498,7 +501,7 @@ class Rx(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class Ry(MacroSingleGate):
+class Ry(SingleGate):
     """Class for the Ry gate.
 
     Attributes
@@ -542,7 +545,7 @@ class Ry(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class Rz(MacroSingleGate):
+class Rz(SingleGate):
     """Class for the Rz gate.
 
     Attributes
@@ -578,7 +581,7 @@ class Rz(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class U3(MacroSingleGate):
+class U3(SingleGate):
     """Class for the U3 gate.
 
     Attributes
@@ -634,7 +637,7 @@ class U3(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class CNOT(MacroTwoQubitGate):
+class CNOT(TwoQubitGate):
     """Class for the CNOT gate.
 
     Attributes
@@ -672,7 +675,7 @@ class CNOT(MacroTwoQubitGate):
 
 
 @dataclass(frozen=True)
-class SWAP(MacroTwoQubitGate):
+class SWAP(TwoQubitGate):
     """Class for the SWAP gate.
 
     Attributes
@@ -723,7 +726,7 @@ class SWAP(MacroTwoQubitGate):
 
 
 @dataclass(frozen=True)
-class CRz(MacroTwoQubitGate):
+class CRz(TwoQubitGate):
     """Class for the CRz gate.
 
     Attributes
@@ -777,7 +780,7 @@ class CRz(MacroTwoQubitGate):
 
 
 @dataclass(frozen=True)
-class CRx(MacroTwoQubitGate):
+class CRx(TwoQubitGate):
     """Class for the CRx gate.
 
     Attributes
@@ -832,7 +835,7 @@ class CRx(MacroTwoQubitGate):
 
 
 @dataclass(frozen=True)
-class CU3(MacroTwoQubitGate):
+class CU3(TwoQubitGate):
     """Class for the CU3 gate.
 
     Attributes
@@ -903,7 +906,7 @@ class CU3(MacroTwoQubitGate):
 
 
 @dataclass(frozen=True)
-class CCZ(MacroMultiGate):
+class CCZ(MultiGate):
     """Class for the CCZ gate.
 
     Attributes
@@ -961,7 +964,7 @@ class CCZ(MacroMultiGate):
 
 
 @dataclass(frozen=True)
-class Toffoli(MacroMultiGate):
+class Toffoli(MultiGate):
     """Class for the Toffoli gate.
 
     Attributes
