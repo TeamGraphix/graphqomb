@@ -950,6 +950,9 @@ class ZXGraphState(GraphState):
     def _needs_nop(self, node: int) -> bool:
         """Check if the node needs no operation in order to perform _remove_clifford.
 
+        For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
+        and the measurement plane must be YZ or XZ.
+
         Parameters
         ----------
         node : int
@@ -967,6 +970,9 @@ class ZXGraphState(GraphState):
     def _needs_lc(self, node: int) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
 
+        For this operation, the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi)
+        and the measurement plane must be YZ or XY.
+
         Parameters
         ----------
         node : int
@@ -983,6 +989,12 @@ class ZXGraphState(GraphState):
 
     def _needs_pivot_1(self, node: int) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
+
+        The pivot operation is performed on the non-input neighbor of the node.
+        For this operation,
+        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
+        or
+        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
 
         Parameters
         ----------
@@ -1006,6 +1018,12 @@ class ZXGraphState(GraphState):
 
     def _needs_pivot_2(self, node: int) -> bool:
         """Check if the node needs a pivot operation on output nodes in order to perform _remove_clifford.
+
+        The pivot operation is performed on the non-input but output neighbor of the node.
+        For this operation,
+        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
+        or
+        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
 
         Parameters
         ----------
