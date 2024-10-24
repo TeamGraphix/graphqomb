@@ -30,7 +30,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -137,15 +136,15 @@ class CZ(UnitGate):
         """
         return [self]
 
-    def get_matrix(self) -> NDArray:  # noqa: PLR6301 to align with pyright checks
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301 to align with pyright checks
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
-        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
+        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -200,19 +199,6 @@ class PhaseGadget(UnitGate):
 class MacroSingleGate(Gate):
     """Base class for single qubit macro gates."""
 
-    def get_matrix(self) -> NDArray[np.complex128]:
-        """Get the matrix representation of the gate by multiplying the unit gates.
-
-        Returns
-        -------
-        NDArray[np.complex128]
-            Matrix representation of the gate.
-        """
-        matrix = np.eye(2, dtype=np.complex128)
-        for unit_gate in self.get_unit_gates():
-            matrix = unit_gate.get_matrix() @ matrix
-        return matrix
-
 
 class MacroTwoQubitGate(Gate):
     """Base class for two qubit macro gates."""
@@ -244,6 +230,16 @@ class Identity(MacroSingleGate):
         """
         return [J(self.qubit, 0), J(self.qubit, 0)]
 
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Identity
+        """
+        return np.eye(2, dtype=np.complex128)
+
 
 @dataclass(frozen=True)
 class X(MacroSingleGate):
@@ -266,6 +262,16 @@ class X(MacroSingleGate):
             List of unit gates that make up the gate.
         """
         return [J(self.qubit, np.pi), J(self.qubit, 0)]
+
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            X gate
+        """
+        return np.asarray([[0, 1], [1, 0]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -295,6 +301,16 @@ class Y(MacroSingleGate):
             J(self.qubit, 0),
         ]
 
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Y gate
+        """
+        return np.asarray([[0, -1j], [1j, 0]], dtype=np.complex128)
+
 
 @dataclass(frozen=True)
 class Z(MacroSingleGate):
@@ -317,6 +333,16 @@ class Z(MacroSingleGate):
             List of unit gates that make up the gate.
         """
         return [J(self.qubit, 0), J(self.qubit, np.pi)]
+
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Z gate
+        """
+        return np.asarray([[1, 0], [0, -1]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -341,6 +367,17 @@ class H(MacroSingleGate):
         """
         return [J(self.qubit, 0)]
 
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            H gate
+        """
+        array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray([[1, 1], [1, -1]], dtype=np.complex128)
+        return array
+
 
 @dataclass(frozen=True)
 class S(MacroSingleGate):
@@ -364,6 +401,16 @@ class S(MacroSingleGate):
         """
         return [J(self.qubit, 0), J(self.qubit, np.pi / 2)]
 
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            S gate
+        """
+        return np.asarray([[1, 0], [0, 1j]], dtype=np.complex128)
+
 
 @dataclass(frozen=True)
 class T(MacroSingleGate):
@@ -386,6 +433,16 @@ class T(MacroSingleGate):
             List of unit gates that make up the gate.
         """
         return [J(self.qubit, 0), J(self.qubit, np.pi / 4)]
+
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            T gate
+        """
+        return np.asarray([[1, 0], [0, np.exp(1j * np.pi / 4)]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -415,6 +472,22 @@ class Rx(MacroSingleGate):
             J(self.qubit, self.angle),
             J(self.qubit, 0),
         ]
+
+    def get_matrix(self) -> NDArray[np.complex128]:
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Rx gate
+        """
+        return np.asarray(
+            [
+                [np.cos(self.angle / 2), -1j * np.sin(self.angle / 2)],
+                [-1j * np.sin(self.angle / 2), np.cos(self.angle / 2)],
+            ],
+            dtype=np.complex128,
+        )
 
 
 @dataclass(frozen=True)
@@ -447,6 +520,19 @@ class Ry(MacroSingleGate):
             J(self.qubit, 0),
         ]
 
+    def get_matrix(self) -> NDArray[np.complex128]:
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Ry gate
+        """
+        return np.asarray(
+            [[np.cos(self.angle / 2), -np.sin(self.angle / 2)], [np.sin(self.angle / 2), np.cos(self.angle / 2)]],
+            dtype=np.complex128,
+        )
+
 
 @dataclass(frozen=True)
 class Rz(MacroSingleGate):
@@ -472,6 +558,16 @@ class Rz(MacroSingleGate):
             List of unit gates that make up the gate.
         """
         return [J(self.qubit, 0), J(self.qubit, self.angle)]
+
+    def get_matrix(self) -> NDArray[np.complex128]:
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Rz gate
+        """
+        return np.asarray([[np.exp(-1j * self.angle / 2), 0], [0, np.exp(1j * self.angle / 2)]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -510,6 +606,25 @@ class U3(MacroSingleGate):
             J(self.qubit, -self.angle3),
         ]
 
+    def get_matrix(self) -> NDArray[np.complex128]:
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            U3 gate
+        """
+        return np.asarray(
+            [
+                [np.cos(self.angle2 / 2), -np.exp(1j * self.angle3) * np.sin(self.angle2 / 2)],
+                [
+                    np.exp(1j * self.angle1) * np.sin(self.angle2 / 2),
+                    np.exp(1j * (self.angle1 + self.angle3)) * np.cos(self.angle2 / 2),
+                ],
+            ],
+            dtype=np.complex128,
+        )
+
 
 @dataclass(frozen=True)
 class CNOT(MacroMultiGate):
@@ -540,15 +655,15 @@ class CNOT(MacroMultiGate):
             J(self.target, 0),
         ]
 
-    def get_matrix(self) -> NDArray:  # noqa: PLR6301
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
-        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -584,12 +699,12 @@ class SWAP(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:  # noqa: PLR6301
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -598,7 +713,8 @@ class SWAP(MacroMultiGate):
                 [0, 0, 1, 0],
                 [0, 1, 0, 0],
                 [0, 0, 0, 1],
-            ]
+            ],
+            dtype=np.complex128,
         )
 
 
@@ -639,12 +755,12 @@ class CRz(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -653,7 +769,8 @@ class CRz(MacroMultiGate):
                 [0, np.exp(-1j * self.angle / 2), 0, 0],
                 [0, 0, 1, 0],
                 [0, 0, 0, np.exp(1j * self.angle / 2)],
-            ]
+            ],
+            dtype=np.complex128,
         )
 
 
@@ -695,12 +812,12 @@ class CRx(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -709,7 +826,8 @@ class CRx(MacroMultiGate):
                 [0, 1, 0, 0],
                 [0, 0, np.cos(self.angle), -1j * np.sin(self.angle)],
                 [0, -1j * np.sin(self.angle), 0, np.cos(self.angle)],
-            ]
+            ],
+            dtype=np.complex128,
         )
 
 
@@ -758,12 +876,12 @@ class CU3(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -782,7 +900,8 @@ class CU3(MacroMultiGate):
                     np.exp(1j * self.angle2) * np.sin(self.angle1),
                     np.exp(1j * (self.angle2 + self.angle3)) * np.cos(self.angle1),
                 ],
-            ]
+            ],
+            dtype=np.complex128,
         )
 
 
@@ -824,12 +943,12 @@ class CCZ(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:  # noqa: PLR6301
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -842,7 +961,8 @@ class CCZ(MacroMultiGate):
                 [0, 0, 0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 0, 0, 0, -1],
-            ]
+            ],
+            dtype=np.complex128,
         )
 
 
@@ -886,12 +1006,12 @@ class Toffoli(MacroMultiGate):
             unit_gates.extend(macro_gate.get_unit_gates())
         return unit_gates
 
-    def get_matrix(self) -> NDArray:  # noqa: PLR6301
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             Matrix representation of the gate.
         """
         return np.asarray(
@@ -904,5 +1024,6 @@ class Toffoli(MacroMultiGate):
                 [0, 0, 0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 1],
                 [0, 0, 0, 0, 0, 0, 1, 0],
-            ]
+            ],
+            dtype=np.complex128,
         )
