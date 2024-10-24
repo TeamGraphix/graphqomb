@@ -981,7 +981,7 @@ class ZXGraphState(GraphState):
         alpha = self.meas_angles[node] % (2 * np.pi)
         return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}
 
-    def _needs_pivot(self, node: int) -> bool:
+    def _needs_pivot_1(self, node: int) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
 
         Parameters
@@ -994,12 +994,38 @@ class ZXGraphState(GraphState):
         bool
             True if the nodes need a pivot operation.
         """
+        non_input_nbrs = self.get_neighbors(node) - self.input_nodes
+        if len(non_input_nbrs) == 0:
+            return False
+
         atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
-        non_input_nbrs = self.get_neighbors(node) - self.input_nodes
-        return (case_a or case_b) and len(non_input_nbrs) > 0
+        return case_a or case_b
+
+    def _needs_pivot_2(self, node: int) -> bool:
+        """Check if the node needs a pivot operation on output nodes in order to perform _remove_clifford.
+
+        Parameters
+        ----------
+        node : int
+            node index
+
+        Returns
+        -------
+        bool
+            True if the node needs a pivot operation on output nodes.
+        """
+        nbrs = self.get_neighbors(node) - self.input_nodes
+        if len(nbrs) == 0:
+            return False
+
+        atol = 1e-15
+        alpha = self.meas_angles[node] % (2 * np.pi)
+        case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
+        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
+        return case_a or case_b
 
     def _remove_clifford(self, node: int) -> None:
         """Perform the Clifford vertex removal.
@@ -1037,6 +1063,7 @@ class ZXGraphState(GraphState):
             2. If the node is not a Clifford vertex.
             3. If all neighbors are input nodes
                 in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
+            4. If the node has no neighbors that are not connected only to output nodes.
         """
         self.ensure_node_exists(node)
         if node in self.input_nodes:
@@ -1051,12 +1078,16 @@ class ZXGraphState(GraphState):
             pass
         elif self._needs_lc(node):
             self.local_complement(node)
-        elif self._needs_pivot(node):
-            non_input_nbrs = self.get_neighbors(node) - self.input_nodes
-            v = non_input_nbrs.pop()
+        elif self._needs_pivot_1(node):
+            nbrs = self.get_neighbors(node) - self.input_nodes
+            v = nbrs.pop()
+            self.pivot(node, v)
+        elif self._needs_pivot_2(node):
+            nbrs = self.get_neighbors(node) - self.input_nodes
+            v = nbrs.pop()
             self.pivot(node, v)
         else:
-            msg = "All neighbors are input nodes."
+            msg = "Invalid case for Clifford vertex removal."
             raise ValueError(msg)
 
         self._remove_clifford(node)
