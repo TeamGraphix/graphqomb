@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from numpy.typing import NDArray
 
 
@@ -199,13 +200,19 @@ class PhaseGadget(UnitGate):
 class MacroSingleGate(Gate):
     """Base class for single qubit macro gates."""
 
+    qubit: int
+
 
 class MacroTwoQubitGate(Gate):
     """Base class for two qubit macro gates."""
 
+    qubits: tuple[int, int]
+
 
 class MacroMultiGate(Gate):
     """Base class for multi qubit macro gates."""
+
+    qubits: Sequence[int]
 
 
 @dataclass(frozen=True)
@@ -627,19 +634,16 @@ class U3(MacroSingleGate):
 
 
 @dataclass(frozen=True)
-class CNOT(MacroMultiGate):
+class CNOT(MacroTwoQubitGate):
     """Class for the CNOT gate.
 
     Attributes
     ----------
-    control : int
-        The control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : tuple[int, int]
+        The qubits the gate acts on [control target].
     """
 
-    control: int
-    target: int
+    qubits: tuple[int, int]
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -649,10 +653,11 @@ class CNOT(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        target = self.qubits[1]
         return [
-            J(self.target, 0),
-            CZ((self.control, self.target)),
-            J(self.target, 0),
+            J(target, 0),
+            CZ((self.qubits[0], self.qubits[1])),
+            J(target, 0),
         ]
 
     def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
@@ -667,19 +672,16 @@ class CNOT(MacroMultiGate):
 
 
 @dataclass(frozen=True)
-class SWAP(MacroMultiGate):
+class SWAP(MacroTwoQubitGate):
     """Class for the SWAP gate.
 
     Attributes
     ----------
-    qubit1 : int
-        The first qubit of the gate.
-    qubit2 : int
-        The second qubit of the gate.
+    qubits : tuple[int, int]
+        The qubits the gate acts on [control target].
     """
 
-    qubit1: int
-    qubit2: int
+    qubits: tuple[int, int]
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -689,10 +691,12 @@ class SWAP(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        control = self.qubits[0]
+        target = self.qubits[1]
         macro_gates = [
-            CNOT(self.qubit1, self.qubit2),
-            CNOT(self.qubit2, self.qubit1),
-            CNOT(self.qubit1, self.qubit2),
+            CNOT(self.qubits),
+            CNOT((target, control)),
+            CNOT(self.qubits),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -719,21 +723,18 @@ class SWAP(MacroMultiGate):
 
 
 @dataclass(frozen=True)
-class CRz(MacroMultiGate):
+class CRz(MacroTwoQubitGate):
     """Class for the CRz gate.
 
     Attributes
     ----------
-    control : int
-        The control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : tuple[int, int]
+        The qubits the gate acts on [control target].
     angle : float
         The angle of the CRz gate.
     """
 
-    control: int
-    target: int
+    qubits: tuple[int, int]
     angle: float
 
     def get_unit_gates(self) -> list[UnitGate]:
@@ -744,11 +745,12 @@ class CRz(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        target = self.qubits[1]
         macro_gates = [
-            Rz(self.target, self.angle / 2),
-            CNOT(self.control, self.target),
-            Rz(self.target, -self.angle / 2),
-            CNOT(self.control, self.target),
+            Rz(target, self.angle / 2),
+            CNOT(self.qubits),
+            Rz(target, -self.angle / 2),
+            CNOT(self.qubits),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -775,21 +777,18 @@ class CRz(MacroMultiGate):
 
 
 @dataclass(frozen=True)
-class CRx(MacroMultiGate):
+class CRx(MacroTwoQubitGate):
     """Class for the CRx gate.
 
     Attributes
     ----------
-    control : int
-        The control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : tuple[int, int]
+        The qubits the gate acts on [control target].
     angle : float
         The angle of the CRx gate.
     """
 
-    control: int
-    target: int
+    qubits: tuple[int, int]
     angle: float
 
     def get_unit_gates(self) -> list[UnitGate]:
@@ -800,12 +799,13 @@ class CRx(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        target = self.qubits[1]
         macro_gates = [
-            Rz(self.target, np.pi / 2),
-            CNOT(self.control, self.target),
-            U3(self.target, -self.angle / 2, 0, 0),
-            CNOT(self.control, self.target),
-            U3(self.target, self.angle / 2, -np.pi / 2, 0),
+            Rz(target, np.pi / 2),
+            CNOT(self.qubits),
+            U3(target, -self.angle / 2, 0, 0),
+            CNOT(self.qubits),
+            U3(target, self.angle / 2, -np.pi / 2, 0),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -832,15 +832,13 @@ class CRx(MacroMultiGate):
 
 
 @dataclass(frozen=True)
-class CU3(MacroMultiGate):
+class CU3(MacroTwoQubitGate):
     """Class for the CU3 gate.
 
     Attributes
     ----------
-    control : int
-        The control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : tuple[int, int]
+        The qubits the gate acts on.
     angle1 : float
         The first angle of the CU3 gate.
     angle2 : float
@@ -849,8 +847,7 @@ class CU3(MacroMultiGate):
         The third angle of the CU3 gate.
     """
 
-    control: int
-    target: int
+    qubits: tuple[int, int]
     angle1: float
     angle2: float
     angle3: float
@@ -864,12 +861,12 @@ class CU3(MacroMultiGate):
             List of unit gates that make up the gate.
         """
         macro_gates = [
-            Rz(self.control, self.angle3 / 2 + self.angle2 / 2),
-            Rz(self.target, self.angle3 / 2 - self.angle2 / 2),
-            CNOT(self.control, self.target),
-            U3(self.target, -self.angle1 / 2, 0, -(self.angle2 + self.angle3) / 2),
-            CNOT(self.control, self.target),
-            U3(self.target, self.angle1 / 2, self.angle2, 0),
+            Rz(self.qubits[0], self.angle3 / 2 + self.angle2 / 2),
+            Rz(self.qubits[1], self.angle3 / 2 - self.angle2 / 2),
+            CNOT(self.qubits),
+            U3(self.qubits[1], -self.angle1 / 2, 0, -(self.angle2 + self.angle3) / 2),
+            CNOT(self.qubits),
+            U3(self.qubits[1], self.angle1 / 2, self.angle2, 0),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -911,17 +908,11 @@ class CCZ(MacroMultiGate):
 
     Attributes
     ----------
-    control1 : int
-        The first control qubit of the gate.
-    control2 : int
-        The second control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : Sequence[int]
+        The qubits the gate acts on [control1, control2, target].
     """
 
-    control1: int
-    control2: int
-    target: int
+    qubits: Sequence[int]
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -931,12 +922,15 @@ class CCZ(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        control1 = self.qubits[0]
+        control2 = self.qubits[1]
+        target = self.qubits[2]
         macro_gates = [
-            CRz(self.control2, self.target, np.pi / 2),
-            CNOT(self.control1, self.control2),
-            CRz(self.control2, self.target, -np.pi / 2),
-            CNOT(self.control1, self.control2),
-            CRz(self.control1, self.target, np.pi / 2),
+            CRz((control2, target), np.pi / 2),
+            CNOT((control1, control2)),
+            CRz((control2, target), -np.pi / 2),
+            CNOT((control1, control2)),
+            CRz((control1, target), np.pi / 2),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -972,17 +966,11 @@ class Toffoli(MacroMultiGate):
 
     Attributes
     ----------
-    control1 : int
-        The first control qubit of the gate.
-    control2 : int
-        The second control qubit of the gate.
-    target : int
-        The target qubit of the gate.
+    qubits : Sequence[int]
+        The qubits the gate acts on [control1, control2, target].
     """
 
-    control1: int
-    control2: int
-    target: int
+    qubits: Sequence[int]
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -992,14 +980,17 @@ class Toffoli(MacroMultiGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        control1 = self.qubits[0]
+        control2 = self.qubits[1]
+        target = self.qubits[2]
         macro_gates = [
-            H(self.target),
-            CRz(self.control2, self.target, np.pi / 2),
-            CNOT(self.control1, self.control2),
-            CRz(self.control2, self.target, -np.pi / 2),
-            CNOT(self.control1, self.control2),
-            CRz(self.control1, self.target, np.pi / 2),
-            H(self.target),
+            H(target),
+            CRz((control2, target), np.pi / 2),
+            CNOT((control1, control2)),
+            CRz((control2, target), -np.pi / 2),
+            CNOT((control1, control2)),
+            CRz((control1, target), np.pi / 2),
+            H(target),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
