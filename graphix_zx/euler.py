@@ -40,23 +40,23 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     global_phase = np.sqrt(np.linalg.det(u))
     u /= global_phase
 
-    if np.isclose(u[0, 1], 0):
-        alpha = 2 * np.angle(u[0, 0])
+    if np.isclose(u[1, 0], 0):
+        alpha = 2 * np.angle(u[1, 1])
         beta = 0.0
         gamma = 0.0
-    elif np.isclose(u[0, 0], 0):
-        alpha = 2 * np.angle(u[1, 0] / (-1j))
+    elif np.isclose(u[1, 1], 0):
+        alpha = 2 * np.angle(u[0, 1] / (-1j))
         beta = np.pi
         gamma = 0.0
     else:
-        alpha_p_gamma = np.angle(u[0, 0] / u[1, 1])
-        alpha_m_gamma = np.angle(u[0, 1] / u[1, 0])
+        alpha_p_gamma = np.angle(u[1, 1] / u[0, 0])
+        alpha_m_gamma = np.angle(u[1, 0] / u[0, 1])
 
         alpha = (alpha_p_gamma + alpha_m_gamma) / 2
         gamma = (alpha_p_gamma - alpha_m_gamma) / 2
 
-        cos_term = np.real(u[0, 0] / np.exp(1j * alpha_p_gamma / 2))
-        sin_term = np.real(u[0, 1] / (-1j * np.exp(1j * alpha_m_gamma / 2)))
+        cos_term = np.real(u[1, 1] / np.exp(1j * alpha_p_gamma / 2))
+        sin_term = np.real(u[1, 0] / (-1j * np.exp(1j * alpha_m_gamma / 2)))
 
         beta = 2 * np.angle(cos_term + 1j * sin_term)
 
@@ -333,7 +333,7 @@ def _rx(angle: float) -> NDArray[np.complex128]:
 def _rz(angle: float) -> NDArray[np.complex128]:
     return np.asarray(
         [
-            [np.exp(1j * angle / 2), 0],
-            [0, np.exp(-1j * angle / 2)],
+            [np.exp(-1j * angle / 2), 0],
+            [0, np.exp(1j * angle / 2)],
         ]
     )
