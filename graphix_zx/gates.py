@@ -1,7 +1,6 @@
 """Module for gates used in circuit representation.
 
 This module provides:
-- UnitGateKind: Enum class for unit gate set.
 - Gate: Abstract class for gates.
 - UnitGate: Abstract class for unit gates.
 - J: Class for the J gate.
@@ -40,14 +39,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-class UnitGateKind(Enum):
-    """Enum class for unit gate set."""
-
-    J = auto()
-    CZ = auto()
-    PhaseGadget = auto()
-
-
 class Gate(ABC):
     """Abstract class for gates."""
 
@@ -75,15 +66,7 @@ class Gate(ABC):
 
 
 class UnitGate(Gate):
-    """Abstract class for unit gates.
-
-    Attributes
-    ----------
-    kind : UnitGateKind
-        Which kind of unit gate it is.
-    """
-
-    kind: UnitGateKind
+    """Abstract class for unit gates."""
 
 
 @dataclass(frozen=True)
@@ -103,14 +86,10 @@ class J(UnitGate):
         1 & e^{i\\theta} \\\\
         1 & -e^{i\\theta}
         \\end{pmatrix}
-
-    kind : UnitGateKind
-        Which kind of unit gate it is.
     """
 
     qubit: int
     angle: float
-    kind: UnitGateKind = UnitGateKind.J
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -144,12 +123,9 @@ class CZ(UnitGate):
     ----------
     qubits : tuple[int, int]
         The qubits the gate acts on.
-    kind : UnitGateKind
-        Which kind of unit gate it is.
     """
 
     qubits: tuple[int, int]
-    kind: UnitGateKind = UnitGateKind.CZ
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
@@ -182,13 +158,10 @@ class PhaseGadget(UnitGate):
         The qubits the gate acts on.
     angle : float
         The angle of the PhaseGadget gate.
-    kind : UnitGateKind
-        Which kind of unit gate it is.
     """
 
     qubits: list[int]
     angle: float
-    kind: UnitGateKind = UnitGateKind.PhaseGadget
 
     def get_unit_gates(self) -> list[UnitGate]:
         """Get the unit gates that make up the gate.
