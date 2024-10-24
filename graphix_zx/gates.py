@@ -271,7 +271,7 @@ class X(SingleGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, np.pi), J(self.qubit, 0)]
+        return [J(self.qubit, 0), J(self.qubit, np.pi)]
 
     def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
@@ -342,7 +342,7 @@ class Z(SingleGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, 0), J(self.qubit, np.pi)]
+        return [J(self.qubit, np.pi), J(self.qubit, 0)]
 
     def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
@@ -409,7 +409,7 @@ class S(SingleGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, 0), J(self.qubit, np.pi / 2)]
+        return [J(self.qubit, np.pi / 2), J(self.qubit, 0)]
 
     def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
@@ -442,7 +442,7 @@ class T(SingleGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, 0), J(self.qubit, np.pi / 4)]
+        return [J(self.qubit, np.pi / 4), J(self.qubit, 0)]
 
     def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         """Get the matrix representation of the gate.
@@ -479,8 +479,8 @@ class Rx(SingleGate):
             List of unit gates that make up the gate.
         """
         return [
-            J(self.qubit, self.angle),
             J(self.qubit, 0),
+            J(self.qubit, self.angle),
         ]
 
     def get_matrix(self) -> NDArray[np.complex128]:
@@ -525,7 +525,7 @@ class Ry(SingleGate):
         """
         return [
             J(self.qubit, np.pi / 2),
-            J(self.qubit, self.angle),
+            J(self.qubit, -self.angle),
             J(self.qubit, -np.pi / 2),
             J(self.qubit, 0),
         ]
@@ -567,7 +567,7 @@ class Rz(SingleGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, 0), J(self.qubit, self.angle)]
+        return [J(self.qubit, self.angle), J(self.qubit, 0)]
 
     def get_matrix(self) -> NDArray[np.complex128]:
         """Get the matrix representation of the gate.

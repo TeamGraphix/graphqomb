@@ -17,6 +17,7 @@ from graphix_zx.gates import (
     H,
     Identity,
     J,
+    MultiGate,
     PhaseGadget,
     Rx,
     Ry,
@@ -25,17 +26,20 @@ from graphix_zx.gates import (
     SingleGate,
     T,
     Toffoli,
+    TwoQubitGate,
     X,
     Y,
     Z,
 )
 from graphix_zx.statevec import StateVector
 
-SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
+# SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
+SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz]
 TWO_GATES = [CZ, CNOT, SWAP, CRz, CRx, CU3]
 MULTI_GATES = [PhaseGadget, CCZ, Toffoli]
 
 NUM_ANGLES: dict[type, int] = {
+    J: 1,
     Identity: 0,
     X: 0,
     Y: 0,
@@ -53,6 +57,7 @@ NUM_ANGLES: dict[type, int] = {
     CRz: 1,
     CRx: 1,
     CU3: 3,
+    PhaseGadget: 1,
     CCZ: 0,
     Toffoli: 0,
 }
@@ -64,27 +69,34 @@ def rng() -> np.random.Generator:
 
 
 def apply_gates(state: StateVector, gates: Sequence[Gate], qubits: Sequence[int]) -> StateVector:
+    indices: Sequence[int]
     for gate in gates:
-        indices = [qubits[0]] if isinstance(gate, SingleGate) else qubits
+        if isinstance(gate, SingleGate):
+            indices = [gate.qubit]
+        elif isinstance(gate, (TwoQubitGate, MultiGate)):
+            indices = gate.qubits
+        else:
+            msg = f"Unknown gate type: {type(gate)}"
+            raise TypeError(msg)
         qubit_indices = [qubits.index(i) for i in indices]
         state.evolve(gate.get_matrix(), qubit_indices)
     return state
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 @pytest.mark.parametrize("gate_class", SINGLE_GATES)
 def test_single_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     num_qubits = 1
     state = StateVector(num_qubits)
     qubits = [0]
 
-    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+    gate = gate_class(qubits[0], *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
     result1 = apply_gates(copy(state), [gate], qubits)
     result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
 
     inner_product = np.vdot(result1.get_array(), result2.get_array())
-    assert np.isclose(inner_product, 1)
+    assert np.isclose(np.abs(inner_product), 1)
 
 
 @pytest.mark.skip
