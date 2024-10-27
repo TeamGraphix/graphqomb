@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
-
-if TYPE_CHECKING:
-    from typing import Callable
 
 
 @pytest.fixture
@@ -695,37 +691,38 @@ def test_remove_clifford_fails_for_special_clifford_vertex(zx_graph: ZXGraphStat
         zx_graph.remove_clifford(2)
 
 
-def _initialize_graph_1(zx_graph: ZXGraphState) -> None:
+def _initialize_graph(
+    zx_graph: ZXGraphState, nodes: range, edges: list[tuple[int, int]], inputs: tuple[int] = ()
+) -> None:
+    for i in nodes:
+        zx_graph.add_physical_node(i)
+    for i, j in edges:
+        zx_graph.add_physical_edge(i, j)
+    for i in inputs:
+        zx_graph.set_input(i)
+
+
+def graph_1(zx_graph: ZXGraphState) -> None:
     # 4---1---2
     #     |
     #     3
-    for i in range(1, 5):
-        zx_graph.add_physical_node(i)
-    for i, j in [(1, 2), (1, 3), (1, 4)]:
-        zx_graph.add_physical_edge(i, j)
+    _initialize_graph(zx_graph, nodes=range(1, 5), edges=[(1, 2), (1, 3), (1, 4)])
 
 
-def _initialize_graph_2(zx_graph: ZXGraphState) -> None:
+def graph_2(zx_graph: ZXGraphState) -> None:
     # 1---2---3
-    for i in range(1, 4):
-        zx_graph.add_physical_node(i)
-    for i, j in [(1, 2), (2, 3)]:
-        zx_graph.add_physical_edge(i, j)
+    _initialize_graph(zx_graph, nodes=range(1, 4), edges=[(1, 2), (2, 3)])
 
 
-def _initialize_graph_3(zx_graph: ZXGraphState, inputs: tuple[int] = (1, 4, 5)) -> None:
+def graph_3(zx_graph: ZXGraphState) -> None:
     #       4
     #      / \
     # 1 - 2 - 3 - 6
     #      \ /
     #       5
-    for i in range(1, 7):
-        zx_graph.add_physical_node(i)
-    for i in inputs:
-        zx_graph.set_input(i)
-    edges = [(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)]
-    for i, j in edges:
-        zx_graph.add_physical_edge(i, j)
+    _initialize_graph(
+        zx_graph, nodes=range(1, 7), edges=[(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)], inputs=(1, 4, 5)
+    )
 
 
 def _apply_measurements(zx_graph: ZXGraphState, measurements: list[tuple[int, Plane, float]]) -> None:
@@ -737,11 +734,9 @@ def _apply_measurements(zx_graph: ZXGraphState, measurements: list[tuple[int, Pl
 def _test_remove_clifford(
     zx_graph: ZXGraphState,
     node: int,
-    init_func: Callable[[ZXGraphState], None],
     measurements: list[tuple[int, Plane, float]],
     expectations: dict[str, set[tuple[int, int]] | list[tuple[int, Plane, float]]],
 ) -> None:
-    init_func(zx_graph)
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_clifford(node)
 
@@ -769,10 +764,10 @@ def test_remove_clifford_with_xz_0(zx_graph: ZXGraphState) -> None:
             (4, Plane.XZ, 0.3 * np.pi),
         ],
     }
+    graph_1(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=1,
-        init_func=_initialize_graph_1,
         measurements=measurements,
         expectations=expectations,
     )
@@ -794,10 +789,10 @@ def test_remove_clifford_with_xz_pi(zx_graph: ZXGraphState) -> None:
             (4, Plane.XZ, 0.3 * np.pi),
         ],
     }
+    graph_1(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=1,
-        init_func=_initialize_graph_1,
         measurements=measurements,
         expectations=expectations,
     )
@@ -819,10 +814,10 @@ def test_remove_clifford_with_yz_0(zx_graph: ZXGraphState) -> None:
             (4, Plane.XZ, 0.3 * np.pi),
         ],
     }
+    graph_1(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=1,
-        init_func=_initialize_graph_1,
         measurements=measurements,
         expectations=expectations,
     )
@@ -844,10 +839,10 @@ def test_remove_clifford_with_yz_pi(zx_graph: ZXGraphState) -> None:
             (4, Plane.XZ, 0.3 * np.pi),
         ],
     }
+    graph_1(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=1,
-        init_func=_initialize_graph_1,
         measurements=measurements,
         expectations=expectations,
     )
@@ -866,10 +861,10 @@ def test_remove_clifford_with_xy_0p5_pi(zx_graph: ZXGraphState) -> None:
             (3, Plane.YZ, 0.2 * np.pi),
         ],
     }
+    graph_2(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_2,
         measurements=measurements,
         expectations=expectations,
     )
@@ -888,10 +883,10 @@ def test_remove_clifford_with_xy_1p5_pi(zx_graph: ZXGraphState) -> None:
             (3, Plane.YZ, 0.2 * np.pi),
         ],
     }
+    graph_2(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_2,
         measurements=measurements,
         expectations=expectations,
     )
@@ -910,10 +905,10 @@ def test_remove_clifford_with_yz_0p5_pi(zx_graph: ZXGraphState) -> None:
             (3, Plane.XZ, 0.2 * np.pi),
         ],
     }
+    graph_2(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_2,
         measurements=measurements,
         expectations=expectations,
     )
@@ -932,10 +927,10 @@ def test_remove_clifford_with_yz_1p5_pi(zx_graph: ZXGraphState) -> None:
             (3, Plane.XZ, 0.2 * np.pi),
         ],
     }
+    graph_2(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_2,
         measurements=measurements,
         expectations=expectations,
     )
@@ -960,10 +955,10 @@ def test_remove_clifford_with_xy_0(zx_graph: ZXGraphState) -> None:
             (6, Plane.YZ, 1.5 * np.pi),
         ],
     }
+    graph_3(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_3,
         measurements=measurements,
         expectations=expectations,
     )
@@ -988,10 +983,10 @@ def test_remove_clifford_with_xy_pi(zx_graph: ZXGraphState) -> None:
             (6, Plane.YZ, 1.5 * np.pi),
         ],
     }
+    graph_3(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_3,
         measurements=measurements,
         expectations=expectations,
     )
@@ -1016,10 +1011,10 @@ def test_remove_clifford_with_xz_0p5_pi(zx_graph: ZXGraphState) -> None:
             (6, Plane.YZ, 1.5 * np.pi),
         ],
     }
+    graph_3(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_3,
         measurements=measurements,
         expectations=expectations,
     )
@@ -1044,10 +1039,10 @@ def test_remove_clifford_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
             (6, Plane.YZ, 1.5 * np.pi),
         ],
     }
+    graph_3(zx_graph)
     _test_remove_clifford(
         zx_graph,
         node=2,
-        init_func=_initialize_graph_3,
         measurements=measurements,
         expectations=expectations,
     )
