@@ -1096,11 +1096,7 @@ class ZXGraphState(GraphState):
             pass
         elif self._needs_lc(node):
             self.local_complement(node)
-        elif self._needs_pivot_1(node):
-            nbrs = self.get_neighbors(node) - self.input_nodes
-            v = nbrs.pop()
-            self.pivot(node, v)
-        elif self._needs_pivot_2(node):
+        elif self._needs_pivot_1(node) or self._needs_pivot_2(node):
             nbrs = self.get_neighbors(node) - self.input_nodes
             v = nbrs.pop()
             self.pivot(node, v)
