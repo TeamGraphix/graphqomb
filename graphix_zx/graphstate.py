@@ -594,8 +594,17 @@ class GraphState(BaseGraphState):
         ----------
         node : int
             node index
+
+        Raises
+        ------
+        ValueError
+            1. If the node does not exist.
+            2. If the node has a measurement basis.
         """
         self.ensure_node_exists(node)
+        if self.meas_planes.get(node) or self.meas_angles.get(node):
+            msg = "Cannot set output node with measurement basis."
+            raise ValueError(msg)
         self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:

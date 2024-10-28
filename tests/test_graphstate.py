@@ -185,6 +185,22 @@ def test_set_input(graph: GraphState) -> None:
     assert 1 in graph.input_nodes
 
 
+def test_set_output_raises_1(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.set_output(1)
+    graph.add_physical_node(1)
+    graph.set_meas_angle(1, 0.5 * np.pi)
+    with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
+        graph.set_output(1)
+
+
+def test_set_output_raises_2(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    graph.set_meas_plane(1, Plane.XY)
+    with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
+        graph.set_output(1)
+
+
 def test_set_output(graph: GraphState) -> None:
     """Test setting a physical node as output."""
     graph.add_physical_node(1)
