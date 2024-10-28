@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import MeasBasis, Plane
-from graphix_zx.euler import update_lc_basis
+from graphix_zx.euler import is_clifford_angle, update_lc_basis
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -770,24 +770,6 @@ class GraphState(BaseGraphState):
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
 
-    def is_clifford(self, node: int) -> bool:
-        """Check if the node is a Clifford vertex.
-
-        Parameters
-        ----------
-        node : int
-            node index
-
-        Returns
-        -------
-        bool
-            True if the node is a Clifford vertex.
-        """
-        atol = 1e-15
-        angle = self.meas_angles[node] % (2 * np.pi)
-        is_valid_plane = self.meas_planes[node] in {Plane.XY, Plane.XZ, Plane.YZ}
-        return abs(angle % (0.5 * np.pi)) < atol and is_valid_plane
-
 
 def _update_meas_basis(
     lc: LocalClifford,
@@ -974,7 +956,7 @@ class ZXGraphState(GraphState):
         for w in nbr_a:
             self._update_node_measurement(measurement_action, w)
 
-    def _needs_nop(self, node: int) -> bool:
+    def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs no operation in order to perform _remove_clifford.
 
         For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
@@ -984,17 +966,18 @@ class ZXGraphState(GraphState):
         ----------
         node : int
             node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
 
         Returns
         -------
         bool
             True if the node needs no operation
         """
-        atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         return abs(alpha % np.pi) < atol and (self.meas_planes[node] in {Plane.YZ, Plane.XZ})
 
-    def _needs_lc(self, node: int) -> bool:
+    def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
 
         For this operation, the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi)
@@ -1004,17 +987,18 @@ class ZXGraphState(GraphState):
         ----------
         node : int
             node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
 
         Returns
         -------
         bool
             True if the node needs a local complementation.
         """
-        atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}
 
-    def _needs_pivot_1(self, node: int) -> bool:
+    def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
@@ -1027,6 +1011,8 @@ class ZXGraphState(GraphState):
         ----------
         node : int
             node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
 
         Returns
         -------
@@ -1037,13 +1023,12 @@ class ZXGraphState(GraphState):
         if len(non_input_nbrs) == 0:
             return False
 
-        atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
         return case_a or case_b
 
-    def _needs_pivot_2(self, node: int) -> bool:
+    def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a pivot operation on output nodes in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input but output neighbor of the node.
@@ -1056,6 +1041,8 @@ class ZXGraphState(GraphState):
         ----------
         node : int
             node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
 
         Returns
         -------
@@ -1063,24 +1050,24 @@ class ZXGraphState(GraphState):
             True if the node needs a pivot operation on output nodes.
         """
         nbrs = self.get_neighbors(node) - self.input_nodes
-        if len(nbrs) == 0:
+        if not nbrs.issubset(self.output_nodes) or len(nbrs) == 0:
             return False
 
-        atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
         return case_a or case_b
 
-    def _remove_clifford(self, node: int) -> None:
+    def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
         """Perform the Clifford vertex removal.
 
         Parameters
         ----------
         node : int
             node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
         """
-        atol = 1e-15
         alpha = self.meas_angles[node] % (2 * np.pi)
         measurement_action = {
             Plane.XY: (Plane.XY, lambda v: (alpha + self.meas_angles[v]) % (2.0 * np.pi)),
@@ -1098,8 +1085,15 @@ class ZXGraphState(GraphState):
 
         self.remove_physical_node(node)
 
-    def remove_clifford(self, node: int) -> None:
+    def remove_clifford(self, node: int, atol: float = 1e-9) -> None:
         """Remove the local clifford node.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
 
         Raises
         ------
@@ -1115,15 +1109,15 @@ class ZXGraphState(GraphState):
             msg = "Clifford vertex removal not allowed for input node"
             raise ValueError(msg)
 
-        if not self.is_clifford(node):
+        if not is_clifford_angle(self.meas_angles[node], atol):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
 
-        if self._needs_nop(node):
+        if self._needs_nop(node, atol):
             pass
-        elif self._needs_lc(node):
+        elif self._needs_lc(node, atol):
             self.local_complement(node)
-        elif self._needs_pivot_1(node) or self._needs_pivot_2(node):
+        elif self._needs_pivot_1(node, atol) or self._needs_pivot_2(node, atol):
             nbrs = self.get_neighbors(node) - self.input_nodes
             v = nbrs.pop()
             self.pivot(node, v)
@@ -1131,7 +1125,7 @@ class ZXGraphState(GraphState):
             msg = "Invalid case for Clifford vertex removal."
             raise ValueError(msg)
 
-        self._remove_clifford(node)
+        self._remove_clifford(node, atol)
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
