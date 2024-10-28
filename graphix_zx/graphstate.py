@@ -935,9 +935,9 @@ class ZXGraphState(GraphState):
 
         # update node1 and node2 measurement
         measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
+            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v] % (2.0 * np.pi)),
             Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
+            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v] % (2.0 * np.pi)),
         }
 
         for a in {node1, node2} - self.output_nodes:
@@ -953,8 +953,8 @@ class ZXGraphState(GraphState):
         for w in nbr_a - self.output_nodes:
             self._update_node_measurement(measurement_action, w)
 
-    def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node needs no operation in order to perform _remove_clifford.
+    def _is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
+        """Check if the node is a removable Clifford vertex.
 
         For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
         and the measurement plane must be YZ or XZ.
@@ -969,7 +969,7 @@ class ZXGraphState(GraphState):
         Returns
         -------
         bool
-            True if the node needs no operation
+            True if the node is a removable Clifford vertex.
         """
         alpha = self.meas_angles[node] % (2 * np.pi)
         return abs(alpha % np.pi) < atol and (self.meas_planes[node] in {Plane.YZ, Plane.XZ})
@@ -1017,7 +1017,7 @@ class ZXGraphState(GraphState):
             True if the nodes need a pivot operation.
         """
         non_input_nbrs = self.get_neighbors(node) - self.input_nodes
-        if len(non_input_nbrs) == 0:
+        if len(non_input_nbrs) == 0 or len(non_input_nbrs - self.output_nodes) == 0:
             return False
 
         alpha = self.meas_angles[node] % (2 * np.pi)
@@ -1046,7 +1046,7 @@ class ZXGraphState(GraphState):
         bool
             True if the node needs a pivot operation on output nodes.
         """
-        nbrs = self.get_neighbors(node) - self.input_nodes
+        nbrs = self.get_neighbors(node)
         if not nbrs.issubset(self.output_nodes) or len(nbrs) == 0:
             return False
 
@@ -1077,7 +1077,7 @@ class ZXGraphState(GraphState):
                 lambda v: self.meas_angles[v] if abs(alpha % np.pi) < atol else -self.meas_angles[v] % (2 * np.pi),
             ),
         }
-        for v in self.get_neighbors(node):
+        for v in self.get_neighbors(node) - self.output_nodes:
             self._update_node_measurement(measurement_action, v)
 
         self.remove_physical_node(node)
@@ -1117,16 +1117,17 @@ class ZXGraphState(GraphState):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
 
-        if self._needs_nop(node, atol):
+        if self._is_removable_clifford(node, atol):
             pass
         elif self._needs_lc(node, atol):
             self.local_complement(node)
         elif self._needs_pivot_1(node, atol) or self._needs_pivot_2(node, atol):
             nbrs = self.get_neighbors(node) - self.input_nodes
-            v = nbrs.pop()
+            v = min(nbrs)
+            nbrs.remove(v)
             self.pivot(node, v)
         else:
-            msg = "Invalid case for Clifford vertex removal."
+            msg = "This Clifford vertex is unremovable."
             raise ValueError(msg)
 
         self._remove_clifford(node, atol)

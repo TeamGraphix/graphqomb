@@ -764,25 +764,6 @@ def test_remove_clifford_fails_for_non_clifford_vertex(zx_graph: ZXGraphState) -
         zx_graph.remove_clifford(1)
 
 
-def test_remove_clifford_fails_for_special_clifford_vertex(zx_graph: ZXGraphState) -> None:
-    for i in range(1, 4):
-        zx_graph.add_physical_node(i)
-    measurements = [
-        (1, Plane.XY, 0.5 * np.pi),
-        (2, Plane.XY, np.pi),
-        (3, Plane.XY, 0.5 * np.pi),
-    ]
-    for node_id, plane, angle in measurements:
-        zx_graph.set_meas_plane(node_id, plane)
-        zx_graph.set_meas_angle(node_id, angle)
-    zx_graph.set_input(1)
-    zx_graph.set_input(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-    with pytest.raises(ValueError, match="Invalid case for Clifford vertex removal."):
-        zx_graph.remove_clifford(2)
-
-
 def graph_1(zx_graph: ZXGraphState) -> None:
     # _needs_nop
     # 4---1---2      4       2
@@ -811,15 +792,15 @@ def graph_3(zx_graph: ZXGraphState) -> None:
 
 def graph_4(zx_graph: ZXGraphState) -> None:
     # _needs_pivot_2 on (2, 4)
-    # 1(I) 3(I)        1(I) - 3(I)
-    #   \ / \      ->      \ /
-    #    2 - 4(O)          4(O)
+    # 1(I) 3(O) 5(O)      1(I)-3(O)-5(O)-1(I)
+    #   \  / \ /      ->         \ /
+    #   2(O)- 4                  2(O)
     _initialize_graph(
         zx_graph,
-        nodes=range(1, 5),
-        edges=[(1, 2), (2, 3), (2, 4), (3, 4)],
-        inputs=(1, 3),
-        outputs=(4,),
+        nodes=range(1, 6),
+        edges=[(1, 2), (2, 3), (2, 4), (3, 4), (4, 5)],
+        inputs=(1,),
+        outputs=(2, 3, 5),
     )
 
 
@@ -835,8 +816,8 @@ def _test_remove_clifford(
     _test(zx_graph, exp_edges, exp_measurements)
 
 
-def test_remove_clifford_nop_with_xz_0(zx_graph: ZXGraphState) -> None:
-    """Test removing a Clifford vertex with measurement plane XZ and angle 0."""
+def test_remove_clifford_removable_with_xz_0(zx_graph: ZXGraphState) -> None:
+    """Test removing a removable Clifford vertex with measurement plane XZ and angle 0."""
     measurements = [
         (1, Plane.XZ, 0),
         (2, Plane.XY, 0.1 * np.pi),
@@ -854,8 +835,8 @@ def test_remove_clifford_nop_with_xz_0(zx_graph: ZXGraphState) -> None:
     )
 
 
-def test_remove_clifford_nop_with_xz_pi(zx_graph: ZXGraphState) -> None:
-    """Test removing a Clifford vertex with measurement plane XZ and angle pi."""
+def test_remove_clifford_removable_with_xz_pi(zx_graph: ZXGraphState) -> None:
+    """Test removing a removable Clifford vertex with measurement plane XZ and angle pi."""
     measurements = [
         (1, Plane.XZ, np.pi),
         (2, Plane.XY, 0.1 * np.pi),
@@ -877,8 +858,8 @@ def test_remove_clifford_nop_with_xz_pi(zx_graph: ZXGraphState) -> None:
     )
 
 
-def test_remove_clifford_nop_with_yz_0(zx_graph: ZXGraphState) -> None:
-    """Test removing a Clifford vertex with measurement plane YZ and angle 0."""
+def test_remove_clifford_removable_with_yz_0(zx_graph: ZXGraphState) -> None:
+    """Test removing a removable Clifford vertex with measurement plane YZ and angle 0."""
     measurements = [
         (1, Plane.YZ, 0),
         (2, Plane.XY, 0.1 * np.pi),
@@ -900,8 +881,8 @@ def test_remove_clifford_nop_with_yz_0(zx_graph: ZXGraphState) -> None:
     )
 
 
-def test_remove_clifford_nop_with_yz_pi(zx_graph: ZXGraphState) -> None:
-    """Test removing a Clifford vertex with measurement plane YZ and angle pi."""
+def test_remove_clifford_removable_with_yz_pi(zx_graph: ZXGraphState) -> None:
+    """Test removing a removable Clifford vertex with measurement plane YZ and angle pi."""
     measurements = [
         (1, Plane.YZ, np.pi),
         (2, Plane.XY, 0.1 * np.pi),
@@ -1101,19 +1082,111 @@ def test_remove_clifford_pivot1_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
 
 
 def test_remove_clifford_pivot2_with_xy_0(zx_graph: ZXGraphState) -> None:
-    pass
+    measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (4, Plane.XY, 0),
+        (5, None, None),
+    ]
+    exp_measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (5, None, None),
+    ]
+    graph_4(zx_graph)
+    _test_remove_clifford(
+        zx_graph,
+        node=4,
+        measurements=measurements,
+        exp_edges={(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)},
+        exp_measurements=exp_measurements,
+    )
 
 
 def test_remove_clifford_pivot2_with_xy_pi(zx_graph: ZXGraphState) -> None:
-    pass
+    measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (4, Plane.XY, np.pi),
+        (5, None, None),
+    ]
+    exp_measurements = [
+        (1, Plane.XY, 1.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (5, None, None),
+    ]
+    graph_4(zx_graph)
+    _test_remove_clifford(
+        zx_graph,
+        node=4,
+        measurements=measurements,
+        exp_edges={(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)},
+        exp_measurements=exp_measurements,
+    )
 
 
 def test_remove_clifford_pivot2_with_xz_0p5_pi(zx_graph: ZXGraphState) -> None:
-    pass
+    measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (4, Plane.XZ, 0.5 * np.pi),
+        (5, None, None),
+    ]
+    exp_measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (5, None, None),
+    ]
+    graph_4(zx_graph)
+    _test_remove_clifford(
+        zx_graph,
+        node=4,
+        measurements=measurements,
+        exp_edges={(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)},
+        exp_measurements=exp_measurements,
+    )
 
 
 def test_remove_clifford_pivot2_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
-    pass
+    measurements = [
+        (1, Plane.XY, 0.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (4, Plane.XZ, 1.5 * np.pi),
+        (5, None, None),
+    ]
+    exp_measurements = [
+        (1, Plane.XY, 1.1 * np.pi),
+        (2, None, None),
+        (3, None, None),
+        (5, None, None),
+    ]
+    graph_4(zx_graph)
+    _test_remove_clifford(
+        zx_graph,
+        node=4,
+        measurements=measurements,
+        exp_edges={(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)},
+        exp_measurements=exp_measurements,
+    )
+
+
+def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
+    _initialize_graph(zx_graph, nodes=range(1, 4), edges=[(1, 2), (2, 3)], inputs=(1, 3))
+    measurements = [
+        (1, Plane.XY, 0.5 * np.pi),
+        (2, Plane.XY, np.pi),
+        (3, Plane.XY, 0.5 * np.pi),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    with pytest.raises(ValueError, match="This Clifford vertex is unremovable."):
+        zx_graph.remove_clifford(2)
 
 
 if __name__ == "__main__":
