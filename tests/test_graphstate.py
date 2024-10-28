@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
-
-if TYPE_CHECKING:
-    from typing import Optional
 
 
 @pytest.fixture
@@ -35,6 +31,62 @@ def zx_graph() -> ZXGraphState:
         ZXGraphState: An empty ZXGraphState object.
     """
     return ZXGraphState()
+
+
+def _initialize_graph(
+    zx_graph: ZXGraphState,
+    nodes: range,
+    edges: list[tuple[int, int]],
+    inputs: tuple[int, ...] = (),
+    outputs: tuple[int, ...] = (),
+) -> None:
+    """Initialize a ZXGraphState object with the given nodes and edges.
+
+    Parameters
+    ----------
+    zx_graph : ZXGraphState
+        The ZXGraphState object to initialize.
+    nodes : range
+        nodes to add to the graph.
+    edges : list[tuple[int, int]]
+        edges to add to the graph.
+    inputs : tuple[int, ...], optional
+        input nodes, by default ().
+    outputs : tuple[int, ...], optional
+        output nodes, by default ().
+    """
+    for i in nodes:
+        zx_graph.add_physical_node(i)
+    for i, j in edges:
+        zx_graph.add_physical_edge(i, j)
+    input_nodes = () if inputs is None else inputs
+    for i in input_nodes:
+        zx_graph.set_input(i)
+    for i in outputs:
+        zx_graph.set_output(i)
+
+
+def _apply_measurements(zx_graph: ZXGraphState, measurements: list[tuple[int, Plane, float]]) -> None:
+    for node_id, plane, angle in measurements:
+        if node_id in zx_graph.output_nodes:
+            continue
+        zx_graph.set_meas_plane(node_id, plane)
+        zx_graph.set_meas_angle(node_id, angle)
+
+
+def _test(
+    zx_graph: ZXGraphState,
+    exp_edges: set[tuple[int, int]],
+    exp_measurements: list[tuple[int, Plane, float]] | None = None,
+) -> None:
+    exp_nodes = {node_id for node_id, _, _ in exp_measurements}
+    assert zx_graph.physical_nodes == exp_nodes
+    assert zx_graph.physical_edges == exp_edges
+    for node_id, plane, angle in exp_measurements:
+        if node_id in zx_graph.output_nodes:
+            continue
+        assert zx_graph.meas_planes[node_id] == plane
+        assert pytest.approx(zx_graph.meas_angles[node_id]) == angle
 
 
 def test_add_physical_node(graph: GraphState) -> None:
@@ -315,15 +367,7 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     """Test local complement fails with input node."""
     zx_graph.add_physical_node(1)
     zx_graph.set_input(1)
-    with pytest.raises(ValueError, match="Cannot apply local complement to input node"):
-        zx_graph.local_complement(1)
-
-
-def test_local_complement_fails_with_output_node(zx_graph: ZXGraphState) -> None:
-    """Test local complement fails with output node."""
-    zx_graph.add_physical_node(1)
-    zx_graph.set_output(1)
-    with pytest.raises(ValueError, match="Cannot apply local complement to input node nor output node"):
+    with pytest.raises(ValueError, match="Cannot apply local complement to input node."):
         zx_graph.local_complement(1)
 
 
@@ -349,6 +393,25 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
     zx_graph.local_complement(1)
     assert zx_graph.meas_planes[1] == Plane.YZ
     assert pytest.approx(zx_graph.meas_angles[1]) == 1.6 * np.pi
+
+
+def test_local_complement_on_output_node(zx_graph: ZXGraphState) -> None:
+    """Test local complement on an output node."""
+    _initialize_graph(zx_graph, range(1, 4), [(1, 2), (2, 3)], outputs=(2,))
+    measurements = [
+        (1, Plane.XY, 1.1 * np.pi),
+        (2, None, None),
+        (3, Plane.YZ, 1.3 * np.pi),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.local_complement(2)
+
+    exp_measurements = [
+        (1, Plane.XY, 0.6 * np.pi),
+        (2, None, None),
+        (3, Plane.XZ, 0.7 * np.pi),
+    ]
+    _test(zx_graph, exp_edges={(1, 2), (1, 3), (2, 3)}, exp_measurements=exp_measurements)
 
 
 def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
@@ -509,15 +572,6 @@ def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(2)
     zx_graph.set_input(1)
     with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
-        zx_graph.pivot(1, 2)
-
-
-def test_pivot_fails_with_output_node(zx_graph: ZXGraphState) -> None:
-    """Test pivot fails with output node."""
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.set_output(1)
-    with pytest.raises(ValueError, match="Cannot apply pivot to output node"):
         zx_graph.pivot(1, 2)
 
 
@@ -729,18 +783,6 @@ def test_remove_clifford_fails_for_special_clifford_vertex(zx_graph: ZXGraphStat
         zx_graph.remove_clifford(2)
 
 
-def _initialize_graph(
-    zx_graph: ZXGraphState, nodes: range, edges: list[tuple[int, int]], inputs: Optional[tuple[int, ...]] = None
-) -> None:
-    for i in nodes:
-        zx_graph.add_physical_node(i)
-    for i, j in edges:
-        zx_graph.add_physical_edge(i, j)
-    input_nodes = () if inputs is None else inputs
-    for i in input_nodes:
-        zx_graph.set_input(i)
-
-
 def graph_1(zx_graph: ZXGraphState) -> None:
     # 4---1---2
     #     |
@@ -779,13 +821,7 @@ def _test_remove_clifford(
 ) -> None:
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_clifford(node)
-
-    exp_nodes = {node_id for node_id, _, _ in exp_measurements}
-    assert zx_graph.physical_nodes == exp_nodes
-    assert zx_graph.physical_edges == exp_edges
-    for node_id, plane, angle in exp_measurements:
-        assert zx_graph.meas_planes[node_id] == plane
-        assert pytest.approx(zx_graph.meas_angles[node_id]) == angle
+    _test(zx_graph, exp_edges, exp_measurements)
 
 
 def test_remove_clifford_nop_with_xz_0(zx_graph: ZXGraphState) -> None:
