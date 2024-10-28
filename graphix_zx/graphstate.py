@@ -637,8 +637,17 @@ class GraphState(BaseGraphState):
             node index
         plane : Plane
             measurement plane
+
+        Raises
+        ------
+        ValueError
+            1. If the node does not exist.
+            2. If the node is an output node.
         """
         self.ensure_node_exists(node)
+        if node in self.output_nodes:
+            msg = "Cannot set measurement plane for output node."
+            raise ValueError(msg)
         self.__meas_planes[node] = plane
 
     def set_meas_angle(self, node: int, angle: float) -> None:
@@ -650,8 +659,17 @@ class GraphState(BaseGraphState):
             node index
         angle : float
             measurement angle
+
+        Raises
+        ------
+        ValueError
+            1. If the node does not exist.
+            2. If the node is an output node.
         """
         self.ensure_node_exists(node)
+        if node in self.output_nodes:
+            msg = "Cannot set measurement angle for output node."
+            raise ValueError(msg)
         self.__meas_angles[node] = angle
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:

@@ -208,11 +208,29 @@ def test_set_output(graph: GraphState) -> None:
     assert 1 in graph.output_nodes
 
 
+def test_set_meas_plane_raises(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.set_meas_plane(1, Plane.XY)
+    graph.add_physical_node(1)
+    graph.set_output(1)
+    with pytest.raises(ValueError, match="Cannot set measurement plane for output node."):
+        graph.set_meas_plane(1, Plane.XY)
+
+
 def test_set_meas_plane(graph: GraphState) -> None:
     """Test setting the measurement plane of a physical node."""
     graph.add_physical_node(1)
     graph.set_meas_plane(1, Plane.XZ)
     assert graph.meas_planes[1] == Plane.XZ
+
+
+def test_set_meas_angle_raises(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.set_meas_angle(1, 0.5 * np.pi)
+    graph.add_physical_node(1)
+    graph.set_output(1)
+    with pytest.raises(ValueError, match="Cannot set measurement angle for output node."):
+        graph.set_meas_angle(1, 0.5 * np.pi)
 
 
 def test_set_meas_angle(graph: GraphState) -> None:
