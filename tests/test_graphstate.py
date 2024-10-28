@@ -784,32 +784,43 @@ def test_remove_clifford_fails_for_special_clifford_vertex(zx_graph: ZXGraphStat
 
 
 def graph_1(zx_graph: ZXGraphState) -> None:
-    # 4---1---2
-    #     |
-    #     3
+    # _needs_nop
+    # 4---1---2      4       2
+    #     |      ->
+    #     3              3
     _initialize_graph(zx_graph, nodes=range(1, 5), edges=[(1, 2), (1, 3), (1, 4)])
 
 
 def graph_2(zx_graph: ZXGraphState) -> None:
-    # 1---2---3
+    # _needs_lc
+    # 1---2---3  ->  1---3
     _initialize_graph(zx_graph, nodes=range(1, 4), edges=[(1, 2), (2, 3)])
 
 
 def graph_3(zx_graph: ZXGraphState) -> None:
-    #       4
-    #      / \
-    # 1 - 2 - 3 - 6
-    #      \ /
-    #       5
+    # _needs_pivot_1 on (2, 3)
+    #         4(I)                4(I)
+    #         / \                / | \
+    # 1(I) - 2 - 3 - 6  ->  1(I) - 3  6 - 1(I)
+    #         \ /                \ | /
+    #         5(I)                5(I)
     _initialize_graph(
         zx_graph, nodes=range(1, 7), edges=[(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)], inputs=(1, 4, 5)
     )
 
 
-def _apply_measurements(zx_graph: ZXGraphState, measurements: list[tuple[int, Plane, float]]) -> None:
-    for node_id, plane, angle in measurements:
-        zx_graph.set_meas_plane(node_id, plane)
-        zx_graph.set_meas_angle(node_id, angle)
+def graph_4(zx_graph: ZXGraphState) -> None:
+    # _needs_pivot_2 on (2, 4)
+    # 1(I) 3(I)        1(I) - 3(I)
+    #   \ / \      ->      \ /
+    #    2 - 4(O)          4(O)
+    _initialize_graph(
+        zx_graph,
+        nodes=range(1, 5),
+        edges=[(1, 2), (2, 3), (2, 4), (3, 4)],
+        inputs=(1, 3),
+        outputs=(4,),
+    )
 
 
 def _test_remove_clifford(

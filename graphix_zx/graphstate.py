@@ -833,16 +833,16 @@ class ZXGraphState(GraphState):
         Parameters
         ----------
         node : int
-            node index
+            node index. The node must not be an input node.
 
         Raises
         ------
         ValueError
-            If the node is an input node, an output node, or the graph is not a ZX-diagram.
+            If the node does not exist, is an input node, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node)
-        if node in self.input_nodes or node in self.output_nodes:
-            msg = "Cannot apply local complement to input node nor output node."
+        if node in self.input_nodes:
+            msg = "Cannot apply local complement to input node."
             raise ValueError(msg)
         self.check_meas_basis()
 
@@ -853,23 +853,23 @@ class ZXGraphState(GraphState):
 
         self._update_connections(rmv_edges, new_edges)
 
-        # update node measurement
+        # update node measurement if not output node
         measurement_action = {
             Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
             Plane.XZ: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
             Plane.YZ: (Plane.YZ, lambda v: (self.meas_angles[v] + 0.5 * np.pi) % (2.0 * np.pi)),
         }
+        if node not in self.output_nodes:
+            self._update_node_measurement(measurement_action, node)
 
-        self._update_node_measurement(measurement_action, node)
-
-        # update neighbors measurement
+        # update neighbors measurement if not output node
         measurement_action = {
             Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
             Plane.XZ: (Plane.YZ, lambda v: (self.meas_angles[v]) % (2.0 * np.pi)),
             Plane.YZ: (Plane.XZ, lambda v: (-self.meas_angles[v]) % (2.0 * np.pi)),
         }
 
-        for v in nbrs:
+        for v in nbrs - self.output_nodes:
             self._update_node_measurement(measurement_action, v)
 
     def _swap(self, node1: int, node2: int) -> None:
@@ -901,22 +901,19 @@ class ZXGraphState(GraphState):
         Parameters
         ----------
         node1 : int
-            node index
+            node index. The node must not be an input node.
         node2 : int
-            node index
+            node index. The node must not be an input node.
 
         Raises
         ------
         ValueError
-            If the nodes are input nodes, output nodes, or the graph is not a ZX-diagram.
+            If the nodes are input nodes, or the graph is not a ZX-diagram.
         """
         self.ensure_node_exists(node1)
         self.ensure_node_exists(node2)
         if node1 in self.input_nodes or node2 in self.input_nodes:
             msg = "Cannot apply pivot to input node"
-            raise ValueError(msg)
-        if node1 in self.output_nodes or node2 in self.output_nodes:
-            msg = "Cannot apply pivot to output node"
             raise ValueError(msg)
         self.check_meas_basis()
 
@@ -943,7 +940,7 @@ class ZXGraphState(GraphState):
             Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
         }
 
-        for a in [node1, node2]:
+        for a in {node1, node2} - self.output_nodes:
             self._update_node_measurement(measurement_action, a)
 
         # update nodes measurement of nbr_a
@@ -953,7 +950,7 @@ class ZXGraphState(GraphState):
             Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
         }
 
-        for w in nbr_a:
+        for w in nbr_a - self.output_nodes:
             self._update_node_measurement(measurement_action, w)
 
     def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
@@ -1109,7 +1106,14 @@ class ZXGraphState(GraphState):
             msg = "Clifford vertex removal not allowed for input node"
             raise ValueError(msg)
 
-        if not is_clifford_angle(self.meas_angles[node], atol):
+        if (not is_clifford_angle(self.meas_angles[node], atol)) or (
+            self.meas_planes[node]
+            not in {
+                Plane.XY,
+                Plane.XZ,
+                Plane.YZ,
+            }
+        ):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
 
