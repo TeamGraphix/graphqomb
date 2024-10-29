@@ -33,8 +33,7 @@ from graphix_zx.gates import (
 )
 from graphix_zx.statevec import StateVector
 
-# SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
-SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz]
+SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
 TWO_GATES = [CZ, CNOT, SWAP, CRz, CRx, CU3]
 MULTI_GATES = [PhaseGadget, CCZ, Toffoli]
 
@@ -83,7 +82,6 @@ def apply_gates(state: StateVector, gates: Sequence[Gate], qubits: Sequence[int]
     return state
 
 
-# @pytest.mark.skip
 @pytest.mark.parametrize("gate_class", SINGLE_GATES)
 def test_single_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     num_qubits = 1

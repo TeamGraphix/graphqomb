@@ -610,10 +610,10 @@ class U3(SingleGate):
             List of unit gates that make up the gate.
         """
         return [
+            J(self.qubit, self.angle3 - np.pi / 2),
+            J(self.qubit, self.angle2),
+            J(self.qubit, self.angle1 + np.pi / 2),
             J(self.qubit, 0),
-            J(self.qubit, -self.angle1),
-            J(self.qubit, -self.angle2),
-            J(self.qubit, -self.angle3),
         ]
 
     def get_matrix(self) -> NDArray[np.complex128]:
@@ -626,7 +626,10 @@ class U3(SingleGate):
         """
         return np.asarray(
             [
-                [np.cos(self.angle2 / 2), -np.exp(1j * self.angle3) * np.sin(self.angle2 / 2)],
+                [
+                    np.cos(self.angle2 / 2),
+                    -np.exp(1j * self.angle3) * np.sin(self.angle2 / 2),
+                ],
                 [
                     np.exp(1j * self.angle1) * np.sin(self.angle2 / 2),
                     np.exp(1j * (self.angle1 + self.angle3)) * np.cos(self.angle2 / 2),
