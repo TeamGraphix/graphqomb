@@ -611,8 +611,8 @@ class U3(SingleGate):
         """
         return [
             J(self.qubit, self.angle3 - np.pi / 2),
-            J(self.qubit, self.angle2),
-            J(self.qubit, self.angle1 + np.pi / 2),
+            J(self.qubit, self.angle1),
+            J(self.qubit, self.angle2 + np.pi / 2),
             J(self.qubit, 0),
         ]
 
@@ -627,12 +627,12 @@ class U3(SingleGate):
         return np.asarray(
             [
                 [
-                    np.cos(self.angle2 / 2),
-                    -np.exp(1j * self.angle3) * np.sin(self.angle2 / 2),
+                    np.cos(self.angle1 / 2),
+                    -np.exp(1j * self.angle3) * np.sin(self.angle1 / 2),
                 ],
                 [
-                    np.exp(1j * self.angle1) * np.sin(self.angle2 / 2),
-                    np.exp(1j * (self.angle1 + self.angle3)) * np.cos(self.angle2 / 2),
+                    np.exp(1j * self.angle2) * np.sin(self.angle1 / 2),
+                    np.exp(1j * (self.angle2 + self.angle3)) * np.cos(self.angle1 / 2),
                 ],
             ],
             dtype=np.complex128,
@@ -774,8 +774,8 @@ class CRz(TwoQubitGate):
         return np.asarray(
             [
                 [1, 0, 0, 0],
-                [0, np.exp(-1j * self.angle / 2), 0, 0],
-                [0, 0, 1, 0],
+                [0, 1, 0, 0],
+                [0, 0, np.exp(-1j * self.angle / 2), 0],
                 [0, 0, 0, np.exp(1j * self.angle / 2)],
             ],
             dtype=np.complex128,
@@ -807,11 +807,9 @@ class CRx(TwoQubitGate):
         """
         target = self.qubits[1]
         macro_gates = [
-            Rz(target, np.pi / 2),
-            CNOT(self.qubits),
-            U3(target, -self.angle / 2, 0, 0),
-            CNOT(self.qubits),
-            U3(target, self.angle / 2, -np.pi / 2, 0),
+            H(target),
+            CRz(self.qubits, self.angle),
+            H(target),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -830,8 +828,8 @@ class CRx(TwoQubitGate):
             [
                 [1, 0, 0, 0],
                 [0, 1, 0, 0],
-                [0, 0, np.cos(self.angle), -1j * np.sin(self.angle)],
-                [0, -1j * np.sin(self.angle), 0, np.cos(self.angle)],
+                [0, 0, np.cos(self.angle / 2), -1j * np.sin(self.angle / 2)],
+                [0, 0, -1j * np.sin(self.angle / 2), np.cos(self.angle / 2)],
             ],
             dtype=np.complex128,
         )
@@ -866,13 +864,15 @@ class CU3(TwoQubitGate):
         list[UnitGate]
             List of unit gates that make up the gate.
         """
+        control = self.qubits[0]
+        target = self.qubits[1]
         macro_gates = [
-            Rz(self.qubits[0], self.angle3 / 2 + self.angle2 / 2),
-            Rz(self.qubits[1], self.angle3 / 2 - self.angle2 / 2),
+            Rz(control, self.angle3 / 2 + self.angle2 / 2),
+            Rz(target, self.angle3 / 2 - self.angle2 / 2),
             CNOT(self.qubits),
-            U3(self.qubits[1], -self.angle1 / 2, 0, -(self.angle2 + self.angle3) / 2),
+            U3(target, -self.angle1 / 2, 0, -(self.angle2 + self.angle3) / 2),
             CNOT(self.qubits),
-            U3(self.qubits[1], self.angle1 / 2, self.angle2, 0),
+            U3(target, self.angle1 / 2, self.angle2, 0),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -894,14 +894,14 @@ class CU3(TwoQubitGate):
                 [
                     0,
                     0,
-                    np.cos(self.angle1),
-                    -np.exp(1j * self.angle3) * np.sin(self.angle1),
+                    np.cos(self.angle1 / 2),
+                    -np.exp(1j * self.angle3) * np.sin(self.angle1 / 2),
                 ],
                 [
                     0,
                     0,
-                    np.exp(1j * self.angle2) * np.sin(self.angle1),
-                    np.exp(1j * (self.angle2 + self.angle3)) * np.cos(self.angle1),
+                    np.exp(1j * self.angle2) * np.sin(self.angle1 / 2),
+                    np.exp(1j * (self.angle2 + self.angle3)) * np.cos(self.angle1 / 2),
                 ],
             ],
             dtype=np.complex128,

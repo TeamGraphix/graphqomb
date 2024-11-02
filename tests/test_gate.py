@@ -97,14 +97,13 @@ def test_single_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     assert np.isclose(np.abs(inner_product), 1)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("gate_class", TWO_GATES)
 def test_two_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     num_qubits = 2
     state = StateVector(num_qubits)
     qubits = [0, 1]
 
-    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+    gate = gate_class(qubits, *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
     result1 = apply_gates(copy(state), [gate], qubits)
     result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
@@ -120,7 +119,7 @@ def test_multi_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     state = StateVector(num_qubits)
     qubits = [0, 1, 2]
 
-    gate = gate_class(*[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
+    gate = gate_class(qubits, *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
     result1 = apply_gates(copy(state), [gate], qubits)
     result2 = apply_gates(copy(state), gate.get_unit_gates(), qubits)
