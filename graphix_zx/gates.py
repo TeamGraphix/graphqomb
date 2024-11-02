@@ -13,6 +13,7 @@ This module provides:
 - H: Class for the H gate.
 - S: Class for the S gate.
 - T: Class for the T gate.
+- Tdg: Class for the Tdg gate.
 - Rx: Class for the Rx gate.
 - Ry: Class for the Ry gate.
 - Rz: Class for the Rz gate.
@@ -22,8 +23,8 @@ This module provides:
 - CRz: Class for the CRz gate.
 - CRx: Class for the CRx gate.
 - CU3: Class for the CU3 gate.
-- CCZ: Class for the CCZ gate.
 - Toffoli: Class for the Toffoli gate.
+- CCZ: Class for the CCZ gate.
 """
 
 from __future__ import annotations
@@ -453,6 +454,39 @@ class T(SingleGate):
             T gate
         """
         return np.asarray([[1, 0], [0, np.exp(1j * np.pi / 4)]], dtype=np.complex128)
+
+
+@dataclass(frozen=True)
+class Tdg(SingleGate):
+    """Class for the Tdg gate.
+
+    Attributes
+    ----------
+    qubit : int
+        The qubit the gate acts on.
+    """
+
+    qubit: int
+
+    def get_unit_gates(self) -> list[UnitGate]:
+        """Get the unit gates that make up the gate.
+
+        Returns
+        -------
+        list[UnitGate]
+            List of unit gates that make up the gate.
+        """
+        return [J(self.qubit, -np.pi / 4), J(self.qubit, 0)]
+
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Tdg gate
+        """
+        return np.asarray([[1, 0], [0, np.exp(-1j * np.pi / 4)]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -909,64 +943,6 @@ class CU3(TwoQubitGate):
 
 
 @dataclass(frozen=True)
-class CCZ(MultiGate):
-    """Class for the CCZ gate.
-
-    Attributes
-    ----------
-    qubits : Sequence[int]
-        The qubits the gate acts on [control1, control2, target].
-    """
-
-    qubits: Sequence[int]
-
-    def get_unit_gates(self) -> list[UnitGate]:
-        """Get the unit gates that make up the gate.
-
-        Returns
-        -------
-        list[UnitGate]
-            List of unit gates that make up the gate.
-        """
-        control1 = self.qubits[0]
-        control2 = self.qubits[1]
-        target = self.qubits[2]
-        macro_gates = [
-            CRz((control2, target), np.pi / 2),
-            CNOT((control1, control2)),
-            CRz((control2, target), -np.pi / 2),
-            CNOT((control1, control2)),
-            CRz((control1, target), np.pi / 2),
-        ]
-        unit_gates: list[UnitGate] = []
-        for macro_gate in macro_gates:
-            unit_gates.extend(macro_gate.get_unit_gates())
-        return unit_gates
-
-    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
-        """Get the matrix representation of the gate.
-
-        Returns
-        -------
-        NDArray[np.complex128]
-            Matrix representation of the gate.
-        """
-        return np.asarray(
-            [
-                [1, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, -1],
-            ],
-            dtype=np.complex128,
-        )
-
-
-@dataclass(frozen=True)
 class Toffoli(MultiGate):
     """Class for the Toffoli gate.
 
@@ -991,12 +967,20 @@ class Toffoli(MultiGate):
         target = self.qubits[2]
         macro_gates = [
             H(target),
-            CRz((control2, target), np.pi / 2),
-            CNOT((control1, control2)),
-            CRz((control2, target), -np.pi / 2),
-            CNOT((control1, control2)),
-            CRz((control1, target), np.pi / 2),
+            CNOT((control2, target)),
+            Tdg(target),
+            CNOT((control1, target)),
+            T(target),
+            CNOT((control2, target)),
+            Tdg(target),
+            CNOT((control1, target)),
+            T(control2),
+            T(target),
             H(target),
+            CNOT((control1, control2)),
+            T(control1),
+            Tdg(control2),
+            CNOT((control1, control2)),
         ]
         unit_gates: list[UnitGate] = []
         for macro_gate in macro_gates:
@@ -1021,6 +1005,62 @@ class Toffoli(MultiGate):
                 [0, 0, 0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 1],
                 [0, 0, 0, 0, 0, 0, 1, 0],
+            ],
+            dtype=np.complex128,
+        )
+
+
+@dataclass(frozen=True)
+class CCZ(MultiGate):
+    """Class for the CCZ gate.
+
+    Attributes
+    ----------
+    qubits : Sequence[int]
+        The qubits the gate acts on [control1, control2, target].
+    """
+
+    qubits: Sequence[int]
+
+    def get_unit_gates(self) -> list[UnitGate]:
+        """Get the unit gates that make up the gate.
+
+        Returns
+        -------
+        list[UnitGate]
+            List of unit gates that make up the gate.
+        """
+        control1 = self.qubits[0]
+        control2 = self.qubits[1]
+        target = self.qubits[2]
+        macro_gates = [
+            H(target),
+            Toffoli((control1, control2, target)),
+            H(target),
+        ]
+        unit_gates: list[UnitGate] = []
+        for macro_gate in macro_gates:
+            unit_gates.extend(macro_gate.get_unit_gates())
+        return unit_gates
+
+    def get_matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+        """Get the matrix representation of the gate.
+
+        Returns
+        -------
+        NDArray[np.complex128]
+            Matrix representation of the gate.
+        """
+        return np.asarray(
+            [
+                [1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, -1],
             ],
             dtype=np.complex128,
         )

@@ -25,6 +25,7 @@ from graphix_zx.gates import (
     S,
     SingleGate,
     T,
+    Tdg,
     Toffoli,
     TwoQubitGate,
     X,
@@ -33,7 +34,7 @@ from graphix_zx.gates import (
 )
 from graphix_zx.statevec import StateVector
 
-SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Rx, Ry, Rz, U3]
+SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Tdg, Rx, Ry, Rz, U3]
 TWO_GATES = [CZ, CNOT, SWAP, CRz, CRx, CU3]
 MULTI_GATES = [PhaseGadget, CCZ, Toffoli]
 
@@ -46,6 +47,7 @@ NUM_ANGLES: dict[type, int] = {
     H: 0,
     S: 0,
     T: 0,
+    Tdg: 0,
     Rx: 1,
     Ry: 1,
     Rz: 1,
@@ -112,7 +114,6 @@ def test_two_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     assert np.isclose(inner_product, 1)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("gate_class", MULTI_GATES)
 def test_multi_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     num_qubits = 3
