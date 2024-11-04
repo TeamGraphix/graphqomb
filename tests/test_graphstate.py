@@ -1163,5 +1163,19 @@ def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
         zx_graph.remove_clifford(2)
 
 
+def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
+    """Test removing multiple Clifford vertices."""
+    _initialize_graph(zx_graph, nodes=range(1, 5), edges=[(1, 2), (1, 3), (1, 4)])
+    measurements = [
+        (1, Plane.XY, 0.5 * np.pi),
+        (2, Plane.XY, 0.5 * np.pi),
+        (3, Plane.XY, 0.5 * np.pi),
+        (4, Plane.XY, 0.5 * np.pi),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_cliffords()
+    _test(zx_graph, {3}, set(), [(3, Plane.YZ, 1.5 * np.pi)])
+
+
 if __name__ == "__main__":
     pytest.main()

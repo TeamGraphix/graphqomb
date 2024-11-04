@@ -1132,6 +1132,60 @@ class ZXGraphState(GraphState):
 
         self._remove_clifford(node, atol)
 
+    def _remove_cliffords(
+        self, check_func: Callable[[int, float], bool], action_func: Callable[[int, float], None], atol: float = 1e-9
+    ) -> None:
+        """Remove all local clifford nodes which are specified by the check_func and action_func.
+
+        Parameters
+        ----------
+        check_func : Callable[[int, float], bool]
+            check if the node is a removable Clifford vertex
+        action_func : Callable[[int, float], None]
+            action to perform on the node
+        """
+        while True:
+            clifford_nodes = {node for node in self.physical_nodes if check_func(node, atol)} - self.input_nodes
+            if not clifford_nodes:
+                break
+            node = min(clifford_nodes)
+            action_func(node, atol)
+
+    def _step1_action(self, node: int, atol: float = 1e-9) -> None:
+        self.local_complement(node)
+        self._remove_clifford(node, atol)
+
+    def _step2_action(self, node: int, atol: float = 1e-9) -> None:
+        self._remove_clifford(node, atol)
+
+    def _step3_action(self, node: int, atol: float = 1e-9) -> None:
+        nbrs = self.get_neighbors(node) - self.input_nodes
+        nbr = min(nbrs)
+        self.pivot(node, nbr)
+        self._remove_clifford(node, atol)
+
+    def _step4_action(self, node: int, atol: float = 1e-9) -> None:
+        nbrs = self.get_neighbors(node) - self.input_nodes
+        nbr = min(nbrs)
+        self.pivot(node, nbr)
+        self._remove_clifford(node, atol)
+        self.remove_cliffords(atol)
+
+    def remove_cliffords(self, atol: float = 1e-9) -> None:
+        """Remove all local clifford nodes which are removable.
+
+        Parameters
+        ----------
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
+        self.check_meas_basis()
+
+        self._remove_cliffords(self._needs_lc, self._step1_action, atol)
+        self._remove_cliffords(self._is_removable_clifford, self._step2_action, atol)
+        self._remove_cliffords(self._needs_pivot_1, self._step3_action, atol)
+        self._remove_cliffords(self._needs_pivot_2, self._step4_action, atol)
+
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
     """Return a set of edges for the complete bipartite graph between two sets of nodes.
