@@ -1102,7 +1102,7 @@ class ZXGraphState(GraphState):
             4. If the node has no neighbors that are not connected only to output nodes.
         """
         self.ensure_node_exists(node)
-        if node in self.input_nodes:
+        if node in self.input_nodes or node in self.output_nodes:
             msg = "Clifford vertex removal not allowed for input node"
             raise ValueError(msg)
 
@@ -1144,8 +1144,10 @@ class ZXGraphState(GraphState):
         action_func : Callable[[int, float], None]
             action to perform on the node
         """
+        self.check_meas_basis()
         while True:
-            clifford_nodes = {node for node in self.physical_nodes if check_func(node, atol)} - self.input_nodes
+            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
+            clifford_nodes = {node for node in nodes if check_func(node, atol)}
             if not clifford_nodes:
                 break
             node = min(clifford_nodes)
@@ -1169,7 +1171,6 @@ class ZXGraphState(GraphState):
         nbr = min(nbrs)
         self.pivot(node, nbr)
         self._remove_clifford(node, atol)
-        self.remove_cliffords(atol)
 
     def remove_cliffords(self, atol: float = 1e-9) -> None:
         """Remove all local clifford nodes which are removable.
@@ -1185,6 +1186,14 @@ class ZXGraphState(GraphState):
         self._remove_cliffords(self._is_removable_clifford, self._step2_action, atol)
         self._remove_cliffords(self._needs_pivot_1, self._step3_action, atol)
         self._remove_cliffords(self._needs_pivot_2, self._step4_action, atol)
+
+        clifford_nodes = {
+            node
+            for node in self.physical_nodes - self.input_nodes - self.output_nodes
+            if is_clifford_angle(self.meas_angles[node], atol)
+        }
+        if clifford_nodes:
+            self.remove_cliffords(atol)
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
