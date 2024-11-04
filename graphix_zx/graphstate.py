@@ -1133,16 +1133,16 @@ class ZXGraphState(GraphState):
         self._remove_clifford(node, atol)
 
     def _remove_cliffords(
-        self, check_func: Callable[[int, float], bool], action_func: Callable[[int, float], None], atol: float = 1e-9
+        self, action_func: Callable[[int, float], None], check_func: Callable[[int, float], bool], atol: float = 1e-9
     ) -> None:
         """Remove all local clifford nodes which are specified by the check_func and action_func.
 
         Parameters
         ----------
-        check_func : Callable[[int, float], bool]
-            check if the node is a removable Clifford vertex
         action_func : Callable[[int, float], None]
             action to perform on the node
+        check_func : Callable[[int, float], bool]
+            check if the node is a removable Clifford vertex
         """
         self.check_meas_basis()
         while True:
@@ -1182,10 +1182,14 @@ class ZXGraphState(GraphState):
         """
         self.check_meas_basis()
 
-        self._remove_cliffords(self._needs_lc, self._step1_action, atol)
-        self._remove_cliffords(self._is_removable_clifford, self._step2_action, atol)
-        self._remove_cliffords(self._needs_pivot_1, self._step3_action, atol)
-        self._remove_cliffords(self._needs_pivot_2, self._step4_action, atol)
+        steps = [
+            (self._step1_action, self._needs_lc),
+            (self._step2_action, self._is_removable_clifford),
+            (self._step3_action, self._needs_pivot_1),
+            (self._step4_action, self._needs_pivot_2),
+        ]
+        for action_func, check_func in steps:
+            self._remove_cliffords(action_func, check_func, atol)
 
         clifford_nodes = {
             node
