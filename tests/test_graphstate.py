@@ -915,7 +915,7 @@ def test_remove_clifford_lc_with_xy_0p5_pi(zx_graph: ZXGraphState) -> None:
 
     graph_2(zx_graph)
     _test_remove_clifford(
-        zx_graph, node=2, measurements=measurements, exp_graph=({1, 3}, set()), exp_measurements=exp_measurements
+        zx_graph, node=2, measurements=measurements, exp_graph=({1, 3}, {(1, 3)}), exp_measurements=exp_measurements
     )
 
 
@@ -1136,6 +1136,7 @@ def test_remove_clifford_pivot2_with_xz_0p5_pi(zx_graph: ZXGraphState) -> None:
 def test_remove_clifford_pivot2_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
     measurements = [
         (1, Plane.XY, 0.1 * np.pi),
+        (4, Plane.XZ, 1.5 * np.pi),
     ]
     exp_measurements = [
         (1, Plane.XY, 1.1 * np.pi),
