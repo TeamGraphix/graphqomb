@@ -1016,8 +1016,7 @@ class ZXGraphState(GraphState):
         bool
             True if the nodes need a pivot operation.
         """
-        non_input_nbrs = self.get_neighbors(node) - self.input_nodes
-        if len(non_input_nbrs) == 0 or len(non_input_nbrs - self.output_nodes) == 0:
+        if not self.get_neighbors(node) - self.input_nodes:
             return False
 
         alpha = self.meas_angles[node] % (2 * np.pi)

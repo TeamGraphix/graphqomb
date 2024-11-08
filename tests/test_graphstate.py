@@ -9,6 +9,7 @@ import pytest
 
 from graphix_zx.common import Plane
 from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
+from graphix_zx.random_objects import get_random_flow_graph
 
 
 @pytest.fixture
@@ -1242,6 +1243,17 @@ def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
     _test(zx_graph, {1, 2, 3, 5}, {(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)}, [(1, Plane.XY, np.pi)])
+
+
+def test_random_graph(zx_graph: ZXGraphState) -> None:
+    random_graph, flow = get_random_flow_graph(5, 5)
+    zx_graph.append(random_graph)
+    try:
+        zx_graph.remove_cliffords()
+    except Exception as e:
+        print(random_graph)
+        print(flow)
+        raise e
 
 
 if __name__ == "__main__":
