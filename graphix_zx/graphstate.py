@@ -1154,19 +1154,56 @@ class ZXGraphState(GraphState):
             action_func(node, atol)
 
     def _step1_action(self, node: int, atol: float = 1e-9) -> None:
+        """If _needs_lc is True, apply local complement to the node, and remove it.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
         self.local_complement(node)
         self._remove_clifford(node, atol)
 
     def _step2_action(self, node: int, atol: float = 1e-9) -> None:
+        """If _is_removable_clifford is True, remove the node.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
         self._remove_clifford(node, atol)
 
     def _step3_action(self, node: int, atol: float = 1e-9) -> None:
+        """If _needs_pivot_1 is True, apply pivot operation to the node, and remove it.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
         nbrs = self.get_neighbors(node) - self.input_nodes
         nbr = min(nbrs)
         self.pivot(node, nbr)
         self._remove_clifford(node, atol)
 
     def _step4_action(self, node: int, atol: float = 1e-9) -> None:
+        """If _needs_pivot_2 is True, apply pivot operation to the node, and remove it.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
+        print("おいｙ８ｙ８９８")
         nbrs = self.get_neighbors(node) - self.input_nodes
         nbr = min(nbrs)
         self.pivot(node, nbr)
