@@ -935,9 +935,9 @@ class ZXGraphState(GraphState):
 
         # update node1 and node2 measurement
         measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
             Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
         }
 
         for a in {node1, node2} - self.output_nodes:
@@ -1047,7 +1047,7 @@ class ZXGraphState(GraphState):
             True if the node needs a pivot operation on output nodes.
         """
         nbrs = self.get_neighbors(node)
-        if not nbrs.issubset(self.output_nodes) or len(nbrs) == 0:
+        if not (nbrs.issubset(self.output_nodes) and nbrs):
             return False
 
         alpha = self.meas_angles[node] % (2 * np.pi)
@@ -1106,13 +1106,8 @@ class ZXGraphState(GraphState):
             msg = "Clifford vertex removal not allowed for input node"
             raise ValueError(msg)
 
-        if (not is_clifford_angle(self.meas_angles[node], atol)) or (
-            self.meas_planes[node]
-            not in {
-                Plane.XY,
-                Plane.XZ,
-                Plane.YZ,
-            }
+        if not (
+            is_clifford_angle(self.meas_angles[node], atol) and self.meas_planes[node] in {Plane.XY, Plane.XZ, Plane.YZ}
         ):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
@@ -1147,11 +1142,10 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
         while True:
             nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = {node for node in nodes if check_func(node, atol)}
-            if not clifford_nodes:
+            clifford_node = next((node for node in nodes if check_func(node, atol)), None)
+            if not clifford_node:
                 break
-            node = min(clifford_nodes)
-            action_func(node, atol)
+            action_func(clifford_node, atol)
 
     def _step1_action(self, node: int, atol: float = 1e-9) -> None:
         """If _needs_lc is True, apply local complement to the node, and remove it.
@@ -1203,7 +1197,6 @@ class ZXGraphState(GraphState):
         atol : float, optional
             absolute tolerance, by default 1e-9
         """
-        print("おいｙ８ｙ８９８")
         nbrs = self.get_neighbors(node) - self.input_nodes
         nbr = min(nbrs)
         self.pivot(node, nbr)
@@ -1218,23 +1211,19 @@ class ZXGraphState(GraphState):
             absolute tolerance, by default 1e-9
         """
         self.check_meas_basis()
-
-        steps = [
-            (self._step1_action, self._needs_lc),
-            (self._step2_action, self._is_removable_clifford),
-            (self._step3_action, self._needs_pivot_1),
-            (self._step4_action, self._needs_pivot_2),
-        ]
-        for action_func, check_func in steps:
-            self._remove_cliffords(action_func, check_func, atol)
-
-        clifford_nodes = {
-            node
-            for node in self.physical_nodes - self.input_nodes - self.output_nodes
-            if is_clifford_angle(self.meas_angles[node], atol)
-        }
-        if clifford_nodes:
-            self.remove_cliffords(atol)
+        while True:
+            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
+            clifford_node = next((node for node in nodes if is_clifford_angle(self.meas_angles[node], atol)), None)
+            if not clifford_node:
+                break
+            steps = [
+                (self._step1_action, self._needs_lc),
+                (self._step2_action, self._is_removable_clifford),
+                (self._step3_action, self._needs_pivot_1),
+                (self._step4_action, self._needs_pivot_2),
+            ]
+            for action_func, check_func in steps:
+                self._remove_cliffords(action_func, check_func, atol)
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
