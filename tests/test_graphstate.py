@@ -8,7 +8,8 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane
-from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
+from graphix_zx.graphstate import GraphState, bipartite_edges
+from graphix_zx.zxgraphstate import ZXGraphState
 from graphix_zx.random_objects import get_random_flow_graph
 
 
