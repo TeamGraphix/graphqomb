@@ -358,6 +358,30 @@ class ZXGraphState(GraphState):
 
         self._remove_clifford(node, atol)
 
+    def _is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
+        """Check if the node is a removable Clifford vertex.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+
+        Returns
+        -------
+        bool
+            True if the node is a removable Clifford vertex.
+        """
+        return any(
+            [
+                self._needs_nop(node, atol),
+                self._needs_lc(node, atol),
+                self._needs_pivot_1(node, atol),
+                self._needs_pivot_2(node, atol),
+            ]
+        )
+
     def _remove_cliffords(
         self, action_func: Callable[[int, float], None], check_func: Callable[[int, float], bool], atol: float = 1e-9
     ) -> None:
@@ -444,8 +468,11 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
         while True:
             nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_node = next((node for node in nodes if is_clifford_angle(self.meas_angles[node], atol)), None)
-            if not clifford_node:
+            clifford_nodes = [node for node in nodes if is_clifford_angle(self.meas_angles[node], atol)]
+            removable_clifford_node = next(
+                (node for node in clifford_nodes if self._is_removable_clifford(node, atol)), None
+            )
+            if not removable_clifford_node:
                 break
             steps = [
                 (self._step1_action, self._needs_lc),

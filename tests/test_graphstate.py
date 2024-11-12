@@ -1247,8 +1247,19 @@ def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
 
 
 def test_random_graph(zx_graph: ZXGraphState) -> None:
+    """Test removing multiple Clifford vertices from a random graph."""
     random_graph, flow = get_random_flow_graph(5, 5)
     zx_graph.append(random_graph)
+
+    for i in zx_graph.physical_nodes - zx_graph.output_nodes:
+        rnd = np.random.rand()
+        if 0 <= rnd < 0.33:
+            pass
+        elif 0.33 <= rnd < 0.66:
+            zx_graph.set_meas_plane(i, Plane.XZ)
+        else:
+            zx_graph.set_meas_plane(i, Plane.YZ)
+
     try:
         zx_graph.remove_cliffords()
     except Exception as e:
