@@ -185,8 +185,8 @@ class ZXGraphState(GraphState):
         for w in nbr_a - self.output_nodes:
             self._update_node_measurement(measurement_action, w)
 
-    def _is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node is a removable Clifford vertex.
+    def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
+        """Check if the node does not need any operation in order to perform _remove_clifford.
 
         For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
         and the measurement plane must be YZ or XZ.
@@ -343,7 +343,7 @@ class ZXGraphState(GraphState):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
 
-        if self._is_removable_clifford(node, atol):
+        if self._needs_nop(node, atol):
             pass
         elif self._needs_lc(node, atol):
             self.local_complement(node)
@@ -392,7 +392,7 @@ class ZXGraphState(GraphState):
         self._remove_clifford(node, atol)
 
     def _step2_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _is_removable_clifford is True, remove the node.
+        """If _needs_nop is True, remove the node.
 
         Parameters
         ----------
@@ -449,7 +449,7 @@ class ZXGraphState(GraphState):
                 break
             steps = [
                 (self._step1_action, self._needs_lc),
-                (self._step2_action, self._is_removable_clifford),
+                (self._step2_action, self._needs_nop),
                 (self._step3_action, self._needs_pivot_1),
                 (self._step4_action, self._needs_pivot_2),
             ]
