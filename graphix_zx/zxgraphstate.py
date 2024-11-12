@@ -468,11 +468,15 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
         while True:
             nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = [node for node in nodes if is_clifford_angle(self.meas_angles[node], atol)]
-            removable_clifford_node = next(
-                (node for node in clifford_nodes if self._is_removable_clifford(node, atol)), None
+            clifford_node = next(
+                (
+                    node
+                    for node in nodes
+                    if is_clifford_angle(self.meas_angles[node], atol) and self._is_removable_clifford(node, atol)
+                ),
+                None,
             )
-            if not removable_clifford_node:
+            if clifford_node is None:
                 break
             steps = [
                 (self._step1_action, self._needs_lc),
