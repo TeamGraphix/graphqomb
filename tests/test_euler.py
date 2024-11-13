@@ -85,7 +85,9 @@ def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
     assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)])
+@pytest.mark.parametrize(
+    "angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)]
+)
 def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     array = LocalUnitary(*angles).get_matrix()
     alpha, beta, gamma = euler_decomposition(array)
@@ -145,7 +147,9 @@ def test_lc_lc_update(random_clifford_angles: tuple[float, float, float]) -> Non
 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
 def test_lc_basis_update(
-    plane: Plane, random_clifford_angles: tuple[float, float, float], rng: np.random.Generator
+    plane: Plane,
+    random_clifford_angles: tuple[float, float, float],
+    rng: np.random.Generator,
 ) -> None:
     lc = LocalClifford(*random_clifford_angles)
     angle = rng.uniform(0, 2 * np.pi)
@@ -154,3 +158,24 @@ def test_lc_basis_update(
     ref_updated_basis = lc.get_matrix() @ basis.get_vector()
     inner_product = np.abs(np.vdot(basis_updated.get_vector(), ref_updated_basis))
     assert np.allclose(inner_product, 1)
+
+
+@pytest.mark.skip
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
+    lc = LocalClifford(0, -np.pi / 2, 0)
+    measurement_action = {
+        Plane.XY: (Plane.XZ, lambda angle: 0.5 * np.pi - angle),
+        Plane.XZ: (Plane.XY, lambda angle: angle - 0.5 * np.pi),
+        Plane.YZ: (Plane.YZ, lambda angle: angle + 0.5 * np.pi),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    meas_basis = MeasBasis(plane, angle)
+    result_basis = update_lc_basis(lc, meas_basis)
+    ref_plane, ref_angle_func = measurement_action[plane]
+    ref_angle = ref_angle_func(angle)
+
+    assert result_basis.plane == ref_plane
+    assert _is_close_angle(result_basis.angle, ref_angle)
