@@ -827,8 +827,8 @@ def test_remove_clifford_removable_with_xz_0(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (2, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.8 * np.pi),
-        (4, Plane.XZ, 0.3 * np.pi),
+        (3, Plane.XZ, 0.2 * np.pi),
+        (4, Plane.YZ, 0.3 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph, node=1, measurements=measurements, exp_graph=({2, 3, 4}, set()), exp_measurements=exp_measurements
@@ -846,8 +846,8 @@ def test_remove_clifford_removable_with_xz_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (2, Plane.XY, 1.1 * np.pi),
-        (3, Plane.YZ, 1.8 * np.pi),
-        (4, Plane.XZ, 0.3 * np.pi),
+        (3, Plane.XZ, 1.8 * np.pi),
+        (4, Plane.YZ, 1.7 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -869,8 +869,8 @@ def test_remove_clifford_removable_with_yz_0(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (2, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.8 * np.pi),
-        (4, Plane.XZ, 0.3 * np.pi),
+        (3, Plane.XZ, 0.2 * np.pi),
+        (4, Plane.YZ, 0.3 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -892,8 +892,8 @@ def test_remove_clifford_removable_with_yz_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (2, Plane.XY, 1.1 * np.pi),
-        (3, Plane.YZ, 1.8 * np.pi),
-        (4, Plane.XZ, 0.3 * np.pi),
+        (3, Plane.XZ, 1.8 * np.pi),
+        (4, Plane.YZ, 1.7 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -913,7 +913,7 @@ def test_remove_clifford_lc_with_xy_0p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 1.6 * np.pi),
-        (3, Plane.YZ, 0.2 * np.pi),
+        (3, Plane.XZ, 1.8 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph, node=2, measurements=measurements, exp_graph=({1, 3}, {(1, 3)}), exp_measurements=exp_measurements
@@ -929,7 +929,7 @@ def test_remove_clifford_lc_with_xy_1p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.6 * np.pi),
-        (3, Plane.YZ, 0.2 * np.pi),
+        (3, Plane.XZ, 0.2 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph, node=2, measurements=measurements, exp_graph=({1, 3}, {(1, 3)}), exp_measurements=exp_measurements
@@ -945,7 +945,7 @@ def test_remove_clifford_lc_with_yz_0p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.6 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
+        (3, Plane.YZ, 1.8 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -965,7 +965,7 @@ def test_remove_clifford_lc_with_yz_1p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 1.6 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
+        (3, Plane.YZ, 0.2 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -988,10 +988,10 @@ def test_remove_clifford_pivot1_with_xy_0(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.7 * np.pi),
-        (4, Plane.YZ, 0.3 * np.pi),
+        (3, Plane.XZ, 0.3 * np.pi),
+        (4, Plane.YZ, 1.7 * np.pi),
         (5, Plane.XY, 1.4 * np.pi),
-        (6, Plane.YZ, 1.5 * np.pi),
+        (6, Plane.XZ, 0.5 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -1014,10 +1014,10 @@ def test_remove_clifford_pivot1_with_xy_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.7 * np.pi),
+        (3, Plane.XZ, 1.7 * np.pi),
         (4, Plane.YZ, 0.3 * np.pi),
         (5, Plane.XY, 0.4 * np.pi),
-        (6, Plane.YZ, 1.5 * np.pi),
+        (6, Plane.XZ, 1.5 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -1040,10 +1040,10 @@ def test_remove_clifford_pivot1_with_xz_0p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.7 * np.pi),
-        (4, Plane.YZ, 0.3 * np.pi),
+        (3, Plane.XZ, 0.3 * np.pi),
+        (4, Plane.YZ, 1.7 * np.pi),
         (5, Plane.XY, 1.4 * np.pi),
-        (6, Plane.YZ, 1.5 * np.pi),
+        (6, Plane.XZ, 0.5 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -1066,10 +1066,10 @@ def test_remove_clifford_pivot1_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 0.1 * np.pi),
-        (3, Plane.YZ, 1.7 * np.pi),
+        (3, Plane.XZ, 1.7 * np.pi),
         (4, Plane.YZ, 0.3 * np.pi),
         (5, Plane.XY, 0.4 * np.pi),
-        (6, Plane.YZ, 1.5 * np.pi),
+        (6, Plane.XZ, 1.5 * np.pi),
     ]
     _test_remove_clifford(
         zx_graph,
@@ -1175,7 +1175,7 @@ def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
-    _test(zx_graph, set(), set(), [])
+    _test(zx_graph, {3}, set(), [])
 
 
 def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
@@ -1189,8 +1189,8 @@ def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (2, Plane.XY, 1.1 * np.pi),
-        (3, Plane.YZ, 1.8 * np.pi),
-        (4, Plane.XZ, 0.3 * np.pi),
+        (3, Plane.XZ, 1.8 * np.pi),
+        (4, Plane.YZ, 1.7 * np.pi),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -1206,7 +1206,7 @@ def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
     ]
     exp_measurements = [
         (1, Plane.XY, 1.6 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
+        (3, Plane.YZ, 0.2 * np.pi),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -1224,14 +1224,20 @@ def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
         (6, Plane.XZ, 0.5 * np.pi),
     ]
     exp_measurements = [
-        (1, Plane.XY, 1.6 * np.pi),
-        (3, Plane.YZ, 1.7 * np.pi),
+        (1, Plane.XY, 0.1 * np.pi),
+        (3, Plane.XZ, 1.7 * np.pi),
         (4, Plane.YZ, 0.3 * np.pi),
-        (5, Plane.XY, 1.9 * np.pi),
+        (5, Plane.XY, 0.4 * np.pi),
+        (6, Plane.XZ, 1.5 * np.pi),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
-    _test(zx_graph, {1, 3, 4, 5}, {(1, 3), (3, 4), (3, 5), (4, 5)}, exp_measurements=exp_measurements)
+    _test(
+        zx_graph,
+        {1, 3, 4, 5, 6},
+        {(1, 3), (1, 4), (1, 5), (1, 6), (3, 4), (3, 5), (4, 6), (5, 6)},
+        exp_measurements=exp_measurements,
+    )
 
 
 def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:

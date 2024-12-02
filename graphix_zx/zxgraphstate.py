@@ -178,8 +178,8 @@ class ZXGraphState(GraphState):
         # update nodes measurement of nbr_a
         measurement_action = {
             Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
         }
 
         for w in nbr_a - self.output_nodes:
@@ -203,7 +203,7 @@ class ZXGraphState(GraphState):
         bool
             True if the node is a removable Clifford vertex.
         """
-        alpha = self.meas_angles[node] % (2 * np.pi)
+        alpha = self.meas_angles[node] % (2.0 * np.pi)
         return abs(alpha % np.pi) < atol and (self.meas_planes[node] in {Plane.YZ, Plane.XZ})
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
@@ -224,7 +224,7 @@ class ZXGraphState(GraphState):
         bool
             True if the node needs a local complementation.
         """
-        alpha = self.meas_angles[node] % (2 * np.pi)
+        alpha = self.meas_angles[node] % (2.0 * np.pi)
         return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}
 
     def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
@@ -251,7 +251,7 @@ class ZXGraphState(GraphState):
         if not self.get_neighbors(node) - self.input_nodes:
             return False
 
-        alpha = self.meas_angles[node] % (2 * np.pi)
+        alpha = self.meas_angles[node] % (2.0 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
         return case_a or case_b
@@ -281,7 +281,7 @@ class ZXGraphState(GraphState):
         if not (nbrs.issubset(self.output_nodes) and nbrs):
             return False
 
-        alpha = self.meas_angles[node] % (2 * np.pi)
+        alpha = self.meas_angles[node] % (2.0 * np.pi)
         case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
         case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
         return case_a or case_b
@@ -296,16 +296,25 @@ class ZXGraphState(GraphState):
         atol : float, optional
             absolute tolerance, by default 1e-9
         """
-        alpha = self.meas_angles[node] % (2 * np.pi)
+        alpha = self.meas_angles[node] % (2.0 * np.pi)
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (alpha + self.meas_angles[v]) % (2.0 * np.pi)),
+            Plane.XY: (
+                Plane.XY,
+                lambda v: self.meas_angles[v]
+                if abs(alpha % (2.0 * np.pi)) < atol
+                else (self.meas_angles[v] + np.pi) % (2.0 * np.pi),
+            ),
             Plane.XZ: (
-                Plane.YZ,
-                lambda v: -self.meas_angles[v] % (2 * np.pi) if abs(alpha % np.pi) < atol else self.meas_angles[v],
+                Plane.XZ,
+                lambda v: self.meas_angles[v]
+                if abs(alpha % (2.0 * np.pi)) < atol
+                else -self.meas_angles[v] % (2.0 * np.pi),
             ),
             Plane.YZ: (
-                Plane.XZ,
-                lambda v: self.meas_angles[v] if abs(alpha % np.pi) < atol else -self.meas_angles[v] % (2 * np.pi),
+                Plane.YZ,
+                lambda v: self.meas_angles[v]
+                if abs(alpha % (2.0 * np.pi)) < atol
+                else -self.meas_angles[v] % (2.0 * np.pi),
             ),
         }
         for v in self.get_neighbors(node) - self.output_nodes:
@@ -397,8 +406,9 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
         while True:
             nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_node = next((node for node in nodes if check_func(node, atol)), None)
-            if not clifford_node:
+            clifford_nodes = [node for node in nodes if check_func(node, atol)]
+            clifford_node = min(clifford_nodes, default=None)
+            if clifford_node is None:
                 break
             action_func(clifford_node, atol)
 
@@ -468,15 +478,12 @@ class ZXGraphState(GraphState):
         self.check_meas_basis()
         while True:
             nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_node = next(
-                (
-                    node
-                    for node in nodes
-                    if is_clifford_angle(self.meas_angles[node], atol) and self._is_removable_clifford(node, atol)
-                ),
-                None,
-            )
-            if clifford_node is None:
+            clifford_nodes = [
+                node
+                for node in nodes
+                if is_clifford_angle(self.meas_angles[node], atol) and self._is_removable_clifford(node, atol)
+            ]
+            if clifford_nodes == []:
                 break
             steps = [
                 (self._step1_action, self._needs_lc),
