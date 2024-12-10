@@ -75,7 +75,7 @@ def visualize(
             color="black",
         )
 
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
     graph.add_nodes_from(graph_state.physical_nodes)
     graph.add_edges_from(graph_state.physical_edges)
     nx.draw_networkx_labels(graph, pos=node_pos, font_size=12)
@@ -89,9 +89,7 @@ def visualize(
 
 def _get_node_positions(graph_state: BaseGraphState) -> dict[int, tuple[int, int]]:
     pos = {}
-    depth_qindecies = {
-        graph_state.q_indices[node]: 0 for node in graph_state.input_nodes
-    }
+    depth_qindecies = {graph_state.q_indices[node]: 0 for node in graph_state.input_nodes}
     depth_qindecies[-1] = 0
     node_list = list(graph_state.physical_nodes)
     node_list.sort()
