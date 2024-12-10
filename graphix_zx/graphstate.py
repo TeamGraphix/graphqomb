@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
@@ -118,25 +118,13 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def meas_planes(self) -> dict[int, Plane]:
-        """Return measurement planes.
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        """Return measurement bases.
 
         Returns
         -------
-        dict[int, Plane]
-            measurement planes of each physical node.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def meas_angles(self) -> dict[int, float]:
-        """Return measurement angles.
-
-        Returns
-        -------
-        dict[int, float]
-            measurement angles of each physical node.
+        dict[int, MeasBasis]
+            measurement bases of each physical node.
         """
         raise NotImplementedError
 
@@ -225,28 +213,15 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_meas_plane(self, node: int, plane: Plane) -> None:
-        """Set the measurement plane of the node.
+    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        """Set the measurement basis of the node.
 
         Parameters
         ----------
         node : int
             node index
-        plane : Plane
-            measurement plane
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_meas_angle(self, node: int, angle: float) -> None:
-        """Set the measurement angle of the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        angle : float
-            measurement angle
+        meas_basis : MeasBasis
+            measurement basis
         """
         raise NotImplementedError
 
@@ -293,10 +268,7 @@ class GraphState(BaseGraphState):
         set of physical nodes
     physical_edges : dict[int, set[int]]
         physical edges
-    meas_planes : dict[int, Plane]
-        measurement planes
-    meas_angles : dict[int, float]
-        measurement angles
+    meas_bases : dict[int, MeasBasis]
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]
@@ -307,8 +279,7 @@ class GraphState(BaseGraphState):
     __output_nodes: set[int]
     __physical_nodes: set[int]
     __physical_edges: dict[int, set[int]]
-    __meas_planes: dict[int, Plane]
-    __meas_angles: dict[int, float]
+    __meas_bases: dict[int, MeasBasis]
     __q_indices: dict[int, int]
     __local_cliffords: dict[int, LocalClifford]
 
@@ -317,8 +288,7 @@ class GraphState(BaseGraphState):
         self.__output_nodes = set()
         self.__physical_nodes = set()
         self.__physical_edges = {}
-        self.__meas_planes = {}
-        self.__meas_angles = {}
+        self.__meas_bases = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
         self.__local_cliffords = {}
@@ -406,26 +376,15 @@ class GraphState(BaseGraphState):
         return self.__q_indices
 
     @property
-    def meas_planes(self) -> dict[int, Plane]:
-        """Return measurement planes.
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        """Return measurement bases.
 
         Returns
         -------
-        dict[int, Plane]
-            measurement planes of each physical node.
+        dict[int, MeasBasis]
+            measurement bases of each physical node.
         """
-        return self.__meas_planes
-
-    @property
-    def meas_angles(self) -> dict[int, float]:
-        """Return measurement angles.
-
-        Returns
-        -------
-        dict[int, float]
-            measurement angles of each physical node.
-        """
-        return self.__meas_angles
+        return self.__meas_bases
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
@@ -438,7 +397,7 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords
 
-    def check_meas_basis(self) -> None:
+    def check_meas_bases(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
 
         Raises
@@ -447,11 +406,8 @@ class GraphState(BaseGraphState):
             If the measurement basis is not set for a node or the measurement plane is invalid.
         """
         for v in self.physical_nodes - self.output_nodes:
-            if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
+            if self.meas_bases.get(v) is None:
                 msg = f"Measurement basis not set for node {v}"
-                raise ValueError(msg)
-            if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
-                msg = f"Invalid measurement plane '{self.meas_planes[v]}' for node {v}"
                 raise ValueError(msg)
 
     def add_physical_node(
@@ -592,31 +548,18 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__q_indices[node] = q_index
 
-    def set_meas_plane(self, node: int, plane: Plane) -> None:
-        """Set the measurement plane of the node.
+    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        """Set the measurement basis of the node.
 
         Parameters
         ----------
         node : int
             node index
-        plane : Plane
-            measurement plane
+        meas_basis : MeasBasis
+            measurement basis
         """
         self.ensure_node_exists(node)
-        self.__meas_planes[node] = plane
-
-    def set_meas_angle(self, node: int, angle: float) -> None:
-        """Set the measurement angle of the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        angle : float
-            measurement angle
-        """
-        self.ensure_node_exists(node)
-        self.__meas_angles[node] = angle
+        self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
         """Apply a local clifford to the node.
@@ -639,9 +582,8 @@ class GraphState(BaseGraphState):
         if node in self.input_nodes or node in self.output_nodes:
             self.__local_cliffords[node] = lc
         else:
-            meas_plane, meas_angle = _update_meas_basis(lc, self.meas_planes[node], self.meas_angles[node])
-            self.set_meas_plane(node, meas_plane)
-            self.set_meas_angle(node, meas_angle)
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            self.set_meas_basis(node, new_meas_basis)
 
     def get_neighbors(self, node: int) -> set[int]:
         """Return the neighbors of the node.
@@ -703,8 +645,8 @@ class GraphState(BaseGraphState):
             if node in other.output_nodes:
                 self.set_output(node)
             else:
-                self.set_meas_plane(node, other.meas_planes.get(node, Plane.XY))
-                self.set_meas_angle(node, other.meas_angles.get(node, 0.0))
+                meas_basis = other.meas_bases.get(node, PlannerMeasBasis(Plane.XY, 0.0))
+                self.set_meas_basis(node, meas_basis)
 
         for edge in other.physical_edges:
             self.add_physical_edge(edge[0], edge[1])
@@ -715,22 +657,6 @@ class GraphState(BaseGraphState):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
-
-
-def _update_meas_basis(
-    lc: LocalClifford,
-    plane: Plane,
-    angle: float,
-) -> tuple[Plane, float]:
-    """Update the measurement basis of the node.
-
-    Returns
-    -------
-        tuple[Plane, float]: updated measurement basis
-    """
-    meas_basis = MeasBasis(plane, angle)
-    new_basis = update_lc_basis(lc, meas_basis)
-    return new_basis.plane, new_basis.angle
 
 
 class ZXGraphState(GraphState):
@@ -746,10 +672,7 @@ class ZXGraphState(GraphState):
         set of physical nodes
     physical_edges : dict[int, set[int]]
         physical edges
-    meas_planes : dict[int, Plane]
-        measurement planes
-    meas_angles : dict[int, float]
-        measurement angles
+    meas_bases : dict[int, MeasBasis]
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]
@@ -768,10 +691,10 @@ class ZXGraphState(GraphState):
     def _update_node_measurement(
         self, measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]], v: int
     ) -> None:
-        new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
+        new_plane, new_angle_func = measurement_action[self.meas_bases[v].plane]
         if new_plane:
-            self.set_meas_plane(v, new_plane)
-            self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
+            new_angle = new_angle_func(v) % (2.0 * np.pi)
+            self.set_meas_basis(v, PlannerMeasBasis(new_plane, new_angle))
 
     def local_complement(self, node: int) -> None:
         """Local complement operation on the graph state: G*u.
@@ -790,7 +713,7 @@ class ZXGraphState(GraphState):
         if node in self.input_nodes or node in self.output_nodes:
             msg = "Cannot apply local complement to input node nor output node."
             raise ValueError(msg)
-        self.check_meas_basis()
+        self.check_meas_bases()
 
         nbrs: set[int] = self.get_neighbors(node)
         nbr_pairs = bipartite_edges(nbrs, nbrs)
@@ -801,18 +724,18 @@ class ZXGraphState(GraphState):
 
         # update node measurement
         measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_angles[v]),
-            Plane.XZ: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-            Plane.YZ: (Plane.YZ, lambda v: self.meas_angles[v] + 0.5 * np.pi),
+            Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_bases[v].angle),
+            Plane.XZ: (Plane.XY, lambda v: self.meas_bases[v].angle - 0.5 * np.pi),
+            Plane.YZ: (Plane.YZ, lambda v: self.meas_bases[v].angle + 0.5 * np.pi),
         }
 
         self._update_node_measurement(measurement_action, node)
 
         # update neighbors measurement
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: self.meas_angles[v] - 0.5 * np.pi),
-            Plane.XZ: (Plane.YZ, lambda v: self.meas_angles[v]),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+            Plane.XY: (Plane.XY, lambda v: self.meas_bases[v].angle - 0.5 * np.pi),
+            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle),
         }
 
         for v in nbrs:
@@ -864,7 +787,7 @@ class ZXGraphState(GraphState):
         if node1 in self.output_nodes or node2 in self.output_nodes:
             msg = "Cannot apply pivot to output node"
             raise ValueError(msg)
-        self.check_meas_basis()
+        self.check_meas_bases()
 
         node1_nbrs = self.get_neighbors(node1) - {node2}
         node2_nbrs = self.get_neighbors(node2) - {node1}
@@ -884,9 +807,9 @@ class ZXGraphState(GraphState):
 
         # update node1 and node2 measurement
         measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v])),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
+            Plane.XY: (Plane.YZ, lambda v: self.meas_bases[v].angle),
+            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
+            Plane.YZ: (Plane.XY, lambda v: self.meas_bases[v].angle),
         }
 
         for a in [node1, node2]:
@@ -894,9 +817,9 @@ class ZXGraphState(GraphState):
 
         # update nodes measurement of nbr_a
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: -self.meas_angles[v]),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_angles[v]),
+            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle),
         }
 
         for w in nbr_a:

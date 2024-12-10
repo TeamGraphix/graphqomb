@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -258,11 +258,11 @@ def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     """
     theta, phi = get_bloch_sphere_coordinates(vector)
     if is_clifford_angle(phi):
-        # YZ or ZX plane
+        # YZ or XZ plane
         if is_clifford_angle(phi / 2):  # 0 or pi
             if _is_close_angle(phi, np.pi):
                 theta = -theta
-            return Plane.ZX, theta
+            return Plane.XY, theta
         if _is_close_angle(phi, 3 * np.pi / 2):
             theta = -theta
         return Plane.YZ, theta
@@ -298,7 +298,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     return LocalClifford(alpha, beta, gamma)
 
 
-def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
+def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     """Update a LocalClifford object with a MeasBasis object.
 
     Parameters
@@ -310,15 +310,15 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
 
     Returns
     -------
-    MeasBasis
-        updated MeasBasis
+    PlannerMeasBasis
+        updated PlannerMeasBasis
     """
     matrix = lc.get_matrix()
     vector = basis.get_vector()
 
     vector = matrix @ vector
     plane, angle = _get_meas_basis_info(vector)
-    return MeasBasis(plane, angle)
+    return PlannerMeasBasis(plane, angle)
 
 
 def _rx(angle: float) -> NDArray[np.complex128]:
