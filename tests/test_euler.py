@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
 
@@ -14,6 +16,9 @@ from graphix_zx.euler import (
     update_lc_lc,
 )
 from graphix_zx.matrix import is_unitary
+
+if TYPE_CHECKING:
+    from typing import Callable
 
 
 @pytest.fixture
@@ -85,9 +90,7 @@ def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
     assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.parametrize(
-    "angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)]
-)
+@pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)])
 def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     array = LocalUnitary(*angles).get_matrix()
     alpha, beta, gamma = euler_decomposition(array)
@@ -164,7 +167,7 @@ def test_lc_basis_update(
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(0, -np.pi / 2, 0)
-    measurement_action = {
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
         Plane.XY: (Plane.XZ, lambda angle: 0.5 * np.pi - angle),
         Plane.XZ: (Plane.XY, lambda angle: angle - 0.5 * np.pi),
         Plane.YZ: (Plane.YZ, lambda angle: angle + 0.5 * np.pi),
