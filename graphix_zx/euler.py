@@ -262,7 +262,7 @@ def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
         if is_clifford_angle(phi / 2):  # 0 or pi
             if _is_close_angle(phi, np.pi):
                 theta = -theta
-            return Plane.XY, theta
+            return Plane.XZ, theta
         if _is_close_angle(phi, 3 * np.pi / 2):
             theta = -theta
         return Plane.YZ, theta
