@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import MeasBasis, Plane, get_meas_basis
+from graphix_zx.common import Plane, PlannerMeasBasis, get_meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
@@ -99,7 +99,7 @@ def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = get_meas_basis(plane, angle)
@@ -109,7 +109,7 @@ def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) ->
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 @pytest.mark.parametrize("angle", [0, np.pi / 2, np.pi])
 def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     basis = get_meas_basis(plane, angle)
@@ -119,7 +119,7 @@ def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_get_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = get_meas_basis(plane, angle)
@@ -148,7 +148,7 @@ def test_lc_lc_update(random_clifford_angles: tuple[float, float, float]) -> Non
     assert is_clifford_angle(lc.gamma)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_lc_basis_update(
     plane: Plane,
     random_clifford_angles: tuple[float, float, float],
@@ -156,7 +156,7 @@ def test_lc_basis_update(
 ) -> None:
     lc = LocalClifford(*random_clifford_angles)
     angle = rng.uniform(0, 2 * np.pi)
-    basis = MeasBasis(plane, angle)
+    basis = PlannerMeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
     ref_updated_basis = lc.get_matrix() @ basis.get_vector()
     inner_product = np.abs(np.vdot(basis_updated.get_vector(), ref_updated_basis))
@@ -164,7 +164,7 @@ def test_lc_basis_update(
 
 
 @pytest.mark.skip
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.ZX])
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(0, -np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
@@ -175,7 +175,7 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
 
     angle = rng.random() * 2 * np.pi
 
-    meas_basis = MeasBasis(plane, angle)
+    meas_basis = PlannerMeasBasis(plane, angle)
     result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)

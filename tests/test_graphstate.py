@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import GraphState, ZXGraphState, bipartite_edges
+from graphix_zx.graphstate import GraphState, ZXGraphState
 
 
 @pytest.fixture
