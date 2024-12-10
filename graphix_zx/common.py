@@ -142,6 +142,11 @@ class AxisMeasBasis(MeasBasis):
         -------
         Plane
             measurement plane
+
+        Raises
+        ------
+        ValueError
+            if the axis is not one of X, Y, Z
         """
         if self.axis == Axis.X:
             plane = Plane.XY
@@ -149,6 +154,9 @@ class AxisMeasBasis(MeasBasis):
             plane = Plane.YZ
         elif self.axis == Axis.Z:
             plane = Plane.XZ
+        else:
+            msg = "The axis must be one of X, Y, Z"
+            raise ValueError(msg)
         return plane
 
     # this could be simpler if we use rotational notation
@@ -160,11 +168,19 @@ class AxisMeasBasis(MeasBasis):
         -------
         float
             measurement angle
+
+        Raises
+        ------
+        ValueError
+            if the axis is not one of X, Y,
         """
         if self.axis in {Axis.X, Axis.Z}:
             angle = 0 if self.sign == Sign.PLUS else np.pi
         elif self.axis == Axis.Y:
             angle = np.pi / 2 if self.sign == Sign.PLUS else 3 * np.pi / 2
+        else:
+            msg = "The axis must be one of X, Y, Z"
+            raise ValueError(msg)
         return angle
 
     def get_vector(self) -> NDArray:
