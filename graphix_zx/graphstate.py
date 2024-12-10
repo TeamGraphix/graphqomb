@@ -269,6 +269,7 @@ class GraphState(BaseGraphState):
     physical_edges : dict[int, set[int]]
         physical edges
     meas_bases : dict[int, MeasBasis]
+        measurement bases
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]

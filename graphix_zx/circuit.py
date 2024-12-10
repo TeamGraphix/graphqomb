@@ -220,7 +220,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
         if isinstance(instruction, J):
             graph.add_physical_node(num_nodes)
             graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
-            graph.set_meas_basis(num_nodes, PlannerMeasBasis(Plane.XY, -instruction.angle))
+            graph.set_meas_basis(front_nodes[instruction.qubit], PlannerMeasBasis(Plane.XY, -instruction.angle))
             graph.set_q_index(num_nodes, instruction.qubit)
 
             gflow[front_nodes[instruction.qubit]] = {num_nodes}
