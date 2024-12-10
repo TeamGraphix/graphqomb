@@ -631,36 +631,6 @@ class MutablePattern(BasePattern):
             deterministic=self.is_deterministic(),
         )
 
-    def standardize(self) -> None:
-        """Standardize the pattern.
-
-        Raises
-        ------
-        NotImplementedError
-            The method is not implemented
-        """
-        raise NotImplementedError
-
-    def shift_signals(self) -> None:
-        """Shift signals in the pattern.
-
-        Raises
-        ------
-        NotImplementedError
-            The method is not implemented
-        """
-        raise NotImplementedError
-
-    def pauli_simplification(self) -> None:
-        """Simplify the pattern using Pauli simplification.
-
-        Raises
-        ------
-        NotImplementedError
-            The method is not implemented
-        """
-        raise NotImplementedError
-
 
 class NodeAlreadyPreparedError(Exception):
     """Raised when a node is prepared more than once."""
