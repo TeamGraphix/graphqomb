@@ -103,12 +103,12 @@ def _get_node_positions(graph_state: BaseGraphState) -> dict[int, tuple[int, int
 
 def _get_node_colors(graph_state: BaseGraphState) -> dict[int, ColorMap]:
     node_colors = {}
-    for node, plane in graph_state.meas_planes.items():
-        if plane == Plane.XY:
+    for node, meas_bases in graph_state.meas_bases.items():
+        if meas_bases.plane == Plane.XY:
             node_colors[node] = ColorMap.XY
-        elif plane == Plane.YZ:
+        elif meas_bases.plane == Plane.YZ:
             node_colors[node] = ColorMap.YZ
-        elif plane == Plane.XZ:
+        elif meas_bases.plane == Plane.XZ:
             node_colors[node] = ColorMap.XZ
 
     for output_node in graph_state.output_nodes:

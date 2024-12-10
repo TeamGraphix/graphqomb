@@ -178,6 +178,19 @@ class AxisMeasBasis(MeasBasis):
         return get_meas_basis(self.plane, self.angle)
 
 
+def default_meas_basis() -> PlannerMeasBasis:
+    """Return the default measurement basis.
+
+    The default measurement basis is the XY plane with angle 0.
+
+    Returns
+    -------
+    PlannerMeasBasis
+        default measurement basis
+    """
+    return PlannerMeasBasis(Plane.XY, 0.0)
+
+
 def get_meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
     """Return the measurement basis vector corresponding to the plane and angle.
 

@@ -78,7 +78,7 @@ def is_focused(gflow: FlowLike, graph: BaseGraphState) -> bool:
     bool
         True if the flowlike object is focused, False otherwise
     """
-    meas_planes = graph.meas_planes
+    meas_bases = graph.meas_bases
     outputs = graph.physical_nodes - gflow.keys()
 
     focused = True
@@ -86,12 +86,12 @@ def is_focused(gflow: FlowLike, graph: BaseGraphState) -> bool:
         for child in gflow[node]:
             if child in outputs:
                 continue
-            focused &= (meas_planes[child] == Plane.XY) or (node == child)
+            focused &= (meas_bases[child].plane == Plane.XY) or (node == child)
 
         for child in oddneighbors(gflow[node], graph):
             if child in outputs:
                 continue
-            focused &= (meas_planes[child] != Plane.XY) or (node == child)
+            focused &= (meas_bases[child].plane != Plane.XY) or (node == child)
 
     return focused
 
@@ -178,16 +178,16 @@ def _find_unfocused_corrections(target: int, gflow: FlowLike, graph: BaseGraphSt
     set[int]
         set of unfocused corrections
     """
-    meas_planes = graph.meas_planes
+    meas_bases = graph.meas_bases
     non_outputs = gflow.keys()
 
     s_xy_candidate = oddneighbors(gflow[target], graph) & non_outputs - {target}
     s_xz_candidate = gflow[target] & non_outputs - {target}
     s_yz_candidate = gflow[target] & non_outputs - {target}
 
-    s_xy = {node for node in s_xy_candidate if meas_planes[node] == Plane.XY}
-    s_xz = {node for node in s_xz_candidate if meas_planes[node] == Plane.ZX}
-    s_yz = {node for node in s_yz_candidate if meas_planes[node] == Plane.YZ}
+    s_xy = {node for node in s_xy_candidate if meas_bases[node].plane == Plane.XY}
+    s_xz = {node for node in s_xz_candidate if meas_bases[node].plane == Plane.XZ}
+    s_yz = {node for node in s_yz_candidate if meas_bases[node].plane == Plane.YZ}
 
     return s_xy | s_xz | s_yz
 

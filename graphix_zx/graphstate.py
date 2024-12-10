@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, default_meas_basis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
@@ -645,7 +645,7 @@ class GraphState(BaseGraphState):
             if node in other.output_nodes:
                 self.set_output(node)
             else:
-                meas_basis = other.meas_bases.get(node, PlannerMeasBasis(Plane.XY, 0.0))
+                meas_basis = other.meas_bases.get(node, default_meas_basis())
                 self.set_meas_basis(node, meas_basis)
 
         for edge in other.physical_edges:

@@ -25,8 +25,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.common import Plane
-
 
 @dataclasses.dataclass(frozen=True)
 class ImmutablePattern:
@@ -555,37 +553,6 @@ class MutablePattern(BasePattern):
                 space_list.append(nodes)
         return space_list
 
-    @property
-    def meas_planes(self) -> dict[int, Plane]:
-        """Measurement planes of the pattern.
-
-        Returns
-        -------
-        dict[int, Plane]
-            Measurement planes of each node in the pattern
-        """
-        meas_plane = {}
-        for cmd in self.commands:
-            if isinstance(cmd, M):
-                mplane = cmd.plane
-                meas_plane[cmd.node] = mplane
-        return meas_plane
-
-    @property
-    def meas_angles(self) -> dict[int, float]:
-        """Measurement angles of the pattern.
-
-        Returns
-        -------
-        dict[int, float]
-            Measurement angles of each node in the pattern
-        """
-        angles = {}
-        for cmd in self.commands:
-            if isinstance(cmd, M):
-                angles[cmd.node] = cmd.angle
-        return angles
-
     def is_runnable(self) -> bool:
         """Return True if the pattern is runnable.
 
@@ -843,8 +810,8 @@ def print_command(cmd: Command) -> None:
     elif isinstance(cmd, M):
         print(  # noqa: T201
             f"M, node = {cmd.node}",
-            f"plane = {cmd.plane}",
-            f"angle = {cmd.angle}",
+            f"plane = {cmd.meas_basis.plane}",
+            f"angle = {cmd.meas_basis.angle}",
             f"s-domain = {cmd.s_domain}",
             f"t_domain = {cmd.t_domain}",
         )

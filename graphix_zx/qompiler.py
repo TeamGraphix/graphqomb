@@ -16,7 +16,7 @@ from collections.abc import Set as AbstractSet
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import C, E, M, N, X, Z
-from graphix_zx.common import Plane
+from graphix_zx.common import MeasBasis, Plane
 from graphix_zx.flow import check_causality, oddneighbors
 from graphix_zx.focus_flow import topological_sort_kahn
 from graphix_zx.pattern import MutablePattern
@@ -33,8 +33,7 @@ CorrectionMap = Mapping[int, CorrectionSet]
 # extended MBQC
 def _generate_m_cmd(
     node: int,
-    meas_plane: Plane,
-    meas_angle: float,
+    meas_basis: MeasBasis,
     x_correction: CorrectionSet,
     z_correction: CorrectionSet,
 ) -> M:
@@ -44,10 +43,8 @@ def _generate_m_cmd(
     ----------
     node : int
         node to be measured
-    meas_plane : Plane
-        measurement plane
-    meas_angle : float
-        measurement angle
+    meas_basis : MeasBasis
+        measurement basis
     x_correction : Correction
         x correction applied to the node
     z_correction : Correction
@@ -63,13 +60,13 @@ def _generate_m_cmd(
     M
         measurement command
     """
-    if meas_plane == Plane.XY:
+    if meas_basis.plane == Plane.XY:
         s_domain = x_correction
         t_domain = z_correction
-    elif meas_plane == Plane.ZX:
+    elif meas_basis.plane == Plane.XZ:
         s_domain = x_correction | z_correction
         t_domain = x_correction
-    elif meas_plane == Plane.YZ:
+    elif meas_basis.plane == Plane.YZ:
         s_domain = z_correction
         t_domain = x_correction
     else:  # NOTE: possible to include Pauli simplification.
@@ -77,8 +74,7 @@ def _generate_m_cmd(
         raise ValueError(msg)
     return M(
         node=node,
-        plane=meas_plane,
-        angle=meas_angle,
+        meas_basis=meas_basis,
         s_domain=set(s_domain),
         t_domain=set(t_domain),
     )
@@ -213,8 +209,7 @@ def qompile(
     """
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
-    meas_planes = graph.meas_planes
-    meas_angles = graph.meas_angles
+    meas_bases = graph.meas_bases
     q_indices = graph.q_indices
     local_cliffords = graph.local_cliffords
 
@@ -232,8 +227,7 @@ def qompile(
     pattern.extend(
         _generate_m_cmd(
             node,
-            meas_planes[node],
-            meas_angles[node],
+            meas_bases[node],
             x_corrections[node],
             z_corrections[node],
         )

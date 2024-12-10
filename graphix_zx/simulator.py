@@ -329,10 +329,10 @@ class PatternSimulator(BasePatternSimulator):
         for node in cmd.t_domain:
             t_bool ^= self.__results[node]
 
-        angle = (-1) ** s_bool * cmd.angle + t_bool * np.pi
+        angle = (-1) ** s_bool * cmd.meas_basis.angle + t_bool * np.pi
 
         node_id = self.__node_indices.index(cmd.node)
-        self.__state.measure(node_id, cmd.plane, angle, result)
+        self.__state.measure(node_id, cmd.meas_basis.plane, angle, result)
         self.__results[cmd.node] = result
         self.__node_indices.remove(cmd.node)
 
