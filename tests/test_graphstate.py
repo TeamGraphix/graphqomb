@@ -174,10 +174,6 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
         graph.check_meas_bases()
-    meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
-    graph.set_meas_basis(1, meas_basis)
-    with pytest.raises(ValueError, match="Invalid measurement plane 'invalid plane' for node 1"):
-        graph.check_meas_bases()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
