@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane
+from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.euler import is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
@@ -32,10 +32,7 @@ class ZXGraphState(GraphState):
         set of physical nodes
     physical_edges : dict[int, set[int]]
         physical edges
-    meas_planes : dict[int, Plane]
-        measurement planes
-    meas_angles : dict[int, float]
-        measurement angles
+    meas_bases : dict[int, MeasBasis]
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]
@@ -72,10 +69,10 @@ class ZXGraphState(GraphState):
         v : int
             node index
         """
-        new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
+        new_plane, new_angle_func = measurement_action[self.meas_bases[v].plane]
         if new_plane:
-            self.set_meas_plane(v, new_plane)
-            self.set_meas_angle(v, new_angle_func(v) % (2.0 * np.pi))
+            new_angle = new_angle_func(v) % (2.0 * np.pi)
+            self.set_meas_basis(v, PlannerMeasBasis(new_plane, new_angle))
 
     def local_complement(self, node: int) -> None:
         """Local complement operation on the graph state: G*u.
@@ -105,18 +102,18 @@ class ZXGraphState(GraphState):
 
         # update node measurement if not output node
         measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: (self.meas_angles[v] + 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: (self.meas_bases[v].angle + 0.5 * np.pi) % (2.0 * np.pi)),
         }
         if node not in self.output_nodes:
             self._update_node_measurement(measurement_action, node)
 
         # update neighbors measurement if not output node
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: (self.meas_angles[v]) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.XZ, lambda v: (-self.meas_angles[v]) % (2.0 * np.pi)),
+            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
         }
 
         for v in nbrs - self.output_nodes:
@@ -185,9 +182,9 @@ class ZXGraphState(GraphState):
 
         # update node1 and node2 measurement
         measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_angles[v]),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_angles[v]) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_angles[v]),
+            Plane.XY: (Plane.YZ, lambda v: self.meas_bases[v].angle),
+            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
+            Plane.YZ: (Plane.XY, lambda v: self.meas_bases[v].angle),
         }
 
         for a in {node1, node2} - self.output_nodes:
@@ -195,9 +192,9 @@ class ZXGraphState(GraphState):
 
         # update nodes measurement of nbr_a
         measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_angles[v] + np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: -self.meas_angles[v] % (2.0 * np.pi)),
+            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
         }
 
         for w in nbr_a - self.output_nodes:
@@ -221,8 +218,8 @@ class ZXGraphState(GraphState):
         bool
             True if the node is a removable Clifford vertex.
         """
-        alpha = self.meas_angles[node] % (2.0 * np.pi)
-        return abs(alpha % np.pi) < atol and (self.meas_planes[node] in {Plane.YZ, Plane.XZ})
+        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
+        return abs(alpha % np.pi) < atol and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
@@ -242,8 +239,8 @@ class ZXGraphState(GraphState):
         bool
             True if the node needs a local complementation.
         """
-        alpha = self.meas_angles[node] % (2.0 * np.pi)
-        return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] in {Plane.YZ, Plane.XY}
+        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
+        return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
 
     def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
@@ -269,9 +266,9 @@ class ZXGraphState(GraphState):
         if not self.get_neighbors(node) - self.input_nodes:
             return False
 
-        alpha = self.meas_angles[node] % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
+        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
+        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
+        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
 
     def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
@@ -299,9 +296,9 @@ class ZXGraphState(GraphState):
         if not (nbrs.issubset(self.output_nodes) and nbrs):
             return False
 
-        alpha = self.meas_angles[node] % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_planes[node] == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_planes[node] == Plane.XZ
+        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
+        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
+        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
@@ -314,25 +311,25 @@ class ZXGraphState(GraphState):
         atol : float, optional
             absolute tolerance, by default 1e-9
         """
-        alpha = self.meas_angles[node] % (2.0 * np.pi)
+        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
         measurement_action = {
             Plane.XY: (
                 Plane.XY,
-                lambda v: self.meas_angles[v]
+                lambda v: self.meas_bases[v].angle
                 if abs(alpha % (2.0 * np.pi)) < atol
-                else (self.meas_angles[v] + np.pi) % (2.0 * np.pi),
+                else (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi),
             ),
             Plane.XZ: (
                 Plane.XZ,
-                lambda v: self.meas_angles[v]
+                lambda v: self.meas_bases[v].angle
                 if abs(alpha % (2.0 * np.pi)) < atol
-                else -self.meas_angles[v] % (2.0 * np.pi),
+                else -self.meas_bases[v].angle % (2.0 * np.pi),
             ),
             Plane.YZ: (
                 Plane.YZ,
-                lambda v: self.meas_angles[v]
+                lambda v: self.meas_bases[v].angle
                 if abs(alpha % (2.0 * np.pi)) < atol
-                else -self.meas_angles[v] % (2.0 * np.pi),
+                else -self.meas_bases[v].angle % (2.0 * np.pi),
             ),
         }
         for v in self.get_neighbors(node) - self.output_nodes:
@@ -365,7 +362,8 @@ class ZXGraphState(GraphState):
             raise ValueError(msg)
 
         if not (
-            is_clifford_angle(self.meas_angles[node], atol) and self.meas_planes[node] in {Plane.XY, Plane.XZ, Plane.YZ}
+            is_clifford_angle(self.meas_bases[node].angle, atol)
+            and self.meas_bases[node].plane in {Plane.XY, Plane.XZ, Plane.YZ}
         ):
             msg = "This node is not a Clifford vertex."
             raise ValueError(msg)
@@ -499,7 +497,7 @@ class ZXGraphState(GraphState):
             clifford_nodes = [
                 node
                 for node in nodes
-                if is_clifford_angle(self.meas_angles[node], atol) and self._is_removable_clifford(node, atol)
+                if is_clifford_angle(self.meas_bases[node].angle, atol) and self._is_removable_clifford(node, atol)
             ]
             if clifford_nodes == []:
                 break

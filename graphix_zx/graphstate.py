@@ -498,8 +498,7 @@ class GraphState(BaseGraphState):
         del self.__physical_edges[node]
         self.__input_nodes -= {node}
         self.__output_nodes -= {node}
-        self.__meas_planes.pop(node, None)
-        self.__meas_angles.pop(node, None)
+        self.__meas_bases.pop(node, None)
         self.__q_indices.pop(node, None)
         self.__local_cliffords.pop(node, None)
         for neighbor in self.__physical_edges:
@@ -554,7 +553,7 @@ class GraphState(BaseGraphState):
             2. If the node has a measurement basis.
         """
         self.ensure_node_exists(node)
-        if self.meas_planes.get(node) or self.meas_angles.get(node):
+        if self.meas_bases.get(node) is not None:
             msg = "Cannot set output node with measurement basis."
             raise ValueError(msg)
         self.__output_nodes |= {node}

@@ -172,14 +172,14 @@ def test_set_output_raises_1(graph: GraphState) -> None:
     with pytest.raises(ValueError, match="Node does not exist node=1"):
         graph.set_output(1)
     graph.add_physical_node(1)
-    graph.set_meas_angle(1, 0.5 * np.pi)
+    graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
     with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
         graph.set_output(1)
 
 
 def test_set_output_raises_2(graph: GraphState) -> None:
     graph.add_physical_node(1)
-    graph.set_meas_plane(1, Plane.XY)
+    graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
     with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
         graph.set_output(1)
 
@@ -224,16 +224,16 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     """Test if measurement planes and angles are set improperly."""
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
-        graph.check_meas_bases()
+        graph.check_meas_basis()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
-    graph.check_meas_bases()
+    graph.check_meas_basis()
     graph.add_physical_node(1)
     meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
     graph.set_meas_basis(1, meas_basis)
-    graph.check_meas_bases()
+    graph.check_meas_basis()
 
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -241,12 +241,12 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
     graph.check_meas_basis()
 
 
-def test_bipartite_edges() -> None:
+def test_bipartite_edges(graph: GraphState) -> None:
     """Test the function that generate complete bipartite edges"""
     assert bipartite_edges(set(), set()) == set()
     assert bipartite_edges({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
     assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
-    graph.check_meas_bases()
+    graph.check_meas_basis()
 
 
 if __name__ == "__main__":
