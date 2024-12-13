@@ -54,8 +54,7 @@ def get_subgraph_sequences(graph: BaseGraphState, meas_order: Iterable[int]) -> 
         else:
             subgraph.add_physical_node(target_node, q_index=q_indices[target_node])
         prepared_nodes |= {target_node}
-        subgraph.set_meas_angle(target_node, graph.meas_angles[target_node])
-        subgraph.set_meas_plane(target_node, graph.meas_planes[target_node])
+        subgraph.set_meas_basis(target_node, graph.meas_bases[target_node])
 
         for prepared_node in neighboring_prepared_nodes:
             subgraph.add_physical_node(
@@ -80,12 +79,12 @@ def get_subgraph_sequences(graph: BaseGraphState, meas_order: Iterable[int]) -> 
 
     # add edge between output nodes
     # the other edges are already prepared before
-    _prepared_outputs = set()
+    prepared_outputs = set()
     for node in graph.output_nodes:
         for neighbor in graph.get_neighbors(node):
-            if neighbor in _prepared_outputs:
+            if neighbor in prepared_outputs:
                 last_graph.add_physical_edge(node, neighbor)
-        _prepared_outputs.add(node)
+        prepared_outputs.add(node)
 
     subgraphs.append(last_graph)
 

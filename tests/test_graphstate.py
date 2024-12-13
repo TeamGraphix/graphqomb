@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane
+from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 
@@ -191,36 +191,13 @@ def test_set_output(graph: GraphState) -> None:
     assert 1 in graph.output_nodes
 
 
-def test_set_meas_plane_raises(graph: GraphState) -> None:
-    with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.set_meas_plane(1, Plane.XY)
+def test_set_meas_basis(graph: GraphState) -> None:
+    """Test setting the measurement basis of a physical node."""
     graph.add_physical_node(1)
-    graph.set_output(1)
-    with pytest.raises(ValueError, match="Cannot set measurement plane for output node."):
-        graph.set_meas_plane(1, Plane.XY)
-
-
-def test_set_meas_plane(graph: GraphState) -> None:
-    """Test setting the measurement plane of a physical node."""
-    graph.add_physical_node(1)
-    graph.set_meas_plane(1, Plane.XZ)
-    assert graph.meas_planes[1] == Plane.XZ
-
-
-def test_set_meas_angle_raises(graph: GraphState) -> None:
-    with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.set_meas_angle(1, 0.5 * np.pi)
-    graph.add_physical_node(1)
-    graph.set_output(1)
-    with pytest.raises(ValueError, match="Cannot set measurement angle for output node."):
-        graph.set_meas_angle(1, 0.5 * np.pi)
-
-
-def test_set_meas_angle(graph: GraphState) -> None:
-    """Test setting the measurement angle of a physical node."""
-    graph.add_physical_node(1)
-    graph.set_meas_angle(1, 0.5 * np.pi)
-    assert graph.meas_angles[1] == 0.5 * np.pi
+    meas_basis = PlannerMeasBasis(Plane.XZ, 0.5 * np.pi)
+    graph.set_meas_basis(1, meas_basis)
+    assert graph.meas_bases[1].plane == Plane.XZ
+    assert graph.meas_bases[1].angle == 0.5 * np.pi
 
 
 def test_append_graph() -> None:
@@ -247,20 +224,16 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     """Test if measurement planes and angles are set improperly."""
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
-        graph.check_meas_basis()
-    graph.set_meas_angle(1, 0.5 * np.pi)
-    graph.set_meas_plane(1, "invalid plane")  # type: ignore[reportArgumentType, arg-type, unused-ignore]
-    with pytest.raises(ValueError, match="Invalid measurement plane 'invalid plane' for node 1"):
-        graph.check_meas_basis()
+        graph.check_meas_bases()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
-    graph.check_meas_basis()
+    graph.check_meas_bases()
     graph.add_physical_node(1)
-    graph.set_meas_plane(1, Plane.XZ)
-    graph.set_meas_angle(1, 0.5 * np.pi)
-    graph.check_meas_basis()
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
+    graph.set_meas_basis(1, meas_basis)
+    graph.check_meas_bases()
 
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
@@ -273,6 +246,7 @@ def test_bipartite_edges() -> None:
     assert bipartite_edges(set(), set()) == set()
     assert bipartite_edges({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
     assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+    graph.check_meas_bases()
 
 
 if __name__ == "__main__":

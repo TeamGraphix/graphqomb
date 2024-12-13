@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane
+from graphix_zx.common import default_meas_basis
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
@@ -55,8 +55,7 @@ def get_random_flow_graph(
     # input nodes
     for q_index in range(width):
         graph.add_physical_node(num_nodes, is_input=True)
-        graph.set_meas_plane(num_nodes, Plane.XY)
-        graph.set_meas_angle(num_nodes, 0.0)
+        graph.set_meas_basis(num_nodes, default_meas_basis())
         graph.set_q_index(num_nodes, q_index)
         num_nodes += 1
 
@@ -64,8 +63,7 @@ def get_random_flow_graph(
     for _ in range(depth - 2):
         for q_index in range(width):
             graph.add_physical_node(num_nodes)
-            graph.set_meas_plane(num_nodes, Plane.XY)
-            graph.set_meas_angle(num_nodes, 0.0)
+            graph.set_meas_basis(num_nodes, default_meas_basis())
             graph.set_q_index(num_nodes, q_index)
             graph.add_physical_edge(num_nodes - width, num_nodes)
             flow[num_nodes - width] = {num_nodes}

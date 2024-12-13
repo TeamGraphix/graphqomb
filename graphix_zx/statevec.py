@@ -39,6 +39,10 @@ class BaseStateVector(BaseSimulatorBackend):
     def __init__(self, num_qubits: int, state: NDArray | None = None) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    def __copy__(self) -> BaseStateVector:
+        raise NotImplementedError
+
     @property
     @abstractmethod
     def num_qubits(self) -> int:
@@ -156,6 +160,9 @@ class StateVector(BaseStateVector):
             self.__state = state
         else:
             self.__state = np.ones(2**num_qubits) / np.sqrt(2**num_qubits)
+
+    def __copy__(self) -> StateVector:
+        return StateVector(self.__num_qubits, self.__state.copy())
 
     @property
     def num_qubits(self) -> int:

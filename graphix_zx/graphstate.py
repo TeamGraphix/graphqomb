@@ -12,7 +12,7 @@ from itertools import product
 from typing import TYPE_CHECKING
 
 
-from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.common import MeasBasis, default_meas_basis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
@@ -113,25 +113,13 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def meas_planes(self) -> dict[int, Plane]:
-        """Return measurement planes.
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        """Return measurement bases.
 
         Returns
         -------
-        dict[int, Plane]
-            measurement planes of each physical node.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def meas_angles(self) -> dict[int, float]:
-        """Return measurement angles.
-
-        Returns
-        -------
-        dict[int, float]
-            measurement angles of each physical node.
+        dict[int, MeasBasis]
+            measurement bases of each physical node.
         """
         raise NotImplementedError
 
@@ -220,28 +208,15 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_meas_plane(self, node: int, plane: Plane) -> None:
-        """Set the measurement plane of the node.
+    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        """Set the measurement basis of the node.
 
         Parameters
         ----------
         node : int
             node index
-        plane : Plane
-            measurement plane
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_meas_angle(self, node: int, angle: float) -> None:
-        """Set the measurement angle of the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        angle : float
-            measurement angle
+        meas_basis : MeasBasis
+            measurement basis
         """
         raise NotImplementedError
 
@@ -288,10 +263,8 @@ class GraphState(BaseGraphState):
         set of physical nodes
     physical_edges : dict[int, set[int]]
         physical edges
-    meas_planes : dict[int, Plane]
-        measurement planes
-    meas_angles : dict[int, float]
-        measurement angles
+    meas_bases : dict[int, MeasBasis]
+        measurement bases
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]
@@ -302,8 +275,7 @@ class GraphState(BaseGraphState):
     __output_nodes: set[int]
     __physical_nodes: set[int]
     __physical_edges: dict[int, set[int]]
-    __meas_planes: dict[int, Plane]
-    __meas_angles: dict[int, float]
+    __meas_bases: dict[int, MeasBasis]
     __q_indices: dict[int, int]
     __local_cliffords: dict[int, LocalClifford]
 
@@ -312,8 +284,7 @@ class GraphState(BaseGraphState):
         self.__output_nodes = set()
         self.__physical_nodes = set()
         self.__physical_edges = {}
-        self.__meas_planes = {}
-        self.__meas_angles = {}
+        self.__meas_bases = {}
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
         self.__local_cliffords = {}
@@ -401,26 +372,15 @@ class GraphState(BaseGraphState):
         return self.__q_indices
 
     @property
-    def meas_planes(self) -> dict[int, Plane]:
-        """Return measurement planes.
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        """Return measurement bases.
 
         Returns
         -------
-        dict[int, Plane]
-            measurement planes of each physical node.
+        dict[int, MeasBasis]
+            measurement bases of each physical node.
         """
-        return self.__meas_planes
-
-    @property
-    def meas_angles(self) -> dict[int, float]:
-        """Return measurement angles.
-
-        Returns
-        -------
-        dict[int, float]
-            measurement angles of each physical node.
-        """
-        return self.__meas_angles
+        return self.__meas_bases
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
@@ -442,11 +402,8 @@ class GraphState(BaseGraphState):
             If the measurement basis is not set for a node or the measurement plane is invalid.
         """
         for v in self.physical_nodes - self.output_nodes:
-            if self.meas_planes.get(v) is None or self.meas_angles.get(v) is None:
+            if self.meas_bases.get(v) is None:
                 msg = f"Measurement basis not set for node {v}"
-                raise ValueError(msg)
-            if self.meas_planes[v] not in {Plane.XY, Plane.XZ, Plane.YZ, Plane.YX, Plane.ZX, Plane.ZY}:
-                msg = f"Invalid measurement plane '{self.meas_planes[v]}' for node {v}"
                 raise ValueError(msg)
 
     def add_physical_node(
@@ -623,49 +580,18 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__q_indices[node] = q_index
 
-    def set_meas_plane(self, node: int, plane: Plane) -> None:
-        """Set the measurement plane of the node.
+    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        """Set the measurement basis of the node.
 
         Parameters
         ----------
         node : int
             node index
-        plane : Plane
-            measurement plane
-
-        Raises
-        ------
-        ValueError
-            1. If the node does not exist.
-            2. If the node is an output node.
+        meas_basis : MeasBasis
+            measurement basis
         """
         self.ensure_node_exists(node)
-        if node in self.output_nodes:
-            msg = "Cannot set measurement plane for output node."
-            raise ValueError(msg)
-        self.__meas_planes[node] = plane
-
-    def set_meas_angle(self, node: int, angle: float) -> None:
-        """Set the measurement angle of the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        angle : float
-            measurement angle
-
-        Raises
-        ------
-        ValueError
-            1. If the node does not exist.
-            2. If the node is an output node.
-        """
-        self.ensure_node_exists(node)
-        if node in self.output_nodes:
-            msg = "Cannot set measurement angle for output node."
-            raise ValueError(msg)
-        self.__meas_angles[node] = angle
+        self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
         """Apply a local clifford to the node.
@@ -688,9 +614,8 @@ class GraphState(BaseGraphState):
         if node in self.input_nodes or node in self.output_nodes:
             self.__local_cliffords[node] = lc
         else:
-            meas_plane, meas_angle = _update_meas_basis(lc, self.meas_planes[node], self.meas_angles[node])
-            self.set_meas_plane(node, meas_plane)
-            self.set_meas_angle(node, meas_angle)
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            self.set_meas_basis(node, new_meas_basis)
 
     def get_neighbors(self, node: int) -> set[int]:
         """Return the neighbors of the node.
@@ -752,8 +677,8 @@ class GraphState(BaseGraphState):
             if node in other.output_nodes:
                 self.set_output(node)
             else:
-                self.set_meas_plane(node, other.meas_planes.get(node, Plane.XY))
-                self.set_meas_angle(node, other.meas_angles.get(node, 0.0))
+                meas_basis = other.meas_bases.get(node, default_meas_basis())
+                self.set_meas_basis(node, meas_basis)
 
         for edge in other.physical_edges:
             self.add_physical_edge(edge[0], edge[1])
@@ -764,22 +689,6 @@ class GraphState(BaseGraphState):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
-
-
-def _update_meas_basis(
-    lc: LocalClifford,
-    plane: Plane,
-    angle: float,
-) -> tuple[Plane, float]:
-    """Update the measurement basis of the node.
-
-    Returns
-    -------
-        tuple[Plane, float]: updated measurement basis
-    """
-    meas_basis = MeasBasis(plane, angle)
-    new_basis = update_lc_basis(lc, meas_basis)
-    return new_basis.plane, new_basis.angle
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:

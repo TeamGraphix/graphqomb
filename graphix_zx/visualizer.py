@@ -28,6 +28,7 @@ if sys.version_info >= (3, 11):
         YZ = "red"
         XZ = "blue"
         OUTPUT = "grey"
+
 else:
     from enum import Enum
 
@@ -42,7 +43,6 @@ else:
 
 def visualize(
     graph_state: BaseGraphState,
-    topo_order: list[int],
     *,
     save: bool = False,
     filename: str | None = None,
@@ -55,23 +55,12 @@ def visualize(
     ----------
     graph_state : BaseGraphState
         GraphState to visualize.
-    topo_order : list[int]
-        Topological order of the nodes
     save : bool, optional
         To save as a file or not, by default False
     filename : str | None, optional
         filename of the image, by default None
-
-    Raises
-    ------
-    ValueError
-        If the topological order is not consistent with the physical nodes.
     """
-    if graph_state.physical_nodes != set(topo_order):
-        msg = "The topological order is not consistent with the physical nodes."
-        raise ValueError(msg)
-
-    node_pos = _get_node_positions(graph_state, topo_order)
+    node_pos = _get_node_positions(graph_state)
 
     node_colors = _get_node_colors(graph_state)
 
@@ -86,7 +75,7 @@ def visualize(
             color="black",
         )
 
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
     graph.add_nodes_from(graph_state.physical_nodes)
     graph.add_edges_from(graph_state.physical_edges)
     nx.draw_networkx_labels(graph, pos=node_pos, font_size=12)
@@ -98,10 +87,13 @@ def visualize(
     plt.show()
 
 
-def _get_node_positions(graph_state: BaseGraphState, topo_order: list[int]) -> dict[int, tuple[int, int]]:
+def _get_node_positions(graph_state: BaseGraphState) -> dict[int, tuple[int, int]]:
     pos = {}
     depth_qindecies = {graph_state.q_indices[node]: 0 for node in graph_state.input_nodes}
-    for node in topo_order:
+    depth_qindecies[-1] = 0
+    node_list = list(graph_state.physical_nodes)
+    node_list.sort()
+    for node in node_list:
         q_index = graph_state.q_indices[node]
         pos[node] = (depth_qindecies[q_index], -q_index)  # (depth, q_index)
         depth_qindecies[q_index] += 1
@@ -111,12 +103,12 @@ def _get_node_positions(graph_state: BaseGraphState, topo_order: list[int]) -> d
 
 def _get_node_colors(graph_state: BaseGraphState) -> dict[int, ColorMap]:
     node_colors = {}
-    for node, plane in graph_state.meas_planes.items():
-        if plane == Plane.XY:
+    for node, meas_bases in graph_state.meas_bases.items():
+        if meas_bases.plane == Plane.XY:
             node_colors[node] = ColorMap.XY
-        elif plane == Plane.YZ:
+        elif meas_bases.plane == Plane.YZ:
             node_colors[node] = ColorMap.YZ
-        elif plane == Plane.XZ:
+        elif meas_bases.plane == Plane.XZ:
             node_colors[node] = ColorMap.XZ
 
     for output_node in graph_state.output_nodes:

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Plane
+from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
 
@@ -220,8 +220,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
         if isinstance(instruction, J):
             graph.add_physical_node(num_nodes)
             graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
-            graph.set_meas_plane(front_nodes[instruction.qubit], Plane.XY)
-            graph.set_meas_angle(front_nodes[instruction.qubit], -instruction.angle)
+            graph.set_meas_basis(front_nodes[instruction.qubit], PlannerMeasBasis(Plane.XY, -instruction.angle))
             graph.set_q_index(num_nodes, instruction.qubit)
 
             gflow[front_nodes[instruction.qubit]] = {num_nodes}
@@ -233,8 +232,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, FlowLike]:
             graph.add_physical_edge(front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]])
         elif isinstance(instruction, PhaseGadget):
             graph.add_physical_node(num_nodes)
-            graph.set_meas_angle(num_nodes, instruction.angle)
-            graph.set_meas_plane(num_nodes, Plane.YZ)
+            graph.set_meas_basis(num_nodes, PlannerMeasBasis(Plane.YZ, instruction.angle))
             for qubit in instruction.qubits:
                 graph.add_physical_edge(front_nodes[qubit], num_nodes)
 

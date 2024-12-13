@@ -17,7 +17,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
-from graphix_zx.common import Plane
+from graphix_zx.common import MeasBasis, default_meas_basis
 
 if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
@@ -50,10 +50,8 @@ class M:
     ----------
     node : int
         The node index to be measured.
-    plane : Plane
-        The measurement plane.
-    angle : float
-        The measurement angle.
+    meas_basis : MeasBasis
+        The measurement basis.
     s_domain : set[int]
         The s_domain of the measurement.
     t_domain : set[int]
@@ -68,8 +66,7 @@ class M:
     """
 
     node: Node
-    plane: Plane = Plane.XY
-    angle: float = 0.0
+    meas_basis: MeasBasis = field(default_factory=default_meas_basis)
     s_domain: set[Node] = field(default_factory=set)
     t_domain: set[Node] = field(default_factory=set)
 

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -37,12 +37,28 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     tuple[float, float, float]
         euler angles (alpha, beta, gamma)
     """
-    global_phase = np.angle(u[0, 0])
-    u *= np.exp(-1j * global_phase)
+    global_phase = np.sqrt(np.linalg.det(u))
+    u /= global_phase
 
-    alpha = np.angle(u[1, 0]) + np.angle(u[0, 0])
-    beta = 2 * np.arccos(np.abs(u[0, 0]))
-    gamma = np.angle(u[0, 1]) - np.angle(u[1, 1])
+    if np.isclose(u[1, 0], 0):
+        alpha = 2 * np.angle(u[1, 1])
+        beta = 0.0
+        gamma = 0.0
+    elif np.isclose(u[1, 1], 0):
+        alpha = 2 * np.angle(u[0, 1] / (-1j))
+        beta = np.pi
+        gamma = 0.0
+    else:
+        alpha_p_gamma = np.angle(u[1, 1] / u[0, 0])
+        alpha_m_gamma = np.angle(u[1, 0] / u[0, 1])
+
+        alpha = (alpha_p_gamma + alpha_m_gamma) / 2
+        gamma = (alpha_p_gamma - alpha_m_gamma) / 2
+
+        cos_term = np.real(u[1, 1] / np.exp(1j * alpha_p_gamma / 2))
+        sin_term = np.real(u[1, 0] / (-1j * np.exp(1j * alpha_m_gamma / 2)))
+
+        beta = 2 * np.angle(cos_term + 1j * sin_term)
 
     return alpha, beta, gamma
 
@@ -64,9 +80,41 @@ def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
     """
     # normalize
     vector /= np.linalg.norm(vector)
-    theta = 2 * np.arccos(np.abs(vector[0]))
-    phi = np.angle(vector[1]) - np.angle(vector[0])
+    if np.isclose(vector[0], 0):
+        theta = np.pi
+        phi = np.angle(vector[1])
+    else:
+        global_phase = np.angle(vector[0])
+        vector /= np.exp(1j * global_phase)
+        phi = 0 if np.isclose(vector[1], 0) else np.angle(vector[1])
+        cos_term = np.real(vector[0])
+        sin_term = np.real(vector[1] / np.exp(1j * phi))
+        theta = 2 * np.angle(cos_term + 1j * sin_term)
     return theta, phi
+
+
+def _is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
+    """Check if an angle is close to a target angle.
+
+    Parameters
+    ----------
+    angle : float
+        angle to check
+    target : float
+        target angle
+    atol : float, optional
+        absolute tolerance, by default 1e-9
+
+    Returns
+    -------
+    bool
+        True if the angle is close to the target angle
+    """
+    diff_angle = (angle - target) % (2 * np.pi)
+
+    if diff_angle > np.pi:
+        diff_angle = 2 * np.pi - diff_angle
+    return bool(np.isclose(diff_angle, 0, atol=atol))
 
 
 def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
@@ -84,7 +132,10 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     bool
         True if the angle is a Clifford angle
     """
-    return bool(np.isclose(angle % (np.pi / 2), 0, atol=atol))
+    angle_preprocessed = angle % (2 * np.pi)
+    return any(
+        _is_close_angle(angle_preprocessed, target, atol=atol) for target in [0, np.pi / 2, np.pi, 3 * np.pi / 2]
+    )
 
 
 # TODO: there is room to improve the data type for angles
@@ -124,18 +175,7 @@ class LocalUnitary:
         NDArray
             2x2 unitary matrix
         """
-        return np.asarray(
-            [
-                [
-                    np.cos(self.beta / 2) * np.exp(-1j * (self.alpha + self.gamma) / 2),
-                    -1j * np.sin(self.beta / 2) * np.exp(-1j * (self.alpha - self.gamma) / 2),
-                ],
-                [
-                    -1j * np.sin(self.beta / 2) * np.exp(1j * (self.alpha - self.gamma) / 2),
-                    np.cos(self.beta / 2) * np.exp(1j * (self.alpha + self.gamma) / 2),
-                ],
-            ]
-        )
+        return _rz(self.alpha) @ _rx(self.beta) @ _rz(self.gamma)
 
 
 class LocalClifford(LocalUnitary):
@@ -218,13 +258,19 @@ def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     """
     theta, phi = get_bloch_sphere_coordinates(vector)
     if is_clifford_angle(phi):
-        # YZ or ZX plane
-        if is_clifford_angle(phi / 2):
-            return Plane.ZX, theta + np.pi * (((phi / np.pi) % 2) - 1 / 2)
-        return Plane.YZ, theta + np.pi * ((phi / np.pi) % 2)
+        # YZ or XZ plane
+        if is_clifford_angle(phi / 2):  # 0 or pi
+            if _is_close_angle(phi, np.pi):
+                theta = -theta
+            return Plane.XZ, theta
+        if _is_close_angle(phi, 3 * np.pi / 2):
+            theta = -theta
+        return Plane.YZ, theta
     if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
         # XY plane
-        return Plane.XY, phi + np.pi * (((theta / np.pi) % 2) - 1 / 2)
+        if _is_close_angle(theta, 3 * np.pi / 2):
+            phi += np.pi
+        return Plane.XY, phi
     msg = "The vector does not lie on any of 3 planes"
     raise ValueError(msg)
 
@@ -252,7 +298,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     return LocalClifford(alpha, beta, gamma)
 
 
-def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
+def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     """Update a LocalClifford object with a MeasBasis object.
 
     Parameters
@@ -264,12 +310,30 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> MeasBasis:
 
     Returns
     -------
-    MeasBasis
-        updated MeasBasis
+    PlannerMeasBasis
+        updated PlannerMeasBasis
     """
     matrix = lc.get_matrix()
     vector = basis.get_vector()
 
     vector = matrix @ vector
     plane, angle = _get_meas_basis_info(vector)
-    return MeasBasis(plane, angle)
+    return PlannerMeasBasis(plane, angle)
+
+
+def _rx(angle: float) -> NDArray[np.complex128]:
+    return np.asarray(
+        [
+            [np.cos(angle / 2), -1j * np.sin(angle / 2)],
+            [-1j * np.sin(angle / 2), np.cos(angle / 2)],
+        ]
+    )
+
+
+def _rz(angle: float) -> NDArray[np.complex128]:
+    return np.asarray(
+        [
+            [np.exp(-1j * angle / 2), 0],
+            [0, np.exp(1j * angle / 2)],
+        ]
+    )
