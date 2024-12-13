@@ -16,7 +16,7 @@ from graphix_zx.euler import is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable, Iterable, Mapping
 
 
 class ZXGraphState(GraphState):
@@ -45,15 +45,33 @@ class ZXGraphState(GraphState):
     def __init__(self) -> None:
         super().__init__()
 
-    def _update_connections(self, rmv_edges: set[tuple[int, int]], new_edges: set[tuple[int, int]]) -> None:
+    def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
+        """Update the physical edges of the graph state.
+
+        Parameters
+        ----------
+        rmv_edges : Iterable[tuple[int, int]]
+            edges to remove
+        new_edges : Iterable[tuple[int, int]]
+            edges to add
+        """
         for edge in rmv_edges:
             self.remove_physical_edge(edge[0], edge[1])
         for edge in new_edges:
             self.add_physical_edge(edge[0], edge[1])
 
     def _update_node_measurement(
-        self, measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]], v: int
+        self, measurement_action: Mapping[Plane, tuple[Plane, Callable[[float], float]]], v: int
     ) -> None:
+        """Update the measurement action of the node.
+
+        Parameters
+        ----------
+        measurement_action : Mapping[Plane, tuple[Plane, Callable[[float], float]]]
+            mapping of the measurement plane to the new measurement plane and function to update the angle
+        v : int
+            node index
+        """
         new_plane, new_angle_func = measurement_action[self.meas_planes[v]]
         if new_plane:
             self.set_meas_plane(v, new_plane)
