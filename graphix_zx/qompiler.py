@@ -197,7 +197,7 @@ def qompile(
         x corrections
     z_corrections : CorrectionMap
         z corrections
-    dag : dict[int, set[int]]
+    dag : Mappinh[int, AbstratcSet[int]]
         directed acyclic graph representation of the causality of flow
     correct_output : bool, optional
         whether to correct outputs or not, by default True
