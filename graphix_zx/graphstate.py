@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
 
-
 from graphix_zx.common import MeasBasis, default_meas_basis
 from graphix_zx.euler import update_lc_basis
 

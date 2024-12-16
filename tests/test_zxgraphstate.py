@@ -7,8 +7,8 @@ import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.euler import is_clifford_angle
-from graphix_zx.zxgraphstate import ZXGraphState
 from graphix_zx.random_objects import get_random_flow_graph
+from graphix_zx.zxgraphstate import ZXGraphState
 
 
 @pytest.fixture
