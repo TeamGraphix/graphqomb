@@ -3,8 +3,6 @@
 This module provides:
 - BaseGraphState: Abstract base class for Graph State.
 - GraphState: Minimal implementation of Graph State.
-- ZXGraphState: Graph State for the ZX-calculus.
-- bipartite_edges: Return a set of edges for the complete bipartite graph between two sets of nodes.
 """
 
 from __future__ import annotations
@@ -13,14 +11,10 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
 
-import numpy as np
-
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, default_meas_basis
+from graphix_zx.common import MeasBasis, default_meas_basis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
-    from typing import Callable
-
     from graphix_zx.euler import LocalClifford
 
 
@@ -398,7 +392,7 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords
 
-    def check_meas_bases(self) -> None:
+    def check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
 
         Raises
@@ -483,6 +477,32 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
 
+    def remove_physical_node(self, node: int) -> None:
+        """Remove a physical node from the graph state.
+
+        Parameters
+        ----------
+            node : int
+
+        Raises
+        ------
+        ValueError
+            If the node does not exist.
+        """
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
+        self.ensure_node_exists(node)
+        self.__physical_nodes -= {node}
+        del self.__physical_edges[node]
+        self.__input_nodes -= {node}
+        self.__output_nodes -= {node}
+        self.__meas_bases.pop(node, None)
+        self.__q_indices.pop(node, None)
+        self.__local_cliffords.pop(node, None)
+        for neighbor in self.__physical_edges:
+            self.__physical_edges[neighbor] -= {node}
+
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
 
@@ -524,8 +544,17 @@ class GraphState(BaseGraphState):
         ----------
         node : int
             node index
+
+        Raises
+        ------
+        ValueError
+            1. If the node does not exist.
+            2. If the node has a measurement basis.
         """
         self.ensure_node_exists(node)
+        if self.meas_bases.get(node) is not None:
+            msg = "Cannot set output node with measurement basis."
+            raise ValueError(msg)
         self.__output_nodes |= {node}
 
     def set_q_index(self, node: int, q_index: int = -1) -> None:
@@ -658,173 +687,6 @@ class GraphState(BaseGraphState):
                 msg = "Qubit index mismatch."
                 raise ValueError(msg)
             self.set_q_index(node, q_index)
-
-
-class ZXGraphState(GraphState):
-    """Graph State for the ZX-calculus.
-
-    Attributes
-    ----------
-    input_nodes : set[int]
-        set of input nodes
-    output_nodes : set[int]
-        set of output nodes
-    physical_nodes : set[int]
-        set of physical nodes
-    physical_edges : dict[int, set[int]]
-        physical edges
-    meas_bases : dict[int, MeasBasis]
-    q_indices : dict[int, int]
-        qubit indices
-    local_cliffords : dict[int, LocalClifford]
-        local clifford operators
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def _update_connections(self, rmv_edges: set[tuple[int, int]], new_edges: set[tuple[int, int]]) -> None:
-        for edge in rmv_edges:
-            self.remove_physical_edge(edge[0], edge[1])
-        for edge in new_edges:
-            self.add_physical_edge(edge[0], edge[1])
-
-    def _update_node_measurement(
-        self, measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]], v: int
-    ) -> None:
-        new_plane, new_angle_func = measurement_action[self.meas_bases[v].plane]
-        if new_plane:
-            new_angle = new_angle_func(v) % (2.0 * np.pi)
-            self.set_meas_basis(v, PlannerMeasBasis(new_plane, new_angle))
-
-    def local_complement(self, node: int) -> None:
-        """Local complement operation on the graph state: G*u.
-
-        Parameters
-        ----------
-        node : int
-            node index
-
-        Raises
-        ------
-        ValueError
-            If the node is an input node, an output node, or the graph is not a ZX-diagram.
-        """
-        self.ensure_node_exists(node)
-        if node in self.input_nodes or node in self.output_nodes:
-            msg = "Cannot apply local complement to input node nor output node."
-            raise ValueError(msg)
-        self.check_meas_bases()
-
-        nbrs: set[int] = self.get_neighbors(node)
-        nbr_pairs = bipartite_edges(nbrs, nbrs)
-        new_edges = nbr_pairs - self.physical_edges
-        rmv_edges = self.physical_edges & nbr_pairs
-
-        self._update_connections(rmv_edges, new_edges)
-
-        # update node measurement
-        measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: 0.5 * np.pi - self.meas_bases[v].angle),
-            Plane.XZ: (Plane.XY, lambda v: self.meas_bases[v].angle - 0.5 * np.pi),
-            Plane.YZ: (Plane.YZ, lambda v: self.meas_bases[v].angle + 0.5 * np.pi),
-        }
-
-        self._update_node_measurement(measurement_action, node)
-
-        # update neighbors measurement
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: self.meas_bases[v].angle - 0.5 * np.pi),
-            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle),
-        }
-
-        for v in nbrs:
-            self._update_node_measurement(measurement_action, v)
-
-    def _swap(self, node1: int, node2: int) -> None:
-        """Swap nodes u and v in the graph state.
-
-        Parameters
-        ----------
-        node1  : int
-            node index
-        node2 : int
-            node index
-        """
-        node1_nbrs = self.get_neighbors(node1) - {node2}
-        node2_nbrs = self.get_neighbors(node2) - {node1}
-        nbr_b = node1_nbrs - node2_nbrs
-        nbr_c = node2_nbrs - node1_nbrs
-        for b in nbr_b:
-            self.remove_physical_edge(node1, b)
-            self.add_physical_edge(node2, b)
-        for c in nbr_c:
-            self.remove_physical_edge(node2, c)
-            self.add_physical_edge(node1, c)
-
-    def pivot(self, node1: int, node2: int) -> None:
-        """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
-
-        In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
-
-        Parameters
-        ----------
-        node1 : int
-            node index
-        node2 : int
-            node index
-
-        Raises
-        ------
-        ValueError
-            If the nodes are input nodes, output nodes, or the graph is not a ZX-diagram.
-        """
-        self.ensure_node_exists(node1)
-        self.ensure_node_exists(node2)
-        if node1 in self.input_nodes or node2 in self.input_nodes:
-            msg = "Cannot apply pivot to input node"
-            raise ValueError(msg)
-        if node1 in self.output_nodes or node2 in self.output_nodes:
-            msg = "Cannot apply pivot to output node"
-            raise ValueError(msg)
-        self.check_meas_bases()
-
-        node1_nbrs = self.get_neighbors(node1) - {node2}
-        node2_nbrs = self.get_neighbors(node2) - {node1}
-        nbr_a = node1_nbrs & node2_nbrs
-        nbr_b = node1_nbrs - node2_nbrs
-        nbr_c = node2_nbrs - node1_nbrs
-        nbr_pairs = [
-            bipartite_edges(nbr_a, nbr_b),
-            bipartite_edges(nbr_a, nbr_c),
-            bipartite_edges(nbr_b, nbr_c),
-        ]
-        rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
-        add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
-
-        self._update_connections(rmv_edges, add_edges)
-        self._swap(node1, node2)
-
-        # update node1 and node2 measurement
-        measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_bases[v].angle),
-        }
-
-        for a in [node1, node2]:
-            self._update_node_measurement(measurement_action, a)
-
-        # update nodes measurement of nbr_a
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle),
-        }
-
-        for w in nbr_a:
-            self._update_node_measurement(measurement_action, w)
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import GraphState, ZXGraphState
+from graphix_zx.graphstate import GraphState, bipartite_edges
 
 
 @pytest.fixture
@@ -18,17 +18,6 @@ def graph() -> GraphState:
         GraphState: An empty GraphState object.
     """
     return GraphState()
-
-
-@pytest.fixture
-def zx_graph() -> ZXGraphState:
-    """Generate an empty ZXGraphState object.
-
-    Returns
-    -------
-        ZXGraphState: An empty ZXGraphState object.
-    """
-    return ZXGraphState()
 
 
 def test_add_physical_node(graph: GraphState) -> None:
@@ -101,6 +90,52 @@ def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
         graph.add_physical_edge(1, 2)
 
 
+def test_remove_physical_node_with_nonexistent_node(graph: GraphState) -> None:
+    """Test removing a nonexistent physical node from the graph."""
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.remove_physical_node(1)
+
+
+def test_remove_physical_node(graph: GraphState) -> None:
+    """Test removing a physical node from the graph."""
+    graph.add_physical_node(1)
+    graph.remove_physical_node(1)
+    assert 1 not in graph.physical_nodes
+    assert graph.num_physical_nodes == 0
+
+
+def test_remove_physical_node_from_minimal_graph(graph: GraphState) -> None:
+    """Test removing a physical node from the graph with edges."""
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_edge(1, 2)
+    graph.remove_physical_node(1)
+    assert 1 not in graph.physical_nodes
+    assert 2 in graph.physical_nodes
+    assert (1, 2) not in graph.physical_edges
+    assert (2, 1) not in graph.physical_edges
+    assert graph.num_physical_nodes == 1
+    assert graph.num_physical_edges == 0
+
+
+def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
+    """Test removing a physical node from the graph with 3 nodes and edges."""
+    graph.add_physical_node(1)
+    graph.add_physical_node(2)
+    graph.add_physical_node(3)
+    graph.add_physical_edge(1, 2)
+    graph.add_physical_edge(2, 3)
+    graph.set_input(2)
+    graph.set_output(2)
+    graph.remove_physical_node(2)
+    assert graph.physical_nodes == {1, 3}
+    assert graph.physical_edges == set()
+    assert graph.num_physical_nodes == 2
+    assert graph.num_physical_edges == 0
+    assert graph.input_nodes == set()
+    assert graph.output_nodes == set()
+
+
 def test_remove_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
     """Test removing an edge with nonexistent nodes from the graph."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
@@ -131,6 +166,22 @@ def test_set_input(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_input(1)
     assert 1 in graph.input_nodes
+
+
+def test_set_output_raises_1(graph: GraphState) -> None:
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        graph.set_output(1)
+    graph.add_physical_node(1)
+    graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
+    with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
+        graph.set_output(1)
+
+
+def test_set_output_raises_2(graph: GraphState) -> None:
+    graph.add_physical_node(1)
+    graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
+    with pytest.raises(ValueError, match="Cannot set output node with measurement basis."):
+        graph.set_output(1)
 
 
 def test_set_output(graph: GraphState) -> None:
@@ -173,21 +224,29 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     """Test if measurement planes and angles are set improperly."""
     graph.add_physical_node(1)
     with pytest.raises(ValueError, match="Measurement basis not set for node 1"):
-        graph.check_meas_bases()
+        graph.check_meas_basis()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
-    graph.check_meas_bases()
+    graph.check_meas_basis()
     graph.add_physical_node(1)
     meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
     graph.set_meas_basis(1, meas_basis)
-    graph.check_meas_bases()
+    graph.check_meas_basis()
 
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
     graph.set_output(2)
-    graph.check_meas_bases()
+    graph.check_meas_basis()
+
+
+def test_bipartite_edges(graph: GraphState) -> None:
+    """Test the function that generate complete bipartite edges"""
+    assert bipartite_edges(set(), set()) == set()
+    assert bipartite_edges({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
+    assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+    graph.check_meas_basis()
 
 
 if __name__ == "__main__":
