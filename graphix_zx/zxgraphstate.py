@@ -383,7 +383,7 @@ class ZXGraphState(GraphState):
 
         self._remove_clifford(node, atol)
 
-    def _is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
+    def is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node is a removable Clifford vertex.
 
         Parameters
@@ -497,7 +497,7 @@ class ZXGraphState(GraphState):
             clifford_nodes = [
                 node
                 for node in nodes
-                if is_clifford_angle(self.meas_bases[node].angle, atol) and self._is_removable_clifford(node, atol)
+                if is_clifford_angle(self.meas_bases[node].angle, atol) and self.is_removable_clifford(node, atol)
             ]
             if clifford_nodes == []:
                 break

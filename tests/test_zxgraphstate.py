@@ -450,7 +450,10 @@ def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
 def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> None:
     """Test remove_clifford fails if the measurement plane is invalid."""
     zx_graph.add_physical_node(1)
-    zx_graph.set_meas_basis(1, PlannerMeasBasis("test_plane", 0.5 * np.pi))  # type: ignore[reportArgumentType, arg-type, unused-ignore] # noqa: E501
+    zx_graph.set_meas_basis(
+        1,
+        PlannerMeasBasis("test_plane", 0.5 * np.pi),  # type: ignore[reportArgumentType, arg-type, unused-ignore]
+    )
     with pytest.raises(ValueError, match="This node is not a Clifford vertex"):
         zx_graph.remove_clifford(1)
 
@@ -954,11 +957,12 @@ def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
 
 def test_random_graph(zx_graph: ZXGraphState) -> None:
     """Test removing multiple Clifford vertices from a random graph."""
-    random_graph, flow = get_random_flow_graph(5, 5)
+    random_graph, _ = get_random_flow_graph(5, 5)
     zx_graph.append(random_graph)
 
     for i in zx_graph.physical_nodes - zx_graph.output_nodes:
-        rnd = np.random.rand()
+        rng = np.random.default_rng(seed=0)
+        rnd = rng.random()
         if 0 <= rnd < 0.33:
             pass
         elif 0.33 <= rnd < 0.66:
@@ -974,7 +978,7 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
     clifford_nodes = [
         node
         for node in nodes
-        if is_clifford_angle(zx_graph.meas_bases[node].angle, atol) and zx_graph._is_removable_clifford(node, atol)
+        if is_clifford_angle(zx_graph.meas_bases[node].angle, atol) and zx_graph.is_removable_clifford(node, atol)
     ]
     assert clifford_nodes == []
 
