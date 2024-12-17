@@ -8,6 +8,7 @@ This module provides:
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
@@ -116,6 +117,7 @@ def focus_gflow(gflow: FlowLike, graph: BaseGraphState) -> FlowLike:
     ValueError
         if the flowlike object is not causal with respect to the graph state
     """
+    gflow = deepcopy(gflow)
     if not check_causality(graph, gflow):
         msg = "The flowlike object is not causal with respect to the graph state"
         raise ValueError(msg)
