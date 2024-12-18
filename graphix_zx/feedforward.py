@@ -149,8 +149,11 @@ def gen_delayed_set(
             z_cs[node_map] ^= not_dependency
 
         if graph.meas_bases[node].plane == Plane.XY:
+            z_cs[node] = set()
+        elif graph.meas_bases[node].plane == Plane.YZ:
             x_cs[node] = set()
         else:
-            z_cs[node] = set()
+            z_cs[node] ^= x_cs[node]
+            x_cs[node] = set()
 
     return x_cs, z_cs
