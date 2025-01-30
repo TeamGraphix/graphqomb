@@ -167,6 +167,16 @@ class LocalUnitary:
         """Print the Euler angles."""
         print(f"alpha: {self.alpha}, beta: {self.beta}, gamma: {self.gamma}")  # noqa: T201
 
+    def conjugate(self) -> LocalUnitary:
+        """Return the conjugate of the LocalUnitary object.
+
+        Returns
+        -------
+        LocalUnitary
+            conjugate LocalUnitary
+        """
+        return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
+
     def get_matrix(self) -> NDArray:
         """Return the 2x2 unitary matrix corresponding to the Euler angles.
 

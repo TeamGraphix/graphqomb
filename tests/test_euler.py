@@ -82,6 +82,12 @@ def test_unitary(random_angles: tuple[float, float, float]) -> None:
     assert is_unitary(lc.get_matrix())
 
 
+def test_lu_conjugate(random_angles: tuple[float, float, float]) -> None:
+    lu = LocalUnitary(*random_angles)
+    lu_conj = lu.conjugate()
+    assert np.allclose(lu.get_matrix(), lu_conj.get_matrix().conj().T)
+
+
 def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
     array = LocalUnitary(*random_angles).get_matrix()
     alpha, beta, gamma = euler_decomposition(array)
@@ -163,14 +169,13 @@ def test_lc_basis_update(
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
-    lc = LocalClifford(0, -np.pi / 2, 0)
+    lc = LocalClifford(0, np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
-        Plane.XY: (Plane.XZ, lambda angle: 0.5 * np.pi - angle),
-        Plane.XZ: (Plane.XY, lambda angle: angle - 0.5 * np.pi),
-        Plane.YZ: (Plane.YZ, lambda angle: angle + 0.5 * np.pi),
+        Plane.XY: (Plane.XZ, lambda angle: np.pi / 2 - angle),
+        Plane.XZ: (Plane.XY, lambda angle: angle - np.pi / 2),
+        Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
     }
 
     angle = rng.random() * 2 * np.pi
@@ -179,6 +184,11 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
     result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
+
+    ref_basis = PlannerMeasBasis(ref_plane, ref_angle)
+
+    innter_product = ref_basis.get_vector().conjugate() @ result_basis.get_vector()
+    print(np.abs(innter_product))
 
     assert result_basis.plane == ref_plane
     assert _is_close_angle(result_basis.angle, ref_angle)
