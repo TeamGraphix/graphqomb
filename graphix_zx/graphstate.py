@@ -623,7 +623,7 @@ class GraphState(BaseGraphState):
             new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
             self.set_meas_basis(node, new_meas_basis)
 
-    def pop_local_clifford(self, node: int) -> LocalClifford:
+    def pop_local_clifford(self, node: int) -> LocalClifford | None:
         """Pop local clifford of the node.
 
         Parameters
@@ -633,17 +633,17 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        LocalClifford
+        LocalClifford | None
             removed local clifford
         """
-        return self.__local_cliffords.pop(node)
+        return self.__local_cliffords.pop(node, None)
 
     def parse_input_local_cliffords(self) -> None:
         """Parse local Clifford operators applied on the input nodes."""
         for input_node in self.input_nodes:
-            if self.local_cliffords.get(input_node, None) is None:
+            lc = self.pop_local_clifford(input_node)
+            if lc is None:
                 continue
-            self._reset_input(input_node)
             node_indices = (self.__inner_index, self.__inner_index + 1, self.__inner_index + 2)
 
             self.add_physical_node(node_indices[0], q_index=self.q_indices[input_node], is_input=True)
@@ -654,10 +654,11 @@ class GraphState(BaseGraphState):
             self.add_physical_edge(node_indices[1], node_indices[2])
             self.add_physical_edge(node_indices[2], input_node)
 
-            lc = self.pop_local_clifford(input_node)
             self.set_meas_basis(node_indices[0], PlannerMeasBasis(Plane.XY, lc.alpha))
             self.set_meas_basis(node_indices[1], PlannerMeasBasis(Plane.XY, lc.beta))
             self.set_meas_basis(node_indices[2], PlannerMeasBasis(Plane.XY, lc.gamma))
+
+            self._reset_input(input_node)
 
     def get_neighbors(self, node: int) -> set[int]:
         """Return the neighbors of the node.
@@ -685,6 +686,9 @@ class GraphState(BaseGraphState):
         """
         if node in self.__input_nodes:
             self.__input_nodes.remove(node)
+        lc = self.pop_local_clifford(node)
+        if lc is not None:
+            self.apply_local_clifford(node, lc)
 
     def _reset_output(self, node: int) -> None:
         """Reset the output status of the node.
