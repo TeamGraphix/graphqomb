@@ -173,22 +173,17 @@ def test_lc_basis_update(
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(0, np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
-        Plane.XY: (Plane.XZ, lambda angle: np.pi / 2 - angle),
-        Plane.XZ: (Plane.XY, lambda angle: angle - np.pi / 2),
+        Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
+        Plane.XZ: (Plane.XY, lambda angle: np.pi / 2 - angle),
         Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
     }
 
     angle = rng.random() * 2 * np.pi
 
     meas_basis = PlannerMeasBasis(plane, angle)
-    result_basis = update_lc_basis(lc, meas_basis)
+    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
-
-    ref_basis = PlannerMeasBasis(ref_plane, ref_angle)
-
-    innter_product = ref_basis.get_vector().conjugate() @ result_basis.get_vector()
-    print(np.abs(innter_product))
 
     assert result_basis.plane == ref_plane
     assert _is_close_angle(result_basis.angle, ref_angle)
