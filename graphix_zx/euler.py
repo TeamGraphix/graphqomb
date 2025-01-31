@@ -247,6 +247,16 @@ class LocalClifford(LocalUnitary):
             msg = "The angles must be multiples of pi/2"
             raise ValueError(msg)
 
+    def conjugate(self) -> LocalClifford:
+        """Return the conjugate of the LocalClifford object.
+
+        Returns
+        -------
+        LocalClifford
+            conjugate LocalClifford
+        """
+        return LocalClifford(-self.gamma, -self.beta, -self.alpha)
+
 
 def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     """Return the measurement plane and angle corresponding to a vector.
