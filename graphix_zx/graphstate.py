@@ -278,6 +278,10 @@ class GraphState(BaseGraphState):
     __q_indices: dict[int, int]
     __local_cliffords: dict[int, LocalClifford]
 
+    __inner_index: int
+    __inner2nodes: dict[int, int]
+    __nodes2inner: dict[int, int]
+
     def __init__(self) -> None:
         self.__input_nodes = set()
         self.__output_nodes = set()
@@ -287,6 +291,10 @@ class GraphState(BaseGraphState):
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
         self.__local_cliffords = {}
+
+        self.__inner_index = 0
+        self.__inner2nodes = {}
+        self.__nodes2inner = {}
 
     @property
     def input_nodes(self) -> set[int]:
@@ -442,6 +450,10 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
+        self.__inner2nodes[self.__inner_index] = node
+        self.__nodes2inner[node] = self.__inner_index
+        self.__inner_index += 1
+
     def ensure_node_exists(self, node: int) -> None:
         """Ensure that the node exists in the graph state.
 
@@ -502,6 +514,9 @@ class GraphState(BaseGraphState):
         self.__local_cliffords.pop(node, None)
         for neighbor in self.__physical_edges:
             self.__physical_edges[neighbor] -= {node}
+
+        self.__inner2nodes.pop(self.__nodes2inner[node])
+        self.__nodes2inner.pop(node)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
