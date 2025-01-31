@@ -192,7 +192,7 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(-np.pi / 2, 0, 0)
-    measurement_action = {
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
         Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
         Plane.XZ: (Plane.YZ, lambda angle: angle),
         Plane.YZ: (Plane.XZ, lambda angle: -1 * angle),
