@@ -600,19 +600,12 @@ class GraphState(BaseGraphState):
             node index
         lc : LocalClifford
             local clifford operator
-
-        Raises
-        ------
-        ValueError
-            If the node does not exist.
         """
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         if node in self.input_nodes or node in self.output_nodes:
             self.__local_cliffords[node] = lc
         else:
-            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
             self.set_meas_basis(node, new_meas_basis)
 
     def get_neighbors(self, node: int) -> set[int]:
