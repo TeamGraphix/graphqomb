@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     """Decompose a 2x2 unitary matrix into Euler angles.
 
-    U -> Rz(alpha)Rx(beta)Rz(gamma)
+    U -> Rz(gamma)Rx(beta)Rz(alpha)
 
     Parameters
     ----------
@@ -41,22 +41,22 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     u /= global_phase
 
     if np.isclose(u[1, 0], 0):
-        alpha = 2 * np.angle(u[1, 1])
+        gamma = 2 * np.angle(u[1, 1])
         beta = 0.0
-        gamma = 0.0
+        alpha = 0.0
     elif np.isclose(u[1, 1], 0):
-        alpha = 2 * np.angle(u[0, 1] / (-1j))
+        gamma = 2 * np.angle(u[0, 1] / (-1j))
         beta = np.pi
-        gamma = 0.0
+        alpha = 0.0
     else:
-        alpha_p_gamma = np.angle(u[1, 1] / u[0, 0])
-        alpha_m_gamma = np.angle(u[1, 0] / u[0, 1])
+        gamma_p_alpha = np.angle(u[1, 1] / u[0, 0])
+        gamma_m_alpha = np.angle(u[1, 0] / u[0, 1])
 
-        alpha = (alpha_p_gamma + alpha_m_gamma) / 2
-        gamma = (alpha_p_gamma - alpha_m_gamma) / 2
+        gamma = (gamma_p_alpha + gamma_m_alpha) / 2
+        alpha = (gamma_p_alpha - gamma_m_alpha) / 2
 
-        cos_term = np.real(u[1, 1] / np.exp(1j * alpha_p_gamma / 2))
-        sin_term = np.real(u[1, 0] / (-1j * np.exp(1j * alpha_m_gamma / 2)))
+        cos_term = np.real(u[1, 1] / np.exp(1j * gamma_p_alpha / 2))
+        sin_term = np.real(u[1, 0] / (-1j * np.exp(1j * gamma_m_alpha / 2)))
 
         beta = 2 * np.angle(cos_term + 1j * sin_term)
 
@@ -142,7 +142,7 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
 class LocalUnitary:
     """Class to represent a local unitary.
 
-    U -> Rz(alpha)Rx(beta)Rz(gamma)
+    U -> Rz(gamma)Rx(beta)Rz(alpha)
 
     Attributes
     ----------
@@ -185,7 +185,7 @@ class LocalUnitary:
         NDArray
             2x2 unitary matrix
         """
-        return _rz(self.alpha) @ _rx(self.beta) @ _rz(self.gamma)
+        return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
 
 
 class LocalClifford(LocalUnitary):
