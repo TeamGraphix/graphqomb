@@ -30,7 +30,7 @@ class ZXGraphState(GraphState):
         set of output nodes
     physical_nodes : set[int]
         set of physical nodes
-    physical_edges : dict[int, set[int]]
+    physical_edges : set[tuple[int]]
         physical edges
     meas_bases : dict[int, MeasBasis]
     q_indices : dict[int, int]
@@ -509,3 +509,48 @@ class ZXGraphState(GraphState):
             ]
             for action_func, check_func in steps:
                 self._remove_cliffords(action_func, check_func, atol)
+
+    def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
+        """Call inside convert_to_phase_gadget.
+
+        Find a pair of adjacent nodes that are both measured in the YZ-plane.
+
+        Returns
+        -------
+        tuple[int, int] | None
+            A pair of adjacent nodes that are both measured in the YZ-plane, or None if no such pair exists.
+        """
+        yz_nodes = {node for node, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        for u in yz_nodes:
+            for v in self.get_neighbors(u):
+                if v in yz_nodes:
+                    return (min(u, v), max(u, v))
+        return None
+
+    def _extract_xz_node(self) -> int | None:
+        """Call inside convert_to_phase_gadget.
+
+        Find a node that is measured in the XZ-plane.
+
+        Returns
+        -------
+        int | None
+            A node that is measured in the XZ-plane, or None if no such node exists.
+        """
+        for node, basis in self.meas_bases.items():
+            if basis.plane == Plane.XZ:
+                return node
+        return None
+
+    def convert_to_phase_gadget(self) -> None:
+        """Convert a ZX-diagram with gflow in MBQC+LC form into its phase-gadget form while preserving gflow."""
+        while True:
+            if pair := self._extract_yz_adjacent_pair():
+                self.pivot(*pair)
+                del pair
+                continue
+            if u := self._extract_xz_node():
+                self.local_complement(u)
+                del u
+                continue
+            break
