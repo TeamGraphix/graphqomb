@@ -983,5 +983,112 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
     assert clifford_nodes == []
 
 
+@pytest.mark.parametrize(
+    ("measurements", "exp_measurements", "exp_edges"),
+    [
+        # no pair of adjacent nodes with YZ measurements
+        # and no node with XZ measurement
+        (
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XY, 0.44 * np.pi),
+                (5, Plane.XY, 0.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XY, 0.44 * np.pi),
+                (5, Plane.XY, 0.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            {(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
+        ),
+        # a pair of adjacent nodes with YZ measurements
+        (
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.YZ, 0.22 * np.pi),
+                (3, Plane.YZ, 0.33 * np.pi),
+                (4, Plane.XY, 0.44 * np.pi),
+                (5, Plane.XY, 0.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XY, 1.44 * np.pi),
+                (5, Plane.XY, 1.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            {(1, 3), (1, 4), (1, 5), (1, 6), (2, 3), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (4, 6), (5, 6)},
+        ),
+        # a node with XZ measurement
+        (
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XZ, 0.44 * np.pi),
+                (5, Plane.XY, 0.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            [
+                (1, Plane.XY, 0.11 * np.pi),
+                (2, Plane.XY, 1.72 * np.pi),
+                (3, Plane.XY, 1.83 * np.pi),
+                (4, Plane.XY, 1.94 * np.pi),
+                (5, Plane.XY, 0.55 * np.pi),
+                (6, Plane.XY, 0.66 * np.pi),
+            ],
+            {(1, 2), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
+        ),
+        # a pair of adjacent nodes with YZ measurements and a node with XZ measurement
+        (
+            [
+                (1, Plane.XZ, 0.11 * np.pi),
+                (2, Plane.YZ, 0.22 * np.pi),
+                (3, Plane.YZ, 0.33 * np.pi),
+                (4, Plane.XZ, 0.44 * np.pi),
+                (5, Plane.XZ, 0.55 * np.pi),
+                (6, Plane.XZ, 0.66 * np.pi),
+            ],
+            [
+                (1, Plane.XY, 0.61 * np.pi),
+                (2, Plane.XY, 1.22 * np.pi),
+                (3, Plane.XY, 1.83 * np.pi),
+                (4, Plane.XY, 1.56 * np.pi),
+                (5, Plane.XY, 1.45 * np.pi),
+                (6, Plane.YZ, 0.66 * np.pi),
+            ],
+            {(1, 3), (1, 4), (1, 5), (1, 6), (2, 3), (2, 4), (2, 5), (2, 6), (3, 6), (4, 5)},
+        ),
+    ],
+)
+def test_convert_to_phase_gadget(
+    zx_graph: ZXGraphState,
+    measurements: list[tuple[int, Plane, float]],
+    exp_measurements: list[tuple[int, Plane, float]],
+    exp_edges: set[tuple[int, int]],
+) -> None:
+    _initialize_graph(
+        zx_graph,
+        nodes=range(1, 7),
+        edges=[(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)],
+    )
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.convert_to_phase_gadget()
+    _test(
+        zx_graph,
+        exp_nodes={1, 2, 3, 4, 5, 6},
+        exp_edges=exp_edges,
+        exp_measurements=exp_measurements,
+    )
+
+
 if __name__ == "__main__":
     pytest.main()
