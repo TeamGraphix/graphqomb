@@ -25,7 +25,7 @@ def zx_graph() -> ZXGraphState:
 def _initialize_graph(
     zx_graph: ZXGraphState,
     nodes: range,
-    edges: list[tuple[int, int]],
+    edges: set[tuple[int, int]],
     inputs: tuple[int, ...] = (),
     outputs: tuple[int, ...] = (),
 ) -> None:
@@ -125,7 +125,7 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
 
 def test_local_complement_on_output_node(zx_graph: ZXGraphState) -> None:
     """Test local complement on an output node."""
-    _initialize_graph(zx_graph, range(1, 4), [(1, 2), (2, 3)], outputs=(2,))
+    _initialize_graph(zx_graph, range(1, 4), {(1, 2), (2, 3)}, outputs=(2,))
     measurements = [
         (1, Plane.XY, 1.1 * np.pi),
         (3, Plane.YZ, 1.3 * np.pi),
@@ -470,13 +470,13 @@ def graph_1(zx_graph: ZXGraphState) -> None:
     # 4---1---2      4       2
     #     |      ->
     #     3              3
-    _initialize_graph(zx_graph, nodes=range(1, 5), edges=[(1, 2), (1, 3), (1, 4)])
+    _initialize_graph(zx_graph, nodes=range(1, 5), edges={(1, 2), (1, 3), (1, 4)})
 
 
 def graph_2(zx_graph: ZXGraphState) -> None:
     # _needs_lc
     # 1---2---3  ->  1---3
-    _initialize_graph(zx_graph, nodes=range(1, 4), edges=[(1, 2), (2, 3)])
+    _initialize_graph(zx_graph, nodes=range(1, 4), edges={(1, 2), (2, 3)})
 
 
 def graph_3(zx_graph: ZXGraphState) -> None:
@@ -487,7 +487,7 @@ def graph_3(zx_graph: ZXGraphState) -> None:
     #         \ /                \ | /
     #         5(I)                5(I)
     _initialize_graph(
-        zx_graph, nodes=range(1, 7), edges=[(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)], inputs=(1, 4, 5)
+        zx_graph, nodes=range(1, 7), edges={(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)}, inputs=(1, 4, 5)
     )
 
 
@@ -499,7 +499,7 @@ def graph_4(zx_graph: ZXGraphState) -> None:
     _initialize_graph(
         zx_graph,
         nodes=range(1, 6),
-        edges=[(1, 2), (2, 3), (2, 4), (3, 4), (4, 5)],
+        edges={(1, 2), (2, 3), (2, 4), (3, 4), (4, 5)},
         inputs=(1,),
         outputs=(2, 3, 5),
     )
@@ -856,7 +856,7 @@ def test_remove_clifford_pivot2_with_xz_1p5_pi(zx_graph: ZXGraphState) -> None:
 
 
 def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
-    _initialize_graph(zx_graph, nodes=range(1, 4), edges=[(1, 2), (2, 3)], inputs=(1, 3))
+    _initialize_graph(zx_graph, nodes=range(1, 4), edges={(1, 2), (2, 3)}, inputs=(1, 3))
     measurements = [
         (1, Plane.XY, 0.5 * np.pi),
         (2, Plane.XY, np.pi),
@@ -869,7 +869,7 @@ def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
 
 def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
     """Test removing multiple Clifford vertices."""
-    _initialize_graph(zx_graph, nodes=range(1, 5), edges=[(1, 2), (1, 3), (1, 4)])
+    _initialize_graph(zx_graph, nodes=range(1, 5), edges={(1, 2), (1, 3), (1, 4)})
     measurements = [
         (1, Plane.XY, 0.5 * np.pi),
         (2, Plane.XY, 0.5 * np.pi),
@@ -1095,13 +1095,76 @@ def test_convert_to_phase_gadget(
     _initialize_graph(
         zx_graph,
         nodes=range(1, 7),
-        edges=[(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)],
+        edges={(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
     )
     _apply_measurements(zx_graph, measurements)
     zx_graph.convert_to_phase_gadget()
     _test(
         zx_graph,
         exp_nodes={1, 2, 3, 4, 5, 6},
+        exp_edges=exp_edges,
+        exp_measurements=exp_measurements,
+    )
+
+
+@pytest.mark.parametrize(
+    ("initial_edges", "measurements", "exp_measurements", "exp_edges"),
+    [
+        #         4(XY)              4(XY)
+        #          |             ->   |
+        # 1(YZ) - 2(XY) - 3(XY)      2(XY) - 3(XY)
+        (
+            {(1, 2), (2, 3), (2, 4)},
+            [
+                (1, Plane.YZ, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XY, 0.44 * np.pi),
+            ],
+            [
+                (2, Plane.XY, 0.33 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.XY, 0.44 * np.pi),
+            ],
+            {(2, 3), (2, 4)},
+        ),
+        #         4(YZ)              4(YZ)
+        #          |    \        ->   |    \
+        # 1(YZ) - 2(XY) - 3(XY)      2(XY) - 3(XY)
+        (
+            {(1, 2), (2, 3), (2, 4), (3, 4)},
+            [
+                (1, Plane.YZ, 0.11 * np.pi),
+                (2, Plane.XY, 0.22 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.YZ, 0.44 * np.pi),
+            ],
+            [
+                (2, Plane.XY, 0.33 * np.pi),
+                (3, Plane.XY, 0.33 * np.pi),
+                (4, Plane.YZ, 0.44 * np.pi),
+            ],
+            {(2, 3), (2, 4), (3, 4)},
+        ),
+    ],
+)
+def test_merge_yz_to_xy(
+    zx_graph: ZXGraphState,
+    initial_edges: list[tuple[int, Plane, float]],
+    measurements: list[tuple[int, Plane, float]],
+    exp_measurements: list[tuple[int, Plane, float]],
+    exp_edges: set[tuple[int, int]],
+) -> None:
+    _initialize_graph(
+        zx_graph,
+        nodes=range(1, 5),
+        edges=initial_edges,
+    )
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.merge_yz_to_xy()
+    _test(
+        zx_graph,
+        exp_nodes={2, 3, 4},
         exp_edges=exp_edges,
         exp_measurements=exp_measurements,
     )
