@@ -1008,6 +1008,11 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
             {(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
         ),
         # a pair of adjacent nodes with YZ measurements
+        #             4(XY)                           4(XY)     4       4       4
+        #            /     \                            |       |       |       |
+        # 1(XY) - 2(YZ) - 3(YZ) - 6(XY)  ->  1(XY) - 3(XY) - 2(XY) - 6(XY) - 1
+        #            \     /                            |       |       |       |
+        #             5(XY)                            5(XY)    5       5       5
         (
             [
                 (1, Plane.XY, 0.11 * np.pi),
@@ -1027,7 +1032,13 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
             ],
             {(1, 3), (1, 4), (1, 5), (1, 6), (2, 3), (2, 4), (2, 5), (2, 6), (3, 4), (3, 5), (4, 6), (5, 6)},
         ),
-        # a node with XZ measurement
+        # no pair of adjacent nodes with YZ measurements
+        # but a node with XZ measurement
+        #             4(XZ)                             4(XY)
+        #            /     \                           /     \
+        # 1(XY) - 2(XY) - 3(XY) - 6(XY)  ->  1(XY) - 2(XY)   3(XY) - 6(XY)
+        #            \     /                           \     /
+        #             5(XY)                             5(XY)
         (
             [
                 (1, Plane.XY, 0.11 * np.pi),
@@ -1047,7 +1058,13 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
             ],
             {(1, 2), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
         ),
-        # a pair of adjacent nodes with YZ measurements and a node with XZ measurement
+        # a pair of adjacent nodes with YZ measurements
+        # and a node with XZ measurement
+        #             4(XZ)                  6(YZ) - 3(XY)
+        #            /     \                   |   x    |
+        # 1(XZ) - 2(YZ) - 3(YZ) - 6(XZ)  ->  1(XY)   2(XY)
+        #            \     /                   |   x    |
+        #             5(XZ)                  5(XY) - 4(XY)
         (
             [
                 (1, Plane.XZ, 0.11 * np.pi),
