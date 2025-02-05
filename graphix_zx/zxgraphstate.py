@@ -554,3 +554,21 @@ class ZXGraphState(GraphState):
                 del u
                 continue
             break
+
+    def merge_yz_to_xy(self) -> None:
+        """Merge YZ-measured nodes that have only one neighbor with an XY-measured node.
+
+        If a node u is measured in the YZ-plane and u has only one neighbor v with a XY-measurement,
+        then the node u can be merged into the node v.
+        """
+        target_candidates = {
+            u for u, basis in self.meas_bases.items() if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1)
+        }
+        target_nodes = {
+            u for u in target_candidates if self.meas_bases[next(iter(self.get_neighbors(u)))].plane == Plane.XY
+        }
+        for u in target_nodes:
+            v = self.get_neighbors(u).pop()
+            new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+            self.set_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
+            self.remove_physical_node(u)
