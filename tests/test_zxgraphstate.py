@@ -1092,19 +1092,11 @@ def test_convert_to_phase_gadget(
     exp_measurements: list[tuple[int, Plane, float]],
     exp_edges: set[tuple[int, int]],
 ) -> None:
-    _initialize_graph(
-        zx_graph,
-        nodes=range(1, 7),
-        edges={(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
-    )
+    initial_edges = {(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)}
+    _initialize_graph(zx_graph, nodes=range(1, 7), edges=initial_edges)
     _apply_measurements(zx_graph, measurements)
     zx_graph.convert_to_phase_gadget()
-    _test(
-        zx_graph,
-        exp_nodes={1, 2, 3, 4, 5, 6},
-        exp_edges=exp_edges,
-        exp_measurements=exp_measurements,
-    )
+    _test(zx_graph, exp_nodes={1, 2, 3, 4, 5, 6}, exp_edges=exp_edges, exp_measurements=exp_measurements)
 
 
 @pytest.mark.parametrize(
@@ -1150,24 +1142,15 @@ def test_convert_to_phase_gadget(
 )
 def test_merge_yz_to_xy(
     zx_graph: ZXGraphState,
-    initial_edges: list[tuple[int, Plane, float]],
+    initial_edges: set[tuple[int, int]],
     measurements: list[tuple[int, Plane, float]],
     exp_measurements: list[tuple[int, Plane, float]],
     exp_edges: set[tuple[int, int]],
 ) -> None:
-    _initialize_graph(
-        zx_graph,
-        nodes=range(1, 5),
-        edges=initial_edges,
-    )
+    _initialize_graph(zx_graph, nodes=range(1, 5), edges=initial_edges)
     _apply_measurements(zx_graph, measurements)
     zx_graph.merge_yz_to_xy()
-    _test(
-        zx_graph,
-        exp_nodes={2, 3, 4},
-        exp_edges=exp_edges,
-        exp_measurements=exp_measurements,
-    )
+    _test(zx_graph, exp_nodes={2, 3, 4}, exp_edges=exp_edges, exp_measurements=exp_measurements)
 
 
 if __name__ == "__main__":
