@@ -572,3 +572,23 @@ class ZXGraphState(GraphState):
             new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
             self.set_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
             self.remove_physical_node(u)
+
+    def merge_yz_nodes(self) -> None:
+        """Merge isolated YZ-measured nodes into a single node.
+
+        If u, v nodes are measured in the YZ-plane and u, v have the same neighbors,
+        then u, v can be merged into a single node.
+        """
+        while True:
+            yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+            least_nodes = 2
+            if len(yz_nodes) < least_nodes:
+                break
+            u = yz_nodes.pop()
+            for v in yz_nodes:
+                if u > v or self.get_neighbors(u) != self.get_neighbors(v):
+                    continue
+
+                new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+                self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
+                self.remove_physical_node(v)
