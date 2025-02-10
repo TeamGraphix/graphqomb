@@ -108,7 +108,9 @@ def _generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> Correcti
     return corrections
 
 
-def qompile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
+def qompile_from_flow(
+    graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True
+) -> ImmutablePattern:
     """Compile graph state into pattern with gflow.
 
     Parameters
@@ -169,11 +171,16 @@ def qompile_from_xz_flow(
     x_corrections = _generate_corrections(graph, x_flow)
     z_corrections = _generate_corrections(graph, z_flow)
 
-    dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow}
+    dag = {
+        node: (x_flow.get(node, set()) | z_flow.get(node, set())) - {node}
+        for node in x_flow
+    }
     for node in graph.output_nodes:
         dag[node] = set()
 
-    pattern = qompile(graph, x_corrections, z_corrections, dag, correct_output=correct_output)
+    pattern = qompile(
+        graph, x_corrections, z_corrections, dag, correct_output=correct_output
+    )
     pattern.mark_runnable()
     pattern.mark_deterministic()
     return pattern.freeze()
@@ -221,7 +228,9 @@ def qompile(
 
     pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
     pattern.extend(N(node=node, q_index=q_indices[node]) for node in internal_nodes)
-    pattern.extend(N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes)
+    pattern.extend(
+        N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes
+    )
     pattern.extend(E(nodes=edge) for edge in graph.physical_edges)
     # TODO: local clifford on input nodes if we want to have arbitrary input states
     pattern.extend(
@@ -235,8 +244,12 @@ def qompile(
         if node not in output_nodes
     )
     if correct_output:
-        pattern.extend(X(node=node, domain=set(x_corrections[node])) for node in output_nodes)
-        pattern.extend(Z(node=node, domain=set(z_corrections[node])) for node in output_nodes)
+        pattern.extend(
+            X(node=node, domain=set(x_corrections[node])) for node in output_nodes
+        )
+        pattern.extend(
+            Z(node=node, domain=set(z_corrections[node])) for node in output_nodes
+        )
     pattern.extend(
         C(node=node, local_clifford=local_cliffords[node])
         for node in output_nodes
@@ -287,11 +300,16 @@ def qompile_from_subgraphs(
     for subgraph in subgraphs:
         sub_nodes = subgraph.physical_nodes
 
-        sub_x_corrections = {node: x_corrections[node] for node in subgraph.physical_nodes}
-        sub_z_corrections = {node: z_corrections[node] for node in subgraph.physical_nodes}
+        sub_x_corrections = {
+            node: x_corrections[node] for node in subgraph.physical_nodes
+        }
+        sub_z_corrections = {
+            node: z_corrections[node] for node in subgraph.physical_nodes
+        }
 
         sub_dag = {
-            node: ((xflow[node] | zflow[node]) - {node}) & sub_nodes for node in sub_nodes - subgraph.output_nodes
+            node: ((xflow[node] | zflow[node]) - {node}) & sub_nodes
+            for node in sub_nodes - subgraph.output_nodes
         }
         for node in subgraph.output_nodes:
             sub_dag[node] = set()
