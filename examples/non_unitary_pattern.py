@@ -2,7 +2,6 @@
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import GraphState
-from graphix_zx.feedforward import CorrectionMap
 from graphix_zx.pattern import print_pattern
 from graphix_zx.qompiler import qompile_from_xz_flow
 
