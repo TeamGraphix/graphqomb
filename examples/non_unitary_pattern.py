@@ -30,3 +30,5 @@ zflow: dict[int, set] = {}
 
 pattern = qompile_from_xz_flow(graph, xflow, zflow)
 print_pattern(pattern)
+
+# TODO: simulate it with density matrix backend
