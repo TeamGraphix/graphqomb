@@ -1197,5 +1197,80 @@ def test_merge_yz_nodes(
     _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
 
 
+@pytest.mark.parametrize(
+    ("initial_zxgraph", "measurements", "exp_zxgraph"),
+    [
+        # test for a phase gadget: apply merge_yz_to_xy then remove_cliffords
+        (
+            (range(1, 5), {(1, 2), (2, 3), (2, 4)}),
+            [
+                (1, Plane.YZ, 0.1 * np.pi),
+                (2, Plane.XY, 0.4 * np.pi),
+                (3, Plane.XY, 0.3 * np.pi),
+                (4, Plane.XY, 0.4 * np.pi),
+            ],
+            (
+                [
+                    (3, Plane.XY, 1.8 * np.pi),
+                    (4, Plane.XY, 1.9 * np.pi),
+                ],
+                {(3, 4)},
+                {3, 4},
+            ),
+        ),
+        # apply convert_to_phase_gadget, merge_yz_to_xy, then remove_cliffords
+        (
+            (range(1, 5), {(1, 2), (2, 3), (2, 4)}),
+            [
+                (1, Plane.YZ, 0.1 * np.pi),
+                (2, Plane.XY, 0.9 * np.pi),
+                (3, Plane.XZ, 0.8 * np.pi),
+                (4, Plane.XY, 0.4 * np.pi),
+            ],
+            (
+                [
+                    (3, Plane.XY, 1.8 * np.pi),
+                    (4, Plane.XY, 1.9 * np.pi),
+                ],
+                {(3, 4)},
+                {3, 4},
+            ),
+        ),
+        # apply remove_cliffords, convert_to_phase_gadget, merge_yz_to_xy, then remove_cliffords
+        (
+            (range(1, 7), {(1, 2), (2, 3), (2, 4), (3, 6), (4, 5)}),
+            [
+                (1, Plane.YZ, 0.1 * np.pi),
+                (2, Plane.XY, 0.9 * np.pi),
+                (3, Plane.YZ, 1.2 * np.pi),
+                (4, Plane.XY, 1.4 * np.pi),
+                (5, Plane.YZ, 1.0 * np.pi),
+                (6, Plane.XY, 0.5 * np.pi),
+            ],
+            (
+                [
+                    (3, Plane.XY, 1.8 * np.pi),
+                    (4, Plane.XY, 1.9 * np.pi),
+                ],
+                {(3, 4)},
+                {3, 4},
+            ),
+        ),
+    ],
+)
+def test_prune_non_clifford(
+    zx_graph: ZXGraphState,
+    initial_zxgraph: tuple[range, set[tuple[int, int]]],
+    measurements: list[tuple[int, Plane, float]],
+    exp_zxgraph: tuple[list[tuple[int, Plane, float]], set[tuple[int, int]], set[int]],
+) -> None:
+    nodes, edges = initial_zxgraph
+    _initialize_graph(zx_graph, nodes, edges)
+    exp_measurements, exp_edges, exp_nodes = exp_zxgraph
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.prune_non_clifford()
+    _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
+
+
 if __name__ == "__main__":
     pytest.main()
