@@ -346,8 +346,6 @@ class PatternSimulator(BasePatternSimulator):
             result ^= self.__results[node]
         if result:
             self.__state.evolve(np.asarray([[0, 1], [1, 0]]), [node_id])
-        else:
-            pass
 
     def _apply_z(self, cmd: Z) -> None:
         node_id = self.__node_indices.index(cmd.node)
@@ -357,8 +355,6 @@ class PatternSimulator(BasePatternSimulator):
             result ^= self.__results[node]
         if result:
             self.__state.evolve(np.asarray([[1, 0], [0, -1]]), [node_id])
-        else:
-            pass
 
     def _apply_c(self, cmd: C) -> None:
         clifford = C.local_clifford.get_matrix()

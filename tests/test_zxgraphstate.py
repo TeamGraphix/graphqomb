@@ -98,7 +98,7 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     """Test local complement fails with input node."""
     zx_graph.add_physical_node(1)
     zx_graph.set_input(1)
-    with pytest.raises(ValueError, match="Cannot apply local complement to input node."):
+    with pytest.raises(ValueError, match=r"Cannot apply local complement to input node."):
         zx_graph.local_complement(1)
 
 
@@ -816,7 +816,7 @@ def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
         (3, Plane.XY, 0.5 * np.pi),
     ]
     _apply_measurements(zx_graph, measurements)
-    with pytest.raises(ValueError, match="This Clifford vertex is unremovable."):
+    with pytest.raises(ValueError, match=r"This Clifford vertex is unremovable."):
         zx_graph.remove_clifford(2)
 
 
@@ -961,11 +961,11 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
             {(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
         ),
         # a pair of adjacent nodes with YZ measurements
-        #             4(XY)                           4(XY)     4       4       4
-        #            /     \                            |       |       |       |
-        # 1(XY) - 2(YZ) - 3(YZ) - 6(XY)  ->  1(XY) - 3(XY) - 2(XY) - 6(XY) - 1
-        #            \     /                            |       |       |       |
-        #             5(XY)                            5(XY)    5       5       5
+        #             4(XY)                           4(XY)     4       4      4
+        #            /     \                            |       |       |      |
+        # 1(XY) - 2(YZ) - 3(YZ) - 6(XY)  ->  1(XY) - 3(XY) - 2(XY) - 6(XY) - 1(XY)
+        #            \     /                            |       |       |      |
+        #             5(XY)                            5(XY)    5       5      5
         (
             [
                 (1, Plane.XY, 0.11 * np.pi),
