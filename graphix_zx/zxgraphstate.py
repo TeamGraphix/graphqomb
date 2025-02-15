@@ -593,7 +593,7 @@ class ZXGraphState(GraphState):
                 self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
                 self.remove_physical_node(v)
 
-    def prune_non_clifford(self, atol: float = 1e-9) -> None:
+    def prune_non_cliffords(self, atol: float = 1e-9) -> None:
         """Prune non-Clifford vertices from the graph state.
 
         Repeat the following steps until there are no non-Clifford vertices:

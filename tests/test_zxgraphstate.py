@@ -1258,7 +1258,7 @@ def test_merge_yz_nodes(
         ),
     ],
 )
-def test_prune_non_clifford(
+def test_prune_non_cliffords(
     zx_graph: ZXGraphState,
     initial_zxgraph: tuple[range, set[tuple[int, int]]],
     measurements: list[tuple[int, Plane, float]],
@@ -1268,7 +1268,7 @@ def test_prune_non_clifford(
     _initialize_graph(zx_graph, nodes, edges)
     exp_measurements, exp_edges, exp_nodes = exp_zxgraph
     _apply_measurements(zx_graph, measurements)
-    zx_graph.prune_non_clifford()
+    zx_graph.prune_non_cliffords()
     _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
 
 
