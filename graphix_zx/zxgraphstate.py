@@ -592,3 +592,29 @@ class ZXGraphState(GraphState):
                 new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
                 self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
                 self.remove_physical_node(v)
+
+    def prune_non_clifford(self, atol: float = 1e-9) -> None:
+        """Prune non-Clifford vertices from the graph state.
+
+        Repeat the following steps until there are no non-Clifford vertices:
+            1. remove_cliffords
+            2. convert_to_phase_gadget
+            3. merge_yz_to_xy
+            4. merge_yz_nodes
+            5. if there are some removable Clifford vertices, back to step 1.
+
+        Parameters
+        ----------
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
+        while True:
+            self.remove_cliffords(atol)
+            self.convert_to_phase_gadget()
+            self.merge_yz_to_xy()
+            self.merge_yz_nodes()
+            if not any(
+                is_clifford_angle(self.meas_bases[node].angle, atol) and self.is_removable_clifford(node, atol)
+                for node in self.physical_nodes - self.input_nodes - self.output_nodes
+            ):
+                break
