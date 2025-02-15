@@ -562,10 +562,14 @@ class ZXGraphState(GraphState):
         then the node u can be merged into the node v.
         """
         target_candidates = {
-            u for u, basis in self.meas_bases.items() if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1)
+            u
+            for u, basis in self.meas_bases.items()
+            if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1 and (u not in self.output_nodes))
         }
         target_nodes = {
-            u for u in target_candidates if self.meas_bases[next(iter(self.get_neighbors(u)))].plane == Plane.XY
+            u
+            for u in target_candidates
+            if any(self.meas_bases[v].plane == Plane.XY for v in self.get_neighbors(u) - self.output_nodes)
         }
         for u in target_nodes:
             v = self.get_neighbors(u).pop()
@@ -579,19 +583,27 @@ class ZXGraphState(GraphState):
         If u, v nodes are measured in the YZ-plane and u, v have the same neighbors,
         then u, v can be merged into a single node.
         """
+        min_yz_nodes = 2
         while True:
             yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
-            least_nodes = 2
-            if len(yz_nodes) < least_nodes:
+            if len(yz_nodes) < min_yz_nodes:
                 break
-            u = yz_nodes.pop()
-            for v in yz_nodes:
-                if u > v or self.get_neighbors(u) != self.get_neighbors(v):
-                    continue
+            merged = False
+            for u in sorted(yz_nodes):
+                for v in sorted(yz_nodes - {u}):
+                    if self.get_neighbors(u) != self.get_neighbors(v):
+                        continue
 
-                new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
-                self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
-                self.remove_physical_node(v)
+                    new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+                    self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
+                    self.remove_physical_node(v)
+
+                    merged = True
+                    break
+                if merged:
+                    break
+            if not merged:
+                break
 
     def prune_non_cliffords(self, atol: float = 1e-9) -> None:
         """Prune non-Clifford vertices from the graph state.
