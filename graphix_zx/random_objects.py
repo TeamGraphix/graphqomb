@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from graphix_zx.circuit import MBQCCircuit
 from graphix_zx.common import default_meas_basis
 from graphix_zx.graphstate import GraphState
 
@@ -82,3 +83,50 @@ def get_random_flow_graph(
         num_nodes += 1
 
     return graph, flow
+
+
+def get_random_gflow_circ(
+    width: int,
+    depth: int,
+    rng: np.random.Generator | None = None,
+    edge_p: float = 0.5,
+    angle_list: list | None = None,
+) -> MBQCCircuit:
+    """Generate a random MBQC circuit which has gflow.
+
+    Parameters
+    ----------
+    width : int
+        circuit width
+    depth : int
+        circuit depth
+    rng : np.random.Generator, optional
+        random number generator, by default np.random.default_rng()
+    edge_p : float, optional
+        probability of adding CZ gate, by default 0.5
+    angle_list : list, optional
+        list of angles, by default [0, np.pi / 3, 2 * np.pi / 3, np.pi]
+
+    Returns
+    -------
+    MBQCCircuit
+        generated MBQC circuit
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+    if angle_list is None:
+        angle_list = [0, np.pi / 3, 2 * np.pi / 3, np.pi]
+    circ = MBQCCircuit(width)
+    for d in range(depth):
+        for j in range(width):
+            circ.j(j, rng.choice(angle_list))
+        if d < depth - 1:
+            for j in range(width):
+                if rng.random() < edge_p:
+                    circ.cz(j, (j + 1) % width)
+            num = rng.integers(0, width)
+            if num > 0:
+                target = set(rng.choice(list(range(width)), num))
+                circ.phase_gadget(target, rng.choice(angle_list))
+
+    return circ
