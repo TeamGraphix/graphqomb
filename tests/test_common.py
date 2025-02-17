@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
