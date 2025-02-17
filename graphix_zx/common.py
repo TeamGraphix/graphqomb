@@ -116,7 +116,7 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             measurement basis vector
         """
         return get_meas_basis(self.plane, self.angle)
@@ -186,7 +186,6 @@ class AxisMeasBasis(MeasBasis):
             raise ValueError(msg)
         return plane
 
-    # this could be simpler if we use rotational notation
     @property
     def angle(self) -> float:
         """Return the measurement angle.
@@ -246,7 +245,7 @@ def get_meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
 
     Returns
     -------
-    NDArray
+    NDArray[np.complex128]
         measurement basis vector
 
     Raises
