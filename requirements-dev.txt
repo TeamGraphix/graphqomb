@@ -1,4 +1,4 @@
-ruff
-mypy
-pyright
-pytest
+ruff==0.9.6
+mypy==1.15
+pyright==1.1.394
+pytest==8.3.4
