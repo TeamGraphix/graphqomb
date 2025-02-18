@@ -207,6 +207,8 @@ def qompile(
     MutablePattern
         mutable pattern
     """
+    # TODO: check the validity of graph(appropriate input, output, meas_bases, etc.)
+
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
     meas_bases = graph.meas_bases
