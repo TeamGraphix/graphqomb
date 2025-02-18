@@ -7,6 +7,7 @@ This module provides:
 - MeasBasis: Abstract class to represent a measurement basis.
 - PlannerMeasBasis: Class to represent a planner measurement basis.
 - AxisMeasBasis: Class to represent an axis measurement basis.
+- default_meas_basis: Function to return the default measurement basis.
 - get_meas_basis: Function to get the measurement basis vector.
 """
 
