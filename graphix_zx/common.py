@@ -10,11 +10,16 @@ This module provides:
 - get_meas_basis: Function to get the measurement basis vector.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum, auto
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 class Plane(Enum):
@@ -115,6 +120,28 @@ class PlannerMeasBasis(MeasBasis):
             measurement basis vector
         """
         return get_meas_basis(self.plane, self.angle)
+
+    def conjugate(self) -> PlannerMeasBasis:
+        """Return the conjugate of the PlannerMeasBasis object.
+
+        Returns
+        -------
+        PlannerMeasBasis
+            conjugate PlannerMeasBasis
+
+        Raises
+        ------
+        ValueError
+            if the plane is not one of XY, YZ, XZ
+        """
+        if self.plane == Plane.XY:
+            return PlannerMeasBasis(Plane.XY, -self.angle)
+        if self.plane == Plane.YZ:
+            return PlannerMeasBasis(Plane.YZ, -self.angle)
+        if self.plane == Plane.XZ:
+            return PlannerMeasBasis(Plane.XZ, self.angle)
+        msg = "The plane must be one of XY, YZ, XZ"
+        raise ValueError(msg)
 
 
 class AxisMeasBasis(MeasBasis):

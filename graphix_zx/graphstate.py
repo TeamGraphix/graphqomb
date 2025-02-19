@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import MeasBasis, default_meas_basis
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, default_meas_basis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
@@ -278,6 +278,10 @@ class GraphState(BaseGraphState):
     __q_indices: dict[int, int]
     __local_cliffords: dict[int, LocalClifford]
 
+    __inner_index: int
+    __inner2nodes: dict[int, int]
+    __nodes2inner: dict[int, int]
+
     def __init__(self) -> None:
         self.__input_nodes = set()
         self.__output_nodes = set()
@@ -287,6 +291,10 @@ class GraphState(BaseGraphState):
         # NOTE: qubit index if allocated. -1 if not. used for simulation
         self.__q_indices = {}
         self.__local_cliffords = {}
+
+        self.__inner_index = 0
+        self.__inner2nodes = {}
+        self.__nodes2inner = {}
 
     @property
     def input_nodes(self) -> set[int]:
@@ -442,6 +450,10 @@ class GraphState(BaseGraphState):
         if is_output:
             self.__output_nodes |= {node}
 
+        self.__inner2nodes[self.__inner_index] = node
+        self.__nodes2inner[node] = self.__inner_index
+        self.__inner_index += 1
+
     def ensure_node_exists(self, node: int) -> None:
         """Ensure that the node exists in the graph state.
 
@@ -502,6 +514,9 @@ class GraphState(BaseGraphState):
         self.__local_cliffords.pop(node, None)
         for neighbor in self.__physical_edges:
             self.__physical_edges[neighbor] -= {node}
+
+        self.__inner2nodes.pop(self.__nodes2inner[node])
+        self.__nodes2inner.pop(node)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
@@ -600,20 +615,50 @@ class GraphState(BaseGraphState):
             node index
         lc : LocalClifford
             local clifford operator
-
-        Raises
-        ------
-        ValueError
-            If the node does not exist.
         """
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
+        self.ensure_node_exists(node)
         if node in self.input_nodes or node in self.output_nodes:
             self.__local_cliffords[node] = lc
         else:
-            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
             self.set_meas_basis(node, new_meas_basis)
+
+    def pop_local_clifford(self, node: int) -> LocalClifford | None:
+        """Pop local clifford of the node.
+
+        Parameters
+        ----------
+        node : int
+            node index to remove local clifford.
+
+        Returns
+        -------
+        LocalClifford | None
+            removed local clifford
+        """
+        return self.__local_cliffords.pop(node, None)
+
+    def parse_input_local_cliffords(self) -> None:
+        """Parse local Clifford operators applied on the input nodes."""
+        for input_node in self.input_nodes:
+            lc = self.pop_local_clifford(input_node)
+            if lc is None:
+                continue
+            node_indices = (self.__inner_index, self.__inner_index + 1, self.__inner_index + 2)
+
+            self.add_physical_node(node_indices[0], q_index=self.q_indices[input_node], is_input=True)
+            self.add_physical_node(node_indices[1], q_index=self.q_indices[input_node])
+            self.add_physical_node(node_indices[2], q_index=self.q_indices[input_node])
+
+            self.add_physical_edge(node_indices[0], node_indices[1])
+            self.add_physical_edge(node_indices[1], node_indices[2])
+            self.add_physical_edge(node_indices[2], input_node)
+
+            self.set_meas_basis(node_indices[0], PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.set_meas_basis(node_indices[1], PlannerMeasBasis(Plane.XY, lc.beta))
+            self.set_meas_basis(node_indices[2], PlannerMeasBasis(Plane.XY, lc.gamma))
+
+            self._reset_input(input_node)
 
     def get_neighbors(self, node: int) -> set[int]:
         """Return the neighbors of the node.
@@ -631,8 +676,8 @@ class GraphState(BaseGraphState):
         self.ensure_node_exists(node)
         return self.__physical_edges[node]
 
-    def _reset_input_output(self, node: int) -> None:
-        """Reset the input/output status of the node.
+    def _reset_input(self, node: int) -> None:
+        """Reset the input status of the node.
 
         Parameters
         ----------
@@ -641,6 +686,18 @@ class GraphState(BaseGraphState):
         """
         if node in self.__input_nodes:
             self.__input_nodes.remove(node)
+        lc = self.pop_local_clifford(node)
+        if lc is not None:
+            self.apply_local_clifford(node, lc)
+
+    def _reset_output(self, node: int) -> None:
+        """Reset the output status of the node.
+
+        Parameters
+        ----------
+        node : int
+            node index
+        """
         if node in self.__output_nodes:
             self.__output_nodes.remove(node)
 
@@ -666,7 +723,8 @@ class GraphState(BaseGraphState):
 
         for node in other.physical_nodes:
             if node in border_nodes:
-                self._reset_input_output(node)
+                self._reset_input(node)
+                self._reset_output(node)
             else:
                 self.add_physical_node(node)
                 if node in other.input_nodes - self.output_nodes:

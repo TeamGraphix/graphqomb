@@ -169,7 +169,7 @@ def qompile_from_xz_flow(
     x_corrections = _generate_corrections(graph, x_flow)
     z_corrections = _generate_corrections(graph, z_flow)
 
-    dag = {node: (x_flow[node] | z_flow[node]) - {node} for node in x_flow}
+    dag = {node: (x_flow.get(node, set()) | z_flow.get(node, set())) - {node} for node in x_flow}
     for node in graph.output_nodes:
         dag[node] = set()
 
@@ -207,6 +207,8 @@ def qompile(
     MutablePattern
         mutable pattern
     """
+    # TODO: check the validity of graph(appropriate input, output, meas_bases, etc.)
+
     input_nodes = graph.input_nodes
     output_nodes = graph.output_nodes
     meas_bases = graph.meas_bases
