@@ -45,7 +45,6 @@ ignore = [
   "PD",
 
   # Manually disabled
-  "ANN10",   # `self`/`cls` not annotated
   "CPY",     # copyright missing
   "D105",    # undocumented magic method
   "ERA",     # commented-out code
