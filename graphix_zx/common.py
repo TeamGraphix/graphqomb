@@ -13,11 +13,14 @@ This module provides:
 
 from __future__ import annotations
 
+import cmath
+import math
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 import numpy as np
+import typing_extensions
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -132,17 +135,19 @@ class PlannerMeasBasis(MeasBasis):
 
         Raises
         ------
-        ValueError
+        TypeError
             if the plane is not one of XY, YZ, XZ
         """
+        if not isinstance(self.plane, Plane):
+            msg = "The plane must be one of XY, YZ, XZ"
+            raise TypeError(msg)
         if self.plane == Plane.XY:
             return PlannerMeasBasis(Plane.XY, -self.angle)
         if self.plane == Plane.YZ:
             return PlannerMeasBasis(Plane.YZ, -self.angle)
         if self.plane == Plane.XZ:
             return PlannerMeasBasis(Plane.XZ, self.angle)
-        msg = "The plane must be one of XY, YZ, XZ"
-        raise ValueError(msg)
+        typing_extensions.assert_never(self.plane)
 
 
 class AxisMeasBasis(MeasBasis):
@@ -173,9 +178,12 @@ class AxisMeasBasis(MeasBasis):
 
         Raises
         ------
-        ValueError
+        TypeError
             if the axis is not one of X, Y, Z
         """
+        if not isinstance(self.axis, Axis):
+            msg = "The axis must be one of X, Y, Z"
+            raise TypeError(msg)
         if self.axis == Axis.X:
             plane = Plane.XY
         elif self.axis == Axis.Y:
@@ -183,8 +191,7 @@ class AxisMeasBasis(MeasBasis):
         elif self.axis == Axis.Z:
             plane = Plane.XZ
         else:
-            msg = "The axis must be one of X, Y, Z"
-            raise ValueError(msg)
+            typing_extensions.assert_never(self.axis)
         return plane
 
     @property
@@ -198,16 +205,16 @@ class AxisMeasBasis(MeasBasis):
 
         Raises
         ------
-        ValueError
+        TypeError
             if the axis is not one of X, Y,
         """
-        if self.axis in {Axis.X, Axis.Z}:
-            angle = 0 if self.sign == Sign.PLUS else np.pi
-        elif self.axis == Axis.Y:
+        if not isinstance(self.axis, Axis):
+            msg = "The axis must be one of X, Y, Z"
+            raise TypeError(msg)
+        if self.axis == Axis.Y:
             angle = np.pi / 2 if self.sign == Sign.PLUS else 3 * np.pi / 2
         else:
-            msg = "The axis must be one of X, Y, Z"
-            raise ValueError(msg)
+            angle = 0 if self.sign == Sign.PLUS else np.pi
         return angle
 
     def vector(self) -> NDArray[np.complex128]:
@@ -251,17 +258,18 @@ def meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
 
     Raises
     ------
-    ValueError
+    TypeError
         if the plane is not one of XY, YZ, XZ
     """
-    basis: NDArray[np.complex128]
-    if plane == Plane.XY:
-        basis = np.asarray([1, np.exp(1j * angle)]) / np.sqrt(2)
-    elif plane == Plane.YZ:
-        basis = np.asarray([np.cos(angle / 2), 1j * np.sin(angle / 2)])
-    elif plane == Plane.XZ:
-        basis = np.asarray([np.cos(angle / 2), np.sin(angle / 2)], dtype=np.complex128)
-    else:
+    if not isinstance(plane, Plane):
         msg = "The plane must be one of XY, YZ, XZ"
-        raise ValueError(msg)
-    return basis
+        raise TypeError(msg)
+    if plane == Plane.XY:
+        basis = np.asarray([1, cmath.exp(1j * angle)]) / math.sqrt(2)
+    elif plane == Plane.YZ:
+        basis = np.asarray([math.cos(angle / 2), 1j * math.sin(angle / 2)])
+    elif plane == Plane.XZ:
+        basis = np.asarray([math.cos(angle / 2), math.sin(angle / 2)])
+    else:
+        typing_extensions.assert_never(plane)
+    return basis.astype(np.complex128)
