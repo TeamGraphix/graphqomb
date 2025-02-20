@@ -94,6 +94,7 @@ class PlannerMeasBasis(MeasBasis):
         self.__angle = angle
 
     @property
+    @typing_extensions.override
     def plane(self) -> Plane:
         """Return the measurement plane.
 
@@ -105,6 +106,7 @@ class PlannerMeasBasis(MeasBasis):
         return self.__plane
 
     @property
+    @typing_extensions.override
     def angle(self) -> float:
         """Return the measurement angle.
 
@@ -115,6 +117,7 @@ class PlannerMeasBasis(MeasBasis):
         """
         return self.__angle
 
+    @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector.
 
@@ -168,6 +171,7 @@ class AxisMeasBasis(MeasBasis):
         self.sign = sign
 
     @property
+    @typing_extensions.override
     def plane(self) -> Plane:
         """Return the measurement plane.
 
@@ -195,6 +199,7 @@ class AxisMeasBasis(MeasBasis):
         return plane
 
     @property
+    @typing_extensions.override
     def angle(self) -> float:
         """Return the measurement angle.
 
@@ -217,6 +222,7 @@ class AxisMeasBasis(MeasBasis):
             angle = 0 if self.sign == Sign.PLUS else np.pi
         return angle
 
+    @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector.
 
