@@ -8,7 +8,7 @@ This module provides:
 - PlannerMeasBasis: Class to represent a planner measurement basis.
 - AxisMeasBasis: Class to represent an axis measurement basis.
 - default_meas_basis: Function to return the default measurement basis.
-- get_meas_basis: Function to get the measurement basis vector.
+- meas_basis: Function to get the measurement basis vector.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ class MeasBasis(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_vector(self) -> NDArray[np.complex128]:
+    def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector."""
         raise NotImplementedError
 
@@ -112,7 +112,7 @@ class PlannerMeasBasis(MeasBasis):
         """
         return self.__angle
 
-    def get_vector(self) -> NDArray[np.complex128]:
+    def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector.
 
         Returns
@@ -120,7 +120,7 @@ class PlannerMeasBasis(MeasBasis):
         NDArray[np.complex128]
             measurement basis vector
         """
-        return get_meas_basis(self.plane, self.angle)
+        return meas_basis(self.plane, self.angle)
 
     def conjugate(self) -> PlannerMeasBasis:
         """Return the conjugate of the PlannerMeasBasis object.
@@ -210,7 +210,7 @@ class AxisMeasBasis(MeasBasis):
             raise ValueError(msg)
         return angle
 
-    def get_vector(self) -> NDArray[np.complex128]:
+    def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector.
 
         Returns
@@ -218,7 +218,7 @@ class AxisMeasBasis(MeasBasis):
         NDArray
             measurement basis vector
         """
-        return get_meas_basis(self.plane, self.angle)
+        return meas_basis(self.plane, self.angle)
 
 
 def default_meas_basis() -> PlannerMeasBasis:
@@ -234,7 +234,7 @@ def default_meas_basis() -> PlannerMeasBasis:
     return PlannerMeasBasis(Plane.XY, 0.0)
 
 
-def get_meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
+def meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
     """Return the measurement basis vector corresponding to the plane and angle.
 
     Parameters
