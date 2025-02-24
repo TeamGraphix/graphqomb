@@ -173,15 +173,15 @@ def test_lc_basis_update(
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(0, np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
-        Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
-        Plane.XZ: (Plane.XY, lambda angle: np.pi / 2 - angle),
-        Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
+        Plane.XY: (Plane.XZ, lambda angle: -angle + np.pi / 2),
+        Plane.XZ: (Plane.XY, lambda angle: angle - np.pi / 2),
+        Plane.YZ: (Plane.YZ, lambda angle: angle - np.pi / 2),
     }
 
     angle = rng.random() * 2 * np.pi
 
     meas_basis = PlannerMeasBasis(plane, angle)
-    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
 
@@ -193,15 +193,15 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
 def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(-np.pi / 2, 0, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
-        Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
-        Plane.XZ: (Plane.YZ, lambda angle: angle),
-        Plane.YZ: (Plane.XZ, lambda angle: -1 * angle),
+        Plane.XY: (Plane.XY, lambda angle: angle - np.pi / 2),
+        Plane.XZ: (Plane.YZ, lambda angle: -1 * angle),
+        Plane.YZ: (Plane.XZ, lambda angle: angle),
     }
 
     angle = rng.random() * 2 * np.pi
 
     meas_basis = PlannerMeasBasis(plane, angle)
-    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
 
