@@ -34,6 +34,8 @@ autosectionlabel_prefix_document = True
 default_role = "any"
 autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
+autodoc_class_signature = "separated"
+autodoc_member_order = "bysource"
 
 # -- Options for HTML output -------------------------------------------------
 
