@@ -31,11 +31,6 @@ class Plane(Enum):
     """Measurement planes for MBQC.
 
     We distinguish the axial measurements from the planar measurements.
-
-    The measurement planes are:
-    - XY: Measurement in the XY plane.
-    - YZ: Measurement in the YZ plane.
-    - XZ: Measurement in the XZ plane.
     """
 
     XY = auto()
@@ -44,7 +39,7 @@ class Plane(Enum):
 
 
 class Axis(Enum):
-    """Measurement axis."""
+    """Measurement axis for Pauli measurement."""
 
     X = auto()
     Y = auto()
@@ -52,7 +47,7 @@ class Axis(Enum):
 
 
 class Sign(Enum):
-    """Measurement sign."""
+    """Measurement sign for Pauli measurement."""
 
     PLUS = auto()
     MINUS = auto()
