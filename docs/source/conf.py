@@ -31,12 +31,13 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 autosectionlabel_prefix_document = True
+default_role = "any"
 
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = "furo"
 html_title = " "
-html_static_path = ["_static"]
+# html_static_path = ["_static"]
 
 html_context = {
     "mode": "production",
