@@ -9,8 +9,11 @@ Common
 Enums
 -----
 
-.. autoclass:: graphix_zx.common.Plane
-    :show-inheritance:
+.. class:: graphix_zx.common.Plane
+
+    Measurement planes for MBQC.
+
+    We distinguish the axial measurements from the planar measurements.
 
     .. py:attribute:: XY
 
@@ -24,8 +27,9 @@ Enums
         
        Arbitrary-angle measurement on the XZ plane.
 
-.. autoclass:: graphix_zx.common.Axis
-    :show-inheritance:
+.. class:: graphix_zx.common.Axis
+    
+    Measurement axis for Pauli measurement.
 
     .. py:attribute:: X
 
@@ -39,8 +43,9 @@ Enums
         
         Pauli Z-axis.
 
-.. autoclass:: graphix_zx.common.Sign
-    :show-inheritance:
+.. class:: graphix_zx.common.Sign
+
+    Measurement sign for Pauli measurement.
 
     .. py:attribute:: PLUS
 
