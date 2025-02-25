@@ -1,6 +1,7 @@
 """Common classes and functions.
 
 This module provides:
+
 - Plane: Measurement planes for the MBQC.
 - Axis: Measurement axis.
 - Sign: Measurement sign.
