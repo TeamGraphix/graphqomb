@@ -36,7 +36,6 @@ autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
 autodoc_class_signature = "separated"
 autodoc_member_order = "bysource"
-autodoc_mock_imports = ["enum"]
 
 # -- Options for HTML output -------------------------------------------------
 
