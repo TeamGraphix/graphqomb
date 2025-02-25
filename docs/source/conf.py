@@ -32,6 +32,8 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 autosectionlabel_prefix_document = True
 default_role = "any"
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
 
 # -- Options for HTML output -------------------------------------------------
 
