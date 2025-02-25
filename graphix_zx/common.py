@@ -2,14 +2,14 @@
 
 This module provides:
 
-- Plane: Measurement planes for the MBQC.
-- Axis: Measurement axis.
-- Sign: Measurement sign.
-- MeasBasis: Abstract class to represent a measurement basis.
-- PlannerMeasBasis: Class to represent a planner measurement basis.
-- AxisMeasBasis: Class to represent an axis measurement basis.
-- default_meas_basis: Function to return the default measurement basis.
-- meas_basis: Function to get the measurement basis vector.
+- `Plane`: Measurement planes for the MBQC.
+- `Axis`: Measurement axis.
+- `Sign`: Measurement sign.
+- `MeasBasis`: Abstract class to represent a measurement basis.
+- `PlannerMeasBasis`: Class to represent a planner measurement basis.
+- `AxisMeasBasis`: Class to represent an axis measurement basis.
+- `default_meas_basis`: Function to return the default measurement basis.
+- `meas_basis`: Function to get the measurement basis vector.
 """
 
 from __future__ import annotations
@@ -79,9 +79,9 @@ class PlannerMeasBasis(MeasBasis):
 
     Attributes
     ----------
-    plane : Plane
+    plane : `Plane`
         measurement plane
-    angle : float
+    angle : `float`
         measurement angle
     """
 
@@ -96,7 +96,7 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        Plane
+        `Plane`
             measurement plane
         """
         return self.__plane
@@ -108,7 +108,7 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        float
+        `float`
             measurement angle
         """
         return self.__angle
@@ -119,7 +119,7 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        NDArray[np.complex128]
+        `NDArray[np.complex128]`
             measurement basis vector
         """
         return meas_basis(self.plane, self.angle)
@@ -129,7 +129,7 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        PlannerMeasBasis
+        `PlannerMeasBasis`
             conjugate PlannerMeasBasis
 
         Raises
@@ -156,9 +156,9 @@ class AxisMeasBasis(MeasBasis):
 
     Attributes
     ----------
-    axis : Axis
+    axis : `Axis`
         measurement axis
-    sign : Sign
+    sign : `Sign`
         measurement sign
     """
 
@@ -173,7 +173,7 @@ class AxisMeasBasis(MeasBasis):
 
         Returns
         -------
-        Plane
+        `Plane`
             measurement plane
 
         Raises
@@ -201,7 +201,7 @@ class AxisMeasBasis(MeasBasis):
 
         Returns
         -------
-        float
+        `float`
             measurement angle
 
         Raises
@@ -224,7 +224,7 @@ class AxisMeasBasis(MeasBasis):
 
         Returns
         -------
-        NDArray
+        `NDArray[np.complex128]`
             measurement basis vector
         """
         return meas_basis(self.plane, self.angle)
@@ -237,7 +237,7 @@ def default_meas_basis() -> PlannerMeasBasis:
 
     Returns
     -------
-    PlannerMeasBasis
+    `PlannerMeasBasis`
         default measurement basis
     """
     return PlannerMeasBasis(Plane.XY, 0.0)
@@ -248,14 +248,14 @@ def meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
 
     Parameters
     ----------
-    plane : Plane
+    plane : `Plane`
         measurement plane
-    angle : float
+    angle : `float`
         measurement angle
 
     Returns
     -------
-    NDArray[np.complex128]
+    `NDArray[np.complex128]`
         measurement basis vector
 
     Raises
