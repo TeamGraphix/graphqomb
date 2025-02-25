@@ -75,15 +75,7 @@ class MeasBasis(ABC):
 
 
 class PlannerMeasBasis(MeasBasis):
-    """Class to represent a planner measurement basis.
-
-    Attributes
-    ----------
-    plane : `Plane`
-        measurement plane
-    angle : `float`
-        measurement angle
-    """
+    """Class to represent a planner measurement basis."""
 
     def __init__(self, plane: Plane, angle: float) -> None:
         self.__plane = plane
