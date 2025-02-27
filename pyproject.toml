@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graphix-zx"
+version = "0.1.0"
+requires-python = ">=3.9, <3.13"
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements-dev.txt"] }
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+preview = true
+select = ["ALL"]
+ignore = [
+  # Conflicts with ruff format
+  "COM812",
+  "COM819",
+  "D206",
+  "D300",
+  "E111",
+  "E114",
+  "E117",
+  "ISC001",
+  "ISC002",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "W191",
+
+  # Not necessary for this project
+  "AIR",
+  "ASYNC",
+  "DJ",
+  "PD",
+
+  # Manually disabled
+  "CPY",     # copyright missing
+  "D105",    # undocumented magic method
+  "ERA",     # commented-out code
+  "FBT",     # boolean-trap
+  "FIX",     # fixme
+  "PLR0904", # too-many-public-methods
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+  "S101",    # `assert` detected
+  "PLR2004", # magic value in test(should be removed)
+  "PLC2701", # private name import
+  "D100",
+  "D103",
+  "D104",
+  "D400",
+]
+"examples/*.py" = [
+  "T201", # print
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["graphix_zx"]
+testpaths = ["tests"]
+filterwarnings = "ignore::DeprecationWarning"
+markers = "slow: mark test as slow"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+files = ["graphix_zx", "tests", "examples"]
+
+[tool.pyright]
+include = ["graphix_zx", "tests", "examples"]

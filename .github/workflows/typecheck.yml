@@ -1,0 +1,27 @@
+name: Type Checking
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tool: [mypy, pyright]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+
+      - run: |
+          python3 -m pip install -U pip
+          pip install .[dev]
+          ${{ matrix.tool }}
