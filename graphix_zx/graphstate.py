@@ -400,6 +400,28 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords
 
+    @property
+    def inner2nodes(self) -> dict[int, int]:
+        """Return inner index to node index mapping.
+
+        Returns
+        -------
+        dict[int, int]
+            inner index to node index mapping.
+        """
+        return self.__inner2nodes
+
+    @property
+    def nodes2inner(self) -> dict[int, int]:
+        """Return node index to inner index mapping.
+
+        Returns
+        -------
+        dict[int, int]
+            node index to inner index mapping.
+        """
+        return self.__nodes2inner
+
     def check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
 
