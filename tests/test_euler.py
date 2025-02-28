@@ -1,3 +1,4 @@
+import operator
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -195,7 +196,7 @@ def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> N
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
         Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
         Plane.XZ: (Plane.YZ, lambda angle: angle),
-        Plane.YZ: (Plane.XZ, lambda angle: -angle),
+        Plane.YZ: (Plane.XZ, operator.neg),
     }
 
     angle = rng.random() * 2 * np.pi
