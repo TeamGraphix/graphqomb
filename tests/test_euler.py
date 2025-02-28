@@ -208,3 +208,43 @@ def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> N
 
     assert result_basis.plane == ref_plane
     assert _is_close_angle(result_basis.angle, ref_angle)
+
+
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+def test_pivot_target_update(plane: Plane, rng: np.random.Generator) -> None:
+    lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+        Plane.XY: (Plane.YZ, operator.neg),
+        Plane.XZ: (Plane.XZ, lambda angle: -angle + np.pi / 2),
+        Plane.YZ: (Plane.XY, operator.neg),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    meas_basis = PlannerMeasBasis(plane, angle)
+    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    ref_plane, ref_angle_func = measurement_action[plane]
+    ref_angle = ref_angle_func(angle)
+
+    assert result_basis.plane == ref_plane
+    assert _is_close_angle(result_basis.angle, ref_angle)
+
+
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+def test_pivot_neighbors(plane: Plane, rng: np.random.Generator) -> None:
+    lc = LocalClifford(np.pi, 0, 0)
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+        Plane.XY: (Plane.XY, lambda angle: angle + np.pi),
+        Plane.XZ: (Plane.XZ, operator.neg),
+        Plane.YZ: (Plane.YZ, operator.neg),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    meas_basis = PlannerMeasBasis(plane, angle)
+    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    ref_plane, ref_angle_func = measurement_action[plane]
+    ref_angle = ref_angle_func(angle)
+
+    assert result_basis.plane == ref_plane
+    assert _is_close_angle(result_basis.angle, ref_angle)
