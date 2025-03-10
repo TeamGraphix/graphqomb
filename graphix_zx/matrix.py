@@ -1,4 +1,9 @@
-"""Matrix utilities."""
+"""Matrix utilities.
+
+This module provides:
+
+- `is_unitary`: check if a matrix is unitary.
+"""
 
 import numpy as np
 from numpy.typing import NDArray
