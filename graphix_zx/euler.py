@@ -138,7 +138,6 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     )
 
 
-# TODO: there is room to improve the data type for angles
 class LocalUnitary:
     """Class to represent a local unitary.
 
@@ -295,6 +294,7 @@ def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
     raise ValueError(msg)
 
 
+# TODO(masa10-f): Algebraic backend for this computation(#023)
 def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     """Update a LocalClifford object with another LocalClifford object.
 
@@ -318,6 +318,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     return LocalClifford(alpha, beta, gamma)
 
 
+# TODO(masa10-f): Algebraic backend for this computation(#023)
 def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     """Update a LocalClifford object with a MeasBasis object.
 
