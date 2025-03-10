@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis, get_meas_basis
+from graphix_zx.common import Plane, PlannerMeasBasis, meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
@@ -108,7 +108,7 @@ def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
-    basis = get_meas_basis(plane, angle)
+    basis = meas_basis(plane, angle)
     theta, phi = get_bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
     inner_product = np.abs(np.vdot(reconst_vec, basis))
@@ -118,7 +118,7 @@ def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) ->
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 @pytest.mark.parametrize("angle", [0, np.pi / 2, np.pi])
 def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
-    basis = get_meas_basis(plane, angle)
+    basis = meas_basis(plane, angle)
     theta, phi = get_bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
     inner_product = np.abs(np.vdot(reconst_vec, basis))
@@ -126,9 +126,9 @@ def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None
 
 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
-def test_get_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
+def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
-    basis = get_meas_basis(plane, angle)
+    basis = meas_basis(plane, angle)
     plane_get, angle_get = _get_meas_basis_info(basis)
     assert plane == plane_get, f"Expected {plane}, got {plane_get}"
     assert _is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
@@ -164,8 +164,8 @@ def test_lc_basis_update(
     angle = rng.uniform(0, 2 * np.pi)
     basis = PlannerMeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
-    ref_updated_basis = lc.get_matrix() @ basis.get_vector()
-    inner_product = np.abs(np.vdot(basis_updated.get_vector(), ref_updated_basis))
+    ref_updated_basis = lc.get_matrix() @ basis.vector()
+    inner_product = np.abs(np.vdot(basis_updated.vector(), ref_updated_basis))
     assert np.allclose(inner_product, 1)
 
 
