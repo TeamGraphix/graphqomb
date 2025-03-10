@@ -7,10 +7,10 @@ from graphix_zx.common import Plane, PlannerMeasBasis, meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
-    _meas_basis_info,
     _is_close_angle,
-    euler_decomposition,
+    _meas_basis_info,
     bloch_sphere_coordinates,
+    euler_decomposition,
     is_clifford_angle,
     update_lc_basis,
     update_lc_lc,
