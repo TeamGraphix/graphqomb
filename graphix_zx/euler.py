@@ -22,14 +22,14 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
+def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]:
     """Decompose a 2x2 unitary matrix into Euler angles.
 
     U -> Rz(gamma)Rx(beta)Rz(alpha)
 
     Parameters
     ----------
-    u : NDArray
+    u : NDArray[np.complex128]
         unitary 2x2 matrix
 
     Returns
@@ -63,14 +63,14 @@ def euler_decomposition(u: NDArray) -> tuple[float, float, float]:
     return alpha, beta, gamma
 
 
-def get_bloch_sphere_coordinates(vector: NDArray) -> tuple[float, float]:
+def get_bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, float]:
     """Get the Bloch sphere coordinates corresponding to a vector.
 
     |psi> = cos(theta/2)|0> + exp(i*phi)sin(theta/2)|1>
 
     Parameters
     ----------
-    vector : NDArray
+    vector : NDArray[np.complex128]
         1 qubit state vector
 
     Returns
@@ -176,12 +176,12 @@ class LocalUnitary:
         """
         return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
 
-    def get_matrix(self) -> NDArray:
+    def get_matrix(self) -> NDArray[np.complex128]:
         """Return the 2x2 unitary matrix corresponding to the Euler angles.
 
         Returns
         -------
-        NDArray
+        NDArray[np.complex128]
             2x2 unitary matrix
         """
         return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
@@ -257,12 +257,12 @@ class LocalClifford(LocalUnitary):
         return LocalClifford(-self.gamma, -self.beta, -self.alpha)
 
 
-def _get_meas_basis_info(vector: NDArray) -> tuple[Plane, float]:
+def _get_meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     """Return the measurement plane and angle corresponding to a vector.
 
     Parameters
     ----------
-    vector : NDArray
+    vector : NDArray[np.complex128]
         1 qubit state vector
 
     Returns
@@ -335,7 +335,7 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
         updated PlannerMeasBasis
     """
     matrix = lc.get_matrix()
-    vector = basis.get_vector()
+    vector = basis.vector()
 
     vector = matrix @ vector
     plane, angle = _get_meas_basis_info(vector)
