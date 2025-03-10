@@ -3,7 +3,7 @@
 This module provides:
 
 - `euler_decomposition`: Decompose a 2x2 unitary matrix into Euler angles.
-- `get_bloch_sphere_coordinates`: Get the Bloch sphere coordinates corresponding to a vector.
+- `bloch_sphere_coordinates`: Get the Bloch sphere coordinates corresponding to a vector.
 - `is_clifford_angle`: Check if an angle is a Clifford angle.
 - `LocalUnitary`: Class to represent a local unitary.
 - `LocalClifford`: Class to represent a local Clifford.
@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import typing_extensions
 
 from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 
@@ -64,7 +65,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
     return alpha, beta, gamma
 
 
-def get_bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, float]:
+def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, float]:
     r"""Get the Bloch sphere coordinates corresponding to a vector.
 
     \|psi> = cos(theta/2)\|0> + exp(i*phi)sin(theta/2)|1>
@@ -177,7 +178,7 @@ class LocalUnitary:
         """
         return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
 
-    def get_matrix(self) -> NDArray[np.complex128]:
+    def matrix(self) -> NDArray[np.complex128]:
         """Return the 2x2 unitary matrix corresponding to the Euler angles.
 
         Returns
@@ -247,6 +248,7 @@ class LocalClifford(LocalUnitary):
             msg = "The angles must be multiples of pi/2"
             raise ValueError(msg)
 
+    @typing_extensions.override
     def conjugate(self) -> LocalClifford:
         """Return the conjugate of the `LocalClifford` object.
 
@@ -258,7 +260,7 @@ class LocalClifford(LocalUnitary):
         return LocalClifford(-self.gamma, -self.beta, -self.alpha)
 
 
-def _get_meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
+def _meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     """Return the measurement plane and angle corresponding to a vector.
 
     Parameters
@@ -276,7 +278,7 @@ def _get_meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     ValueError
         if the vector does not lie on any of 3 planes
     """
-    theta, phi = get_bloch_sphere_coordinates(vector)
+    theta, phi = bloch_sphere_coordinates(vector)
     if is_clifford_angle(phi):
         # YZ or XZ plane
         if is_clifford_angle(phi / 2):  # 0 or pi
@@ -311,8 +313,8 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     `LocalClifford`
         multiplied `LocalClifford`
     """
-    matrix1 = lc1.get_matrix()
-    matrix2 = lc2.get_matrix()
+    matrix1 = lc1.matrix()
+    matrix2 = lc2.matrix()
 
     matrix = matrix1 @ matrix2
     alpha, beta, gamma = euler_decomposition(matrix)
@@ -335,11 +337,11 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     `PlannerMeasBasis`
         updated `PlannerMeasBasis`
     """
-    matrix = lc.get_matrix()
+    matrix = lc.matrix()
     vector = basis.vector()
 
     vector = matrix @ vector
-    plane, angle = _get_meas_basis_info(vector)
+    plane, angle = _meas_basis_info(vector)
     return PlannerMeasBasis(plane, angle)
 
 

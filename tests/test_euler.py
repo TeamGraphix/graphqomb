@@ -7,10 +7,10 @@ from graphix_zx.common import Plane, PlannerMeasBasis, meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
-    _get_meas_basis_info,
+    _meas_basis_info,
     _is_close_angle,
     euler_decomposition,
-    get_bloch_sphere_coordinates,
+    bloch_sphere_coordinates,
     is_clifford_angle,
     update_lc_basis,
     update_lc_lc,
@@ -74,42 +74,42 @@ def test_is_close_angle() -> None:
 
 def test_identity() -> None:
     lc = LocalUnitary(0, 0, 0)
-    assert np.allclose(lc.get_matrix(), np.eye(2))
+    assert np.allclose(lc.matrix(), np.eye(2))
 
 
 def test_unitary(random_angles: tuple[float, float, float]) -> None:
     lc = LocalUnitary(*random_angles)
-    assert is_unitary(lc.get_matrix())
+    assert is_unitary(lc.matrix())
 
 
 def test_lu_conjugate(random_angles: tuple[float, float, float]) -> None:
     lu = LocalUnitary(*random_angles)
     lu_conj = lu.conjugate()
-    assert np.allclose(lu.get_matrix(), lu_conj.get_matrix().conj().T)
+    assert np.allclose(lu.matrix(), lu_conj.matrix().conj().T)
 
 
 def test_euler_decomposition(random_angles: tuple[float, float, float]) -> None:
-    array = LocalUnitary(*random_angles).get_matrix()
+    array = LocalUnitary(*random_angles).matrix()
     alpha, beta, gamma = euler_decomposition(array)
 
-    array_reconstructed = LocalUnitary(alpha, beta, gamma).get_matrix()
+    array_reconstructed = LocalUnitary(alpha, beta, gamma).matrix()
     assert np.allclose(array, array_reconstructed)
 
 
 @pytest.mark.parametrize("angles", [(0, 0, 0), (np.pi, 0, 0), (0, np.pi, 0), (0, 0, np.pi)])
 def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
-    array = LocalUnitary(*angles).get_matrix()
+    array = LocalUnitary(*angles).matrix()
     alpha, beta, gamma = euler_decomposition(array)
 
-    array_reconstructed = LocalUnitary(alpha, beta, gamma).get_matrix()
+    array_reconstructed = LocalUnitary(alpha, beta, gamma).matrix()
     assert np.allclose(array, array_reconstructed)
 
 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
-def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
+def test_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = meas_basis(plane, angle)
-    theta, phi = get_bloch_sphere_coordinates(basis)
+    theta, phi = bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
     inner_product = np.abs(np.vdot(reconst_vec, basis))
     assert np.allclose(inner_product, 1)
@@ -117,9 +117,9 @@ def test_get_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) ->
 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
 @pytest.mark.parametrize("angle", [0, np.pi / 2, np.pi])
-def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
+def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     basis = meas_basis(plane, angle)
-    theta, phi = get_bloch_sphere_coordinates(basis)
+    theta, phi = bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
     inner_product = np.abs(np.vdot(reconst_vec, basis))
     assert np.allclose(inner_product, 1)
@@ -129,14 +129,14 @@ def test_get_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None
 def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = meas_basis(plane, angle)
-    plane_get, angle_get = _get_meas_basis_info(basis)
+    plane_get, angle_get = _meas_basis_info(basis)
     assert plane == plane_get, f"Expected {plane}, got {plane_get}"
     assert _is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
 
 
 def test_local_clifford(random_clifford_angles: tuple[float, float, float]) -> None:
     lc = LocalClifford(*random_clifford_angles)
-    assert is_unitary(lc.get_matrix())
+    assert is_unitary(lc.matrix())
 
     assert is_clifford_angle(lc.alpha)
     assert is_clifford_angle(lc.beta)
@@ -147,7 +147,7 @@ def test_lc_lc_update(random_clifford_angles: tuple[float, float, float]) -> Non
     lc1 = LocalClifford(*random_clifford_angles)
     lc2 = LocalClifford(*random_clifford_angles)
     lc = update_lc_lc(lc1, lc2)
-    assert is_unitary(lc.get_matrix())
+    assert is_unitary(lc.matrix())
 
     assert is_clifford_angle(lc.alpha)
     assert is_clifford_angle(lc.beta)
@@ -164,7 +164,7 @@ def test_lc_basis_update(
     angle = rng.uniform(0, 2 * np.pi)
     basis = PlannerMeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
-    ref_updated_basis = lc.get_matrix() @ basis.vector()
+    ref_updated_basis = lc.matrix() @ basis.vector()
     inner_product = np.abs(np.vdot(basis_updated.vector(), ref_updated_basis))
     assert np.allclose(inner_product, 1)
 
