@@ -243,7 +243,7 @@ class LocalClifford(LocalUnitary):
         ValueError
             if any of the angles is not a Clifford angle
         """
-        if not any(is_clifford_angle(angle, atol=atol) for angle in [alpha, beta, gamma]):
+        if not all(is_clifford_angle(angle, atol=atol) for angle in [alpha, beta, gamma]):
             msg = "The angles must be multiples of pi/2"
             raise ValueError(msg)
 
