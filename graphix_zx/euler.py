@@ -1,13 +1,14 @@
 """Euler angles and related functions.
 
 This module provides:
-- euler_decomposition: Decompose a 2x2 unitary matrix into Euler angles.
-- get_bloch_sphere_coordinates: Get the Bloch sphere coordinates corresponding to a vector.
-- is_clifford_angle: Check if an angle is a Clifford angle.
-- LocalUnitary: Class to represent a local unitary.
-- LocalClifford: Class to represent a local Clifford.
-- update_lc_lc: Update a LocalClifford object with another LocalClifford object.
-- update_lc_basis: Update a LocalClifford object with a MeasBasis object.
+
+- `euler_decomposition`: Decompose a 2x2 unitary matrix into Euler angles.
+- `get_bloch_sphere_coordinates`: Get the Bloch sphere coordinates corresponding to a vector.
+- `is_clifford_angle`: Check if an angle is a Clifford angle.
+- `LocalUnitary`: Class to represent a local unitary.
+- `LocalClifford`: Class to represent a local Clifford.
+- `update_lc_lc`: Update a `LocalClifford` object with another `LocalClifford` object.
+- `update_lc_basis`: Update a `LocalClifford` object with a MeasBasis object.
 """
 
 from __future__ import annotations
@@ -64,9 +65,9 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
 
 
 def get_bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, float]:
-    """Get the Bloch sphere coordinates corresponding to a vector.
+    r"""Get the Bloch sphere coordinates corresponding to a vector.
 
-    |psi> = cos(theta/2)|0> + exp(i*phi)sin(theta/2)|1>
+    \|psi> = cos(theta/2)\|0> + exp(i*phi)sin(theta/2)|1>
 
     Parameters
     ----------
@@ -171,7 +172,7 @@ class LocalUnitary:
 
         Returns
         -------
-        LocalUnitary
+        `LocalUnitary`
             conjugate LocalUnitary
         """
         return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
@@ -247,12 +248,12 @@ class LocalClifford(LocalUnitary):
             raise ValueError(msg)
 
     def conjugate(self) -> LocalClifford:
-        """Return the conjugate of the LocalClifford object.
+        """Return the conjugate of the `LocalClifford` object.
 
         Returns
         -------
-        LocalClifford
-            conjugate LocalClifford
+        `LocalClifford`
+            conjugate `LocalClifford`
         """
         return LocalClifford(-self.gamma, -self.beta, -self.alpha)
 
@@ -296,19 +297,19 @@ def _get_meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
 
 # TODO(masa10-f): Algebraic backend for this computation(#023)
 def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
-    """Update a LocalClifford object with another LocalClifford object.
+    """Update a `LocalClifford` object with another `LocalClifford` object.
 
     Parameters
     ----------
-    lc1 : LocalClifford
-        left LocalClifford
-    lc2 : LocalClifford
-        right LocalClifford
+    lc1 : `LocalClifford`
+        left `LocalClifford`
+    lc2 : `LocalClifford`
+        right `LocalClifford`
 
     Returns
     -------
-    LocalClifford
-        multiplied LocalClifford
+    `LocalClifford`
+        multiplied `LocalClifford`
     """
     matrix1 = lc1.get_matrix()
     matrix2 = lc2.get_matrix()
@@ -320,19 +321,19 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
 
 # TODO(masa10-f): Algebraic backend for this computation(#023)
 def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
-    """Update a LocalClifford object with a MeasBasis object.
+    """Update a `LocalClifford` object with a `MeasBasis` object.
 
     Parameters
     ----------
-    lc : LocalClifford
-        LocalClifford
-    basis : MeasBasis
-        MeasBasis
+    lc : `LocalClifford`
+        `LocalClifford`
+    basis : `MeasBasis`
+        `MeasBasis`
 
     Returns
     -------
-    PlannerMeasBasis
-        updated PlannerMeasBasis
+    `PlannerMeasBasis`
+        updated `PlannerMeasBasis`
     """
     matrix = lc.get_matrix()
     vector = basis.vector()
