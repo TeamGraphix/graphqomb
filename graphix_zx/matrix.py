@@ -4,12 +4,12 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-def is_unitary(mat: NDArray) -> bool:
+def is_unitary(mat: NDArray[np.complex128]) -> bool:
     """Check if a matrix is unitary.
 
     Parameters
     ----------
-    mat : NDArray
+    mat : NDArray[np.complex128]
         matrix to check
 
     Returns
