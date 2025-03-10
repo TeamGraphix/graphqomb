@@ -6,3 +6,4 @@ Module reference
 
     common
     euler
+    matrix
