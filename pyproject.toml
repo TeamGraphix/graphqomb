@@ -13,6 +13,7 @@ dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.dynamic.optional-dependencies]
 dev = { file = ["requirements-dev.txt"] }
+doc = { file = ["docs/requirements.txt]}
 
 [tool.ruff]
 target-version = "py39"
