@@ -198,11 +198,11 @@ class LocalClifford(LocalUnitary):
     Attributes
     ----------
     alpha : float
-        angle for the first Rz, by default 0
+        angle for the first Rz. The angle must be a multiple of pi/2, by default 0
     beta : float
-        angle for the Rx, by default 0
+        angle for the Rx. The angle must be a multiple of pi/2, by default 0
     gamma : float
-        angle for the last Rz, by default 0
+        angle for the last Rz. The angle must be a multiple of pi/2, by default 0
     """
 
     alpha: float
@@ -210,17 +210,6 @@ class LocalClifford(LocalUnitary):
     gamma: float
 
     def __init__(self, alpha: float = 0, beta: float = 0, gamma: float = 0) -> None:
-        """Initialize the Euler angles for Clifford gates.
-
-        Parameters
-        ----------
-        alpha : float, optional
-            angle for the first Rz. The angle must be a multiple of pi/2, by default 0
-        beta : float, optional
-            angle for the Rx. The angle must be a multiple of pi/2, by default 0
-        gamma : float, optional
-            angle for the last Rz. The angle must be a multiple of pi/2, by default 0
-        """
         self._angle_check(alpha, beta, gamma)
         super().__init__(alpha, beta, gamma)
 

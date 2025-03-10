@@ -10,8 +10,8 @@ Local Operators
 ---------------
 
 .. autoclass:: graphix_zx.euler.LocalUnitary
-   :members:
-   :show-inheritance:
+    :members:
+    :show-inheritance:
 
 .. autoclass:: graphix_zx.euler.LocalClifford
     :members:
@@ -22,7 +22,7 @@ Functions
 
 .. autofunction:: graphix_zx.euler.euler_decomposition
 
-.. autofunction:: graphix_zx.euler.get_bloch_sphere_coordinates
+.. autofunction:: graphix_zx.euler.bloch_sphere_coordinates
 
 .. autofunction:: graphix_zx.euler.is_clifford_angle
 
