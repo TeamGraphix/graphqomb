@@ -19,7 +19,7 @@ jobs:
 
       - run: pip install --upgrade pip
 
-      - run: pip install -v -e .[dev]
+      - run: pip install -v -e .[doc]
 
       - name: Make docs
         run: sphinx-build -W docs/source docs/build
