@@ -141,7 +141,7 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
 
 
 class LocalUnitary:
-    """Class to represent a local unitary.
+    """Class to represent signle-qubit unitaries.
 
     U -> Rz(gamma)Rx(beta)Rz(alpha)
 
@@ -193,7 +193,7 @@ class LocalClifford(LocalUnitary):
     """Class to represent a local Clifford.
 
     U -> Rz(alpha)Rx(beta)Rz(gamma)
-    Each angle must be a multiple of pi/2.
+    Each angle must be integer multiples of pi/2.
 
     Attributes
     ----------
@@ -234,7 +234,7 @@ class LocalClifford(LocalUnitary):
             if any of the angles is not a Clifford angle
         """
         if not all(is_clifford_angle(angle, atol=atol) for angle in [alpha, beta, gamma]):
-            msg = "The angles must be multiples of pi/2"
+            msg = "The angles must be integer multiples of pi/2"
             raise ValueError(msg)
 
     @typing_extensions.override
@@ -312,7 +312,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
 
 # TODO(masa10-f): Algebraic backend for this computation(#023)
 def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
-    """Update a `LocalClifford` object with a `MeasBasis` object.
+    """Update a `MeasBasis` object with an action of `LocalClifford` object.
 
     Parameters
     ----------
