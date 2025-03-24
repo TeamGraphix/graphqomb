@@ -28,7 +28,8 @@ def rng() -> np.random.Generator:
 
 @pytest.fixture
 def random_angles(rng: np.random.Generator) -> tuple[float, float, float]:
-    return tuple(rng.uniform(0, 2 * np.pi, 3))
+    a, b, c = rng.uniform(0, 2 * np.pi, 3)
+    return float(a), float(b), float(c)
 
 
 @pytest.fixture
