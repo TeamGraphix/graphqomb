@@ -13,6 +13,7 @@ This module provides:
 
 from __future__ import annotations
 
+import cmath
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -39,7 +40,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
     :class:`tuple`\[:class:`float`, :class:`float`, :class:`float`\]
         euler angles (alpha, beta, gamma)
     """
-    global_phase = np.sqrt(np.linalg.det(u))
+    global_phase = cmath.sqrt(np.linalg.det(u))
     u /= global_phase
 
     if np.isclose(u[1, 0], 0):
@@ -339,7 +340,8 @@ def _rx(angle: float) -> NDArray[np.complex128]:
         [
             [np.cos(angle / 2), -1j * np.sin(angle / 2)],
             [-1j * np.sin(angle / 2), np.cos(angle / 2)],
-        ]
+        ],
+        dtype=np.complex128,
     )
 
 
@@ -348,5 +350,6 @@ def _rz(angle: float) -> NDArray[np.complex128]:
         [
             [np.exp(-1j * angle / 2), 0],
             [0, np.exp(1j * angle / 2)],
-        ]
+        ],
+        dtype=np.complex128,
     )
