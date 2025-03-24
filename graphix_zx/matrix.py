@@ -5,11 +5,25 @@ This module provides:
 - `is_unitary`: check if a matrix is unitary.
 """
 
+from __future__ import annotations
+
+import sys
+from typing import TYPE_CHECKING
+
 import numpy as np
-from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+if sys.version_info >= (3, 10):
+    Numeric = np.number
+else:
+    from typing import Union
+
+    Numeric = Union[np.int64, np.float64, np.complex128]
 
 
-def is_unitary(mat: NDArray[np.number]) -> bool:
+def is_unitary(mat: NDArray[Numeric]) -> bool:
     r"""Check if a matrix is unitary.
 
     Parameters
