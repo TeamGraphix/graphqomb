@@ -22,4 +22,6 @@ def is_unitary(mat: NDArray[np.complex128]) -> bool:
     `bool`
         True if unitary, False otherwise
     """
+    if mat.shape[0] != mat.shape[1]:
+        return False
     return np.allclose(np.eye(mat.shape[0]), mat @ mat.T.conj())
