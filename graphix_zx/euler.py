@@ -25,18 +25,18 @@ if TYPE_CHECKING:
 
 
 def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]:
-    """Decompose a 2x2 unitary matrix into Euler angles.
+    r"""Decompose a 2x2 unitary matrix into Euler angles.
 
     U -> Rz(gamma)Rx(beta)Rz(alpha)
 
     Parameters
     ----------
-    u : NDArray[np.complex128]
+    u : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
         unitary 2x2 matrix
 
     Returns
     -------
-    tuple[float, float, float]
+    :class:`tuple`\[:class:`float`, :class:`float`, :class:`float`\]
         euler angles (alpha, beta, gamma)
     """
     global_phase = np.sqrt(np.linalg.det(u))
@@ -72,12 +72,12 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
 
     Parameters
     ----------
-    vector : NDArray[np.complex128]
+    vector : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
         1 qubit state vector
 
     Returns
     -------
-    tuple[float, float]
+    :class:`tuple`\[:class:`float`, :class:`float`]
         Bloch sphere coordinates (theta, phi)
     """
     # normalize
@@ -100,16 +100,16 @@ def _is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
 
     Parameters
     ----------
-    angle : float
+    angle : `float`
         angle to check
-    target : float
+    target : `float`
         target angle
-    atol : float, optional
+    atol : `float`, optional
         absolute tolerance, by default 1e-9
 
     Returns
     -------
-    bool
+    `bool`
         True if the angle is close to the target angle
     """
     diff_angle = (angle - target) % (2 * np.pi)
@@ -124,14 +124,14 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
 
     Parameters
     ----------
-    angle : float
+    angle : `float`
         angle to check
-    atol : float, optional
+    atol : `float`, optional
         absolute tolerance, by default 1e-9
 
     Returns
     -------
-    bool
+    `bool`
         True if the angle is a Clifford angle
     """
     angle_preprocessed = angle % (2 * np.pi)
@@ -147,11 +147,11 @@ class LocalUnitary:
 
     Attributes
     ----------
-    alpha : float
+    alpha : `float`
         angle for the first Rz, by default 0
-    beta : float
+    beta : `float`
         angle for the Rx, by default 0
-    gamma : float
+    gamma : `float`
         angle for the last Rz, by default 0
     """
 
@@ -179,11 +179,11 @@ class LocalUnitary:
         return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
 
     def matrix(self) -> NDArray[np.complex128]:
-        """Return the 2x2 unitary matrix corresponding to the Euler angles.
+        r"""Return the 2x2 unitary matrix corresponding to the Euler angles.
 
         Returns
         -------
-        NDArray[np.complex128]
+        :class:`NDArray`\[:class:`np.complex128`\]
             2x2 unitary matrix
         """
         return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
@@ -197,11 +197,11 @@ class LocalClifford(LocalUnitary):
 
     Attributes
     ----------
-    alpha : float
+    alpha : `float`
         angle for the first Rz. The angle must be a multiple of pi/2, by default 0
-    beta : float
+    beta : `float`
         angle for the Rx. The angle must be a multiple of pi/2, by default 0
-    gamma : float
+    gamma : `float`
         angle for the last Rz. The angle must be a multiple of pi/2, by default 0
     """
 
@@ -219,13 +219,13 @@ class LocalClifford(LocalUnitary):
 
         Parameters
         ----------
-        alpha : float
+        alpha : `float`
             angle for the first Rz
-        beta : float
+        beta : `float`
             angle for the Rx
-        gamma : float
+        gamma : `float`
             angle for the last Rz
-        atol : float, optional
+        atol : `float`, optional
             absolute tolerance, by default 1e-9
 
         Raises
@@ -250,16 +250,16 @@ class LocalClifford(LocalUnitary):
 
 
 def _meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
-    """Return the measurement plane and angle corresponding to a vector.
+    r"""Return the measurement plane and angle corresponding to a vector.
 
     Parameters
     ----------
-    vector : NDArray[np.complex128]
+    vector : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
         1 qubit state vector
 
     Returns
     -------
-    tuple[Plane, float]
+    :class:`tuple`\[:class:`Plane`, :class:`float`]
         measurement plane and angle
 
     Raises
