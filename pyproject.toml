@@ -64,7 +64,6 @@ docstring-code-format = true
 "tests/*.py" = [
   "S101",    # `assert` detected
   "PLR2004", # magic value in test(should be removed)
-  "PLC2701", # private name import
   "D100",
   "D103",
   "D104",
