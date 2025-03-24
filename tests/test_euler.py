@@ -7,11 +7,11 @@ from graphix_zx.common import Plane, PlannerMeasBasis, meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
-    _is_close_angle,
-    _meas_basis_info,
     bloch_sphere_coordinates,
     euler_decomposition,
     is_clifford_angle,
+    is_close_angle,
+    meas_basis_info,
     update_lc_basis,
     update_lc_lc,
 )
@@ -48,29 +48,29 @@ def test_is_clifford_angle() -> None:
 
 
 def test_is_close_angle() -> None:
-    assert _is_close_angle(0, 0)
-    assert _is_close_angle(np.pi / 2, np.pi / 2)
-    assert _is_close_angle(np.pi, np.pi)
-    assert _is_close_angle(3 * np.pi / 2, 3 * np.pi / 2)
-    assert not _is_close_angle(0, np.pi / 2)
-    assert not _is_close_angle(np.pi / 2, np.pi)
-    assert not _is_close_angle(np.pi, 3 * np.pi / 2)
-    assert not _is_close_angle(3 * np.pi / 2, 0)
+    assert is_close_angle(0, 0)
+    assert is_close_angle(np.pi / 2, np.pi / 2)
+    assert is_close_angle(np.pi, np.pi)
+    assert is_close_angle(3 * np.pi / 2, 3 * np.pi / 2)
+    assert not is_close_angle(0, np.pi / 2)
+    assert not is_close_angle(np.pi / 2, np.pi)
+    assert not is_close_angle(np.pi, 3 * np.pi / 2)
+    assert not is_close_angle(3 * np.pi / 2, 0)
 
     # add 2 * np.pi to the second angle
-    assert _is_close_angle(0, 2 * np.pi)
-    assert _is_close_angle(np.pi / 2, 2 * np.pi + np.pi / 2)
-    assert _is_close_angle(np.pi, 2 * np.pi + np.pi)
-    assert _is_close_angle(3 * np.pi / 2, 2 * np.pi + 3 * np.pi / 2)
+    assert is_close_angle(0, 2 * np.pi)
+    assert is_close_angle(np.pi / 2, 2 * np.pi + np.pi / 2)
+    assert is_close_angle(np.pi, 2 * np.pi + np.pi)
+    assert is_close_angle(3 * np.pi / 2, 2 * np.pi + 3 * np.pi / 2)
 
     # minus 2 * np.pi to the second angle
-    assert _is_close_angle(0, -2 * np.pi)
-    assert _is_close_angle(np.pi / 2, -2 * np.pi + np.pi / 2)
-    assert _is_close_angle(np.pi, -2 * np.pi + np.pi)
-    assert _is_close_angle(3 * np.pi / 2, -2 * np.pi + 3 * np.pi / 2)
+    assert is_close_angle(0, -2 * np.pi)
+    assert is_close_angle(np.pi / 2, -2 * np.pi + np.pi / 2)
+    assert is_close_angle(np.pi, -2 * np.pi + np.pi)
+    assert is_close_angle(3 * np.pi / 2, -2 * np.pi + 3 * np.pi / 2)
 
     # boundary cases
-    assert _is_close_angle(-1e-10, 1e-10)
+    assert is_close_angle(-1e-10, 1e-10)
 
 
 def test_identity() -> None:
@@ -130,9 +130,9 @@ def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
 def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = meas_basis(plane, angle)
-    plane_get, angle_get = _meas_basis_info(basis)
+    plane_get, angle_get = meas_basis_info(basis)
     assert plane == plane_get, f"Expected {plane}, got {plane_get}"
-    assert _is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
+    assert is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
 
 
 def test_local_clifford(random_clifford_angles: tuple[float, float, float]) -> None:
@@ -187,7 +187,7 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
     ref_angle = ref_angle_func(angle)
 
     assert result_basis.plane == ref_plane
-    assert _is_close_angle(result_basis.angle, ref_angle)
+    assert is_close_angle(result_basis.angle, ref_angle)
 
 
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
@@ -207,4 +207,4 @@ def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> N
     ref_angle = ref_angle_func(angle)
 
     assert result_basis.plane == ref_plane
-    assert _is_close_angle(result_basis.angle, ref_angle)
+    assert is_close_angle(result_basis.angle, ref_angle)
