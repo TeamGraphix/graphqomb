@@ -106,7 +106,7 @@ def test_euler_decomposition_corner(angles: tuple[float, float, float]) -> None:
     assert np.allclose(array, array_reconstructed)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = meas_basis(plane, angle)
