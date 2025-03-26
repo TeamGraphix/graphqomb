@@ -184,7 +184,7 @@ class LocalUnitary:
 
         Returns
         -------
-        :class:`NDArray`\[:class:`np.complex128`\]
+        :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
             2x2 unitary matrix
         """
         return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
