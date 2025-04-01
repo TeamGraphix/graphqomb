@@ -116,7 +116,7 @@ def test_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> Non
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 @pytest.mark.parametrize("angle", [0, np.pi / 2, np.pi])
 def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     basis = meas_basis(plane, angle)
@@ -126,7 +126,7 @@ def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
     basis = meas_basis(plane, angle)
@@ -155,7 +155,7 @@ def test_lc_lc_update(random_clifford_angles: tuple[float, float, float]) -> Non
     assert is_clifford_angle(lc.gamma)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_lc_basis_update(
     plane: Plane,
     random_clifford_angles: tuple[float, float, float],
@@ -170,7 +170,7 @@ def test_lc_basis_update(
     assert np.allclose(inner_product, 1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(0, np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
@@ -190,7 +190,7 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
     assert is_close_angle(result_basis.angle, ref_angle)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.YZ, Plane.XZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> None:
     lc = LocalClifford(-np.pi / 2, 0, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
