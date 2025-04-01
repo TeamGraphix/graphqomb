@@ -28,7 +28,7 @@ def is_unitary(mat: NDArray[Numeric]) -> bool:
 
     Parameters
     ----------
-    mat : :class:`numpy.typing.NDArray`\[:class:`numpy.number`\]
+    mat : `numpy.typing.NDArray`\[`numpy.number`\]
         matrix to check
 
     Returns

@@ -34,12 +34,12 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
 
     Parameters
     ----------
-    u : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
+    u : `numpy.typing.NDArray`\[`numpy.complex128`\]
         unitary 2x2 matrix
 
     Returns
     -------
-    :class:`tuple`\[:class:`float`, :class:`float`, :class:`float`\]
+    `tuple`\[`float`, `float`, `float`\]
         euler angles (alpha, beta, gamma)
     """
     global_phase = cmath.sqrt(np.linalg.det(u))
@@ -75,12 +75,12 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
 
     Parameters
     ----------
-    vector : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
+    vector : `numpy.typing.NDArray`\[`numpy.complex128`\]
         1 qubit state vector
 
     Returns
     -------
-    :class:`tuple`\[:class:`float`, :class:`float`]
+    `tuple`\[`float`, `float`]
         Bloch sphere coordinates (theta, phi)
     """
     # normalize
@@ -184,7 +184,7 @@ class LocalUnitary:
 
         Returns
         -------
-        :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
             2x2 unitary matrix
         """
         return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
@@ -255,12 +255,12 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
 
     Parameters
     ----------
-    vector : :class:`numpy.typing.NDArray`\[:class:`numpy.complex128`\]
+    vector : `numpy.typing.NDArray`\[`numpy.complex128`\]
         1 qubit state vector
 
     Returns
     -------
-    :class:`tuple`\[:class:`Plane`, :class:`float`]
+    `tuple`\[`Plane`, `float`]
         measurement plane and angle
 
     Raises
