@@ -113,7 +113,7 @@ def is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
     Returns
     -------
     `bool`
-        True if the angle is close to the target angle
+        `True` if the angle is close to the target angle
     """
     diff_angle = (angle - target) % (2 * np.pi)
 
@@ -135,7 +135,7 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     Returns
     -------
     `bool`
-        True if the angle is a Clifford angle
+        `True` if the angle is a Clifford angle
     """
     angle_preprocessed = angle % (2 * np.pi)
     return any(is_close_angle(angle_preprocessed, target, atol=atol) for target in [0, np.pi / 2, np.pi, 3 * np.pi / 2])

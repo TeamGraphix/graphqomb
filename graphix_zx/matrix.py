@@ -34,7 +34,7 @@ def is_unitary(mat: NDArray[Numeric]) -> bool:
     Returns
     -------
     `bool`
-        True if unitary, False otherwise
+        `True` if unitary, `False` otherwise
     """
     if mat.shape[0] != mat.shape[1]:
         return False
