@@ -97,7 +97,8 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
         phi = cmath.phase(v1)
     else:
         global_phase = cmath.phase(v0)
-        vector /= cmath.exp(1j * global_phase)
+        v0 /= cmath.exp(1j * global_phase)
+        v1 /= cmath.exp(1j * global_phase)
         phi = 0 if np.isclose(v1, 0) else cmath.phase(v1)
         cos_term = v0.real
         sin_term = (v1 / cmath.exp(1j * phi)).real
