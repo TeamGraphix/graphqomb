@@ -41,7 +41,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
     Returns
     -------
     `tuple`\[`float`, `float`, `float`\]
-        euler angles (alpha, beta, gamma)
+        euler angles (:math:`\alpha`, :math:`\beta`, :math:`\gamma`)
     """
     global_phase = cmath.sqrt(np.linalg.det(u))
     u /= global_phase
@@ -76,7 +76,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
 def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, float]:
     r"""Get the Bloch sphere coordinates corresponding to a vector.
 
-    \|psi> = cos(theta/2)\|0> + exp(i*phi)sin(theta/2)|1>
+    :math:`|\psi\rangle = \cos(\theta/2)|0\rangle + \exp(i\phi)\sin(\theta/2)|1\rangle`
 
     Parameters
     ----------
@@ -86,7 +86,7 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
     Returns
     -------
     `tuple`\[`float`, `float`]
-        Bloch sphere coordinates (theta, phi)
+        Bloch sphere coordinates (:math:`\theta`, :math:`\phi`)
     """
     # normalize
     vector /= np.linalg.norm(vector)
@@ -150,18 +150,18 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
 
 
 class LocalUnitary:
-    """Class to represent signle-qubit unitaries.
+    r"""Class to represent signle-qubit unitaries.
 
-    U -> Rz(gamma)Rx(beta)Rz(alpha)
+    :math:`U(\alpha, \beta, \gamma) = R_z(\gamma)R_x(\beta)R_z(\alpha)`
 
     Attributes
     ----------
     alpha : `float`
-        angle for the first Rz, by default 0
+        angle for the first :math:`R_z`, by default 0
     beta : `float`
-        angle for the Rx, by default 0
+        angle for the :math:`R_x`, by default 0
     gamma : `float`
-        angle for the last Rz, by default 0
+        angle for the last :math:`R_z`, by default 0
     """
 
     alpha: float
@@ -178,12 +178,12 @@ class LocalUnitary:
         print(f"alpha: {self.alpha}, beta: {self.beta}, gamma: {self.gamma}")  # noqa: T201
 
     def conjugate(self) -> LocalUnitary:
-        """Return the conjugate of the LocalUnitary object.
+        """Return the conjugate of the `LocalUnitary` object.
 
         Returns
         -------
         `LocalUnitary`
-            conjugate LocalUnitary
+            conjugate `LocalUnitary`
         """
         return LocalUnitary(-self.gamma, -self.beta, -self.alpha)
 
@@ -199,19 +199,19 @@ class LocalUnitary:
 
 
 class LocalClifford(LocalUnitary):
-    """Class to represent a local Clifford.
+    r"""Class to represent a local Clifford.
 
-    U -> Rz(alpha)Rx(beta)Rz(gamma)
-    Each angle must be integer multiples of pi/2.
+    :math:`U(\alpha, \beta, \gamma) = R_z(\gamma)R_x(\beta)R_z(\alpha)`
+    Each angle must be integer multiples of :math:`\pi/2`.
 
     Attributes
     ----------
     alpha : `float`
-        angle for the first Rz. The angle must be a multiple of pi/2, by default 0
+        angle for the first :math:`R_z`. The angle must be a multiple of :math:`\pi/2`, by default 0
     beta : `float`
-        angle for the Rx. The angle must be a multiple of pi/2, by default 0
+        angle for the :math:`R_x`. The angle must be a multiple of :math:`\pi/2`, by default 0
     gamma : `float`
-        angle for the last Rz. The angle must be a multiple of pi/2, by default 0
+        angle for the last :math:`R_z`. The angle must be a multiple of :math:`\pi/2`, by default 0
     """
 
     alpha: float
