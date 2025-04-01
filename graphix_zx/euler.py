@@ -16,6 +16,7 @@ This module provides:
 from __future__ import annotations
 
 import cmath
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -44,26 +45,30 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
     """
     global_phase = cmath.sqrt(np.linalg.det(u))
     u /= global_phase
+    u00 = complex(u[0, 0])
+    u01 = complex(u[0, 1])
+    u10 = complex(u[1, 0])
+    u11 = complex(u[1, 1])
 
-    if np.isclose(u[1, 0], 0):
-        gamma = 2 * np.angle(u[1, 1])
+    if np.isclose(u10, 0):
+        gamma = 2 * cmath.phase(u11)
         beta = 0.0
         alpha = 0.0
-    elif np.isclose(u[1, 1], 0):
-        gamma = 2 * np.angle(u[0, 1] / (-1j))
+    elif np.isclose(u11, 0):
+        gamma = 2 * cmath.phase(u01 / (-1j))
         beta = np.pi
         alpha = 0.0
     else:
-        gamma_p_alpha = np.angle(u[1, 1] / u[0, 0])
-        gamma_m_alpha = np.angle(u[1, 0] / u[0, 1])
+        gamma_p_alpha = cmath.phase(u11 / u00)
+        gamma_m_alpha = cmath.phase(u10 / u01)
 
         gamma = (gamma_p_alpha + gamma_m_alpha) / 2
         alpha = (gamma_p_alpha - gamma_m_alpha) / 2
 
-        cos_term = np.real(u[1, 1] / np.exp(1j * gamma_p_alpha / 2))
-        sin_term = np.real(u[1, 0] / (-1j * np.exp(1j * gamma_m_alpha / 2)))
+        cos_term = (u11 / cmath.exp(1j * gamma_p_alpha / 2)).real
+        sin_term = (u10 / (-1j * cmath.exp(1j * gamma_m_alpha / 2))).real
 
-        beta = 2 * np.angle(cos_term + 1j * sin_term)
+        beta = 2 * cmath.phase(cos_term + 1j * sin_term)
 
     return alpha, beta, gamma
 
@@ -85,16 +90,18 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
     """
     # normalize
     vector /= np.linalg.norm(vector)
-    if np.isclose(vector[0], 0):
+    v0 = complex(vector[0])
+    v1 = complex(vector[1])
+    if np.isclose(v0, 0):
         theta = np.pi
-        phi = np.angle(vector[1])
+        phi = cmath.phase(v1)
     else:
-        global_phase = np.angle(vector[0])
-        vector /= np.exp(1j * global_phase)
-        phi = 0 if np.isclose(vector[1], 0) else np.angle(vector[1])
-        cos_term = np.real(vector[0])
-        sin_term = np.real(vector[1] / np.exp(1j * phi))
-        theta = 2 * np.angle(cos_term + 1j * sin_term)
+        global_phase = cmath.phase(v0)
+        vector /= cmath.exp(1j * global_phase)
+        phi = 0 if np.isclose(v1, 0) else cmath.phase(v1)
+        cos_term = v0.real
+        sin_term = (v1 / cmath.exp(1j * phi)).real
+        theta = 2 * cmath.phase(cos_term + 1j * sin_term)
     return theta, phi
 
 
@@ -338,8 +345,8 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
 def _rx(angle: float) -> NDArray[np.complex128]:
     return np.asarray(
         [
-            [np.cos(angle / 2), -1j * np.sin(angle / 2)],
-            [-1j * np.sin(angle / 2), np.cos(angle / 2)],
+            [math.cos(angle / 2), -1j * math.sin(angle / 2)],
+            [-1j * math.sin(angle / 2), math.cos(angle / 2)],
         ],
         dtype=np.complex128,
     )
@@ -348,8 +355,8 @@ def _rx(angle: float) -> NDArray[np.complex128]:
 def _rz(angle: float) -> NDArray[np.complex128]:
     return np.asarray(
         [
-            [np.exp(-1j * angle / 2), 0],
-            [0, np.exp(1j * angle / 2)],
+            [cmath.exp(-1j * angle / 2), 0],
+            [0, cmath.exp(1j * angle / 2)],
         ],
         dtype=np.complex128,
     )
