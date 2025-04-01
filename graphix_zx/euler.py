@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]:
     r"""Decompose a 2x2 unitary matrix into Euler angles.
 
-    U -> Rz(gamma)Rx(beta)Rz(alpha)
+    :math:`U \rightarrow R_z(\gamma)R_x(\beta)R_z(\alpha)`
 
     Parameters
     ----------
