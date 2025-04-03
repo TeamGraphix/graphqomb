@@ -113,8 +113,8 @@ def test_bloch_sphere_coordinates(plane: Plane, rng: np.random.Generator) -> Non
     basis = meas_basis(plane, angle)
     theta, phi = bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
-    inner_product = np.abs(np.vdot(reconst_vec, basis))
-    assert np.allclose(inner_product, 1)
+    inner_product = abs(np.vdot(reconst_vec, basis))
+    assert np.isclose(inner_product, 1)
 
 
 @pytest.mark.parametrize("plane", list(Plane))
@@ -123,8 +123,8 @@ def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     basis = meas_basis(plane, angle)
     theta, phi = bloch_sphere_coordinates(basis)
     reconst_vec = np.asarray([np.cos(theta / 2), np.exp(1j * phi) * np.sin(theta / 2)])
-    inner_product = np.abs(np.vdot(reconst_vec, basis))
-    assert np.allclose(inner_product, 1)
+    inner_product = abs(np.vdot(reconst_vec, basis))
+    assert np.isclose(inner_product, 1)
 
 
 @pytest.mark.parametrize("plane", list(Plane))
@@ -167,8 +167,8 @@ def test_lc_basis_update(
     basis = PlannerMeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
     ref_updated_basis = lc.matrix() @ basis.vector()
-    inner_product = np.abs(np.vdot(basis_updated.vector(), ref_updated_basis))
-    assert np.allclose(inner_product, 1)
+    inner_product = abs(np.vdot(basis_updated.vector(), ref_updated_basis))
+    assert np.isclose(inner_product, 1)
 
 
 @pytest.mark.parametrize("plane", list(Plane))
