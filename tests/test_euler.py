@@ -34,7 +34,8 @@ def random_angles(rng: np.random.Generator) -> tuple[float, float, float]:
 
 @pytest.fixture
 def random_clifford_angles(rng: np.random.Generator) -> tuple[float, float, float]:
-    return tuple(rng.choice([0, np.pi / 2, np.pi, 3 * np.pi / 2], 3))
+    a, b, c = rng.choice([0, np.pi / 2, np.pi, 3 * np.pi / 2], 3)
+    return float(a), float(b), float(c)
 
 
 def test_is_clifford_angle() -> None:
