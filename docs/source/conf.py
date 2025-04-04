@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.autosectionlabel",
+    "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_gallery.gen_gallery",
 ]
@@ -42,6 +43,11 @@ autodoc_member_order = "bysource"
 html_theme = "furo"
 html_title = " "
 # html_static_path = ["_static"]
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+}
 
 html_context = {
     "mode": "production",

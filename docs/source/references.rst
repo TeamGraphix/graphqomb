@@ -5,3 +5,5 @@ Module reference
     :maxdepth: 2
 
     common
+    euler
+    matrix

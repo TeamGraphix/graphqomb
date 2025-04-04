@@ -20,15 +20,15 @@ Enums
        Arbitrary-angle measurement on the XY plane.
 
     .. py:attribute:: YZ
-        
+
        Arbitrary-angle measurement on the YZ plane.
 
     .. py:attribute:: XZ
-        
+
        Arbitrary-angle measurement on the XZ plane.
 
 .. class:: graphix_zx.common.Axis
-    
+
     Measurement axis for Pauli measurement.
 
     .. py:attribute:: X
@@ -36,11 +36,11 @@ Enums
         Pauli X-axis.
 
     .. py:attribute:: Y
-        
+
         Pauli Y-axis.
 
     .. py:attribute:: Z
-        
+
         Pauli Z-axis.
 
 .. class:: graphix_zx.common.Sign
@@ -52,7 +52,7 @@ Enums
       Positive sign.
 
     .. py:attribute:: MINUS
-        
+
       Negative sign.
 
 Abstract Base Classes

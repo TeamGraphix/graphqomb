@@ -100,18 +100,18 @@ class PlannerMeasBasis(MeasBasis):
 
         Returns
         -------
-        float
+        `float`
             measurement angle
         """
         return self.__angle
 
     @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:
-        """Return the measurement basis vector.
+        r"""Return the measurement basis vector.
 
         Returns
         -------
-        NDArray[np.complex128]
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
             measurement basis vector
         """
         return meas_basis(self.plane, self.angle)
@@ -193,7 +193,7 @@ class AxisMeasBasis(MeasBasis):
 
         Returns
         -------
-        float
+        `float`
             measurement angle
 
         Raises
@@ -212,11 +212,11 @@ class AxisMeasBasis(MeasBasis):
 
     @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:
-        """Return the measurement basis vector.
+        r"""Return the measurement basis vector.
 
         Returns
         -------
-        NDArray[np.complex128]
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
             measurement basis vector
         """
         return meas_basis(self.plane, self.angle)
@@ -236,18 +236,18 @@ def default_meas_basis() -> PlannerMeasBasis:
 
 
 def meas_basis(plane: Plane, angle: float) -> NDArray[np.complex128]:
-    """Return the measurement basis vector corresponding to the plane and angle.
+    r"""Return the measurement basis vector corresponding to the plane and angle.
 
     Parameters
     ----------
     plane : `Plane`
         measurement plane
-    angle : float
+    angle : `float`
         measurement angle
 
     Returns
     -------
-    NDArray[np.complex128]
+    `numpy.typing.NDArray`\[`numpy.complex128`\]
         measurement basis vector
 
     Raises
