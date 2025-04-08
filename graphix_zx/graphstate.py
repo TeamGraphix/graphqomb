@@ -1,6 +1,7 @@
 """Graph State classes for Measurement-based Quantum Computing.
 
 This module provides:
+
 - `BaseGraphState`: Abstract base class for Graph State.
 - `GraphState`: Minimal implementation of Graph State.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
@@ -223,25 +224,7 @@ class BaseGraphState(ABC):
 
 
 class GraphState(BaseGraphState):
-    r"""Minimal implementation of GraphState.
-
-    Attributes
-    ----------
-    input_nodes : `set`\[`int`\]
-        set of input nodes
-    output_nodes : `set`\[`int`\]
-        set of output nodes
-    physical_nodes : `set`\[`int`\]
-        set of physical nodes
-    physical_edges : `dict`\[`int`, `set`\[`int`\]
-        physical edges
-    meas_bases : `dict`\[`int`, `MeasBasis`\]
-        measurement bases
-    q_indices : `dict`\[`int`, `int`\]
-        qubit indices
-    local_cliffords : `dict`\[`int`, `LocalClifford`\]
-        local clifford operators
-    """
+    """Minimal implementation of GraphState."""
 
     __input_nodes: set[int]
     __output_nodes: set[int]

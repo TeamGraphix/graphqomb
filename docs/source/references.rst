@@ -7,3 +7,4 @@ Module reference
     common
     euler
     matrix
+    graphstate
