@@ -1,8 +1,9 @@
 """Graph State classes for Measurement-based Quantum Computing.
 
 This module provides:
-- BaseGraphState: Abstract base class for Graph State.
-- GraphState: Minimal implementation of Graph State.
+- `BaseGraphState`: Abstract base class for Graph State.
+- `GraphState`: Minimal implementation of Graph State.
+- `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 """
 
 from __future__ import annotations
@@ -20,10 +21,6 @@ if TYPE_CHECKING:
 
 class BaseGraphState(ABC):
     """Abstract base class for Graph State."""
-
-    @abstractmethod
-    def __init__(self) -> None:
-        pass
 
     @property
     @abstractmethod
@@ -46,30 +43,6 @@ class BaseGraphState(ABC):
         -------
         set[int]
             set of output nodes.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def num_physical_nodes(self) -> int:
-        """Return the number of physical nodes.
-
-        Returns
-        -------
-        int
-            number of physical nodes.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def num_physical_edges(self) -> int:
-        """Return the number of physical edges.
-
-        Returns
-        -------
-        int
-            number of physical edges.
         """
         raise NotImplementedError
 
