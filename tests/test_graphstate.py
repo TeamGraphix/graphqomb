@@ -41,7 +41,7 @@ def test_add_physical_node_input_output(graph: GraphState) -> None:
 def test_add_duplicate_physical_node(graph: GraphState) -> None:
     """Test adding a duplicate physical node to the graph."""
     graph.add_physical_node(1)
-    with pytest.raises(Exception, match="Node already exists"):
+    with pytest.raises(ValueError, match="Node already exists"):
         graph.add_physical_node(1)
 
 
