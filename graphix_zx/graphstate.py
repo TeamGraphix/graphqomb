@@ -25,11 +25,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def input_nodes(self) -> set[int]:
-        """Return set of input nodes.
+        r"""Return set of input nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of input nodes.
         """
         raise NotImplementedError
@@ -37,11 +37,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def output_nodes(self) -> set[int]:
-        """Return set of output nodes.
+        r"""Return set of output nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of output nodes.
         """
         raise NotImplementedError
@@ -49,11 +49,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def physical_nodes(self) -> set[int]:
-        """Return set of physical nodes.
+        r"""Return set of physical nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of physical nodes.
         """
         raise NotImplementedError
@@ -61,11 +61,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def physical_edges(self) -> set[tuple[int, int]]:
-        """Return set of physical edges.
+        r"""Return set of physical edges.
 
         Returns
         -------
-        set[tuple[int, int]]
+        `set`\[`tuple`\[`int`, `int`\]`
             set of physical edges.
         """
         raise NotImplementedError
@@ -74,11 +74,11 @@ class BaseGraphState(ABC):
     @abstractmethod
     # Generics?
     def q_indices(self) -> dict[int, int]:
-        """Return local qubit indices.
+        r"""Return local qubit indices.
 
         Returns
         -------
-        dict[int, int]
+        `dict`\[`int`, `int`\]
             logical qubit indices of each physical node.
         """
         raise NotImplementedError
@@ -86,11 +86,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def meas_bases(self) -> dict[int, MeasBasis]:
-        """Return measurement bases.
+        r"""Return measurement bases.
 
         Returns
         -------
-        dict[int, MeasBasis]
+        `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
         raise NotImplementedError
@@ -98,11 +98,11 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def local_cliffords(self) -> dict[int, LocalClifford]:
-        """Return local clifford nodes.
+        r"""Return local clifford nodes.
 
         Returns
         -------
-        dict[int, LocalClifford]
+        `dict`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
         raise NotImplementedError
@@ -120,13 +120,13 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        q_index : int
+        q_index : `int`
             logical qubit index
-        is_input : bool
+        is_input : `bool`
             True if node is input node
-        is_output : bool
+        is_output : `bool`
             True if node is output node
         """
         raise NotImplementedError
@@ -137,9 +137,9 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node1 : int
+        node1 : `int`
             node index
-        node2 : int
+        node2 : `int`
             node index
         """
         raise NotImplementedError
@@ -150,7 +150,7 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
         """
         raise NotImplementedError
@@ -161,7 +161,7 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
         """
         raise NotImplementedError
@@ -172,9 +172,9 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        q_index:  int
+        q_index:  `int`
             logical qubit index
         """
         raise NotImplementedError
@@ -185,9 +185,9 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        meas_basis : MeasBasis
+        meas_basis : `MeasBasis`
             measurement basis
         """
         raise NotImplementedError
@@ -198,48 +198,48 @@ class BaseGraphState(ABC):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        lc : LocalClifford
+        lc : `LocalClifford`
             local clifford operator
         """
         raise NotImplementedError
 
     @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
-        """Return the neighbors of the node.
+        r"""Return the neighbors of the node.
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of neighboring nodes
         """
         raise NotImplementedError
 
 
 class GraphState(BaseGraphState):
-    """Minimal implementation of GraphState.
+    r"""Minimal implementation of GraphState.
 
     Attributes
     ----------
-    input_nodes : set[int]
+    input_nodes : `set`\[`int`\]
         set of input nodes
-    output_nodes : set[int]
+    output_nodes : `set`\[`int`\]
         set of output nodes
-    physical_nodes : set[int]
+    physical_nodes : `set`\[`int`\]
         set of physical nodes
-    physical_edges : dict[int, set[int]]
+    physical_edges : `dict`\[`int`, `set`\[`int`\]
         physical edges
-    meas_bases : dict[int, MeasBasis]
+    meas_bases : `dict`\[`int`, `MeasBasis`\]
         measurement bases
-    q_indices : dict[int, int]
+    q_indices : `dict`\[`int`, `int`\]
         qubit indices
-    local_cliffords : dict[int, LocalClifford]
+    local_cliffords : `dict`\[`int`, `LocalClifford`\]
         local clifford operators
     """
 
@@ -271,22 +271,22 @@ class GraphState(BaseGraphState):
 
     @property
     def input_nodes(self) -> set[int]:
-        """Return set of input nodes.
+        r"""Return set of input nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of input nodes.
         """
         return self.__input_nodes
 
     @property
     def output_nodes(self) -> set[int]:
-        """Return set of output nodes.
+        r"""Return set of output nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of output nodes.
         """
         return self.__output_nodes
@@ -297,7 +297,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        int
+        `int`
             number of physical nodes.
         """
         return len(self.__physical_nodes)
@@ -308,29 +308,29 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        int
+        `int`
             number of physical edges.
         """
         return sum(len(edges) for edges in self.__physical_edges.values()) // 2
 
     @property
     def physical_nodes(self) -> set[int]:
-        """Return set of physical nodes.
+        r"""Return set of physical nodes.
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of physical nodes.
         """
         return self.__physical_nodes
 
     @property
     def physical_edges(self) -> set[tuple[int, int]]:
-        """Return set of physical edges.
+        r"""Return set of physical edges.
 
         Returns
         -------
-        set[tuple[int, int]]
+        `set`\[`tuple`\[`int`, `int`\]
             set of physical edges.
         """
         edges = set()
@@ -342,33 +342,33 @@ class GraphState(BaseGraphState):
 
     @property
     def q_indices(self) -> dict[int, int]:
-        """Return local qubit indices.
+        r"""Return local qubit indices.
 
         Returns
         -------
-        dict[int, int]
+        `dict`\[`int`, `int`\]
             logical qubit indices of each physical node.
         """
         return self.__q_indices
 
     @property
     def meas_bases(self) -> dict[int, MeasBasis]:
-        """Return measurement bases.
+        r"""Return measurement bases.
 
         Returns
         -------
-        dict[int, MeasBasis]
+        `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
         return self.__meas_bases
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
-        """Return local clifford nodes.
+        r"""Return local clifford nodes.
 
         Returns
         -------
-        dict[int, LocalClifford]
+        `dict`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
         return self.__local_cliffords
@@ -398,13 +398,13 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        q_index : int
+        q_index : `int`
             logical qubit index
-        is_input : bool
+        is_input : `bool`
             True if node is input node
-        is_output : bool
+        is_output : `bool`
             True if node is output node
 
         Raises
@@ -444,9 +444,9 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node1 : int
+        node1 : `int`
             node index
-        node2 : int
+        node2 : `int`
             node index
 
         Raises
@@ -467,7 +467,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-            node : int
+        node : `int`
 
         Raises
         ------
@@ -496,9 +496,9 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node1 : int
+        node1 : `int`
             node index
-        node2 : int
+        node2 : `int`
             node index
 
         Raises
@@ -519,7 +519,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
         """
         self.ensure_node_exists(node)
@@ -530,7 +530,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
 
         Raises
@@ -550,9 +550,9 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        q_index:  int, optional
+        q_index:  `int`, optional
             logical qubit index, by default -1
 
         Raises
@@ -571,9 +571,9 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        meas_basis : MeasBasis
+        meas_basis : `MeasBasis`
             measurement basis
         """
         self.ensure_node_exists(node)
@@ -584,9 +584,9 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
-        lc : LocalClifford
+        lc : `LocalClifford`
             local clifford operator
         """
         self.ensure_node_exists(node)
@@ -601,12 +601,12 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index to remove local clifford.
 
         Returns
         -------
-        LocalClifford | None
+        `LocalClifford` | `None`
             removed local clifford
         """
         return self.__local_cliffords.pop(node, None)
@@ -634,16 +634,16 @@ class GraphState(BaseGraphState):
             self._reset_input(input_node)
 
     def get_neighbors(self, node: int) -> set[int]:
-        """Return the neighbors of the node.
+        r"""Return the neighbors of the node.
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
 
         Returns
         -------
-        set[int]
+        `set`\[`int`\]
             set of neighboring nodes
         """
         self.ensure_node_exists(node)
@@ -654,7 +654,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
         """
         if node in self.__input_nodes:
@@ -668,7 +668,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        node : int
+        node : `int`
             node index
         """
         if node in self.__output_nodes:
@@ -679,7 +679,7 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        other : BaseGraphState
+        other : `BaseGraphState`
             another graph state to append
 
         Raises
@@ -721,18 +721,18 @@ class GraphState(BaseGraphState):
 
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
-    """Return a set of edges for the complete bipartite graph between two sets of nodes.
+    r"""Return a set of edges for the complete bipartite graph between two sets of nodes.
 
     Parameters
     ----------
-    node_set1 : set[int]
+    node_set1 : `set`\[`int`\]
         set of nodes
-    node_set2 : set[int]
+    node_set2 : `set`\[`int`\]
         set of nodes
 
     Returns
     -------
-    set[tuple[int, int]]
+    `set`\[`tuple`\[`int`, `int`\]
         set of edges for the complete bipartite graph
     """
     return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2) if a != b}
