@@ -15,7 +15,7 @@ def graph() -> GraphState:
 
     Returns
     -------
-        GraphState: An empty GraphState object.
+    GraphState: An empty GraphState object.
     """
     return GraphState()
 
@@ -29,9 +29,13 @@ def test_add_physical_node(graph: GraphState) -> None:
 
 def test_add_physical_node_input_output(graph: GraphState) -> None:
     """Test adding a physical node as input and output."""
-    graph.add_physical_node(1, is_input=True, is_output=True)
-    assert 1 in graph.input_nodes
-    assert 1 in graph.output_nodes
+    graph.add_physical_node(1)
+    graph.set_input(1, 0)
+    graph.set_output(1, 0)
+    assert 1 in graph.input_node_indices
+    assert 1 in graph.output_node_indices
+    assert graph.input_node_indices[1] == 0
+    assert graph.output_node_indices[1] == 0
 
 
 def test_add_duplicate_physical_node(graph: GraphState) -> None:
@@ -125,15 +129,15 @@ def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
     graph.add_physical_node(3)
     graph.add_physical_edge(1, 2)
     graph.add_physical_edge(2, 3)
-    graph.set_input(2)
-    graph.set_output(2)
+    graph.set_input(2, 0)
+    graph.set_output(2, 0)
     graph.remove_physical_node(2)
     assert graph.physical_nodes == {1, 3}
     assert graph.physical_edges == set()
     assert graph.num_physical_nodes == 2
     assert graph.num_physical_edges == 0
-    assert graph.input_nodes == set()
-    assert graph.output_nodes == set()
+    assert graph.input_node_indices == {}
+    assert graph.output_node_indices == {}
 
 
 def test_remove_physical_edge_with_nonexistent_nodes(graph: GraphState) -> None:
@@ -161,34 +165,16 @@ def test_remove_physical_edge(graph: GraphState) -> None:
     assert graph.num_physical_edges == 0
 
 
-def test_set_input(graph: GraphState) -> None:
-    """Test setting a physical node as input."""
-    graph.add_physical_node(1)
-    graph.set_input(1)
-    assert 1 in graph.input_nodes
-
-
 def test_set_output_raises_1(graph: GraphState) -> None:
     with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.set_output(1)
-    graph.add_physical_node(1)
-    graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
-    with pytest.raises(ValueError, match=r"Cannot set output node with measurement basis."):
-        graph.set_output(1)
+        graph.set_output(1, 0)
 
 
 def test_set_output_raises_2(graph: GraphState) -> None:
     graph.add_physical_node(1)
     graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
     with pytest.raises(ValueError, match=r"Cannot set output node with measurement basis."):
-        graph.set_output(1)
-
-
-def test_set_output(graph: GraphState) -> None:
-    """Test setting a physical node as output."""
-    graph.add_physical_node(1)
-    graph.set_output(1)
-    assert 1 in graph.output_nodes
+        graph.set_output(1, 0)
 
 
 def test_set_meas_basis(graph: GraphState) -> None:
@@ -203,21 +189,25 @@ def test_set_meas_basis(graph: GraphState) -> None:
 def test_append_graph() -> None:
     """Test appending a graph to another graph."""
     graph1 = GraphState()
-    graph1.add_physical_node(1, is_input=True)
-    graph1.add_physical_node(2, is_output=True)
+    graph1.add_physical_node(1)
+    graph1.set_input(1, 0)
+    graph1.add_physical_node(2)
+    graph1.set_output(2, 0)
     graph1.add_physical_edge(1, 2)
 
     graph2 = GraphState()
-    graph2.add_physical_node(2, is_input=True)
-    graph2.add_physical_node(3, is_output=True)
+    graph2.add_physical_node(2)
+    graph2.set_input(2, 0)
+    graph2.add_physical_node(3)
+    graph2.set_output(3, 0)
     graph2.add_physical_edge(2, 3)
 
     graph1.append(graph2)
 
     assert graph1.num_physical_nodes == 3
     assert graph1.num_physical_edges == 2
-    assert 1 in graph1.input_nodes
-    assert 3 in graph1.output_nodes
+    assert 1 in graph1.input_node_indices
+    assert 3 in graph1.output_node_indices
 
 
 def test_check_meas_raises_value_error(graph: GraphState) -> None:
@@ -237,7 +227,7 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
 
     graph.add_physical_node(2)
     graph.add_physical_edge(1, 2)
-    graph.set_output(2)
+    graph.set_output(2, 0)
     graph.check_meas_basis()
 
 
