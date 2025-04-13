@@ -488,30 +488,37 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords.pop(node, None)
 
-    def parse_input_local_cliffords(self) -> None:
-        """Parse local Clifford operators applied on the input nodes."""
+    def parse_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+        r"""Parse local Clifford operators applied on the input nodes.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]
+            A dictionary mapping input node indices to the new node indices created.
+        """
+        node_index_addition_map = {}
         for input_node in self.input_node_indices:
             lc = self.pop_local_clifford(input_node)
             if lc is None:
                 continue
-            node_indices = (self.__inner_index, self.__inner_index + 1, self.__inner_index + 2)
 
-            self.add_physical_node(node_indices[0])
-            self.set_input(node_indices[0], q_index=self.input_node_indices[input_node])
-            self.add_physical_node(node_indices[1])
-            self.set_input(node_indices[1], q_index=self.input_node_indices[input_node])
-            self.add_physical_node(node_indices[2])
-            self.set_input(node_indices[2], q_index=self.input_node_indices[input_node])
+            new_node_index0 = self.add_physical_node()
+            self.set_input(new_node_index0, q_index=self.input_node_indices[input_node])
+            new_node_index1 = self.add_physical_node()
+            new_node_index2 = self.add_physical_node()
 
-            self.add_physical_edge(node_indices[0], node_indices[1])
-            self.add_physical_edge(node_indices[1], node_indices[2])
-            self.add_physical_edge(node_indices[2], input_node)
+            self.add_physical_edge(new_node_index0, new_node_index1)
+            self.add_physical_edge(new_node_index1, new_node_index2)
+            self.add_physical_edge(new_node_index2, input_node)
 
-            self.set_meas_basis(node_indices[0], PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.set_meas_basis(node_indices[1], PlannerMeasBasis(Plane.XY, lc.beta))
-            self.set_meas_basis(node_indices[2], PlannerMeasBasis(Plane.XY, lc.gamma))
+            self.set_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.set_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
+            self.set_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
 
             self._reset_input(input_node)
+            node_index_addition_map[input_node] = (new_node_index0, new_node_index1, new_node_index2)
+
+        return node_index_addition_map
 
     def get_neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
