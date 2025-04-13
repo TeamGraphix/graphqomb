@@ -98,14 +98,13 @@ class BaseGraphState(ABC):
     @abstractmethod
     def add_physical_node(
         self,
-        node: int,
-    ) -> None:
+    ) -> int:
         """Add a physical node to the graph state.
 
-        Parameters
-        ----------
-        node : `int`
-            node index
+        Returns
+        -------
+        `int`
+            The node index intenally generated
         """
         raise NotImplementedError
 
@@ -202,8 +201,6 @@ class GraphState(BaseGraphState):
     __local_cliffords: dict[int, LocalClifford]
 
     __inner_index: int
-    __inner2nodes: dict[int, int]
-    __nodes2inner: dict[int, int]
 
     def __init__(self) -> None:
         self.__input_node_indices = {}
@@ -214,8 +211,6 @@ class GraphState(BaseGraphState):
         self.__local_cliffords = {}
 
         self.__inner_index = 0
-        self.__inner2nodes = {}
-        self.__nodes2inner = {}
 
     @property
     def input_node_indices(self) -> dict[int, int]:
@@ -325,29 +320,20 @@ class GraphState(BaseGraphState):
 
     def add_physical_node(
         self,
-        node: int,
-    ) -> None:
+    ) -> int:
         """Add a physical node to the graph state.
 
-        Parameters
-        ----------
-        node : `int`
-            node index
-
-        Raises
-        ------
-        ValueError
-            If the node already exists in the graph state.
+        Returns
+        -------
+        `int`
+            The node index internally generated.
         """
-        if node in self.__physical_nodes:
-            msg = f"Node already exists {node=}"
-            raise ValueError(msg)
+        node = self.__inner_index
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
-
-        self.__inner2nodes[self.__inner_index] = node
-        self.__nodes2inner[node] = self.__inner_index
         self.__inner_index += 1
+
+        return node
 
     def ensure_node_exists(self, node: int) -> None:
         """Ensure that the node exists in the graph state.
@@ -390,27 +376,14 @@ class GraphState(BaseGraphState):
         Parameters
         ----------
         node : `int`
-
-        Raises
-        ------
-        ValueError
-            If the node does not exist.
         """
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
         self.ensure_node_exists(node)
         self.__physical_nodes -= {node}
+        for neighbor in self.__physical_edges[node]:
+            self.__physical_edges[neighbor] -= {node}
         del self.__physical_edges[node]
-        self.__input_node_indices.pop(node, None)
-        self.__output_node_indices.pop(node, None)
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
-        for neighbor in self.__physical_edges:
-            self.__physical_edges[neighbor] -= {node}
-
-        self.__inner2nodes.pop(self.__nodes2inner[node])
-        self.__nodes2inner.pop(node)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
