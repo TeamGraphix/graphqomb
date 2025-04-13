@@ -561,44 +561,6 @@ class GraphState(BaseGraphState):
         if node in self.__output_node_indices:
             self.__output_node_indices.pop(node)
 
-    def append(self, other: BaseGraphState) -> None:
-        """Append another graph state to the current graph state.
-
-        Parameters
-        ----------
-        other : `BaseGraphState`
-            another graph state to append
-
-        Raises
-        ------
-        ValueError
-            If the qubit indices do not match.
-        """
-        common_nodes = self.physical_nodes & other.physical_nodes
-        border_nodes = set(self.output_node_indices.keys()) & set(other.input_node_indices.keys())
-
-        if common_nodes != border_nodes:
-            msg = "Qubit index mismatch"
-            raise ValueError(msg)
-
-        for node in other.physical_nodes:
-            if node in border_nodes:
-                self._reset_input(node)
-                self._reset_output(node)
-            else:
-                self.add_physical_node(node)
-                if node in other.input_node_indices and node not in other.output_node_indices:
-                    self.set_input(node, q_index=other.input_node_indices[node])
-
-            if node in other.output_node_indices:
-                self.set_output(node, q_index=other.output_node_indices[node])
-            else:
-                meas_basis = other.meas_bases.get(node, default_meas_basis())
-                self.set_meas_basis(node, meas_basis)
-
-        for edge in other.physical_edges:
-            self.add_physical_edge(edge[0], edge[1])
-
 
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
     r"""Return a set of edges for the complete bipartite graph between two sets of nodes.
