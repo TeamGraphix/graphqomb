@@ -123,14 +123,17 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set_input(self, node: int, q_index: int) -> None:
+    def set_input(self, node: int) -> int:
         """Set the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-        q_index : `int`
+
+        Returns
+        -------
+        `int`
             logical qubit index
         """
         raise NotImplementedError
@@ -377,7 +380,16 @@ class GraphState(BaseGraphState):
         Parameters
         ----------
         node : `int`
+            node index to be removed
+
+        Raises
+        ------
+        ValueError
+            If the input node is specified
         """
+        if node in self.input_node_indices:
+            msg = "The input node cannot be removed"
+            raise ValueError(msg)
         self.ensure_node_exists(node)
         self.__physical_nodes -= {node}
         for neighbor in self.__physical_edges[node]:
@@ -385,8 +397,6 @@ class GraphState(BaseGraphState):
         del self.__physical_edges[node]
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
-        self._reset_input(node)
-        self._reset_output(node)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
@@ -411,18 +421,23 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] -= {node2}
         self.__physical_edges[node2] -= {node1}
 
-    def set_input(self, node: int, q_index: int) -> None:
+    def set_input(self, node: int) -> int:
         """Set the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-        q_index : `int`
+
+        Returns
+        -------
+        `int`
             logical qubit index
         """
         self.ensure_node_exists(node)
+        q_index = len(self.__input_node_indices)
         self.__input_node_indices[node] = q_index
+        return q_index
 
     def set_output(self, node: int, q_index: int) -> None:
         """Set the node as an output node.
@@ -439,10 +454,14 @@ class GraphState(BaseGraphState):
         ValueError
             1. If the node does not exist.
             2. If the node has a measurement basis.
+            3. If the invalid q_index specified.
         """
         self.ensure_node_exists(node)
         if self.meas_bases.get(node) is not None:
             msg = "Cannot set output node with measurement basis."
+            raise ValueError(msg)
+        if q_index >= len(self.input_node_indices):
+            msg = "The q_index does not exist in input qubit indices"
             raise ValueError(msg)
         self.__output_node_indices[node] = q_index
 
@@ -500,13 +519,14 @@ class GraphState(BaseGraphState):
             A dictionary mapping input node indices to the new node indices created.
         """
         node_index_addition_map = {}
-        for input_node in self.input_node_indices:
+        new_input_indices = []
+        for input_node in self.input_node_indices:  # TODO: sort according to values
             lc = self.pop_local_clifford(input_node)
             if lc is None:
                 continue
 
             new_node_index0 = self.add_physical_node()
-            self.set_input(new_node_index0, q_index=self.input_node_indices[input_node])
+            new_input_indices.append(new_node_index0)
             new_node_index1 = self.add_physical_node()
             new_node_index2 = self.add_physical_node()
 
@@ -518,8 +538,11 @@ class GraphState(BaseGraphState):
             self.set_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
             self.set_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
 
-            self._reset_input(input_node)
             node_index_addition_map[input_node] = (new_node_index0, new_node_index1, new_node_index2)
+
+        self.__input_node_indices = {}
+        for new_input_index in new_input_indices:
+            self.set_input(new_input_index)
 
         return node_index_addition_map
 
@@ -538,31 +561,6 @@ class GraphState(BaseGraphState):
         """
         self.ensure_node_exists(node)
         return self.__physical_edges[node]
-
-    def _reset_input(self, node: int) -> None:
-        """Reset the input status of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        """
-        if node in self.__input_node_indices:
-            self.__input_node_indices.pop(node)
-        lc = self.pop_local_clifford(node)
-        if lc is not None:
-            self.apply_local_clifford(node, lc)
-
-    def _reset_output(self, node: int) -> None:
-        """Reset the output status of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        """
-        if node in self.__output_node_indices:
-            self.__output_node_indices.pop(node)
 
 
 def sequentialy_compose(  # noqa: C901
@@ -614,8 +612,8 @@ def sequentialy_compose(  # noqa: C901
             composed_graph.apply_local_clifford(node_index, lc)
         node_map2[node] = node_index
 
-    for input_node, q_index in graph1.input_node_indices.items():
-        composed_graph.set_input(node_map1[input_node], q_index)
+    for input_node in graph1.input_node_indices:  # TODO: sort according to q_index
+        composed_graph.set_input(node_map1[input_node])
 
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.set_output(node_map2[output_node], q_index)
