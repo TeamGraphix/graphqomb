@@ -5,6 +5,7 @@ This module provides:
 - `BaseGraphState`: Abstract base class for Graph State.
 - `GraphState`: Minimal implementation of Graph State.
 - `sequential_compose`: Function to compose two graph states sequentially.
+- `parallel_compose`: Function to compose two graph states in parallel.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 """
 
