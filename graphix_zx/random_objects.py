@@ -48,15 +48,17 @@ def get_random_flow_graph(
     """
     graph = GraphState()
     flow: dict[int, set[int]] = {}
+    q_indices = []
 
     if rng is None:
         rng = np.random.default_rng()
 
     # input nodes
-    for q_index in range(width):
+    for _ in range(width):
         node_index = graph.add_physical_node()
-        graph.set_input(node_index, q_index)
+        q_index = graph.set_input(node_index)
         graph.set_meas_basis(node_index, default_meas_basis())
+        q_indices.append(q_index)
 
     # internal nodes
     for _ in range(depth - 2):
@@ -73,9 +75,9 @@ def get_random_flow_graph(
                 graph.add_physical_edge(node_indices_layer[w], node_indices_layer[w + 1])
 
     # output nodes
-    for q_index in range(width):
+    for i in range(width):
         node_index = graph.add_physical_node()
-        graph.set_output(node_index, q_index)
+        graph.set_output(node_index, q_indices[i])
         graph.add_physical_edge(node_index - width, node_index)
         flow[node_index - width] = {node_index}
 
