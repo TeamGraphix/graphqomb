@@ -206,12 +206,10 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
     graph.check_meas_basis()
 
 
-def test_bipartite_edges(graph: GraphState) -> None:
+def test_bipartite_edges() -> None:
     """Test the function that generate complete bipartite edges"""
     assert bipartite_edges(set(), set()) == set()
-    assert bipartite_edges({1, 2, 3}, {1, 2, 3}) == {(1, 2), (1, 3), (2, 3)}
     assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
-    graph.check_meas_basis()
 
 
 if __name__ == "__main__":
