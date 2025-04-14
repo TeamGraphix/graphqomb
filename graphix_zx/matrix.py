@@ -22,7 +22,7 @@ def is_unitary(mat: NDArray[T]) -> bool:
 
     Parameters
     ----------
-    mat : `numpy.typing.NDArray`\[`T`]
+    mat : `numpy.typing.NDArray`\[T]
         matrix to check
 
     Returns
