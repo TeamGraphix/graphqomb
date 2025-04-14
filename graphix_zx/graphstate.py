@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, default_meas_basis
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
@@ -384,6 +384,8 @@ class GraphState(BaseGraphState):
         del self.__physical_edges[node]
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
+        self._reset_input(node)
+        self._reset_output(node)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
