@@ -10,6 +10,7 @@ This module provides:
 
 from __future__ import annotations
 
+import operator
 from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
@@ -520,7 +521,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map = {}
         new_input_indices = []
-        for input_node in self.input_node_indices:  # TODO: sort according to values
+        for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self.pop_local_clifford(input_node)
             if lc is None:
                 continue
@@ -612,7 +613,7 @@ def sequentialy_compose(  # noqa: C901
             composed_graph.apply_local_clifford(node_index, lc)
         node_map2[node] = node_index
 
-    for input_node in graph1.input_node_indices:  # TODO: sort according to q_index
+    for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         composed_graph.set_input(node_map1[input_node])
 
     for output_node, q_index in graph2.output_node_indices.items():
