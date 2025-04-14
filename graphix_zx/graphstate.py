@@ -564,6 +564,69 @@ class GraphState(BaseGraphState):
             self.__output_node_indices.pop(node)
 
 
+def sequentialy_compose(  # noqa: C901
+    graph1: BaseGraphState, graph2: BaseGraphState
+) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
+    r"""Compose two graph states sequentially.
+
+    Parameters
+    ----------
+    graph1 : `BaseGraphState`
+        first graph state
+    graph2 : `BaseGraphState`
+        second graph state
+
+    Returns
+    -------
+    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+        composed graph state, node map for graph1, node map for graph2
+
+    Raises
+    ------
+    ValueError
+        If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+    """
+    if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
+        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
+        raise ValueError(msg)
+    node_map1 = {}
+    node_map2 = {}
+    composed_graph = GraphState()
+
+    for node in graph1.physical_nodes:
+        node_index = composed_graph.add_physical_node()
+        meas_basis = graph1.meas_bases.get(node, None)
+        if meas_basis is not None:
+            composed_graph.set_meas_basis(node_index, meas_basis)
+        lc = graph1.local_cliffords.get(node, None)
+        if lc is not None:
+            composed_graph.apply_local_clifford(node_index, lc)
+        node_map1[node] = node_index
+
+    for node in graph2.physical_nodes:
+        node_index = composed_graph.add_physical_node()
+        meas_basis = graph2.meas_bases.get(node, None)
+        if meas_basis is not None:
+            composed_graph.set_meas_basis(node_index, meas_basis)
+        lc = graph2.local_cliffords.get(node, None)
+        if lc is not None:
+            composed_graph.apply_local_clifford(node_index, lc)
+        node_map2[node] = node_index
+
+    for input_node, q_index in graph1.input_node_indices.items():
+        composed_graph.set_input(node_map1[input_node], q_index)
+
+    for output_node, q_index in graph2.output_node_indices.items():
+        composed_graph.set_output(node_map2[output_node], q_index)
+
+    for edge in graph1.physical_edges:
+        composed_graph.add_physical_edge(node_map1[edge[0]], node_map1[edge[1]])
+    for edge in graph2.physical_edges:
+        composed_graph.add_physical_edge(node_map2[edge[0]], node_map2[edge[1]])
+
+    return composed_graph, node_map1, node_map2
+
+
 def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
     r"""Return a set of edges for the complete bipartite graph between two sets of nodes.
 
