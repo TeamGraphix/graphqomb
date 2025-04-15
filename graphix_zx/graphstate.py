@@ -607,10 +607,10 @@ def sequential_compose(  # noqa: C901
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.set_output(node_map2[output_node], q_index)
 
-    for edge in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[edge[0]], node_map1[edge[1]])
-    for edge in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[edge[0]], node_map2[edge[1]])
+    for u, v in graph1.physical_edges:
+        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
+    for u, v in graph2.physical_edges:
+        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
 
@@ -672,10 +672,10 @@ def parallel_compose(  # noqa: C901
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.set_output(node_map2[output_node], q_index_map2[q_index])
 
-    for edge in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[edge[0]], node_map1[edge[1]])
-    for edge in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[edge[0]], node_map2[edge[1]])
+    for u, v in graph1.physical_edges:
+        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
+    for u, v in graph2.physical_edges:
+        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
 
