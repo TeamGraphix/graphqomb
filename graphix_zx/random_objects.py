@@ -75,9 +75,9 @@ def get_random_flow_graph(
                 graph.add_physical_edge(node_indices_layer[w], node_indices_layer[w + 1])
 
     # output nodes
-    for i in range(width):
+    for qi in q_indices:
         node_index = graph.add_physical_node()
-        graph.set_output(node_index, q_indices[i])
+        graph.set_output(node_index, qi)
         graph.add_physical_edge(node_index - width, node_index)
         flow[node_index - width] = {node_index}
 
