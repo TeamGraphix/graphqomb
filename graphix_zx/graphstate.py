@@ -16,6 +16,8 @@ from abc import ABC, abstractmethod
 from itertools import product
 from typing import TYPE_CHECKING
 
+import typing_extensions
+
 from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis
 
@@ -206,6 +208,7 @@ class GraphState(BaseGraphState):
         self.__inner_index = 0
 
     @property
+    @typing_extensions.override
     def input_node_indices(self) -> dict[int, int]:
         r"""Return map of input nodes.
 
@@ -217,6 +220,7 @@ class GraphState(BaseGraphState):
         return self.__input_node_indices
 
     @property
+    @typing_extensions.override
     def output_node_indices(self) -> dict[int, int]:
         r"""Return map of output nodes.
 
@@ -250,6 +254,7 @@ class GraphState(BaseGraphState):
         return sum(len(edges) for edges in self.__physical_edges.values()) // 2
 
     @property
+    @typing_extensions.override
     def physical_nodes(self) -> set[int]:
         r"""Return set of physical nodes.
 
@@ -261,6 +266,7 @@ class GraphState(BaseGraphState):
         return self.__physical_nodes
 
     @property
+    @typing_extensions.override
     def physical_edges(self) -> set[tuple[int, int]]:
         r"""Return set of physical edges.
 
@@ -277,6 +283,7 @@ class GraphState(BaseGraphState):
         return edges
 
     @property
+    @typing_extensions.override
     def meas_bases(self) -> dict[int, MeasBasis]:
         r"""Return measurement bases.
 
@@ -288,6 +295,7 @@ class GraphState(BaseGraphState):
         return self.__meas_bases
 
     @property
+    @typing_extensions.override
     def local_cliffords(self) -> dict[int, LocalClifford]:
         r"""Return local clifford nodes.
 
@@ -311,6 +319,7 @@ class GraphState(BaseGraphState):
                 msg = f"Measurement basis not set for node {v}"
                 raise ValueError(msg)
 
+    @typing_extensions.override
     def add_physical_node(
         self,
     ) -> int:
@@ -340,6 +349,7 @@ class GraphState(BaseGraphState):
             msg = f"Node does not exist {node=}"
             raise ValueError(msg)
 
+    @typing_extensions.override
     def add_physical_edge(self, node1: int, node2: int) -> None:
         """Add a physical edge to the graph state.
 
@@ -410,6 +420,7 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node1] -= {node2}
         self.__physical_edges[node2] -= {node1}
 
+    @typing_extensions.override
     def set_input(self, node: int) -> int:
         """Set the node as an input node.
 
@@ -428,6 +439,7 @@ class GraphState(BaseGraphState):
         self.__input_node_indices[node] = q_index
         return q_index
 
+    @typing_extensions.override
     def set_output(self, node: int, q_index: int) -> None:
         """Set the node as an output node.
 
@@ -454,6 +466,7 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__output_node_indices[node] = q_index
 
+    @typing_extensions.override
     def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
         """Set the measurement basis of the node.
 
@@ -467,6 +480,7 @@ class GraphState(BaseGraphState):
         self.ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
 
+    @typing_extensions.override
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
         """Apply a local clifford to the node.
 
@@ -535,6 +549,7 @@ class GraphState(BaseGraphState):
 
         return node_index_addition_map
 
+    @typing_extensions.override
     def get_neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
