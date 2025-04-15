@@ -715,7 +715,7 @@ def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, 
     ValueError
         If the two sets of nodes are not disjoint.
     """
-    if node_set1 & node_set2:
+    if not node_set1.isdisjoint(node_set2):
         msg = "The two sets of nodes must be disjoint."
         raise ValueError(msg)
     return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2) if a != b}
