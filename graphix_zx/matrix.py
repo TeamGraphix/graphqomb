@@ -7,22 +7,20 @@ This module provides:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-T = TypeVar("T", bound=np.number[Any])
 
-
-def is_unitary(mat: NDArray[T]) -> bool:
+def is_unitary(mat: NDArray[np.number]) -> bool:
     r"""Check if a matrix is unitary.
 
     Parameters
     ----------
-    mat : `numpy.typing.NDArray`\[T]
+    mat : `numpy.typing.NDArray`\[`numpy.number`\]
         matrix to check
 
     Returns
