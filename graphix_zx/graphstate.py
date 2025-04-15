@@ -22,6 +22,8 @@ from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis
 
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.euler import LocalClifford
 
 
@@ -695,14 +697,14 @@ def parallel_compose(  # noqa: C901
     return composed_graph, node_map1, node_map2
 
 
-def bipartite_edges(node_set1: set[int], node_set2: set[int]) -> set[tuple[int, int]]:
+def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) -> set[tuple[int, int]]:
     r"""Return a set of edges for the complete bipartite graph between two sets of nodes.
 
     Parameters
     ----------
-    node_set1 : `set`\[`int`\]
+    node_set1 : `collections.abc.Set`\[`int`\]
         set of nodes
-    node_set2 : `set`\[`int`\]
+    node_set2 : `collections.abc.Set`\[`int`\]
         set of nodes
 
     Returns
