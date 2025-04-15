@@ -36,7 +36,6 @@ class BaseGraphState(ABC):
         `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
-        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -48,7 +47,6 @@ class BaseGraphState(ABC):
         `dict`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
-        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -60,7 +58,6 @@ class BaseGraphState(ABC):
         `set`\[`int`\]
             set of physical nodes.
         """
-        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -72,7 +69,6 @@ class BaseGraphState(ABC):
         `set`\[`tuple`\[`int`, `int`\]`
             set of physical edges.
         """
-        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -84,7 +80,6 @@ class BaseGraphState(ABC):
         `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
-        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -96,7 +91,6 @@ class BaseGraphState(ABC):
         `dict`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
-        raise NotImplementedError
 
     @abstractmethod
     def add_physical_node(
@@ -109,7 +103,6 @@ class BaseGraphState(ABC):
         `int`
             The node index intenally generated
         """
-        raise NotImplementedError
 
     @abstractmethod
     def add_physical_edge(self, node1: int, node2: int) -> None:
@@ -122,7 +115,6 @@ class BaseGraphState(ABC):
         node2 : `int`
             node index
         """
-        raise NotImplementedError
 
     @abstractmethod
     def set_input(self, node: int) -> int:
@@ -138,7 +130,6 @@ class BaseGraphState(ABC):
         `int`
             logical qubit index
         """
-        raise NotImplementedError
 
     @abstractmethod
     def set_output(self, node: int, q_index: int) -> None:
@@ -151,7 +142,6 @@ class BaseGraphState(ABC):
         q_index : `int`
             logical qubit index
         """
-        raise NotImplementedError
 
     @abstractmethod
     def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
@@ -164,7 +154,6 @@ class BaseGraphState(ABC):
         meas_basis : `MeasBasis`
             measurement basis
         """
-        raise NotImplementedError
 
     @abstractmethod
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
@@ -177,7 +166,6 @@ class BaseGraphState(ABC):
         lc : `LocalClifford`
             local clifford operator
         """
-        raise NotImplementedError
 
     @abstractmethod
     def get_neighbors(self, node: int) -> set[int]:
@@ -193,7 +181,6 @@ class BaseGraphState(ABC):
         `set`\[`int`\]
             set of neighboring nodes
         """
-        raise NotImplementedError
 
 
 class GraphState(BaseGraphState):
