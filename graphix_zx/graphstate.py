@@ -172,7 +172,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def get_neighbors(self, node: int) -> set[int]:
+    def neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
         Parameters
@@ -552,7 +552,7 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
     @typing_extensions.override
-    def get_neighbors(self, node: int) -> set[int]:
+    def neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
         Parameters
