@@ -507,6 +507,7 @@ class GraphState(BaseGraphState):
         if node in self.input_node_indices or node in self.output_node_indices:
             self.__local_cliffords[node] = lc
         else:
+            self._check_meas_basis()
             new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
             self.assign_meas_basis(node, new_meas_basis)
 
