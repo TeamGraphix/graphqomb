@@ -121,8 +121,8 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def set_input(self, node: int) -> int:
-        """Set the node as an input node.
+    def mark_input(self, node: int) -> int:
+        """Mark the node as an input node.
 
         Parameters
         ----------
@@ -136,8 +136,8 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def set_output(self, node: int, q_index: int) -> None:
-        """Set the node as an output node.
+    def mark_output(self, node: int, q_index: int) -> None:
+        """Mark the node as an output node.
 
         Parameters
         ----------
@@ -423,8 +423,8 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     @typing_extensions.override
-    def set_input(self, node: int) -> int:
-        """Set the node as an input node.
+    def mark_input(self, node: int) -> int:
+        """Mark the node as an input node.
 
         Parameters
         ----------
@@ -442,8 +442,8 @@ class GraphState(BaseGraphState):
         return q_index
 
     @typing_extensions.override
-    def set_output(self, node: int, q_index: int) -> None:
-        """Set the node as an output node.
+    def mark_output(self, node: int, q_index: int) -> None:
+        """Mark the node as an output node.
 
         Parameters
         ----------
@@ -547,7 +547,7 @@ class GraphState(BaseGraphState):
 
         self.__input_node_indices = {}
         for new_input_index in new_input_indices:
-            self.set_input(new_input_index)
+            self.mark_input(new_input_index)
 
         return node_index_addition_map
 
@@ -619,10 +619,10 @@ def sequential_compose(  # noqa: C901
         node_map2[node] = node_index
 
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        composed_graph.set_input(node_map1[input_node])
+        composed_graph.mark_input(node_map1[input_node])
 
     for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.set_output(node_map2[output_node], q_index)
+        composed_graph.mark_output(node_map2[output_node], q_index)
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
@@ -676,18 +676,18 @@ def parallel_compose(  # noqa: C901
     q_index_map1 = {}
     q_index_map2 = {}
     for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.set_input(node_map1[input_node])
+        new_q_index = composed_graph.mark_input(node_map1[input_node])
         q_index_map1[old_q_index] = new_q_index
 
     for input_node, old_q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.set_input(node_map2[input_node])
+        new_q_index = composed_graph.mark_input(node_map2[input_node])
         q_index_map2[old_q_index] = new_q_index
 
     for output_node, q_index in graph1.output_node_indices.items():
-        composed_graph.set_output(node_map1[output_node], q_index_map1[q_index])
+        composed_graph.mark_output(node_map1[output_node], q_index_map1[q_index])
 
     for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.set_output(node_map2[output_node], q_index_map2[q_index])
+        composed_graph.mark_output(node_map2[output_node], q_index_map2[q_index])
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])

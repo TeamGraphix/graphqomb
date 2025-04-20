@@ -30,8 +30,8 @@ def test_add_physical_node(graph: GraphState) -> None:
 def test_add_physical_node_input_output(graph: GraphState) -> None:
     """Test adding a physical node as input and output."""
     node_index = graph.add_physical_node()
-    q_index = graph.set_input(node_index)
-    graph.set_output(node_index, q_index)
+    q_index = graph.mark_input(node_index)
+    graph.mark_output(node_index, q_index)
     assert node_index in graph.input_node_indices
     assert node_index in graph.output_node_indices
     assert graph.input_node_indices[node_index] == q_index
@@ -96,7 +96,7 @@ def test_remove_physical_node_with_nonexistent_node(graph: GraphState) -> None:
 def test_remove_physical_node_with_input_removal(graph: GraphState) -> None:
     """Test removing an input node from the graph"""
     node_index = graph.add_physical_node()
-    graph.set_input(node_index)
+    graph.mark_input(node_index)
     with pytest.raises(ValueError, match="The input node cannot be removed"):
         graph.remove_physical_node(node_index)
 
@@ -128,8 +128,8 @@ def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
     node_index3 = graph.add_physical_node()
     graph.add_physical_edge(node_index1, node_index2)
     graph.add_physical_edge(node_index2, node_index3)
-    q_index = graph.set_input(node_index1)
-    graph.set_output(node_index3, q_index)
+    q_index = graph.mark_input(node_index1)
+    graph.mark_output(node_index3, q_index)
     graph.remove_physical_node(node_index2)
     assert graph.physical_nodes == {node_index1, node_index3}
     assert graph.num_physical_nodes == 2
@@ -163,16 +163,16 @@ def test_remove_physical_edge(graph: GraphState) -> None:
     assert graph.num_physical_edges == 0
 
 
-def test_set_output_raises_1(graph: GraphState) -> None:
+def test_mark_output_raises_1(graph: GraphState) -> None:
     with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.set_output(1, 0)
+        graph.mark_output(1, 0)
 
 
-def test_set_output_raises_2(graph: GraphState) -> None:
+def test_mark_output_raises_2(graph: GraphState) -> None:
     node_index = graph.add_physical_node()
     graph.set_meas_basis(node_index, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
     with pytest.raises(ValueError, match=r"Cannot set output node with measurement basis."):
-        graph.set_output(node_index, 0)
+        graph.mark_output(node_index, 0)
 
 
 def test_set_meas_basis(graph: GraphState) -> None:
@@ -195,14 +195,14 @@ def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
     graph.check_meas_basis()
     node_index1 = graph.add_physical_node()
-    q_index = graph.set_input(node_index1)
+    q_index = graph.mark_input(node_index1)
     meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
     graph.set_meas_basis(node_index1, meas_basis)
     graph.check_meas_basis()
 
     node_index2 = graph.add_physical_node()
     graph.add_physical_edge(node_index1, node_index2)
-    graph.set_output(node_index2, q_index)
+    graph.mark_output(node_index2, q_index)
     graph.check_meas_basis()
 
 
