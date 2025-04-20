@@ -366,12 +366,17 @@ class GraphState(BaseGraphState):
         Raises
         ------
         ValueError
-            If the edge already exists.
+            1. If the node does not exist.
+            2. If the edge already exists.
+            3. If the edge is a self-loop.
         """
         self._ensure_node_exists(node1)
         self._ensure_node_exists(node2)
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
             msg = f"Edge already exists {node1=}, {node2=}"
+            raise ValueError(msg)
+        if node1 == node2:
+            msg = "Self-loops are not allowed"
             raise ValueError(msg)
         self.__physical_edges[node1] |= {node2}
         self.__physical_edges[node2] |= {node1}
