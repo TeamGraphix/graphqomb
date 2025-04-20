@@ -458,6 +458,7 @@ class GraphState(BaseGraphState):
             1. If the node does not exist.
             2. If the node has a measurement basis.
             3. If the invalid q_index specified.
+            4. If the q_index already exists in output qubit indices.
         """
         self._ensure_node_exists(node)
         if self.meas_bases.get(node) is not None:
@@ -465,6 +466,9 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         if q_index >= len(self.input_node_indices):
             msg = "The q_index does not exist in input qubit indices"
+            raise ValueError(msg)
+        if q_index in self.output_node_indices.values():
+            msg = "The q_index already exists in output qubit indices"
             raise ValueError(msg)
         self.__output_node_indices[node] = q_index
 
