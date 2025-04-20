@@ -528,6 +528,18 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         return frozenset(self.__physical_edges[node])
 
+    def expand_local_cliffords(self) -> tuple[dict[int, tuple[int, int, int]], dict[int, tuple[int, int, int]]]:
+        r"""Expand local Clifford operators applied on the input and output nodes.
+
+        Returns
+        -------
+        `tuple`\[`dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\], `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]\]
+            A tuple of dictionaries mapping input and output node indices to the new node indices created.
+        """
+        input_node_map = self._expand_input_local_cliffords()
+        output_node_map = self._expand_output_local_cliffords()
+        return input_node_map, output_node_map
+
     def _pop_local_clifford(self, node: int) -> LocalClifford | None:
         """Pop local clifford of the node.
 
@@ -616,45 +628,6 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
 
-def _check_canonical_form(graph: BaseGraphState) -> None:
-    """Check if the graph is in canonical form.
-
-    Definition of canonical form:
-    1. No local Cliffords
-    2. Input and output must have single neighbor
-    3. Internal nodes must not have more than 2 input/output neighbors
-
-    Parameters
-    ----------
-    graph : BaseGraphState
-        The graph state to check for canonical form.
-
-    Raises
-    ------
-    ValueError
-        1. If the graph state is not in canonical form due to local Cliffords.
-        2. If any input/output node does not have a single neighbor.
-        3. If any internal node has more than 2 input/output neighbors.
-    """
-    # 1. no local Cliffords
-    if graph.local_cliffords:
-        msg = "Graph state is not in canonical form. Local Cliffords are not allowed."
-        raise ValueError(msg)
-
-    node_connecting_input_or_output: set[int] = set()
-    for node in graph.input_node_indices | graph.output_node_indices:
-        neighbors = graph.neighbors(node)
-        # 2. input and output must have single neighbor
-        if len(neighbors) != 1:
-            msg = f"Input/Output node {node} must have a single neighbor."
-            raise ValueError(msg)
-        # 3. internal nodes must not have more than 2 input/output neighbors
-        if neighbors & node_connecting_input_or_output:
-            msg = f"Input/Output neighboring node {node} cannot connect to other input/output nodes."
-            raise ValueError(msg)
-        node_connecting_input_or_output |= neighbors
-
-
 def compose_sequentially(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
@@ -675,10 +648,15 @@ def compose_sequentially(  # noqa: C901
     Raises
     ------
     ValueError
-        If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        1. If graph1 or graph2 has local Cliffords.
+        2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
-    _check_canonical_form(graph1)
-    _check_canonical_form(graph2)
+    if graph1.local_cliffords:
+        msg = "Graph1 is not in canonical form. Local Cliffords are not allowed."
+        raise ValueError(msg)
+    if graph2.local_cliffords:
+        msg = "Graph2 is not in canonical form. Local Cliffords are not allowed."
+        raise ValueError(msg)
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
@@ -737,9 +715,18 @@ def compose_in_parallel(  # noqa: C901
     -------
     `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
+
+    Raises
+    ------
+    ValueError
+        1. If graph1 or graph2 has local Cliffords.
     """
-    _check_canonical_form(graph1)
-    _check_canonical_form(graph2)
+    if graph1.local_cliffords:
+        msg = "Graph1 is not in canonical form. Local Cliffords are not allowed."
+        raise ValueError(msg)
+    if graph2.local_cliffords:
+        msg = "Graph2 is not in canonical form. Local Cliffords are not allowed."
+        raise ValueError(msg)
     node_map1 = {}
     node_map2 = {}
     composed_graph = GraphState()
