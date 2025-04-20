@@ -4,8 +4,8 @@ This module provides:
 
 - `BaseGraphState`: Abstract base class for Graph State.
 - `GraphState`: Minimal implementation of Graph State.
-- `sequential_compose`: Function to compose two graph states sequentially.
-- `parallel_compose`: Function to compose two graph states in parallel.
+- `compose_sequentially`: Function to compose two graph states sequentially.
+- `compose_in_parallel`: Function to compose two graph states in parallel.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 """
 
@@ -122,7 +122,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def mark_input(self, node: int) -> int:
+    def register_input(self, node: int) -> int:
         """Mark the node as an input node.
 
         Parameters
@@ -137,7 +137,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def mark_output(self, node: int, q_index: int) -> None:
+    def register_output(self, node: int, q_index: int) -> None:
         """Mark the node as an output node.
 
         Parameters
@@ -198,7 +198,7 @@ class GraphState(BaseGraphState):
     __meas_bases: dict[int, MeasBasis]
     __local_cliffords: dict[int, LocalClifford]
 
-    __inner_index: int
+    __node_counter: int
 
     def __init__(self) -> None:
         self.__input_node_indices = {}
@@ -208,7 +208,7 @@ class GraphState(BaseGraphState):
         self.__meas_bases = {}
         self.__local_cliffords = {}
 
-        self.__inner_index = 0
+        self.__node_counter = 0
 
     @property
     @typing_extensions.override
@@ -247,7 +247,7 @@ class GraphState(BaseGraphState):
 
     @property
     def num_physical_edges(self) -> int:
-        """Return the number of physical edges.
+        """Return the number of undirected physical edges.
 
         Returns
         -------
@@ -345,10 +345,10 @@ class GraphState(BaseGraphState):
         `int`
             The node index internally generated.
         """
-        node = self.__inner_index
+        node = self.__node_counter
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
-        self.__inner_index += 1
+        self.__node_counter += 1
 
         return node
 
@@ -424,7 +424,7 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     @typing_extensions.override
-    def mark_input(self, node: int) -> int:
+    def register_input(self, node: int) -> int:
         """Mark the node as an input node.
 
         Parameters
@@ -443,7 +443,7 @@ class GraphState(BaseGraphState):
         return q_index
 
     @typing_extensions.override
-    def mark_output(self, node: int, q_index: int) -> None:
+    def register_output(self, node: int, q_index: int) -> None:
         """Mark the node as an output node.
 
         Parameters
@@ -537,7 +537,7 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         return frozenset(self.__physical_edges[node])
 
-    def _parse_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+    def _expand_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
         r"""Parse local Clifford operators applied on the input nodes.
 
         Returns
@@ -569,12 +569,12 @@ class GraphState(BaseGraphState):
 
         self.__input_node_indices = {}
         for new_input_index in new_input_indices:
-            self.mark_input(new_input_index)
+            self.register_input(new_input_index)
 
         return node_index_addition_map
 
 
-def sequential_compose(  # noqa: C901
+def compose_sequentially(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
@@ -624,10 +624,10 @@ def sequential_compose(  # noqa: C901
         node_map2[node] = node_index
 
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        composed_graph.mark_input(node_map1[input_node])
+        composed_graph.register_input(node_map1[input_node])
 
     for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.mark_output(node_map2[output_node], q_index)
+        composed_graph.register_output(node_map2[output_node], q_index)
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
@@ -637,10 +637,10 @@ def sequential_compose(  # noqa: C901
     return composed_graph, node_map1, node_map2
 
 
-def parallel_compose(  # noqa: C901
+def compose_in_parallel(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    r"""Compose two graph states parallelly.
+    r"""Compose two graph states in parallel.
 
     Parameters
     ----------
@@ -681,18 +681,18 @@ def parallel_compose(  # noqa: C901
     q_index_map1 = {}
     q_index_map2 = {}
     for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.mark_input(node_map1[input_node])
+        new_q_index = composed_graph.register_input(node_map1[input_node])
         q_index_map1[old_q_index] = new_q_index
 
     for input_node, old_q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.mark_input(node_map2[input_node])
+        new_q_index = composed_graph.register_input(node_map2[input_node])
         q_index_map2[old_q_index] = new_q_index
 
     for output_node, q_index in graph1.output_node_indices.items():
-        composed_graph.mark_output(node_map1[output_node], q_index_map1[q_index])
+        composed_graph.register_output(node_map1[output_node], q_index_map1[q_index])
 
     for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.mark_output(node_map2[output_node], q_index_map2[q_index])
+        composed_graph.register_output(node_map2[output_node], q_index_map2[q_index])
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
