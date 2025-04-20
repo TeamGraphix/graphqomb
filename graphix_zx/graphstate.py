@@ -643,6 +643,8 @@ def compose_sequentially(  # noqa: C901
     ValueError
         If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
+    _check_canonical_form(graph1)
+    _check_canonical_form(graph2)
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
@@ -702,6 +704,8 @@ def compose_in_parallel(  # noqa: C901
     `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
     """
+    _check_canonical_form(graph1)
+    _check_canonical_form(graph2)
     node_map1 = {}
     node_map2 = {}
     composed_graph = GraphState()
