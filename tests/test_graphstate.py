@@ -41,13 +41,13 @@ def test_add_physical_node_input_output(graph: GraphState) -> None:
 def test_ensure_node_exists_raises(graph: GraphState) -> None:
     """Test ensuring a node exists in the graph."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
-        graph.ensure_node_exists(1)
+        graph._ensure_node_exists(1)
 
 
 def test_ensure_node_exists(graph: GraphState) -> None:
     """Test ensuring a node exists in the graph."""
     node_index = graph.add_physical_node()
-    graph.ensure_node_exists(node_index)
+    graph._ensure_node_exists(node_index)
 
 
 def test_neighbors(graph: GraphState) -> None:
@@ -188,22 +188,22 @@ def test_check_meas_raises_value_error(graph: GraphState) -> None:
     """Test if measurement planes and angles are set improperly."""
     node_index = graph.add_physical_node()
     with pytest.raises(ValueError, match=f"Measurement basis not set for node {node_index}"):
-        graph.check_meas_basis()
+        graph._check_meas_basis()
 
 
 def test_check_meas_basis_success(graph: GraphState) -> None:
     """Test if measurement planes and angles are set properly."""
-    graph.check_meas_basis()
+    graph._check_meas_basis()
     node_index1 = graph.add_physical_node()
     q_index = graph.mark_input(node_index1)
     meas_basis = PlannerMeasBasis(Plane.XY, 0.5 * np.pi)
     graph.set_meas_basis(node_index1, meas_basis)
-    graph.check_meas_basis()
+    graph._check_meas_basis()
 
     node_index2 = graph.add_physical_node()
     graph.add_physical_edge(node_index1, node_index2)
     graph.mark_output(node_index2, q_index)
-    graph.check_meas_basis()
+    graph._check_meas_basis()
 
 
 def test_bipartite_edges() -> None:

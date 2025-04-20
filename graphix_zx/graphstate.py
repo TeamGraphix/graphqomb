@@ -308,7 +308,7 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords
 
-    def check_meas_basis(self) -> None:
+    def _check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
 
         Raises
@@ -320,6 +320,18 @@ class GraphState(BaseGraphState):
             if self.meas_bases.get(v) is None:
                 msg = f"Measurement basis not set for node {v}"
                 raise ValueError(msg)
+
+    def _ensure_node_exists(self, node: int) -> None:
+        """Ensure that the node exists in the graph state.
+
+        Raises
+        ------
+        ValueError
+            If the node does not exist in the graph state.
+        """
+        if node not in self.__physical_nodes:
+            msg = f"Node does not exist {node=}"
+            raise ValueError(msg)
 
     @typing_extensions.override
     def add_physical_node(
@@ -339,18 +351,6 @@ class GraphState(BaseGraphState):
 
         return node
 
-    def ensure_node_exists(self, node: int) -> None:
-        """Ensure that the node exists in the graph state.
-
-        Raises
-        ------
-        ValueError
-            If the node does not exist in the graph state.
-        """
-        if node not in self.__physical_nodes:
-            msg = f"Node does not exist {node=}"
-            raise ValueError(msg)
-
     @typing_extensions.override
     def add_physical_edge(self, node1: int, node2: int) -> None:
         """Add a physical edge to the graph state.
@@ -367,8 +367,8 @@ class GraphState(BaseGraphState):
         ValueError
             If the edge already exists.
         """
-        self.ensure_node_exists(node1)
-        self.ensure_node_exists(node2)
+        self._ensure_node_exists(node1)
+        self._ensure_node_exists(node2)
         if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
             msg = f"Edge already exists {node1=}, {node2=}"
             raise ValueError(msg)
@@ -391,7 +391,7 @@ class GraphState(BaseGraphState):
         if node in self.input_node_indices:
             msg = "The input node cannot be removed"
             raise ValueError(msg)
-        self.ensure_node_exists(node)
+        self._ensure_node_exists(node)
         self.__physical_nodes -= {node}
         for neighbor in self.__physical_edges[node]:
             self.__physical_edges[neighbor] -= {node}
@@ -414,8 +414,8 @@ class GraphState(BaseGraphState):
         ValueError
             If the edge does not exist.
         """
-        self.ensure_node_exists(node1)
-        self.ensure_node_exists(node2)
+        self._ensure_node_exists(node1)
+        self._ensure_node_exists(node2)
         if node1 not in self.__physical_edges[node2] or node2 not in self.__physical_edges[node1]:
             msg = "Edge does not exist"
             raise ValueError(msg)
@@ -436,7 +436,7 @@ class GraphState(BaseGraphState):
         `int`
             logical qubit index
         """
-        self.ensure_node_exists(node)
+        self._ensure_node_exists(node)
         q_index = len(self.__input_node_indices)
         self.__input_node_indices[node] = q_index
         return q_index
@@ -459,7 +459,7 @@ class GraphState(BaseGraphState):
             2. If the node has a measurement basis.
             3. If the invalid q_index specified.
         """
-        self.ensure_node_exists(node)
+        self._ensure_node_exists(node)
         if self.meas_bases.get(node) is not None:
             msg = "Cannot set output node with measurement basis."
             raise ValueError(msg)
@@ -479,7 +479,7 @@ class GraphState(BaseGraphState):
         meas_basis : `MeasBasis`
             measurement basis
         """
-        self.ensure_node_exists(node)
+        self._ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
 
     @typing_extensions.override
@@ -493,7 +493,7 @@ class GraphState(BaseGraphState):
         lc : `LocalClifford`
             local clifford operator
         """
-        self.ensure_node_exists(node)
+        self._ensure_node_exists(node)
         if node in self.input_node_indices or node in self.output_node_indices:
             self.__local_cliffords[node] = lc
         else:
@@ -515,7 +515,24 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords.pop(node, None)
 
-    def parse_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+    @typing_extensions.override
+    def neighbors(self, node: int) -> set[int]:
+        r"""Return the neighbors of the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+
+        Returns
+        -------
+        `set`\[`int`\]
+            set of neighboring nodes
+        """
+        self._ensure_node_exists(node)
+        return self.__physical_edges[node]
+
+    def _parse_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
         r"""Parse local Clifford operators applied on the input nodes.
 
         Returns
@@ -550,23 +567,6 @@ class GraphState(BaseGraphState):
             self.mark_input(new_input_index)
 
         return node_index_addition_map
-
-    @typing_extensions.override
-    def neighbors(self, node: int) -> set[int]:
-        r"""Return the neighbors of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-
-        Returns
-        -------
-        `set`\[`int`\]
-            set of neighboring nodes
-        """
-        self.ensure_node_exists(node)
-        return self.__physical_edges[node]
 
 
 def sequential_compose(  # noqa: C901
