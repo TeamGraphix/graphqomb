@@ -14,7 +14,7 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-T = TypeVar("T", bound=np.number[Any])
+T = TypeVar("T", bound=np.number[Any])  # can be removed >= 3.10
 
 
 def is_unitary(mat: NDArray[T]) -> bool:
