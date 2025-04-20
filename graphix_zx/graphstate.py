@@ -34,7 +34,7 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def input_node_indices(self) -> MappingProxyType[int, int]:
-        r"""Return set of input nodes.
+        r"""Return map of input nodes to logical qubit indices.
 
         Returns
         -------
@@ -45,7 +45,7 @@ class BaseGraphState(ABC):
     @property
     @abstractmethod
     def output_node_indices(self) -> MappingProxyType[int, int]:
-        r"""Return set of output nodes.
+        r"""Return map of output nodes to logical qubit indices.
 
         Returns
         -------
@@ -213,7 +213,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def input_node_indices(self) -> MappingProxyType[int, int]:
-        r"""Return map of input nodes.
+        r"""Return map of input nodes to logical qubit indices.
 
         Returns
         -------
@@ -225,7 +225,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def output_node_indices(self) -> MappingProxyType[int, int]:
-        r"""Return map of output nodes.
+        r"""Return map of output nodes to logical qubit indices.
 
         Returns
         -------
