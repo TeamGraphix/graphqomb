@@ -14,6 +14,7 @@ from __future__ import annotations
 import operator
 from abc import ABC, abstractmethod
 from itertools import product
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 import typing_extensions
@@ -32,67 +33,67 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def input_node_indices(self) -> dict[int, int]:
+    def input_node_indices(self) -> MappingProxyType[int, int]:
         r"""Return set of input nodes.
 
         Returns
         -------
-        `dict`\[`int`, `int`\]
+        `types.MappingProxyType`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
 
     @property
     @abstractmethod
-    def output_node_indices(self) -> dict[int, int]:
+    def output_node_indices(self) -> MappingProxyType[int, int]:
         r"""Return set of output nodes.
 
         Returns
         -------
-        `dict`\[`int`, `int`\]
+        `types.MappingProxyType`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
 
     @property
     @abstractmethod
-    def physical_nodes(self) -> set[int]:
+    def physical_nodes(self) -> frozenset[int]:
         r"""Return set of physical nodes.
 
         Returns
         -------
-        `set`\[`int`\]
+        `frozenset`\[`int`\]
             set of physical nodes.
         """
 
     @property
     @abstractmethod
-    def physical_edges(self) -> set[tuple[int, int]]:
+    def physical_edges(self) -> frozenset[tuple[int, int]]:
         r"""Return set of physical edges.
 
         Returns
         -------
-        `set`\[`tuple`\[`int`, `int`\]`
+        `frozenset`\[`tuple`\[`int`, `int`\]`
             set of physical edges.
         """
 
     @property
     @abstractmethod
-    def meas_bases(self) -> dict[int, MeasBasis]:
+    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
         -------
-        `dict`\[`int`, `MeasBasis`\]
+        `types.MappingProxyType`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
 
     @property
     @abstractmethod
-    def local_cliffords(self) -> dict[int, LocalClifford]:
+    def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
         r"""Return local clifford nodes.
 
         Returns
         -------
-        `dict`\[`int`, `LocalClifford`\]
+        `types.MappingProxyType`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
 
@@ -172,7 +173,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def neighbors(self, node: int) -> set[int]:
+    def neighbors(self, node: int) -> frozenset[int]:
         r"""Return the neighbors of the node.
 
         Parameters
@@ -182,7 +183,7 @@ class BaseGraphState(ABC):
 
         Returns
         -------
-        `set`\[`int`\]
+        `frozenset`\[`int`\]
             set of neighboring nodes
         """
 
@@ -211,7 +212,7 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def input_node_indices(self) -> dict[int, int]:
+    def input_node_indices(self) -> MappingProxyType[int, int]:
         r"""Return map of input nodes.
 
         Returns
@@ -219,11 +220,11 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
-        return self.__input_node_indices
+        return MappingProxyType(self.__input_node_indices)
 
     @property
     @typing_extensions.override
-    def output_node_indices(self) -> dict[int, int]:
+    def output_node_indices(self) -> MappingProxyType[int, int]:
         r"""Return map of output nodes.
 
         Returns
@@ -231,7 +232,7 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
-        return self.__output_node_indices
+        return MappingProxyType(self.__output_node_indices)
 
     @property
     def num_physical_nodes(self) -> int:
@@ -257,7 +258,7 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def physical_nodes(self) -> set[int]:
+    def physical_nodes(self) -> frozenset[int]:
         r"""Return set of physical nodes.
 
         Returns
@@ -265,16 +266,16 @@ class GraphState(BaseGraphState):
         `set`\[`int`\]
             set of physical nodes.
         """
-        return self.__physical_nodes
+        return frozenset(self.__physical_nodes)
 
     @property
     @typing_extensions.override
-    def physical_edges(self) -> set[tuple[int, int]]:
+    def physical_edges(self) -> frozenset[tuple[int, int]]:
         r"""Return set of physical edges.
 
         Returns
         -------
-        `set`\[`tuple`\[`int`, `int`\]
+        `frozenset`\[`tuple`\[`int`, `int`\]
             set of physical edges.
         """
         edges = set()
@@ -282,11 +283,11 @@ class GraphState(BaseGraphState):
             for node2 in self.__physical_edges[node1]:
                 if node1 < node2:
                     edges |= {(node1, node2)}
-        return edges
+        return frozenset(edges)
 
     @property
     @typing_extensions.override
-    def meas_bases(self) -> dict[int, MeasBasis]:
+    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
@@ -294,11 +295,11 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
-        return self.__meas_bases
+        return MappingProxyType(self.__meas_bases)
 
     @property
     @typing_extensions.override
-    def local_cliffords(self) -> dict[int, LocalClifford]:
+    def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
         r"""Return local clifford nodes.
 
         Returns
@@ -306,7 +307,7 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
-        return self.__local_cliffords
+        return MappingProxyType(self.__local_cliffords)
 
     def _check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
@@ -520,7 +521,7 @@ class GraphState(BaseGraphState):
         return self.__local_cliffords.pop(node, None)
 
     @typing_extensions.override
-    def neighbors(self, node: int) -> set[int]:
+    def neighbors(self, node: int) -> frozenset[int]:
         r"""Return the neighbors of the node.
 
         Parameters
@@ -530,11 +531,11 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `set`\[`int`\]
+        `frozenset`\[`int`\]
             set of neighboring nodes
         """
         self._ensure_node_exists(node)
-        return self.__physical_edges[node]
+        return frozenset(self.__physical_edges[node])
 
     def _parse_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
         r"""Parse local Clifford operators applied on the input nodes.
