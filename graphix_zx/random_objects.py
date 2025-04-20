@@ -57,7 +57,7 @@ def get_random_flow_graph(
     for _ in range(width):
         node_index = graph.add_physical_node()
         q_index = graph.mark_input(node_index)
-        graph.set_meas_basis(node_index, default_meas_basis())
+        graph.assign_meas_basis(node_index, default_meas_basis())
         q_indices.append(q_index)
 
     # internal nodes
@@ -65,7 +65,7 @@ def get_random_flow_graph(
         node_indices_layer = []
         for _ in range(width):
             node_index = graph.add_physical_node()
-            graph.set_meas_basis(node_index, default_meas_basis())
+            graph.assign_meas_basis(node_index, default_meas_basis())
             graph.add_physical_edge(node_index - width, node_index)
             flow[node_index - width] = {node_index}
             node_indices_layer.append(node_index)

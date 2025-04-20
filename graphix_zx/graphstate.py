@@ -149,8 +149,8 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
-        """Set the measurement basis of the node.
+    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        """Assign the measurement basis of the node.
 
         Parameters
         ----------
@@ -474,7 +474,7 @@ class GraphState(BaseGraphState):
         self.__output_node_indices[node] = q_index
 
     @typing_extensions.override
-    def set_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
         """Set the measurement basis of the node.
 
         Parameters
@@ -503,7 +503,7 @@ class GraphState(BaseGraphState):
             self.__local_cliffords[node] = lc
         else:
             new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
-            self.set_meas_basis(node, new_meas_basis)
+            self.assign_meas_basis(node, new_meas_basis)
 
     def pop_local_clifford(self, node: int) -> LocalClifford | None:
         """Pop local clifford of the node.
@@ -561,9 +561,9 @@ class GraphState(BaseGraphState):
             self.add_physical_edge(new_node_index1, new_node_index2)
             self.add_physical_edge(new_node_index2, input_node)
 
-            self.set_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.set_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
-            self.set_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
+            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
+            self.assign_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
 
             node_index_addition_map[input_node] = (new_node_index0, new_node_index1, new_node_index2)
 
@@ -607,7 +607,7 @@ def sequential_compose(  # noqa: C901
         node_index = composed_graph.add_physical_node()
         meas_basis = graph1.meas_bases.get(node, None)
         if meas_basis is not None:
-            composed_graph.set_meas_basis(node_index, meas_basis)
+            composed_graph.assign_meas_basis(node_index, meas_basis)
         lc = graph1.local_cliffords.get(node, None)
         if lc is not None:
             composed_graph.apply_local_clifford(node_index, lc)
@@ -617,7 +617,7 @@ def sequential_compose(  # noqa: C901
         node_index = composed_graph.add_physical_node()
         meas_basis = graph2.meas_bases.get(node, None)
         if meas_basis is not None:
-            composed_graph.set_meas_basis(node_index, meas_basis)
+            composed_graph.assign_meas_basis(node_index, meas_basis)
         lc = graph2.local_cliffords.get(node, None)
         if lc is not None:
             composed_graph.apply_local_clifford(node_index, lc)
@@ -662,7 +662,7 @@ def parallel_compose(  # noqa: C901
         node_index = composed_graph.add_physical_node()
         meas_basis = graph1.meas_bases.get(node, None)
         if meas_basis is not None:
-            composed_graph.set_meas_basis(node_index, meas_basis)
+            composed_graph.assign_meas_basis(node_index, meas_basis)
         lc = graph1.local_cliffords.get(node, None)
         if lc is not None:
             composed_graph.apply_local_clifford(node_index, lc)
@@ -672,7 +672,7 @@ def parallel_compose(  # noqa: C901
         node_index = composed_graph.add_physical_node()
         meas_basis = graph2.meas_bases.get(node, None)
         if meas_basis is not None:
-            composed_graph.set_meas_basis(node_index, meas_basis)
+            composed_graph.assign_meas_basis(node_index, meas_basis)
         lc = graph2.local_cliffords.get(node, None)
         if lc is not None:
             composed_graph.apply_local_clifford(node_index, lc)
