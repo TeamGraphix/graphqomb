@@ -50,16 +50,16 @@ def test_ensure_node_exists(graph: GraphState) -> None:
     graph.ensure_node_exists(node_index)
 
 
-def test_get_neighbors(graph: GraphState) -> None:
+def test_neighbors(graph: GraphState) -> None:
     """Test getting the neighbors of a node in the graph."""
     node_index1 = graph.add_physical_node()
     node_index2 = graph.add_physical_node()
     node_index3 = graph.add_physical_node()
     graph.add_physical_edge(node_index1, node_index2)
     graph.add_physical_edge(node_index2, node_index3)
-    assert graph.get_neighbors(node_index1) == {node_index2}
-    assert graph.get_neighbors(node_index2) == {node_index1, node_index3}
-    assert graph.get_neighbors(node_index3) == {node_index2}
+    assert graph.neighbors(node_index1) == {node_index2}
+    assert graph.neighbors(node_index2) == {node_index1, node_index3}
+    assert graph.neighbors(node_index3) == {node_index2}
 
 
 def test_add_physical_edge(graph: GraphState) -> None:
