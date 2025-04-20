@@ -609,14 +609,11 @@ def compose_sequentially(  # noqa: C901
     node_map2 = {}
     composed_graph = GraphState()
 
-    for node in graph1.physical_nodes:
+    for node in graph1.physical_nodes - graph1.output_node_indices.keys():
         node_index = composed_graph.add_physical_node()
         meas_basis = graph1.meas_bases.get(node, None)
         if meas_basis is not None:
             composed_graph.assign_meas_basis(node_index, meas_basis)
-        lc = graph1.local_cliffords.get(node, None)
-        if lc is not None:
-            composed_graph.apply_local_clifford(node_index, lc)
         node_map1[node] = node_index
 
     for node in graph2.physical_nodes:
@@ -624,9 +621,6 @@ def compose_sequentially(  # noqa: C901
         meas_basis = graph2.meas_bases.get(node, None)
         if meas_basis is not None:
             composed_graph.assign_meas_basis(node_index, meas_basis)
-        lc = graph2.local_cliffords.get(node, None)
-        if lc is not None:
-            composed_graph.apply_local_clifford(node_index, lc)
         node_map2[node] = node_index
 
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
@@ -634,6 +628,13 @@ def compose_sequentially(  # noqa: C901
 
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
+
+    # overlapping node process
+    q_index2output_node_index1 = {
+        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
+    }
+    for input_node_index2, q_index in graph2.input_node_indices.items():
+        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
@@ -669,9 +670,6 @@ def compose_in_parallel(  # noqa: C901
         meas_basis = graph1.meas_bases.get(node, None)
         if meas_basis is not None:
             composed_graph.assign_meas_basis(node_index, meas_basis)
-        lc = graph1.local_cliffords.get(node, None)
-        if lc is not None:
-            composed_graph.apply_local_clifford(node_index, lc)
         node_map1[node] = node_index
 
     for node in graph2.physical_nodes:
@@ -679,9 +677,6 @@ def compose_in_parallel(  # noqa: C901
         meas_basis = graph2.meas_bases.get(node, None)
         if meas_basis is not None:
             composed_graph.assign_meas_basis(node_index, meas_basis)
-        lc = graph2.local_cliffords.get(node, None)
-        if lc is not None:
-            composed_graph.apply_local_clifford(node_index, lc)
         node_map2[node] = node_index
 
     q_index_map1 = {}
