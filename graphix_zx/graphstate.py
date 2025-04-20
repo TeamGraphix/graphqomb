@@ -632,11 +632,9 @@ def _check_canonical_form(graph: BaseGraphState) -> None:
     Raises
     ------
     ValueError
-        If the graph state is not in canonical form due to local Cliffords.
-    ValueError
-        If any input/output node does not have a single neighbor.
-    ValueError
-        If any internal node has more than 2 input/output neighbors.
+        1. If the graph state is not in canonical form due to local Cliffords.
+        2. If any input/output node does not have a single neighbor.
+        3. If any internal node has more than 2 input/output neighbors.
     """
     # 1. no local Cliffords
     if graph.local_cliffords:
