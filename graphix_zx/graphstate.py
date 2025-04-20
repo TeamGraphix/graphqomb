@@ -771,4 +771,4 @@ def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) ->
     if not node_set1.isdisjoint(node_set2):
         msg = "The two sets of nodes must be disjoint."
         raise ValueError(msg)
-    return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2) if a != b}
+    return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2)}
