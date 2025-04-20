@@ -511,21 +511,6 @@ class GraphState(BaseGraphState):
             new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
             self.assign_meas_basis(node, new_meas_basis)
 
-    def pop_local_clifford(self, node: int) -> LocalClifford | None:
-        """Pop local clifford of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index to remove local clifford.
-
-        Returns
-        -------
-        `LocalClifford` | `None`
-            removed local clifford
-        """
-        return self.__local_cliffords.pop(node, None)
-
     @typing_extensions.override
     def neighbors(self, node: int) -> frozenset[int]:
         r"""Return the neighbors of the node.
@@ -543,6 +528,21 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         return frozenset(self.__physical_edges[node])
 
+    def _pop_local_clifford(self, node: int) -> LocalClifford | None:
+        """Pop local clifford of the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index to remove local clifford.
+
+        Returns
+        -------
+        `LocalClifford` | `None`
+            removed local clifford
+        """
+        return self.__local_cliffords.pop(node, None)
+
     def _expand_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
         r"""Parse local Clifford operators applied on the input nodes.
 
@@ -554,7 +554,7 @@ class GraphState(BaseGraphState):
         node_index_addition_map = {}
         new_input_indices = []
         for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
-            lc = self.pop_local_clifford(input_node)
+            lc = self._pop_local_clifford(input_node)
             if lc is None:
                 continue
 
