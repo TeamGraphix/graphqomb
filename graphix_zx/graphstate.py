@@ -580,6 +580,47 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
 
+def _check_canonical_form(graph: BaseGraphState) -> None:
+    """Check if the graph is in canonical form.
+
+    Definition of canonical form:
+    1. No local Cliffords
+    2. Input and output must have single neighbor
+    3. Internal nodes must not have more than 2 input/output neighbors
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        The graph state to check for canonical form.
+
+    Raises
+    ------
+    ValueError
+        If the graph state is not in canonical form due to local Cliffords.
+    ValueError
+        If any input/output node does not have a single neighbor.
+    ValueError
+        If any internal node has more than 2 input/output neighbors.
+    """
+    # 1. no local Cliffords
+    if graph.local_cliffords:
+        msg = "Graph state is not in canonical form. Local Cliffords are not allowed."
+        raise ValueError(msg)
+
+    node_connecting_input_or_output: set[int] = set()
+    for node in graph.input_node_indices | graph.output_node_indices:
+        neighbors = graph.neighbors(node)
+        # 2. input and output must have single neighbor
+        if len(neighbors) != 1:
+            msg = f"Input/Output node {node} must have a single neighbor."
+            raise ValueError(msg)
+        # 3. internal nodes must not have more than 2 input/output neighbors
+        if neighbors & node_connecting_input_or_output:
+            msg = f"Input/Output neighboring node {node} cannot connect to other input/output nodes."
+            raise ValueError(msg)
+        node_connecting_input_or_output |= neighbors
+
+
 def compose_sequentially(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
