@@ -544,7 +544,7 @@ class GraphState(BaseGraphState):
         return self.__local_cliffords.pop(node, None)
 
     def _expand_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
-        r"""Parse local Clifford operators applied on the input nodes.
+        r"""Expand local Clifford operators applied on the input nodes.
 
         Returns
         -------
@@ -576,6 +576,42 @@ class GraphState(BaseGraphState):
         self.__input_node_indices = {}
         for new_input_index in new_input_indices:
             self.register_input(new_input_index)
+
+        return node_index_addition_map
+
+    def _expand_output_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+        r"""Expand local Clifford operators applied on the output nodes.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]
+            A dictionary mapping output node indices to the new node indices created.
+        """
+        node_index_addition_map = {}
+        new_output_indices = []
+        for output_node, _ in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
+            lc = self._pop_local_clifford(output_node)
+            if lc is None:
+                continue
+
+            new_node_index0 = self.add_physical_node()
+            new_node_index1 = self.add_physical_node()
+            new_node_index2 = self.add_physical_node()
+            new_output_indices.append(new_node_index2)
+
+            self.add_physical_edge(output_node, new_node_index0)
+            self.add_physical_edge(new_node_index0, new_node_index1)
+            self.add_physical_edge(new_node_index1, new_node_index2)
+
+            self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
+            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.gamma))
+
+            node_index_addition_map[output_node] = (new_node_index0, new_node_index1, new_node_index2)
+
+        self.__output_node_indices = {}
+        for new_output_index in new_output_indices:
+            self.register_output(new_output_index, len(self.__output_node_indices))
 
         return node_index_addition_map
 
