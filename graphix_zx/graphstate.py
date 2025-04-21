@@ -279,7 +279,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `dict`\[`int`, `MeasBasis`\]
+        `types.MappingProxyType`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
         return MappingProxyType(self.__meas_bases)
