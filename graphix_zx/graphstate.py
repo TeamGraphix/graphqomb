@@ -86,17 +86,6 @@ class BaseGraphState(ABC):
             measurement bases of each physical node.
         """
 
-    @property
-    @abstractmethod
-    def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
-        r"""Return local clifford nodes.
-
-        Returns
-        -------
-        `types.MappingProxyType`\[`int`, `LocalClifford`\]
-            local clifford nodes.
-        """
-
     @abstractmethod
     def add_physical_node(
         self,
@@ -158,18 +147,6 @@ class BaseGraphState(ABC):
             node index
         meas_basis : `MeasBasis`
             measurement basis
-        """
-
-    @abstractmethod
-    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
-        """Apply a local clifford to the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        lc : `LocalClifford`
-            local clifford operator
         """
 
     @abstractmethod
@@ -298,7 +275,6 @@ class GraphState(BaseGraphState):
         return MappingProxyType(self.__meas_bases)
 
     @property
-    @typing_extensions.override
     def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
         r"""Return local clifford nodes.
 
