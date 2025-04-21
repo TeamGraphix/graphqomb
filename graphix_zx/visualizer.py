@@ -24,10 +24,10 @@ if sys.version_info >= (3, 11):
     class ColorMap(StrEnum):
         """Color map for the nodes."""
 
-        XY = "green"
-        YZ = "red"
-        XZ = "blue"
-        OUTPUT = "grey"
+        XY = "tab:green"
+        YZ = "tab:red"
+        XZ = "tab:blue"
+        OUTPUT = "tab:grey"
 
 else:
     from enum import Enum
@@ -35,10 +35,10 @@ else:
     class ColorMap(str, Enum):
         """Color map for the nodes."""
 
-        XY = "green"
-        YZ = "red"
-        XZ = "blue"
-        OUTPUT = "grey"
+        XY = "tab:green"
+        YZ = "tab:red"
+        XZ = "tab:blue"
+        OUTPUT = "tab:grey"
 
 
 def visualize(
@@ -66,13 +66,14 @@ def visualize(
 
     plt.figure()
     for node in graph_state.physical_nodes:
-        plt.scatter(*node_pos[node], color=node_colors[node], s=350)
+        plt.scatter(*node_pos[node], color=node_colors[node], s=350, zorder=2)
 
     for edge in graph_state.physical_edges:
         plt.plot(
             [node_pos[edge[0]][0], node_pos[edge[1]][0]],
             [node_pos[edge[0]][1], node_pos[edge[1]][1]],
             color="black",
+            zorder=1,
         )
 
     graph: nx.Graph = nx.Graph()
