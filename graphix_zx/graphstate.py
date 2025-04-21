@@ -293,7 +293,7 @@ class GraphState(BaseGraphState):
         ValueError
             If the measurement basis is not set for a node or the measurement plane is invalid.
         """
-        for v in self.physical_nodes - set(self.output_node_indices.keys()):
+        for v in self.physical_nodes - set(self.output_node_indices):
             if self.meas_bases.get(v) is None:
                 msg = f"Measurement basis not set for node {v}"
                 raise ValueError(msg)
@@ -507,6 +507,25 @@ class GraphState(BaseGraphState):
         """
         self._ensure_node_exists(node)
         return frozenset(self.__physical_edges[node])
+
+    def is_canonical_form(self) -> bool:
+        r"""Check if the graph state is in canonical form.
+
+        The definition of canonical form is:
+        1. No Clifford operators applied.
+        2. All non-output nodes have measurement basis.
+
+        Returns
+        -------
+        `bool`
+            `True` if the graph state is in canonical form, `False` otherwise.
+        """
+        if self.__local_cliffords:
+            return False
+        for node in self.physical_nodes - set(self.output_node_indices):
+            if self.meas_bases.get(node) is None:
+                return False
+        return True
 
     def expand_local_cliffords(self) -> tuple[dict[int, tuple[int, int, int]], dict[int, tuple[int, int, int]]]:
         r"""Expand local Clifford operators applied on the input and output nodes.
