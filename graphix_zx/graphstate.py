@@ -204,7 +204,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `dict`\[`int`, `int`\]
+        `types.MappingProxyType`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
         return MappingProxyType(self.__input_node_indices)
@@ -216,7 +216,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `dict`\[`int`, `int`\]
+        `types.MappingProxyType`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
         return MappingProxyType(self.__output_node_indices)
@@ -228,7 +228,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `set`\[`int`\]
+        `frozenset`\[`int`\]
             set of physical nodes.
         """
         return frozenset(self.__physical_nodes)
@@ -268,7 +268,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `dict`\[`int`, `LocalClifford`\]
+        `types.MappingProxyType`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
         return MappingProxyType(self.__local_cliffords)
