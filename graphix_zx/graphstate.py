@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import typing_extensions
 
 from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
-from graphix_zx.euler import update_lc_basis
+from graphix_zx.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
@@ -468,7 +468,6 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
 
-    @typing_extensions.override
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
         """Apply a local clifford to the node.
 
@@ -481,7 +480,12 @@ class GraphState(BaseGraphState):
         """
         self._ensure_node_exists(node)
         if node in self.input_node_indices or node in self.output_node_indices:
-            self.__local_cliffords[node] = lc
+            original_lc = self._pop_local_clifford(node)
+            if original_lc is not None:
+                new_lc = update_lc_lc(lc, original_lc)
+                self.__local_cliffords[node] = new_lc
+            else:
+                self.__local_cliffords[node] = lc
         else:
             self._check_meas_basis()
             new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
@@ -624,15 +628,8 @@ def compose_sequentially(  # noqa: C901
     Raises
     ------
     ValueError
-        1. If graph1 or graph2 has local Cliffords.
-        2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
-    if graph1.local_cliffords:
-        msg = "Graph1 is not in canonical form. Local Cliffords are not allowed."
-        raise ValueError(msg)
-    if graph2.local_cliffords:
-        msg = "Graph2 is not in canonical form. Local Cliffords are not allowed."
-        raise ValueError(msg)
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
@@ -691,18 +688,7 @@ def compose_in_parallel(  # noqa: C901
     -------
     `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
-
-    Raises
-    ------
-    ValueError
-        1. If graph1 or graph2 has local Cliffords.
     """
-    if graph1.local_cliffords:
-        msg = "Graph1 is not in canonical form. Local Cliffords are not allowed."
-        raise ValueError(msg)
-    if graph2.local_cliffords:
-        msg = "Graph2 is not in canonical form. Local Cliffords are not allowed."
-        raise ValueError(msg)
     node_map1 = {}
     node_map2 = {}
     composed_graph = GraphState()
