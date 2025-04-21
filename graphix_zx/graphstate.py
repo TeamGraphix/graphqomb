@@ -222,28 +222,6 @@ class GraphState(BaseGraphState):
         return MappingProxyType(self.__output_node_indices)
 
     @property
-    def num_physical_nodes(self) -> int:
-        """Return the number of physical nodes.
-
-        Returns
-        -------
-        `int`
-            number of physical nodes.
-        """
-        return len(self.__physical_nodes)
-
-    @property
-    def num_physical_edges(self) -> int:
-        """Return the number of undirected physical edges.
-
-        Returns
-        -------
-        `int`
-            number of physical edges.
-        """
-        return sum(len(edges) for edges in self.__physical_edges.values()) // 2
-
-    @property
     @typing_extensions.override
     def physical_nodes(self) -> frozenset[int]:
         r"""Return set of physical nodes.

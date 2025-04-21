@@ -24,7 +24,7 @@ def test_add_physical_node(graph: GraphState) -> None:
     """Test adding a physical node to the graph."""
     node_index = graph.add_physical_node()
     assert node_index in graph.physical_nodes
-    assert graph.num_physical_nodes == 1
+    assert len(graph.physical_nodes) == 1
 
 
 def test_add_physical_node_input_output(graph: GraphState) -> None:
@@ -68,7 +68,7 @@ def test_add_physical_edge(graph: GraphState) -> None:
     node_index2 = graph.add_physical_node()
     graph.add_physical_edge(node_index1, node_index2)
     assert (node_index1, node_index2) in graph.physical_edges or (node_index2, node_index1) in graph.physical_edges
-    assert graph.num_physical_edges == 1
+    assert len(graph.physical_edges) == 1
 
 
 def test_add_duplicate_physical_edge(graph: GraphState) -> None:
@@ -106,7 +106,7 @@ def test_remove_physical_node(graph: GraphState) -> None:
     node_index = graph.add_physical_node()
     graph.remove_physical_node(node_index)
     assert node_index not in graph.physical_nodes
-    assert graph.num_physical_nodes == 0
+    assert len(graph.physical_nodes) == 0
 
 
 def test_remove_physical_node_from_minimal_graph(graph: GraphState) -> None:
@@ -117,8 +117,8 @@ def test_remove_physical_node_from_minimal_graph(graph: GraphState) -> None:
     graph.remove_physical_node(node_index1)
     assert node_index1 not in graph.physical_nodes
     assert node_index2 in graph.physical_nodes
-    assert graph.num_physical_nodes == 1
-    assert graph.num_physical_edges == 0
+    assert len(graph.physical_nodes) == 1
+    assert len(graph.physical_edges) == 0
 
 
 def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
@@ -132,8 +132,8 @@ def test_remove_physical_node_from_3_nodes_graph(graph: GraphState) -> None:
     graph.register_output(node_index3, q_index)
     graph.remove_physical_node(node_index2)
     assert graph.physical_nodes == {node_index1, node_index3}
-    assert graph.num_physical_nodes == 2
-    assert graph.num_physical_edges == 0
+    assert len(graph.physical_nodes) == 2
+    assert len(graph.physical_edges) == 0
     assert graph.input_node_indices == {node_index1: q_index}
     assert graph.output_node_indices == {node_index3: q_index}
 
@@ -160,7 +160,7 @@ def test_remove_physical_edge(graph: GraphState) -> None:
     graph.remove_physical_edge(node_index1, node_index2)
     assert (node_index1, node_index2) not in graph.physical_edges
     assert (node_index2, node_index1) not in graph.physical_edges
-    assert graph.num_physical_edges == 0
+    assert len(graph.physical_edges) == 0
 
 
 def test_register_output_raises_1(graph: GraphState) -> None:
