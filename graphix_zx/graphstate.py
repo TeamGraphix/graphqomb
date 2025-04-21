@@ -164,6 +164,16 @@ class BaseGraphState(ABC):
             set of neighboring nodes
         """
 
+    @abstractmethod
+    def is_canonical_form(self) -> bool:
+        r"""Check if the graph state is in canonical form.
+
+        Returns
+        -------
+        `bool`
+            `True` if the graph state is in canonical form, `False` otherwise.
+        """
+
 
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState."""
@@ -508,6 +518,7 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         return frozenset(self.__physical_edges[node])
 
+    @typing_extensions.override
     def is_canonical_form(self) -> bool:
         r"""Check if the graph state is in canonical form.
 
@@ -647,8 +658,15 @@ def compose_sequentially(  # noqa: C901
     Raises
     ------
     ValueError
-        If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        1. If graph1 or graph2 is not in canonical form.
+        2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
+    if not graph1.is_canonical_form():
+        msg = "graph1 must be in canonical form."
+        raise ValueError(msg)
+    if not graph2.is_canonical_form():
+        msg = "graph2 must be in canonical form."
+        raise ValueError(msg)
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
@@ -707,7 +725,18 @@ def compose_in_parallel(  # noqa: C901
     -------
     `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
+
+    Raises
+    ------
+    ValueError
+        If graph1 or graph2 is not in canonical form.
     """
+    if not graph1.is_canonical_form():
+        msg = "graph1 must be in canonical form."
+        raise ValueError(msg)
+    if not graph2.is_canonical_form():
+        msg = "graph2 must be in canonical form."
+        raise ValueError(msg)
     node_map1 = {}
     node_map2 = {}
     composed_graph = GraphState()
