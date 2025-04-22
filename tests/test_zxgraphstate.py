@@ -96,7 +96,7 @@ def _initialize_graph(
         zx_graph.set_output(i)
 
 
-def _apply_measurements(zx_graph: ZXGraphState, measurements: list[tuple[int, Plane, float]]) -> None:
+def _apply_measurements(zx_graph: ZXGraphState, measurements: Measurements) -> None:
     for node_id, plane, angle in measurements:
         if node_id in zx_graph.output_nodes:
             continue
@@ -107,7 +107,7 @@ def _test(
     zx_graph: ZXGraphState,
     exp_nodes: set[int],
     exp_edges: set[tuple[int, int]],
-    exp_measurements: list[tuple[int, Plane, float]],
+    exp_measurements: Measurements,
 ) -> None:
     assert zx_graph.physical_nodes == exp_nodes
     assert zx_graph.physical_edges == exp_edges
