@@ -12,7 +12,9 @@ This module provides:
 from __future__ import annotations
 
 import operator
+import weakref
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, MutableMapping
 from itertools import product
 from types import MappingProxyType
 from typing import TYPE_CHECKING
@@ -28,8 +30,60 @@ if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
 
 
+class _MeasBasesDict(MutableMapping):
+    _owner: BaseGraphState
+    _field_name: str
+    _store: dict[int, MeasBasis]
+
+    def __init__(self, owner: BaseGraphState, field_name: str) -> None:
+        self._owner = weakref.proxy(owner)
+        self._field_name = field_name
+        self._store = {}
+
+    def __getitem__(self, node: int) -> MeasBasis:
+        return self._store[node]
+
+    def __iter__(self) -> Iterator[int]:
+        return iter(self._store)
+
+    def __len__(self) -> int:
+        return len(self._store)
+
+    def __delitem__(self, node: int) -> None:
+        del self._store[node]
+
+    def __setitem__(self, node: int, meas_basis: MeasBasis) -> None:
+        if node not in self._owner.physical_nodes:
+            msg = f"Node {node} does not exist in the graph state."
+            raise ValueError(msg)
+        if node in self._owner.output_node_indices:
+            msg = "Cannot set measurement basis for output node."
+            raise ValueError(msg)
+        self._store[node] = meas_basis
+
+
+class MeasBasesField:
+    def __set_name__(self, owner, name: str) -> None:
+        self._private_name = f"_{name}"
+
+    def __get__(self, obj, owner) -> _MeasBasesDict | MeasBasesField:
+        if obj is None:
+            return self
+        mapping = getattr(obj, self._private_name, None)
+        if mapping is None:
+            mapping = _MeasBasesDict(obj, self._private_name)
+            setattr(obj, self._private_name, mapping)
+        return mapping
+
+    def __set__(self, obj, value: _MeasBasesDict) -> None:
+        msg = f"Cannot set {self._private_name} directly."
+        raise AttributeError(msg)
+
+
 class BaseGraphState(ABC):
     """Abstract base class for Graph State."""
+
+    meas_bases = MeasBasesField()
 
     @property
     @abstractmethod
@@ -73,17 +127,6 @@ class BaseGraphState(ABC):
         -------
         `frozenset`\[`tuple`\[`int`, `int`\]`
             set of physical edges.
-        """
-
-    @property
-    @abstractmethod
-    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
-        r"""Return measurement bases.
-
-        Returns
-        -------
-        `types.MappingProxyType`\[`int`, `MeasBasis`\]
-            measurement bases of each physical node.
         """
 
     @abstractmethod
@@ -135,18 +178,6 @@ class BaseGraphState(ABC):
             node index
         q_index : `int`
             logical qubit index
-        """
-
-    @abstractmethod
-    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
-        """Assign the measurement basis of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        meas_basis : `MeasBasis`
-            measurement basis
         """
 
     @abstractmethod
@@ -249,18 +280,6 @@ class GraphState(BaseGraphState):
                 if node1 < node2:
                     edges |= {(node1, node2)}
         return frozenset(edges)
-
-    @property
-    @typing_extensions.override
-    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
-        r"""Return measurement bases.
-
-        Returns
-        -------
-        `types.MappingProxyType`\[`int`, `MeasBasis`\]
-            measurement bases of each physical node.
-        """
-        return MappingProxyType(self.__meas_bases)
 
     @property
     def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
@@ -455,28 +474,6 @@ class GraphState(BaseGraphState):
             msg = "The q_index already exists in output qubit indices"
             raise ValueError(msg)
         self.__output_node_indices[node] = q_index
-
-    @typing_extensions.override
-    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
-        """Set the measurement basis of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        meas_basis : `MeasBasis`
-            measurement basis
-
-        Raises
-        ------
-        ValueError
-            If the node is an output node.
-        """
-        self._ensure_node_exists(node)
-        if node in self.output_node_indices:
-            msg = "Cannot set measurement basis for output node."
-            raise ValueError(msg)
-        self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
         """Apply a local clifford to the node.
