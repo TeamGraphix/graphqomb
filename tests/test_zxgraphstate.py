@@ -179,78 +179,24 @@ def test_local_complement_on_output_node(
     assert zx_graph.meas_bases.get(2) is None
 
 
-def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
+@pytest.mark.parametrize("plane1, plane2", plane_combinations(2))
+def test_local_complement_with_two_nodes_graph(
+    zx_graph: ZXGraphState, plane1: Plane, plane2: Plane, rng: np.random.Generator
+) -> None:
     """Test local complement with a graph with two nodes."""
     zx_graph.add_physical_node(1)
     zx_graph.add_physical_node(2)
     zx_graph.add_physical_edge(1, 2)
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XZ, 1.1 * np.pi))
-    zx_graph.set_meas_basis(2, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi))
-    original_edges = zx_graph.physical_edges.copy()
+    angle1 = rng.random() * 2 * np.pi
+    angle2 = rng.random() * 2 * np.pi
+    zx_graph.set_meas_basis(1, PlannerMeasBasis(plane1, angle1))
+    zx_graph.set_meas_basis(2, PlannerMeasBasis(plane2, angle2))
     zx_graph.local_complement(1)
-    assert zx_graph.physical_edges == original_edges
-    for node_id, plane, angle in [(1, Plane.XY, 0.6 * np.pi), (2, Plane.YZ, 1.2 * np.pi)]:
-        assert zx_graph.meas_bases[node_id].plane == plane
-        assert is_clifford_angle(zx_graph.meas_bases[node_id].angle, angle)
 
-
-def test_local_complement_with_minimal_graph(zx_graph: ZXGraphState) -> None:
-    """Test local complement with a minimal graph."""
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_node(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 1.1 * np.pi))
-    zx_graph.set_meas_basis(2, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi))
-    zx_graph.set_meas_basis(3, PlannerMeasBasis(Plane.YZ, 1.3 * np.pi))
-    original_edges = zx_graph.physical_edges.copy()
-    zx_graph.local_complement(2)
-    assert zx_graph.physical_edges == {(1, 2), (2, 3), (1, 3)}
-    exp_measurements = [
-        (1, Plane.XY, 0.6 * np.pi),
-        (2, Plane.XY, 0.7 * np.pi),
-        (3, Plane.XZ, 0.7 * np.pi),
-    ]
-    for node_id, plane, angle in exp_measurements:
-        assert zx_graph.meas_bases[node_id].plane == plane
-        assert is_clifford_angle(zx_graph.meas_bases[node_id].angle, angle)
-
-    zx_graph.local_complement(2)
-    assert zx_graph.physical_edges == original_edges
-    exp_measurements = [
-        (1, Plane.XY, 0.1 * np.pi),
-        (2, Plane.XZ, 1.8 * np.pi),
-        (3, Plane.YZ, 0.7 * np.pi),
-    ]
-    for node_id, plane, angle in exp_measurements:
-        assert zx_graph.meas_bases[node_id].plane == plane
-        assert np.isclose(zx_graph.meas_bases[node_id].angle, angle)
-
-
-def test_local_complement_4_times(zx_graph: ZXGraphState) -> None:
-    """Test local complement is applied 4 times and the graph goes back to the original shape."""
-    zx_graph.add_physical_node(1)
-    zx_graph.add_physical_node(2)
-    zx_graph.add_physical_node(3)
-    zx_graph.add_physical_edge(1, 2)
-    zx_graph.add_physical_edge(2, 3)
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 1.1 * np.pi))
-    zx_graph.set_meas_basis(2, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi))
-    zx_graph.set_meas_basis(3, PlannerMeasBasis(Plane.YZ, 1.3 * np.pi))
-    original_edges = zx_graph.physical_edges.copy()
-    for _ in range(4):
-        zx_graph.local_complement(2)
-    assert zx_graph.physical_edges == original_edges
-    exp_measurements = [
-        (1, Plane.XY, 1.1 * np.pi),
-        (2, Plane.XZ, 1.2 * np.pi),
-        (3, Plane.YZ, 1.3 * np.pi),
-    ]
-    for node_id, plane, angle in exp_measurements:
-        assert zx_graph.meas_bases[node_id].plane == plane
-        assert np.isclose(zx_graph.meas_bases[node_id].angle, angle)
-
+    ref_plane1, ref_angle_func1 = measurement_action_lc_target[plane1]
+    ref_plane2, ref_angle_func2 = measurement_action_lc_neighbors[plane2]
+    exp_measurements = [(1, ref_plane1, ref_angle_func1(angle1)), (2, ref_plane2, ref_angle_func2(angle2))]
+    _test(zx_graph, exp_nodes={1, 2}, exp_edges={(1, 2)}, exp_measurements=exp_measurements)
 
 def test_local_complement_with_h_shaped_graph(zx_graph: ZXGraphState) -> None:
     """Test local complement with an H-shaped graph."""
