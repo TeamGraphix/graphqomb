@@ -33,6 +33,17 @@ measurement_action_lc_neighbors: MeasurementAction = {
 
 
 def plane_combinations(n: int) -> list[tuple[Plane, ...]]:
+    """Generate all combinations of planes of length n.
+
+    Parameters
+    ----------
+    n : int
+        The length of the combinations. n > 1.
+
+    Returns
+    -------
+        list[tuple[Plane, ...]]: A list of tuples containing all combinations of planes of length n.
+    """
     return list(itertools.product(Plane, repeat=n))
 
 
