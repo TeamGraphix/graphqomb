@@ -358,14 +358,17 @@ class GraphState(BaseGraphState):
         ValueError
             If the input node is specified
         """
+        self._ensure_node_exists(node)
         if node in self.input_node_indices:
             msg = "The input node cannot be removed"
             raise ValueError(msg)
-        self._ensure_node_exists(node)
         self.__physical_nodes -= {node}
         for neighbor in self.__physical_edges[node]:
             self.__physical_edges[neighbor] -= {node}
         del self.__physical_edges[node]
+
+        if node in self.output_node_indices:
+            del self.__output_node_indices[node]
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
 
@@ -463,8 +466,16 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
+
+        Raises
+        ------
+        ValueError
+            If the node is an output node.
         """
         self._ensure_node_exists(node)
+        if node in self.output_node_indices:
+            msg = "Cannot set measurement basis for output node."
+            raise ValueError(msg)
         self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
