@@ -37,6 +37,11 @@ def plane_combinations(n: int) -> list[tuple[Plane, ...]]:
 
 
 @pytest.fixture
+def rng() -> np.random.Generator:
+    return np.random.default_rng()
+
+
+@pytest.fixture
 def zx_graph() -> ZXGraphState:
     """Generate an empty ZXGraphState object.
 
