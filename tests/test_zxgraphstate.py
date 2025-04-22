@@ -113,7 +113,7 @@ def _test(
     assert zx_graph.physical_edges == exp_edges
     for node_id, plane, angle in exp_measurements:
         assert zx_graph.meas_bases[node_id].plane == plane
-        assert np.isclose(zx_graph.meas_bases[node_id].angle, angle)
+        assert _is_close_angle(zx_graph.meas_bases[node_id].angle, angle)
 
 
 def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
