@@ -157,21 +157,26 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng
     assert _is_close_angle(zx_graph.meas_bases[1].angle, ref_angle)
 
 
-def test_local_complement_on_output_node(zx_graph: ZXGraphState) -> None:
+@pytest.mark.parametrize("plane1, plane3", plane_combinations(2))
+def test_local_complement_on_output_node(
+    zx_graph: ZXGraphState, plane1: Plane, plane3: Plane, rng: np.random.Generator
+) -> None:
     """Test local complement on an output node."""
     _initialize_graph(zx_graph, range(1, 4), {(1, 2), (2, 3)}, outputs=(2,))
-    measurements = [
-        (1, Plane.XY, 1.1 * np.pi),
-        (3, Plane.YZ, 1.3 * np.pi),
-    ]
+    angle1 = rng.random() * 2 * np.pi
+    angle3 = rng.random() * 2 * np.pi
+    measurements = [(1, plane1, angle1), (3, plane3, angle3)]
     _apply_measurements(zx_graph, measurements)
     zx_graph.local_complement(2)
 
+    ref_plane1, ref_angle_func1 = measurement_action_lc_neighbors[plane1]
+    ref_plane3, ref_angle_func3 = measurement_action_lc_neighbors[plane3]
     exp_measurements = [
-        (1, Plane.XY, 0.6 * np.pi),
-        (3, Plane.XZ, 0.7 * np.pi),
+        (1, ref_plane1, ref_angle_func1(measurements[0][2])),
+        (3, ref_plane3, ref_angle_func3(measurements[1][2])),
     ]
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (1, 3), (2, 3)}, exp_measurements=exp_measurements)
+    assert zx_graph.meas_bases.get(2) is None
 
 
 def test_local_complement_with_two_nodes_graph(zx_graph: ZXGraphState) -> None:
