@@ -143,25 +143,18 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
         zx_graph.local_complement(1)
 
 
-def test_local_complement_with_no_edge(zx_graph: ZXGraphState) -> None:
-    """Test local complement with a graph with no edge."""
+@pytest.mark.parametrize("plane", [Plane.XY, Plane.XZ, Plane.YZ])
+def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng: np.random.Generator) -> None:
+    angle = rng.random() * 2 * np.pi
+    ref_plane, ref_angle_func = measurement_action_lc_target[plane]
+    ref_angle = ref_angle_func(angle)
     zx_graph.add_physical_node(1)
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 1.1 * np.pi))
+    zx_graph.set_meas_basis(1, PlannerMeasBasis(plane, angle))
+
     zx_graph.local_complement(1)
     assert zx_graph.physical_edges == set()
-    assert zx_graph.meas_bases[1].plane == Plane.XZ
-    assert np.isclose(zx_graph.meas_bases[1].angle, 1.4 * np.pi)
-
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XZ, 1.1 * np.pi))
-    zx_graph.local_complement(1)
-    # this might be a bug in mypy, as it's useful comparison
-    assert zx_graph.meas_bases[1].plane == Plane.XY  # type: ignore[comparison-overlap]
-    assert np.isclose(zx_graph.meas_bases[1].angle, 0.6 * np.pi)
-
-    zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.YZ, 1.1 * np.pi))
-    zx_graph.local_complement(1)
-    assert zx_graph.meas_bases[1].plane == Plane.YZ
-    assert np.isclose(zx_graph.meas_bases[1].angle, 1.6 * np.pi)
+    assert zx_graph.meas_bases[1].plane == ref_plane
+    assert _is_close_angle(zx_graph.meas_bases[1].angle, ref_angle)
 
 
 def test_local_complement_on_output_node(zx_graph: ZXGraphState) -> None:
