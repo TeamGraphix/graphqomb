@@ -32,6 +32,10 @@ measurement_action_lc_neighbors: MeasurementAction = {
 }
 
 
+def plane_combinations(n: int) -> list[tuple[Plane, ...]]:
+    return list(itertools.product(Plane, repeat=n))
+
+
 @pytest.fixture
 def zx_graph() -> ZXGraphState:
     """Generate an empty ZXGraphState object.
