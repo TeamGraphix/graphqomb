@@ -1,14 +1,35 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import itertools
+import operator
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import is_clifford_angle
+from graphix_zx.euler import is_clifford_angle, _is_close_angle, LocalClifford, update_lc_basis
 from graphix_zx.random_objects import get_random_flow_graph
 from graphix_zx.zxgraphstate import ZXGraphState
+
+if TYPE_CHECKING:
+    from typing import Callable
+
+    Func = Callable[[float], float]
+    MeasurementAction = dict[Plane, tuple[Plane, Func]]
+    Measurements = list[tuple[int, Plane, float]]
+
+measurement_action_lc_target: MeasurementAction = {
+    Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
+    Plane.XZ: (Plane.XY, lambda angle: -angle + np.pi / 2),
+    Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
+}
+measurement_action_lc_neighbors: MeasurementAction = {
+    Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
+    Plane.XZ: (Plane.YZ, lambda angle: angle),
+    Plane.YZ: (Plane.XZ, operator.neg),
+}
 
 
 @pytest.fixture
