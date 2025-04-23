@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
+from graphix_zx.euler import LocalClifford
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 
@@ -18,6 +19,18 @@ def graph() -> GraphState:
     GraphState: An empty GraphState object.
     """
     return GraphState()
+
+
+@pytest.fixture
+def canonical_graph() -> GraphState:
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = graph.register_input(in_node)
+    graph.register_output(out_node, q_idx)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
+    return graph
 
 
 def test_add_physical_node(graph: GraphState) -> None:
@@ -182,6 +195,38 @@ def test_assign_meas_basis(graph: GraphState) -> None:
     graph.assign_meas_basis(node_index, meas_basis)
     assert graph.meas_bases[node_index].plane == Plane.XZ
     assert graph.meas_bases[node_index].angle == 0.5 * np.pi
+
+
+def test_is_canonical_form_true(canonical_graph: GraphState) -> None:
+    """Test if the graph is in canonical form."""
+    assert canonical_graph.is_canonical_form()
+
+
+def test_is_canonical_form_input_output_mismatch(canonical_graph: GraphState) -> None:
+    """Test if the graph is in canonical form with input-output mismatch."""
+    node_index = canonical_graph.add_physical_node()
+    canonical_graph.register_input(node_index)
+    assert not canonical_graph.is_canonical_form()
+
+
+def test_is_canonical_form_with_local_clifford_false(canonical_graph: GraphState) -> None:
+    """Test if the graph is in canonical form with local Clifford operator."""
+    local_clifford = LocalClifford()
+    in_node = next(iter(canonical_graph.input_node_indices))
+    canonical_graph.apply_local_clifford(in_node, local_clifford)
+    assert not canonical_graph.is_canonical_form()
+
+
+def test_is_canonical_form_missing_meas_basis_false(canonical_graph: GraphState) -> None:
+    """Test if the graph is in canonical form with missing measurement basis."""
+    _ = canonical_graph.add_physical_node()
+    assert not canonical_graph.is_canonical_form()
+
+
+def test_is_canonical_form_empty_graph_is_true() -> None:
+    """Test if an empty graph is in canonical form."""
+    graph = GraphState()
+    assert graph.is_canonical_form()
 
 
 def test_check_meas_raises_value_error(graph: GraphState) -> None:
