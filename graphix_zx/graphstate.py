@@ -613,17 +613,17 @@ class GraphState(BaseGraphState):
             A dictionary mapping output node indices to the new node indices created.
         """
         node_index_addition_map = {}
-        new_output_indices = []
-        for output_node, _ in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
+        new_output_index_map = {}
+        for output_node, q_index in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(output_node)
             if lc is None:
-                new_output_indices.append(output_node)
+                new_output_index_map[output_node] = q_index
                 continue
 
             new_node_index0 = self.add_physical_node()
             new_node_index1 = self.add_physical_node()
             new_node_index2 = self.add_physical_node()
-            new_output_indices.append(new_node_index2)
+            new_output_index_map[new_node_index2] = q_index
 
             self.add_physical_edge(output_node, new_node_index0)
             self.add_physical_edge(new_node_index0, new_node_index1)
@@ -638,8 +638,8 @@ class GraphState(BaseGraphState):
             )
 
         self.__output_node_indices = {}
-        for new_output_index in new_output_indices:
-            self.register_output(new_output_index, len(self.__output_node_indices))
+        for new_output_index, q_index in new_output_index_map.items():
+            self.register_output(new_output_index, q_index)
 
         return node_index_addition_map
 
