@@ -4,6 +4,8 @@ This module provides:
 
 - `BaseGraphState`: Abstract base class for Graph State.
 - `GraphState`: Minimal implementation of Graph State.
+- `LocalCliffordExpansion`: Local Clifford expansion.
+- `ExpansionMaps`: Expansion maps for local clifford operators.
 - `compose_sequentially`: Function to compose two graph states sequentially.
 - `compose_in_parallel`: Function to compose two graph states in parallel.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
@@ -15,7 +17,7 @@ import operator
 from abc import ABC, abstractmethod
 from itertools import product
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
 
@@ -537,17 +539,17 @@ class GraphState(BaseGraphState):
                 return False
         return True
 
-    def expand_local_cliffords(self) -> tuple[dict[int, tuple[int, int, int]], dict[int, tuple[int, int, int]]]:
+    def expand_local_cliffords(self) -> ExpansionMaps:
         r"""Expand local Clifford operators applied on the input and output nodes.
 
         Returns
         -------
-        `tuple`\[`dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\], `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]\]
+        `ExpansionMaps`
             A tuple of dictionaries mapping input and output node indices to the new node indices created.
         """
         input_node_map = self._expand_input_local_cliffords()
         output_node_map = self._expand_output_local_cliffords()
-        return input_node_map, output_node_map
+        return ExpansionMaps(input_node_map, output_node_map)
 
     def _pop_local_clifford(self, node: int) -> LocalClifford | None:
         """Pop local clifford of the node.
@@ -564,15 +566,15 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords.pop(node, None)
 
-    def _expand_input_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+    def _expand_input_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the input nodes.
 
         Returns
         -------
-        `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]
+        `dict`\[`int`, `LocalCliffordExpansion`\]
             A dictionary mapping input node indices to the new node indices created.
         """
-        node_index_addition_map = {}
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices = []
         for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(input_node)
@@ -593,7 +595,9 @@ class GraphState(BaseGraphState):
             self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
             self.assign_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
 
-            node_index_addition_map[input_node] = (new_node_index0, new_node_index1, new_node_index2)
+            node_index_addition_map[input_node] = LocalCliffordExpansion(
+                new_node_index0, new_node_index1, new_node_index2
+            )
 
         self.__input_node_indices = {}
         for new_input_index in new_input_indices:
@@ -601,12 +605,12 @@ class GraphState(BaseGraphState):
 
         return node_index_addition_map
 
-    def _expand_output_local_cliffords(self) -> dict[int, tuple[int, int, int]]:
+    def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the output nodes.
 
         Returns
         -------
-        `dict`\[`int`, `tuple`\[`int`, `int`, `int`\]\]
+        `dict`\[`int`, `LocalCliffordExpansion`\]
             A dictionary mapping output node indices to the new node indices created.
         """
         node_index_addition_map = {}
@@ -630,13 +634,30 @@ class GraphState(BaseGraphState):
             self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
             self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.gamma))
 
-            node_index_addition_map[output_node] = (new_node_index0, new_node_index1, new_node_index2)
+            node_index_addition_map[output_node] = LocalCliffordExpansion(
+                new_node_index0, new_node_index1, new_node_index2
+            )
 
         self.__output_node_indices = {}
         for new_output_index in new_output_indices:
             self.register_output(new_output_index, len(self.__output_node_indices))
 
         return node_index_addition_map
+
+
+class LocalCliffordExpansion(NamedTuple):
+    """Local Clifford expansion map for each input/output node."""
+
+    node1: int
+    node2: int
+    node3: int
+
+
+class ExpansionMaps(NamedTuple):
+    """Expansion maps for inputs and outputs with Local Clifford."""
+
+    input_node_map: dict[int, LocalCliffordExpansion]
+    output_node_map: dict[int, LocalCliffordExpansion]
 
 
 def compose_sequentially(  # noqa: C901
