@@ -16,7 +16,6 @@ from __future__ import annotations
 import operator
 from abc import ABC, abstractmethod
 from itertools import product
-from types import MappingProxyType
 from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
@@ -35,23 +34,23 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def input_node_indices(self) -> MappingProxyType[int, int]:
+    def input_node_indices(self) -> dict[int, int]:
         r"""Return map of input nodes to logical qubit indices.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `int`\]
+        `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
 
     @property
     @abstractmethod
-    def output_node_indices(self) -> MappingProxyType[int, int]:
+    def output_node_indices(self) -> dict[int, int]:
         r"""Return map of output nodes to logical qubit indices.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `int`\]
+        `dict`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
 
@@ -79,12 +78,12 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
+    def meas_bases(self) -> dict[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `MeasBasis`\]
+        `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
 
@@ -199,27 +198,27 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def input_node_indices(self) -> MappingProxyType[int, int]:
+    def input_node_indices(self) -> dict[int, int]:
         r"""Return map of input nodes to logical qubit indices.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `int`\]
+        `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
-        return MappingProxyType(self.__input_node_indices)
+        return self.__input_node_indices.copy()
 
     @property
     @typing_extensions.override
-    def output_node_indices(self) -> MappingProxyType[int, int]:
+    def output_node_indices(self) -> dict[int, int]:
         r"""Return map of output nodes to logical qubit indices.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `int`\]
+        `dict`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
-        return MappingProxyType(self.__output_node_indices)
+        return self.__output_node_indices.copy()
 
     @property
     @typing_extensions.override
@@ -252,26 +251,26 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
+    def meas_bases(self) -> dict[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `MeasBasis`\]
+        `dict`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
-        return MappingProxyType(self.__meas_bases)
+        return self.__meas_bases.copy()
 
     @property
-    def local_cliffords(self) -> MappingProxyType[int, LocalClifford]:
+    def local_cliffords(self) -> dict[int, LocalClifford]:
         r"""Return local clifford nodes.
 
         Returns
         -------
-        `types.MappingProxyType`\[`int`, `LocalClifford`\]
+        `dict`\[`int`, `LocalClifford`\]
             local clifford nodes.
         """
-        return MappingProxyType(self.__local_cliffords)
+        return self.__local_cliffords.copy()
 
     def _check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
