@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import is_clifford_angle
+from graphix_zx.euler import is_clifford_angle, LocalClifford
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
@@ -74,6 +74,52 @@ class ZXGraphState(GraphState):
             new_angle = new_angle_func(v) % (2.0 * np.pi)
             self.set_meas_basis(v, PlannerMeasBasis(new_plane, new_angle))
 
+    def old_local_complement(self, node: int) -> None:
+        """Local complement operation on the graph state: G*u.
+        XXX: Duplicated with the new local complement. Remove after test completion.
+
+        Parameters
+        ----------
+        node : int
+            node index. The node must not be an input node.
+
+        Raises
+        ------
+        ValueError
+            If the node does not exist, is an input node, or the graph is not a ZX-diagram.
+        """
+        self.ensure_node_exists(node)
+        if node in self.input_nodes:
+            msg = "Cannot apply local complement to input node."
+            raise ValueError(msg)
+        self.check_meas_basis()
+
+        nbrs: set[int] = self.get_neighbors(node)
+        nbr_pairs = bipartite_edges(nbrs, nbrs)
+        new_edges = nbr_pairs - self.physical_edges
+        rmv_edges = self.physical_edges & nbr_pairs
+
+        self._update_connections(rmv_edges, new_edges)
+
+        # update node measurement if not output node
+        measurement_action = {
+            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi + self.meas_bases[v].angle) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XY, lambda v: (0.5 * np.pi - self.meas_bases[v].angle) % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: (self.meas_bases[v].angle + 0.5 * np.pi) % (2.0 * np.pi)),
+        }
+        if node not in self.output_nodes:
+            self._update_node_measurement(measurement_action, node)
+
+        # update neighbors measurement if not output node
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + 0.5 * np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
+            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
+        }
+
+        for v in nbrs - self.output_nodes:
+            self._update_node_measurement(measurement_action, v)
+
     def local_complement(self, node: int) -> None:
         """Local complement operation on the graph state: G*u.
 
@@ -101,23 +147,14 @@ class ZXGraphState(GraphState):
         self._update_connections(rmv_edges, new_edges)
 
         # update node measurement if not output node
-        measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: (self.meas_bases[v].angle + 0.5 * np.pi) % (2.0 * np.pi)),
-        }
         if node not in self.output_nodes:
-            self._update_node_measurement(measurement_action, node)
+            lc = LocalClifford(0, np.pi / 2, 0)
+            self.apply_local_clifford(node, lc)
 
         # update neighbors measurement if not output node
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-        }
-
+        lc = LocalClifford(-np.pi / 2, 0, 0)
         for v in nbrs - self.output_nodes:
-            self._update_node_measurement(measurement_action, v)
+            self.apply_local_clifford(v, lc)
 
     def _swap(self, node1: int, node2: int) -> None:
         """Swap nodes u and v in the graph state.
@@ -139,6 +176,67 @@ class ZXGraphState(GraphState):
         for c in nbr_c:
             self.remove_physical_edge(node2, c)
             self.add_physical_edge(node1, c)
+
+    def old_pivot(self, node1: int, node2: int) -> None:
+        """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
+        XXX: Duplicated with the new pivot. Remove after test completion.
+
+        In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
+
+        Parameters
+        ----------
+        node1 : int
+            node index. The node must not be an input node.
+        node2 : int
+            node index. The node must not be an input node.
+
+        Raises
+        ------
+        ValueError
+            If the nodes are input nodes, or the graph is not a ZX-diagram.
+        """
+        self.ensure_node_exists(node1)
+        self.ensure_node_exists(node2)
+        if node1 in self.input_nodes or node2 in self.input_nodes:
+            msg = "Cannot apply pivot to input node"
+            raise ValueError(msg)
+        self.check_meas_basis()
+
+        node1_nbrs = self.get_neighbors(node1) - {node2}
+        node2_nbrs = self.get_neighbors(node2) - {node1}
+        nbr_a = node1_nbrs & node2_nbrs
+        nbr_b = node1_nbrs - node2_nbrs
+        nbr_c = node2_nbrs - node1_nbrs
+        nbr_pairs = [
+            bipartite_edges(nbr_a, nbr_b),
+            bipartite_edges(nbr_a, nbr_c),
+            bipartite_edges(nbr_b, nbr_c),
+        ]
+        rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
+        add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
+
+        self._update_connections(rmv_edges, add_edges)
+        self._swap(node1, node2)
+
+        # update node1 and node2 measurement
+        measurement_action = {
+            Plane.XY: (Plane.YZ, lambda v: -self.meas_bases[v].angle),
+            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
+            Plane.YZ: (Plane.XY, lambda v: -self.meas_bases[v].angle),
+        }
+
+        for a in {node1, node2} - self.output_nodes:
+            self._update_node_measurement(measurement_action, a)
+
+        # update nodes measurement of nbr_a
+        measurement_action = {
+            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi)),
+            Plane.XZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
+            Plane.YZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
+        }
+
+        for w in nbr_a - self.output_nodes:
+            self._update_node_measurement(measurement_action, w)
 
     def pivot(self, node1: int, node2: int) -> None:
         """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
@@ -181,24 +279,14 @@ class ZXGraphState(GraphState):
         self._swap(node1, node2)
 
         # update node1 and node2 measurement
-        measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_bases[v].angle),
-        }
-
+        lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
         for a in {node1, node2} - self.output_nodes:
-            self._update_node_measurement(measurement_action, a)
+            self.apply_local_clifford(a, lc)
 
         # update nodes measurement of nbr_a
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-        }
-
+        lc = LocalClifford(np.pi, 0, 0)
         for w in nbr_a - self.output_nodes:
-            self._update_node_measurement(measurement_action, w)
+            self.apply_local_clifford(w, lc)
 
     def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
