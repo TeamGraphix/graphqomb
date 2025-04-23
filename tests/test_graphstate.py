@@ -217,6 +217,15 @@ def test_is_canonical_form_with_local_clifford_false(canonical_graph: GraphState
     assert not canonical_graph.is_canonical_form()
 
 
+def test_is_canonical_form_with_local_clifford_expansion_true(canonical_graph: GraphState) -> None:
+    """Test if the graph is in canonical form with local Clifford operator expansion."""
+    local_clifford = LocalClifford()
+    in_node = next(iter(canonical_graph.input_node_indices))
+    canonical_graph.apply_local_clifford(in_node, local_clifford)
+    canonical_graph.expand_local_cliffords()
+    assert canonical_graph.is_canonical_form()
+
+
 def test_is_canonical_form_missing_meas_basis_false(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form with missing measurement basis."""
     _ = canonical_graph.add_physical_node()
