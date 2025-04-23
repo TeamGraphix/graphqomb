@@ -280,56 +280,6 @@ def test_local_complement_4_times(
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (2, 3)}, exp_measurements=exp_measurements)
 
 
-# @pytest.mark.parametrize("planes", [(Plane.XY, Plane.XZ, Plane.YZ, Plane.XY, Plane.XZ, Plane.YZ)])
-# def test_local_complement_with_h_shaped_graph(
-#     zx_graph: ZXGraphState, planes: tuple[Plane, Plane, Plane, Plane, Plane, Plane], rng: np.random.Generator
-# ) -> None:
-#     """Test local complement with an H-shaped graph."""
-#     for i in range(1, 7):
-#         zx_graph.add_physical_node(i)
-
-#     zx_graph.set_input(1)
-#     zx_graph.set_input(4)
-
-#     for i, j in [(1, 2), (2, 3), (2, 5), (4, 5), (5, 6)]:
-#         zx_graph.add_physical_edge(i, j)
-
-#     angles = [rng.random() * 2 * np.pi for _ in range(6)]
-#     measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 7)]
-#     _apply_measurements(zx_graph, measurements)
-
-#     target = 2
-#     zx_graph.local_complement(target)
-#     exp_measurements = []
-#     for i in (1, 2, 3, 5):
-#         meas_ac = measurement_action_lc_neighbors
-#         if i == target:
-#             meas_ac = measurement_action_lc_target
-#         ref_plane, ref_angle_func = meas_ac[planes[i - 1]]
-#         ref_angle = ref_angle_func(angles[i - 1])
-#         exp_measurements.append((i, ref_plane, ref_angle))
-#     _test(
-#         zx_graph,
-#         exp_nodes={1, 2, 3, 4, 5, 6},
-#         exp_edges={(1, 2), (1, 3), (1, 5), (2, 3), (2, 5), (3, 5), (4, 5), (5, 6)},
-#         exp_measurements=exp_measurements,
-#     )
-
-# zx_graph.local_complement(2)
-# assert zx_graph.physical_edges == original_edges
-# exp_measurements = [
-#     (1, Plane.XY, 0.1 * np.pi),
-#     (2, Plane.XZ, 1.8 * np.pi),
-#     (3, Plane.YZ, 0.7 * np.pi),
-#     (4, Plane.XY, 1.4 * np.pi),
-#     (5, Plane.XZ, 0.5 * np.pi),
-#     (6, Plane.YZ, 1.6 * np.pi),
-# ]
-# for node_id, plane, angle in exp_measurements:
-#     assert zx_graph.meas_bases[node_id].plane == plane
-#     assert np.isclose(zx_graph.meas_bases[node_id].angle, angle)
-
-
 def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
     """Test pivot fails with nonexistent nodes."""
     with pytest.raises(ValueError, match="Node does not exist node=1"):
