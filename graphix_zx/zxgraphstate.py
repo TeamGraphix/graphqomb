@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import is_clifford_angle, LocalClifford
+from graphix_zx.euler import LocalClifford, is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
@@ -147,8 +147,8 @@ class ZXGraphState(GraphState):
         self._update_connections(rmv_edges, new_edges)
 
         # update node measurement if not output node
+        lc = LocalClifford(0, np.pi / 2, 0)
         if node not in self.output_nodes:
-            lc = LocalClifford(0, np.pi / 2, 0)
             self.apply_local_clifford(node, lc)
 
         # update neighbors measurement if not output node
