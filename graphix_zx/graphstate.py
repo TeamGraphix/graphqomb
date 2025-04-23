@@ -55,23 +55,23 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def physical_nodes(self) -> frozenset[int]:
+    def physical_nodes(self) -> set[int]:
         r"""Return set of physical nodes.
 
         Returns
         -------
-        `frozenset`\[`int`\]
+        `set`\[`int`\]
             set of physical nodes.
         """
 
     @property
     @abstractmethod
-    def physical_edges(self) -> frozenset[tuple[int, int]]:
+    def physical_edges(self) -> set[tuple[int, int]]:
         r"""Return set of physical edges.
 
         Returns
         -------
-        `frozenset`\[`tuple`\[`int`, `int`\]`
+        `set`\[`tuple`\[`int`, `int`\]`
             set of physical edges.
         """
 
@@ -87,9 +87,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def add_physical_node(
-        self,
-    ) -> int:
+    def add_physical_node(self) -> int:
         """Add a physical node to the graph state.
 
         Returns
@@ -150,7 +148,7 @@ class BaseGraphState(ABC):
         """
 
     @abstractmethod
-    def neighbors(self, node: int) -> frozenset[int]:
+    def neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
         Parameters
@@ -160,7 +158,7 @@ class BaseGraphState(ABC):
 
         Returns
         -------
-        `frozenset`\[`int`\]
+        `set`\[`int`\]
             set of neighboring nodes
         """
 
@@ -223,24 +221,24 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def physical_nodes(self) -> frozenset[int]:
+    def physical_nodes(self) -> set[int]:
         r"""Return set of physical nodes.
 
         Returns
         -------
-        `frozenset`\[`int`\]
+        `set`\[`int`\]
             set of physical nodes.
         """
-        return frozenset(self.__physical_nodes)
+        return self.__physical_nodes.copy()
 
     @property
     @typing_extensions.override
-    def physical_edges(self) -> frozenset[tuple[int, int]]:
+    def physical_edges(self) -> set[tuple[int, int]]:
         r"""Return set of physical edges.
 
         Returns
         -------
-        `frozenset`\[`tuple`\[`int`, `int`\]
+        `set`\[`tuple`\[`int`, `int`\]
             set of physical edges.
         """
         edges = set()
@@ -248,7 +246,7 @@ class GraphState(BaseGraphState):
             for node2 in self.__physical_edges[node1]:
                 if node1 < node2:
                     edges |= {(node1, node2)}
-        return frozenset(edges)
+        return edges
 
     @property
     @typing_extensions.override
@@ -299,9 +297,7 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
 
     @typing_extensions.override
-    def add_physical_node(
-        self,
-    ) -> int:
+    def add_physical_node(self) -> int:
         """Add a physical node to the graph state.
 
         Returns
@@ -502,7 +498,7 @@ class GraphState(BaseGraphState):
             self.assign_meas_basis(node, new_meas_basis)
 
     @typing_extensions.override
-    def neighbors(self, node: int) -> frozenset[int]:
+    def neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
         Parameters
@@ -512,11 +508,11 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `frozenset`\[`int`\]
+        `set`\[`int`\]
             set of neighboring nodes
         """
         self._ensure_node_exists(node)
-        return frozenset(self.__physical_edges[node])
+        return self.__physical_edges[node].copy()
 
     @typing_extensions.override
     def is_canonical_form(self) -> bool:
