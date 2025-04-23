@@ -574,6 +574,7 @@ class GraphState(BaseGraphState):
         for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(input_node)
             if lc is None:
+                new_input_indices.append(input_node)
                 continue
 
             new_node_index0 = self.add_physical_node()
@@ -610,6 +611,7 @@ class GraphState(BaseGraphState):
         for output_node, _ in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(output_node)
             if lc is None:
+                new_output_indices.append(output_node)
                 continue
 
             new_node_index0 = self.add_physical_node()
