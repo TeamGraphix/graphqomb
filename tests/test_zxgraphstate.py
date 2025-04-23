@@ -1,34 +1,57 @@
 from __future__ import annotations
 
-from copy import deepcopy
 import itertools
 import operator
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import is_clifford_angle, _is_close_angle, LocalClifford, update_lc_basis
+from graphix_zx.euler import _is_close_angle, is_clifford_angle
 from graphix_zx.random_objects import get_random_flow_graph
 from graphix_zx.zxgraphstate import ZXGraphState
 
 if TYPE_CHECKING:
     from typing import Callable
 
-    Func = Callable[[float], float]
-    MeasurementAction = dict[Plane, tuple[Plane, Func]]
     Measurements = list[tuple[int, Plane, float]]
 
-measurement_action_lc_target: MeasurementAction = {
+measurement_action_lc_target: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
     Plane.XZ: (Plane.XY, lambda angle: -angle + np.pi / 2),
     Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
 }
-measurement_action_lc_neighbors: MeasurementAction = {
+measurement_action_lc_neighbors: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
     Plane.XZ: (Plane.YZ, lambda angle: angle),
     Plane.YZ: (Plane.XZ, operator.neg),
+}
+measurement_action_pv_target: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+    Plane.XY: (Plane.YZ, operator.neg),
+    Plane.XZ: (Plane.XZ, lambda angle: (np.pi / 2 - angle)),
+    Plane.YZ: (Plane.XY, operator.neg),
+}
+measurement_action_pv_neighbors: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+    Plane.XY: (Plane.XY, lambda angle: (angle + np.pi) % (2.0 * np.pi)),
+    Plane.XZ: (Plane.XZ, lambda angle: -angle % (2.0 * np.pi)),
+    Plane.YZ: (Plane.YZ, lambda angle: -angle % (2.0 * np.pi)),
+}
+atol = 1e-9
+measurement_action_rc: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
+    Plane.XY: (
+        Plane.XY,
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else alpha + np.pi) % (2.0 * np.pi),
+    ),
+    Plane.XZ: (
+        Plane.XZ,
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else -alpha) % (2.0 * np.pi),
+    ),
+    Plane.YZ: (
+        Plane.YZ,
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else -alpha) % (2.0 * np.pi),
+    ),
 }
 
 
@@ -157,7 +180,7 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng
     assert _is_close_angle(zx_graph.meas_bases[1].angle, ref_angle)
 
 
-@pytest.mark.parametrize("plane1, plane3", plane_combinations(2))
+@pytest.mark.parametrize(("plane1", "plane3"), plane_combinations(2))
 def test_local_complement_on_output_node(
     zx_graph: ZXGraphState, plane1: Plane, plane3: Plane, rng: np.random.Generator
 ) -> None:
@@ -179,7 +202,7 @@ def test_local_complement_on_output_node(
     assert zx_graph.meas_bases.get(2) is None
 
 
-@pytest.mark.parametrize("plane1, plane2", plane_combinations(2))
+@pytest.mark.parametrize(("plane1", "plane2"), plane_combinations(2))
 def test_local_complement_with_two_nodes_graph(
     zx_graph: ZXGraphState, plane1: Plane, plane2: Plane, rng: np.random.Generator
 ) -> None:
