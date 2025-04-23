@@ -2,7 +2,7 @@
 
 This module provides:
 
-- `get_random_flow_graph`: Generate a random flow graph.
+- `generate_random_flow_graph`: Generate a random flow graph.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
-def get_random_flow_graph(
+def generate_random_flow_graph(
     width: int,
     depth: int,
     edge_p: float = 0.5,
