@@ -519,14 +519,17 @@ class GraphState(BaseGraphState):
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. No Clifford operators applied.
-        2. All non-output nodes have measurement basis.
+        1. Graph state has the same number of input and output nodes.
+        2. No Clifford operators applied.
+        3. All non-output nodes have measurement basis.
 
         Returns
         -------
         `bool`
             `True` if the graph state is in canonical form, `False` otherwise.
         """
+        if len(self.input_node_indices) != len(self.output_node_indices):
+            return False
         if self.__local_cliffords:
             return False
         for node in self.physical_nodes - set(self.output_node_indices):
