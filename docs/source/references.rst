@@ -8,3 +8,4 @@ Module reference
     euler
     matrix
     graphstate
+    random_objects
