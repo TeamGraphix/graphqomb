@@ -7,3 +7,5 @@ Module reference
     common
     euler
     matrix
+    graphstate
+    random_objects
