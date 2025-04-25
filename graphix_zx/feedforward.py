@@ -8,6 +8,8 @@ This module provides:
 - `Flow`: Flow object.
 - `GFlow`: GFlow object.
 - `FlowLike`: Flowlike object.
+- `is_flow`: Check if the flowlike object is a flow.
+- `is_gflow`: Check if the flowlike object is a GFlow.
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
 - `check_causality`: Check if the flowlike object is causal with respect to the graph state.
 """
@@ -16,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
-from typing import Any, TypeGuard, overload
+from typing import Any, TypeGuard
 
 from graphix_zx.graphstate import BaseGraphState, odd_neighbors
 
@@ -25,7 +27,7 @@ GFlow = Mapping[int, AbstractSet[int]]
 FlowLike = Flow | GFlow
 
 
-def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
+def is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
     r"""Check if the flowlike object is a flow.
 
     Parameters
@@ -41,7 +43,7 @@ def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
     return all(isinstance(v, int) for v in flowlike.values())
 
 
-def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
+def is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
     r"""Check if the flowlike object is a GFlow.
 
     Parameters
@@ -55,14 +57,6 @@ def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
         True if the flowlike object is a GFlow, False otherwise
     """
     return all(isinstance(v, AbstractSet) for v in flowlike.values())
-
-
-@overload
-def dag_from_flow(flowlike: Flow, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]: ...
-
-
-@overload
-def dag_from_flow(flowlike: GFlow, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]: ...
 
 
 def dag_from_flow(flowlike: FlowLike, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]:
@@ -92,9 +86,9 @@ def dag_from_flow(flowlike: FlowLike, graph: BaseGraphState, *, check: bool = Tr
     dag = {}
     outputs = graph.physical_nodes - set(flowlike)
     for node in flowlike:
-        if _is_flow(flowlike):
+        if is_flow(flowlike):
             target_nodes = {flowlike[node]} | graph.neighbors(node) - {node}
-        elif _is_gflow(flowlike):
+        elif is_gflow(flowlike):
             target_nodes = set(flowlike[node] | odd_neighbors(flowlike[node], graph) - {node})
         else:
             msg = "Invalid flowlike object"
