@@ -9,6 +9,8 @@ This module provides:
 - `compose_sequentially`: Function to compose two graph states sequentially.
 - `compose_in_parallel`: Function to compose two graph states in parallel.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
+- `odd_neighbors`: Function to get odd neighbors of a node.
+
 """
 
 from __future__ import annotations
@@ -824,3 +826,24 @@ def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) ->
         msg = "The two sets of nodes must be disjoint."
         raise ValueError(msg)
     return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2)}
+
+
+def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[int]:
+    r"""Return the odd neighbors of a set of nodes in the graph state.
+
+    Parameters
+    ----------
+    nodes : `collections.abc.Set`\[`int`\]
+        set of nodes
+    graphstate : `BaseGraphState`
+        graph state
+
+    Returns
+    -------
+    `set`\[`int`\]
+        set of odd neighbors
+    """
+    odd_neighbors: set[int] = set()
+    for node in nodes:
+        odd_neighbors ^= graphstate.neighbors(node)
+    return odd_neighbors
