@@ -1,0 +1,202 @@
+"""Focus flow algorithm.
+
+This module provides:
+
+- is_focused: Check if a flowlike object is focused.
+- focus_gflow: Focus a flowlike object.
+"""
+
+from __future__ import annotations
+
+from graphlib import TopologicalSorter
+from typing import TYPE_CHECKING
+
+from graphix_zx.common import Plane
+from graphix_zx.feedforward import check_causality, dag_from_flow, is_flow, is_gflow
+from graphix_zx.graphstate import odd_neighbors
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from graphix_zx.feedforward import FlowLike
+    from graphix_zx.graphstate import BaseGraphState
+
+
+def is_focused(flowlike: FlowLike, graph: BaseGraphState) -> bool:
+    """Check if a flowlike object is focused.
+
+    Parameters
+    ----------
+    flowlike : `FlowLike`
+        flowlike object
+    graph : `BaseGraphState`
+        graph state
+
+    Returns
+    -------
+    `bool`
+        True if the flowlike object is focused, False otherwise
+
+    Raises
+    ------
+    TypeError
+        If the flowlike object is not a Flow or GFlow
+    """
+    meas_bases = graph.meas_bases
+    outputs = set(graph.output_node_indices)
+
+    focused = True
+    for node in set(flowlike) - outputs:
+        if is_flow(flowlike):
+            for child in graph.neighbors(flowlike[node]) - outputs:
+                focused &= node == child
+        elif is_gflow(flowlike):
+            for child in flowlike[node]:
+                if child in outputs:
+                    continue
+                focused &= (meas_bases[child].plane == Plane.XY) or (node == child)
+
+            for child in odd_neighbors(flowlike[node], graph):
+                if child in outputs:
+                    continue
+                focused &= (meas_bases[child].plane != Plane.XY) or (node == child)
+        else:
+            msg = "Invalid flowlike object"
+            raise TypeError(msg)
+
+    return focused
+
+
+def focus_gflow(flowlike: FlowLike, graph: BaseGraphState) -> dict[int, set[int]]:
+    r"""Focus a flowlike object.
+
+    Parameters
+    ----------
+    flowlike : `FlowLike`
+        flowlike object
+    graph : `BaseGraphState`
+        graph state
+
+    Returns
+    -------
+    `dict`\[`int`, `set`\[`int`\]\]
+        focused flowlike object
+
+    Raises
+    ------
+    TypeError
+        If the flowlike object is not a Flow or GFlow
+    ValueError
+        if the flowlike object is not causal with respect to the graph state
+    """
+    if is_flow(flowlike):
+        flowlike = {key: {value} for key, value in flowlike.items()}
+    elif is_gflow(flowlike):
+        flowlike = {key: set(value) for key, value in flowlike.items()}
+    else:
+        msg = "Invalid flowlike object"
+        raise TypeError(msg)
+    if not check_causality(graph, flowlike):
+        msg = "The flowlike object is not causal with respect to the graph state"
+        raise ValueError(msg)
+    outputs = graph.physical_nodes - set(flowlike)
+    dag = dag_from_flow(flowlike, graph)
+    topo_order = list(TopologicalSorter(dag).static_order())
+
+    for output in outputs:
+        topo_order.remove(output)
+
+    for target in topo_order:
+        flowlike = _focus(target, flowlike, graph, topo_order)
+
+    return flowlike
+
+
+def _focus(
+    target: int, gflow: dict[int, set[int]], graph: BaseGraphState, topo_order: Sequence[int]
+) -> dict[int, set[int]]:
+    r"""Subroutine of the focus_gflow function.
+
+    Parameters
+    ----------
+    target : `int`
+        target node to be focused
+    gflow : `dict`\[`int`, `set`\[`int`\]\]
+        gflow object
+    graph : `BaseGraphState`
+        graph state
+    topo_order : `collections.abc.Sequence`\[`int`\]
+        topological order of the graph state
+
+    Returns
+    -------
+    `dict`\[`int`, `set`\[`int`\]
+        flowlike object after focusing the target node
+    """
+    k = 0
+    s_k = _find_unfocused_corrections(target, gflow, graph)
+    while s_k:
+        gflow = _update_gflow(target, gflow, s_k, topo_order)
+        s_k = _find_unfocused_corrections(target, gflow, graph)
+
+        k += 1
+
+    return gflow
+
+
+def _find_unfocused_corrections(target: int, gflow: dict[int, set[int]], graph: BaseGraphState) -> set[int]:
+    r"""Subroutine of the _focus function.
+
+    Parameters
+    ----------
+    target : `int`
+        target node
+    gflow : `dict`\[`int`, `set`\[`int`\]
+        flowlike object
+    graph : `BaseGraphState`
+        graph state
+
+    Returns
+    -------
+    `set`\[`int`\]
+        set of unfocused corrections
+    """
+    meas_bases = graph.meas_bases
+    non_outputs = set(gflow) - set(graph.output_node_indices)
+
+    s_xy_candidate = odd_neighbors(gflow[target], graph) & non_outputs - {target}
+    s_xz_candidate = gflow[target] & non_outputs - {target}
+    s_yz_candidate = gflow[target] & non_outputs - {target}
+
+    s_xy = {node for node in s_xy_candidate if meas_bases[node].plane == Plane.XY}
+    s_xz = {node for node in s_xz_candidate if meas_bases[node].plane == Plane.XZ}
+    s_yz = {node for node in s_yz_candidate if meas_bases[node].plane == Plane.YZ}
+
+    return s_xy | s_xz | s_yz
+
+
+def _update_gflow(
+    target: int, gflow: dict[int, set[int]], s_k: Iterable[int], topo_order: Sequence[int]
+) -> dict[int, set[int]]:
+    r"""Subroutine of the _focus function.
+
+    Parameters
+    ----------
+    target : `int`
+        target node
+    gflow : `dict`\[`int`, `set`\[`int`\]
+        flowlike object
+    s_k : `Iterable`\[`int`\]
+        unfocused correction
+    topo_order : `collections.abc.Sequence`\[`int`\]
+        topological order of the graph state
+
+    Returns
+    -------
+    `dict`\[`int`, `set`\[`int`\]
+        gflow object after updating the target node
+    """
+    minimal_in_s_k = min(s_k, key=topo_order.index)
+    gflow[target] ^= gflow[minimal_in_s_k]
+
+    return gflow
