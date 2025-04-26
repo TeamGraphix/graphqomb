@@ -2,9 +2,6 @@
 
 This module provides:
 
-- `CorrerectionMap`: Correction map for a flowlike object.
-
-- `CorrectionSet`: Correction set for a flowlike object.
 - `Flow`: Flow object.
 - `GFlow`: GFlow object.
 - `FlowLike`: Flowlike object.

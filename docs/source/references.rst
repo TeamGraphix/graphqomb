@@ -9,3 +9,5 @@ Module reference
     matrix
     graphstate
     random_objects
+    feedforward
+    focus_flow
