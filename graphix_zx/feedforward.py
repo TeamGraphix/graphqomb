@@ -151,5 +151,5 @@ def check_causality(
     `bool`
         True if the flowlike object is causal, False otherwise
     """
-    dag = dag_from_flow(flowlike, graph)
+    dag = dag_from_flow(flowlike, graph, check=False)
     return _check_dag(dag)
