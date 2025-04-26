@@ -843,7 +843,7 @@ def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[in
     `set`\[`int`\]
         set of odd neighbors
     """
-    odd_neighbors: set[int] = set()
+    result: set[int] = set()
     for node in nodes:
-        odd_neighbors ^= graphstate.neighbors(node)
-    return odd_neighbors
+        result ^= graphstate.neighbors(node)
+    return result
