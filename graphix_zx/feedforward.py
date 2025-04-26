@@ -13,11 +13,17 @@ This module provides:
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
-from typing import Any, TypeGuard
+from typing import Any
 
 from graphix_zx.graphstate import BaseGraphState, odd_neighbors
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 Flow = Mapping[int, int]
 GFlow = Mapping[int, AbstractSet[int]]
