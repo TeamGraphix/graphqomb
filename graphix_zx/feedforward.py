@@ -27,7 +27,13 @@ else:
 
 Flow = Mapping[int, int]
 GFlow = Mapping[int, AbstractSet[int]]
-FlowLike = Flow | GFlow
+
+if sys.version_info >= (3, 10):
+    FlowLike = Flow | GFlow
+else:
+    from typing import Union
+
+    FlowLike = Union[Flow, GFlow]
 
 
 def is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
