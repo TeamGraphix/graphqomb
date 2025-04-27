@@ -18,16 +18,16 @@ from graphix_zx.graphstate import odd_neighbors
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
-    from graphix_zx.feedforward import FlowLike
+    from graphix_zx.feedforward import _FlowLike
     from graphix_zx.graphstate import BaseGraphState
 
 
-def is_focused(flowlike: FlowLike, graph: BaseGraphState) -> bool:
+def is_focused(flowlike: _FlowLike, graph: BaseGraphState) -> bool:
     """Check if a flowlike object is focused.
 
     Parameters
     ----------
-    flowlike : `FlowLike`
+    flowlike : `_FlowLike`
         flowlike object
     graph : `BaseGraphState`
         graph state
@@ -67,12 +67,12 @@ def is_focused(flowlike: FlowLike, graph: BaseGraphState) -> bool:
     return focused
 
 
-def focus_gflow(flowlike: FlowLike, graph: BaseGraphState) -> dict[int, set[int]]:
+def focus_gflow(flowlike: _FlowLike, graph: BaseGraphState) -> dict[int, set[int]]:
     r"""Focus a flowlike object.
 
     Parameters
     ----------
-    flowlike : `FlowLike`
+    flowlike : `_FlowLike`
         flowlike object
     graph : `BaseGraphState`
         graph state

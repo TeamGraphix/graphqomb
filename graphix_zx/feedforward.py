@@ -2,9 +2,6 @@
 
 This module provides:
 
-- `Flow`: Flow object.
-- `GFlow`: GFlow object.
-- `FlowLike`: Flowlike object.
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
 - `check_causality`: Check if the flowlike object is causal with respect to the graph state.
 """
@@ -23,18 +20,18 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import TypeGuard
 
-Flow = Mapping[int, int]
-GFlow = Mapping[int, AbstractSet[int]]
+_Flow = Mapping[int, int]
+_GFlow = Mapping[int, AbstractSet[int]]
 
 if sys.version_info >= (3, 10):
-    FlowLike = Flow | GFlow
+    _FlowLike = _Flow | _GFlow
 else:
     from typing import Union
 
-    FlowLike = Union[Flow, GFlow]
+    _FlowLike = Union[_Flow, _GFlow]
 
 
-def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
+def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[_Flow]:
     r"""Check if the flowlike object is a flow.
 
     Parameters
@@ -50,7 +47,7 @@ def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
     return all(isinstance(v, int) for v in flowlike.values())
 
 
-def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
+def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[_GFlow]:
     r"""Check if the flowlike object is a GFlow.
 
     Parameters
@@ -66,7 +63,7 @@ def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
     return all(isinstance(v, AbstractSet) for v in flowlike.values())
 
 
-def dag_from_flow(flowlike: FlowLike, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]:
+def dag_from_flow(flowlike: _FlowLike, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]:
     r"""Construct a directed acyclic graph (DAG) from a flowlike object.
 
     Parameters
@@ -133,7 +130,7 @@ def _check_dag(dag: Mapping[int, Iterable[int]]) -> bool:
 
 def check_causality(
     graph: BaseGraphState,
-    flowlike: FlowLike,
+    flowlike: _FlowLike,
 ) -> bool:
     """Check if the flowlike object is causal with respect to the graph state.
 
