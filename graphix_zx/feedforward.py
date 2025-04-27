@@ -5,8 +5,6 @@ This module provides:
 - `Flow`: Flow object.
 - `GFlow`: GFlow object.
 - `FlowLike`: Flowlike object.
-- `is_flow`: Check if the flowlike object is a flow.
-- `is_gflow`: Check if the flowlike object is a GFlow.
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
 - `check_causality`: Check if the flowlike object is causal with respect to the graph state.
 """
@@ -36,7 +34,7 @@ else:
     FlowLike = Union[Flow, GFlow]
 
 
-def is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
+def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
     r"""Check if the flowlike object is a flow.
 
     Parameters
@@ -52,7 +50,7 @@ def is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Flow]:
     return all(isinstance(v, int) for v in flowlike.values())
 
 
-def is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
+def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[GFlow]:
     r"""Check if the flowlike object is a GFlow.
 
     Parameters
@@ -95,9 +93,9 @@ def dag_from_flow(flowlike: FlowLike, graph: BaseGraphState, *, check: bool = Tr
     dag = {}
     outputs = graph.physical_nodes - set(flowlike)
     for node in flowlike:
-        if is_flow(flowlike):
+        if _is_flow(flowlike):
             target_nodes = {flowlike[node]} | graph.neighbors(node) - {node}
-        elif is_gflow(flowlike):
+        elif _is_gflow(flowlike):
             target_nodes = set(flowlike[node] | odd_neighbors(flowlike[node], graph) - {node})
         else:
             msg = "Invalid flowlike object"

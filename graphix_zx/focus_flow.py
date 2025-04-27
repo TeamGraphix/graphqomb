@@ -12,7 +12,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
-from graphix_zx.feedforward import check_causality, dag_from_flow, is_flow, is_gflow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
 from graphix_zx.graphstate import odd_neighbors
 
 if TYPE_CHECKING:
@@ -47,10 +47,10 @@ def is_focused(flowlike: FlowLike, graph: BaseGraphState) -> bool:
 
     focused = True
     for node in set(flowlike) - outputs:
-        if is_flow(flowlike):
+        if _is_flow(flowlike):
             for child in graph.neighbors(flowlike[node]) - outputs:
                 focused &= node == child
-        elif is_gflow(flowlike):
+        elif _is_gflow(flowlike):
             for child in flowlike[node]:
                 if child in outputs:
                     continue
@@ -89,9 +89,9 @@ def focus_gflow(flowlike: FlowLike, graph: BaseGraphState) -> dict[int, set[int]
     ValueError
         if the flowlike object is not causal with respect to the graph state
     """
-    if is_flow(flowlike):
+    if _is_flow(flowlike):
         flowlike = {key: {value} for key, value in flowlike.items()}
-    elif is_gflow(flowlike):
+    elif _is_gflow(flowlike):
         flowlike = {key: set(value) for key, value in flowlike.items()}
     else:
         msg = "Invalid flowlike object"
