@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import operator
 from abc import ABC, abstractmethod
+from functools import reduce
 from itertools import product
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -843,7 +844,4 @@ def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[in
     `set`\[`int`\]
         set of odd neighbors
     """
-    result: set[int] = set()
-    for node in nodes:
-        result ^= graphstate.neighbors(node)
-    return result
+    return reduce(lambda result, node: result ^ graphstate.neighbors(node), nodes, set())
