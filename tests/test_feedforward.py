@@ -1,6 +1,6 @@
 import pytest
 
-from graphix_zx.feedforward import check_causality, dag_from_flow, is_flow, is_gflow
+from graphix_zx.feedforward import check_causality, dag_from_flow, _is_flow, _is_gflow
 from graphix_zx.graphstate import GraphState
 
 
@@ -14,20 +14,20 @@ def two_node_graph() -> tuple[GraphState, int, int]:
 
 def test_is_flow_true() -> None:
     flow = {0: 1, 2: 3}
-    assert is_flow(flow)
-    assert not is_gflow(flow)
+    assert _is_flow(flow)
+    assert not _is_gflow(flow)
 
 
 def test_is_flow_false_if_mixed_types() -> None:
     mixed = {0: 1, 1: {2}}
-    assert not is_flow(mixed)
-    assert not is_gflow(mixed)
+    assert not _is_flow(mixed)
+    assert not _is_gflow(mixed)
 
 
 def test_is_gflow_true() -> None:
     gflow = {0: {1}, 1: set()}
-    assert is_gflow(gflow)
-    assert not is_flow(gflow)
+    assert _is_gflow(gflow)
+    assert not _is_flow(gflow)
 
 
 def test_dag_from_flow_basic_flow() -> None:
