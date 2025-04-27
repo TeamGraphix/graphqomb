@@ -1,6 +1,6 @@
 import pytest
 
-from graphix_zx.feedforward import check_causality, dag_from_flow, _is_flow, _is_gflow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
 from graphix_zx.graphstate import GraphState
 
 
