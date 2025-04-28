@@ -77,7 +77,8 @@ def plane_combinations(n: int) -> list[tuple[Plane, ...]]:
 
     Returns
     -------
-        list[tuple[Plane, ...]]: A list of tuples containing all combinations of planes of length n.
+        : list[tuple[Plane, ...]]
+            A list of tuples containing all combinations of planes of length n.
     """
     return list(itertools.product(Plane, repeat=n))
 
