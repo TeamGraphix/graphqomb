@@ -94,7 +94,7 @@ def random_circ(
     edge_p: float = 0.5,
     angle_list: AbstractSet[float] = [0, np.pi / 3, 2 * np.pi / 3, np.pi],
 ) -> MBQCCircuit:
-    """Generate a random MBQC circuit which has gflow.
+    """Generate a random MBQC circuit.
 
     Parameters
     ----------
