@@ -17,6 +17,7 @@ from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
     from numpy.random import Generator
+    from collections.abc import AbstractSet
 
 
 def get_random_flow_graph(
@@ -91,7 +92,7 @@ def random_circ(
     depth: int,
     rng: np.random.Generator | None = None,
     edge_p: float = 0.5,
-    angle_list: list | None = None,
+    angle_list: AbstractSet[float] = [0, np.pi / 3, 2 * np.pi / 3, np.pi],
 ) -> MBQCCircuit:
     """Generate a random MBQC circuit which has gflow.
 
@@ -105,7 +106,7 @@ def random_circ(
         random number generator, by default np.random.default_rng()
     edge_p : float, optional
         probability of adding CZ gate, by default 0.5
-    angle_list : list, optional
+    angle_list : AbstractSet[float], optional
         list of angles, by default [0, np.pi / 3, 2 * np.pi / 3, np.pi]
 
     Returns
@@ -115,8 +116,6 @@ def random_circ(
     """
     if rng is None:
         rng = np.random.default_rng()
-    if angle_list is None:
-        angle_list = [0, np.pi / 3, 2 * np.pi / 3, np.pi]
     circ = MBQCCircuit(width)
     for d in range(depth):
         for j in range(width):
