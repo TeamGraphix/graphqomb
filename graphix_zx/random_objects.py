@@ -2,6 +2,7 @@
 
 This module provides:
 - get_random_flow_graph: Generate a random flow graph.
+- random_circ: Generate a random MBQC circuit with gflow.
 """
 
 from __future__ import annotations
@@ -85,7 +86,7 @@ def get_random_flow_graph(
     return graph, flow
 
 
-def get_random_gflow_circ(
+def random_circ(
     width: int,
     depth: int,
     rng: np.random.Generator | None = None,
