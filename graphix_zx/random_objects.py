@@ -16,8 +16,9 @@ from graphix_zx.common import default_meas_basis
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.random import Generator
-    from collections.abc import Set as AbstractSet
 
 
 def get_random_flow_graph(
@@ -92,7 +93,7 @@ def random_circ(
     depth: int,
     rng: np.random.Generator | None = None,
     edge_p: float = 0.5,
-    angle_list: AbstractSet[float] = [0, np.pi / 3, 2 * np.pi / 3, np.pi],
+    angle_list: Sequence[float] = (0.0, np.pi / 3, 2 * np.pi / 3, np.pi),
 ) -> MBQCCircuit:
     """Generate a random MBQC circuit.
 
@@ -106,7 +107,7 @@ def random_circ(
         random number generator, by default np.random.default_rng()
     edge_p : float, optional
         probability of adding CZ gate, by default 0.5
-    angle_list : AbstractSet[float], optional
+    angle_list : Sequence[float], optional
         list of angles, by default [0, np.pi / 3, 2 * np.pi / 3, np.pi]
 
     Returns
