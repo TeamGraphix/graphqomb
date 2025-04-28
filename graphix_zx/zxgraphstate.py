@@ -512,11 +512,9 @@ class ZXGraphState(GraphState):
         while True:
             if pair := self._extract_yz_adjacent_pair():
                 self.pivot(*pair)
-                del pair
                 continue
             if u := self._extract_xz_node():
                 self.local_complement(u)
-                del u
                 continue
             break
 
