@@ -547,10 +547,9 @@ class ZXGraphState(GraphState):
         then u, v can be merged into a single node.
         """
         min_yz_nodes = 2
-        while True:
-            yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
-            if len(yz_nodes) < min_yz_nodes:
-                break
+        while (yz_nodes := {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}) and len(
+            yz_nodes
+        ) >= min_yz_nodes:
             merged = False
             for u in sorted(yz_nodes):
                 for v in sorted(yz_nodes - {u}):
