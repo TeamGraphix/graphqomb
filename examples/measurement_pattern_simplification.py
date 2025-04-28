@@ -1,6 +1,6 @@
 """Basic example of simplifying a measurement pattern via a ZX-diagram simplification.
 
-By using the `full_reduce` method,
+By using the `prune_non_cliffords` method,
 we can remove certain Clifford nodes and non-Clifford nodes from the ZX-diagram,
 which can simplify the resulting measurement pattern.
 """
@@ -11,12 +11,12 @@ from copy import deepcopy
 import numpy as np
 
 from graphix_zx.circuit import circuit2graph
-from graphix_zx.random_objects import get_random_gflow_circ
+from graphix_zx.random_objects import random_circ
 from graphix_zx.visualizer import visualize
 from graphix_zx.zxgraphstate import ZXGraphState
 
 # %%
-circ = get_random_gflow_circ(4, 4, angle_list=[0, np.pi / 3, 2 * np.pi / 3, np.pi])
+circ = random_circ(4, 4)
 graph, flow = circuit2graph(circ)
 zx_graph = ZXGraphState()
 zx_graph.append(graph)
