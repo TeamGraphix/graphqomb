@@ -1,3 +1,15 @@
+"""Tests for ZXGraphState
+
+Measurement actions for the followings are used:
+    - Local complement (LC): MEAS_ACTION_LC_*
+    - Pivot (PV): MEAS_ACTION_PV_*
+    - Remove Cliffords (RC): MEAS_ACTION_RC
+
+Reference:
+    M. Backens et al., Quantum 5, 421 (2021).
+    https://doi.org/10.22331/q-2021-03-25-421
+"""
+
 from __future__ import annotations
 
 import itertools
@@ -18,39 +30,39 @@ if TYPE_CHECKING:
 
     Measurements = list[tuple[int, Plane, float]]
 
-measurement_action_lc_target: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+MEAS_ACTION_LC_TARGET: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
     Plane.XZ: (Plane.XY, lambda angle: -angle + np.pi / 2),
     Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
 }
-measurement_action_lc_neighbors: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+MEAS_ACTION_LC_NEIGHBORS: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XY, lambda angle: angle + np.pi / 2),
     Plane.XZ: (Plane.YZ, lambda angle: angle),
     Plane.YZ: (Plane.XZ, operator.neg),
 }
-measurement_action_pv_target: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+MEAS_ACTION_PV_TARGET: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.YZ, operator.neg),
     Plane.XZ: (Plane.XZ, lambda angle: (np.pi / 2 - angle)),
     Plane.YZ: (Plane.XY, operator.neg),
 }
-measurement_action_pv_neighbors: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+MEAS_ACTION_PV_NEIGHBORS: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XY, lambda angle: (angle + np.pi) % (2.0 * np.pi)),
     Plane.XZ: (Plane.XZ, lambda angle: -angle % (2.0 * np.pi)),
     Plane.YZ: (Plane.YZ, lambda angle: -angle % (2.0 * np.pi)),
 }
-atol = 1e-9
-measurement_action_rc: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
+ATOL = 1e-9
+MEAS_ACTION_RC: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
     Plane.XY: (
         Plane.XY,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else alpha + np.pi) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else alpha + np.pi) % (2.0 * np.pi),
     ),
     Plane.XZ: (
         Plane.XZ,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else -alpha) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else -alpha) % (2.0 * np.pi),
     ),
     Plane.YZ: (
         Plane.YZ,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < atol else -alpha) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else -alpha) % (2.0 * np.pi),
     ),
 }
 
@@ -169,7 +181,7 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
 @pytest.mark.parametrize("plane", [Plane.XY, Plane.XZ, Plane.YZ])
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.random() * 2 * np.pi
-    ref_plane, ref_angle_func = measurement_action_lc_target[plane]
+    ref_plane, ref_angle_func = MEAS_ACTION_LC_TARGET[plane]
     ref_angle = ref_angle_func(angle)
     zx_graph.add_physical_node(1)
     zx_graph.set_meas_basis(1, PlannerMeasBasis(plane, angle))
@@ -192,8 +204,8 @@ def test_local_complement_on_output_node(
     _apply_measurements(zx_graph, measurements)
     zx_graph.local_complement(2)
 
-    ref_plane1, ref_angle_func1 = measurement_action_lc_neighbors[plane1]
-    ref_plane3, ref_angle_func3 = measurement_action_lc_neighbors[plane3]
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_NEIGHBORS[plane1]
+    ref_plane3, ref_angle_func3 = MEAS_ACTION_LC_NEIGHBORS[plane3]
     exp_measurements = [
         (1, ref_plane1, ref_angle_func1(measurements[0][2])),
         (3, ref_plane3, ref_angle_func3(measurements[1][2])),
@@ -216,8 +228,8 @@ def test_local_complement_with_two_nodes_graph(
     zx_graph.set_meas_basis(2, PlannerMeasBasis(plane2, angle2))
     zx_graph.local_complement(1)
 
-    ref_plane1, ref_angle_func1 = measurement_action_lc_target[plane1]
-    ref_plane2, ref_angle_func2 = measurement_action_lc_neighbors[plane2]
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_TARGET[plane1]
+    ref_plane2, ref_angle_func2 = MEAS_ACTION_LC_NEIGHBORS[plane2]
     exp_measurements = [(1, ref_plane1, ref_angle_func1(angle1)), (2, ref_plane2, ref_angle_func2(angle2))]
     _test(zx_graph, exp_nodes={1, 2}, exp_edges={(1, 2)}, exp_measurements=exp_measurements)
 
@@ -235,9 +247,9 @@ def test_local_complement_with_minimal_graph(
     for i in range(1, 4):
         zx_graph.set_meas_basis(i, PlannerMeasBasis(planes[i - 1], angles[i - 1]))
     zx_graph.local_complement(2)
-    ref_plane1, ref_angle_func1 = measurement_action_lc_neighbors[planes[0]]
-    ref_plane2, ref_angle_func2 = measurement_action_lc_target[planes[1]]
-    ref_plane3, ref_angle_func3 = measurement_action_lc_neighbors[planes[2]]
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_NEIGHBORS[planes[0]]
+    ref_plane2, ref_angle_func2 = MEAS_ACTION_LC_TARGET[planes[1]]
+    ref_plane3, ref_angle_func3 = MEAS_ACTION_LC_NEIGHBORS[planes[2]]
     ref_angle1 = ref_angle_func1(angles[0])
     ref_angle2 = ref_angle_func2(angles[1])
     ref_angle3 = ref_angle_func3(angles[2])
@@ -249,9 +261,9 @@ def test_local_complement_with_minimal_graph(
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (2, 3), (1, 3)}, exp_measurements=exp_measurements)
 
     zx_graph.local_complement(2)
-    ref_plane1, ref_angle_func1 = measurement_action_lc_neighbors[ref_plane1]
-    ref_plane2, ref_angle_func2 = measurement_action_lc_target[ref_plane2]
-    ref_plane3, ref_angle_func3 = measurement_action_lc_neighbors[ref_plane3]
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_NEIGHBORS[ref_plane1]
+    ref_plane2, ref_angle_func2 = MEAS_ACTION_LC_TARGET[ref_plane2]
+    ref_plane3, ref_angle_func3 = MEAS_ACTION_LC_NEIGHBORS[ref_plane3]
     exp_measurements = [
         (1, ref_plane1, ref_angle_func1(ref_angle1)),
         (2, ref_plane2, ref_angle_func2(ref_angle2)),
@@ -352,9 +364,9 @@ def test_pivot_with_minimal_graph(
     assert zx_graph.meas_bases[2].plane == zx_graph_cp.meas_bases[2].plane
     assert zx_graph.meas_bases[3].plane == zx_graph_cp.meas_bases[3].plane
 
-    _, ref_angle_func2 = measurement_action_pv_target[planes[1]]
-    _, ref_angle_func3 = measurement_action_pv_target[planes[2]]
-    _, ref_angle_func4 = measurement_action_pv_neighbors[planes[3]]
+    _, ref_angle_func2 = MEAS_ACTION_PV_TARGET[planes[1]]
+    _, ref_angle_func3 = MEAS_ACTION_PV_TARGET[planes[2]]
+    _, ref_angle_func4 = MEAS_ACTION_PV_NEIGHBORS[planes[3]]
     ref_angle2 = ref_angle_func2(angles[1])
     ref_angle3 = ref_angle_func3(angles[2])
     ref_angle4 = ref_angle_func4(angles[3])
@@ -461,8 +473,8 @@ def test_remove_clifford(
     angles = [rng.random() * 2 * np.pi for _ in range(3)]
     angles[1] = rng.choice([0.0, np.pi])
     measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 4)]
-    ref_plane1, ref_angle_func1 = measurement_action_rc[planes[0]]
-    ref_plane3, ref_angle_func3 = measurement_action_rc[planes[2]]
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_RC[planes[0]]
+    ref_plane3, ref_angle_func3 = MEAS_ACTION_RC[planes[2]]
     ref_angle1 = ref_angle_func1(angles[1], angles[0])
     ref_angle3 = ref_angle_func3(angles[1], angles[2])
     exp_measurements = [
