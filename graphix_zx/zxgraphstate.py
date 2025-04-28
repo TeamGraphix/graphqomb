@@ -568,8 +568,8 @@ class ZXGraphState(GraphState):
             if not merged:
                 break
 
-    def prune_non_cliffords(self, atol: float = 1e-9) -> None:
-        """Prune non-Clifford vertices from the graph state.
+    def full_reduce(self, atol: float = 1e-9) -> None:
+        """Reduce removable non-Clifford vertices from the graph state.
 
         Repeat the following steps until there are no non-Clifford vertices:
             1. remove_cliffords

@@ -1,6 +1,6 @@
 """Basic example of simplifying a measurement pattern via a ZX-diagram simplification.
 
-By using the `prune_non_cliffords` method,
+By using the `full_reduce` method,
 we can remove certain Clifford nodes and non-Clifford nodes from the ZX-diagram,
 which can simplify the resulting measurement pattern.
 """
@@ -30,7 +30,7 @@ for node in zx_graph.physical_nodes - zx_graph.input_nodes - zx_graph.output_nod
 
 # %%
 zx_graph_smp = deepcopy(zx_graph)
-zx_graph_smp.prune_non_cliffords()
+zx_graph_smp.full_reduce()
 
 visualize(zx_graph_smp)
 print("node | plane | angle (/pi)")

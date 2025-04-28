@@ -859,7 +859,7 @@ def test_merge_yz_nodes(
         ),
     ],
 )
-def test_prune_non_cliffords(
+def test_full_reduce(
     zx_graph: ZXGraphState,
     initial_zxgraph: tuple[range, set[tuple[int, int]]],
     measurements: Measurements,
@@ -869,7 +869,7 @@ def test_prune_non_cliffords(
     _initialize_graph(zx_graph, nodes, edges)
     exp_measurements, exp_edges, exp_nodes = exp_zxgraph
     _apply_measurements(zx_graph, measurements)
-    zx_graph.prune_non_cliffords()
+    zx_graph.full_reduce()
     _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
 
 
