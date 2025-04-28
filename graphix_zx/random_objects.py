@@ -17,7 +17,7 @@ from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
     from numpy.random import Generator
-    from collections.abc import AbstractSet
+    from collections.abc import Set as AbstractSet
 
 
 def get_random_flow_graph(
