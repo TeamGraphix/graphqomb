@@ -20,18 +20,8 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import TypeGuard
 
-_Flow = Mapping[int, int]
-_GFlow = Mapping[int, AbstractSet[int]]
 
-if sys.version_info >= (3, 10):
-    _FlowLike = _Flow | _GFlow
-else:
-    from typing import Union
-
-    _FlowLike = Union[_Flow, _GFlow]
-
-
-def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[_Flow]:
+def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Mapping[int, int]]:
     r"""Check if the flowlike object is a flow.
 
     Parameters
@@ -47,7 +37,7 @@ def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[_Flow]:
     return all(isinstance(v, int) for v in flowlike.values())
 
 
-def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[_GFlow]:
+def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[Mapping[int, AbstractSet[int]]]:
     r"""Check if the flowlike object is a GFlow.
 
     Parameters
@@ -63,12 +53,15 @@ def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[_GFlow]:
     return all(isinstance(v, AbstractSet) for v in flowlike.values())
 
 
-def dag_from_flow(flowlike: _FlowLike, graph: BaseGraphState, *, check: bool = True) -> dict[int, set[int]]:
+def dag_from_flow(
+    flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], graph: BaseGraphState, *, check: bool = True
+) -> dict[int, set[int]]:
     r"""Construct a directed acyclic graph (DAG) from a flowlike object.
 
     Parameters
     ----------
-    flowlike : `FlowLike`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
+                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]`\]
         A flowlike object
     graph : `BaseGraphState`
         The graph state
@@ -128,17 +121,15 @@ def _check_dag(dag: Mapping[int, Iterable[int]]) -> bool:
     return True
 
 
-def check_causality(
-    graph: BaseGraphState,
-    flowlike: _FlowLike,
-) -> bool:
-    """Check if the flowlike object is causal with respect to the graph state.
+def check_causality(graph: BaseGraphState, flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]]) -> bool:
+    r"""Check if the flowlike object is causal with respect to the graph state.
 
     Parameters
     ----------
     graph : `BaseGraphState`
         The graph state
-    flowlike : `FlowLike`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
+                | `collections.abc.Mapping`\[`int`, `collections.abc.AbstractSet`\[`int`\]\]`
         The flowlike object
 
     Returns

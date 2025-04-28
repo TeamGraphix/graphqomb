@@ -2,8 +2,8 @@
 
 This module provides:
 
-- is_focused: Check if a flowlike object is focused.
-- focus_gflow: Focus a flowlike object.
+- `is_focused`: Check if a flowlike object is focused.
+- `focus_gflow`: Focus a flowlike object.
 """
 
 from __future__ import annotations
@@ -16,18 +16,19 @@ from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_fro
 from graphix_zx.graphstate import odd_neighbors
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Set as AbstractSet
 
-    from graphix_zx.feedforward import _FlowLike
     from graphix_zx.graphstate import BaseGraphState
 
 
-def is_focused(flowlike: _FlowLike, graph: BaseGraphState) -> bool:
-    """Check if a flowlike object is focused.
+def is_focused(flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], graph: BaseGraphState) -> bool:
+    r"""Check if a flowlike object is focused.
 
     Parameters
     ----------
-    flowlike : `_FlowLike`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
+                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
         flowlike object
     graph : `BaseGraphState`
         graph state
@@ -67,12 +68,15 @@ def is_focused(flowlike: _FlowLike, graph: BaseGraphState) -> bool:
     return focused
 
 
-def focus_gflow(flowlike: _FlowLike, graph: BaseGraphState) -> dict[int, set[int]]:
+def focus_gflow(
+    flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], graph: BaseGraphState
+) -> dict[int, set[int]]:
     r"""Focus a flowlike object.
 
     Parameters
     ----------
-    flowlike : `_FlowLike`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
+                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
         flowlike object
     graph : `BaseGraphState`
         graph state
