@@ -457,15 +457,9 @@ class ZXGraphState(GraphState):
             absolute tolerance, by default 1e-9
         """
         self.check_meas_basis()
-        while True:
-            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = [
-                node
-                for node in nodes
-                if is_clifford_angle(self.meas_bases[node].angle, atol) and self.is_removable_clifford(node, atol)
-            ]
-            if clifford_nodes == []:
-                break
+        while any(
+            self.is_removable_clifford(n, atol) for n in (self.physical_nodes - self.input_nodes - self.output_nodes)
+        ):
             steps = [
                 (self._step1_action, self._needs_lc),
                 (self._step2_action, self._needs_nop),
@@ -525,14 +519,12 @@ class ZXGraphState(GraphState):
         then the node u can be merged into the node v.
         """
         target_candidates = {
-            u
-            for u, basis in self.meas_bases.items()
-            if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1 and (u not in self.output_nodes))
+            u for u, basis in self.meas_bases.items() if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1)
         }
         target_nodes = {
             u
             for u in target_candidates
-            if any(self.meas_bases[v].plane == Plane.XY for v in self.get_neighbors(u) - self.output_nodes)
+            if (v := next(iter(self.get_neighbors(u)))) and self.meas_bases[v].plane == Plane.XY
         }
         for u in target_nodes:
             v = self.get_neighbors(u).pop()
@@ -588,7 +580,7 @@ class ZXGraphState(GraphState):
             self.merge_yz_to_xy()
             self.merge_yz_nodes()
             if not any(
-                is_clifford_angle(self.meas_bases[node].angle, atol) and self.is_removable_clifford(node, atol)
+                self.is_removable_clifford(node, atol)
                 for node in self.physical_nodes - self.input_nodes - self.output_nodes
             ):
                 break
