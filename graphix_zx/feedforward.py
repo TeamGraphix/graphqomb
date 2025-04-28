@@ -60,8 +60,7 @@ def dag_from_flow(
 
     Parameters
     ----------
-    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
-                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]`\]
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]`\]
         A flowlike object
     graph : `BaseGraphState`
         The graph state
@@ -79,7 +78,7 @@ def dag_from_flow(
         If the flowlike object is not a Flow or GFlow
     ValueError
         If a cycle is detected in the graph
-    """
+    """  # noqa: E501
     dag = {}
     outputs = graph.physical_nodes - set(flowlike)
     for node in flowlike:
@@ -128,14 +127,13 @@ def check_causality(graph: BaseGraphState, flowlike: Mapping[int, int] | Mapping
     ----------
     graph : `BaseGraphState`
         The graph state
-    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
-                | `collections.abc.Mapping`\[`int`, `collections.abc.AbstractSet`\[`int`\]\]`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The flowlike object
 
     Returns
     -------
     `bool`
         True if the flowlike object is causal, False otherwise
-    """
+    """  # noqa: E501
     dag = dag_from_flow(flowlike, graph, check=False)
     return _check_dag(dag)

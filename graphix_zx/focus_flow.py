@@ -27,8 +27,7 @@ def is_focused(flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], gra
 
     Parameters
     ----------
-    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
-                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
         flowlike object
     graph : `BaseGraphState`
         graph state
@@ -42,7 +41,7 @@ def is_focused(flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], gra
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    """
+    """  # noqa: E501
     meas_bases = graph.meas_bases
     outputs = set(graph.output_node_indices)
 
@@ -75,8 +74,7 @@ def focus_gflow(
 
     Parameters
     ----------
-    flowlike : `collections.abc.Mapping`\[`int`, `int`\]
-                | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+    flowlike : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         flowlike object
     graph : `BaseGraphState`
         graph state
@@ -92,7 +90,7 @@ def focus_gflow(
         If the flowlike object is not a Flow or GFlow
     ValueError
         if the flowlike object is not causal with respect to the graph state
-    """
+    """  # noqa: E501
     if _is_flow(flowlike):
         flowlike = {key: {value} for key, value in flowlike.items()}
     elif _is_gflow(flowlike):
