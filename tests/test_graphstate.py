@@ -7,7 +7,7 @@ import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.euler import LocalClifford
-from graphix_zx.graphstate import GraphState, bipartite_edges
+from graphix_zx.graphstate import GraphState, bipartite_edges, odd_neighbors
 
 
 @pytest.fixture
@@ -264,6 +264,26 @@ def test_bipartite_edges() -> None:
     """Test the function that generate complete bipartite edges"""
     assert bipartite_edges(set(), set()) == set()
     assert bipartite_edges({1, 2}, {3, 4}) == {(1, 3), (1, 4), (2, 3), (2, 4)}
+
+
+def test_odd_neighbors(graph: GraphState) -> None:
+    r"""Test the function that returns odd neighbors of a node.
+
+    node1 --- node2
+        \     /
+         \   /
+         node3
+    """
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    node3 = graph.add_physical_node()
+
+    graph.add_physical_edge(node1, node2)
+    graph.add_physical_edge(node2, node3)
+    graph.add_physical_edge(node3, node1)
+
+    assert odd_neighbors({node1}, graph) == {node2, node3}
+    assert odd_neighbors({node1, node2}, graph) == {node1, node2}
 
 
 if __name__ == "__main__":
