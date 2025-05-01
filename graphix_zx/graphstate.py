@@ -844,4 +844,4 @@ def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[in
     `set`\[`int`\]
         set of odd neighbors
     """
-    return reduce(lambda result, node: result ^ graphstate.neighbors(node), nodes, set())
+    return reduce(operator.xor, (graphstate.neighbors(node) for node in nodes), set())
