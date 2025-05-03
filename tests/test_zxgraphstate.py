@@ -388,7 +388,7 @@ def test_remove_clifford_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> No
 def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     zx_graph.set_input(1)
-    with pytest.raises(ValueError, match="Clifford vertex removal not allowed for input node"):
+    with pytest.raises(ValueError, match="Clifford node removal not allowed for input node"):
         zx_graph.remove_clifford(1)
 
 
@@ -399,14 +399,14 @@ def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> Non
         1,
         PlannerMeasBasis("test_plane", 0.5 * np.pi),  # type: ignore[reportArgumentType, arg-type, unused-ignore]
     )
-    with pytest.raises(ValueError, match="This node is not a Clifford vertex"):
+    with pytest.raises(ValueError, match="This node is not a Clifford node"):
         zx_graph.remove_clifford(1)
 
 
-def test_remove_clifford_fails_for_non_clifford_vertex(zx_graph: ZXGraphState) -> None:
+def test_remove_clifford_fails_for_non_clifford_node(zx_graph: ZXGraphState) -> None:
     zx_graph.add_physical_node(1)
     zx_graph.set_meas_basis(1, PlannerMeasBasis(Plane.XY, 0.1 * np.pi))
-    with pytest.raises(ValueError, match="This node is not a Clifford vertex"):
+    with pytest.raises(ValueError, match="This node is not a Clifford node"):
         zx_graph.remove_clifford(1)
 
 
@@ -491,7 +491,7 @@ def test_remove_clifford(
     )
 
 
-def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
+def test_unremovable_clifford_node(zx_graph: ZXGraphState) -> None:
     _initialize_graph(zx_graph, nodes=range(1, 4), edges={(1, 2), (2, 3)}, inputs=(1, 3))
     measurements = [
         (1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
@@ -499,12 +499,12 @@ def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
         (3, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
-    with pytest.raises(ValueError, match=r"This Clifford vertex is unremovable."):
+    with pytest.raises(ValueError, match=r"This Clifford node is unremovable."):
         zx_graph.remove_clifford(2)
 
 
 def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
-    """Test removing multiple Clifford vertices."""
+    """Test removing multiple Clifford nodes."""
     _initialize_graph(zx_graph, nodes=range(1, 5), edges={(1, 2), (1, 3), (1, 4)})
     measurements = [
         (1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
@@ -518,7 +518,7 @@ def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
 
 
 def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
-    """Test removing multiple Clifford vertices."""
+    """Test removing multiple Clifford nodes."""
     graph_1(zx_graph)
     measurements = [
         (1, PlannerMeasBasis(Plane.YZ, np.pi)),
@@ -580,7 +580,7 @@ def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
 
 
 def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
-    """Test removing multiple Clifford vertices."""
+    """Test removing multiple Clifford nodes."""
     graph_4(zx_graph)
     measurements = [
         (1, PlannerMeasBasis(Plane.XY, np.pi)),
@@ -592,7 +592,7 @@ def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
 
 
 def test_random_graph(zx_graph: ZXGraphState) -> None:
-    """Test removing multiple Clifford vertices from a random graph."""
+    """Test removing multiple Clifford nodes from a random graph."""
     random_graph, _ = get_random_flow_graph(5, 5)
     zx_graph.append(random_graph)
 

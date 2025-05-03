@@ -198,7 +198,7 @@ class ZXGraphState(GraphState):
         Returns
         -------
         bool
-            True if the node is a removable Clifford vertex.
+            True if the node is a removable Clifford node.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
         return any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol))) and (
@@ -300,7 +300,7 @@ class ZXGraphState(GraphState):
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
-        """Perform the Clifford vertex removal.
+        """Perform the Clifford node removal.
 
         Parameters
         ----------
@@ -320,7 +320,7 @@ class ZXGraphState(GraphState):
         self.remove_physical_node(node)
 
     def remove_clifford(self, node: int, atol: float = 1e-9) -> None:
-        """Remove the local clifford node.
+        """Remove the local Clifford node.
 
         Parameters
         ----------
@@ -333,21 +333,21 @@ class ZXGraphState(GraphState):
         ------
         ValueError
             1. If the node is an input node.
-            2. If the node is not a Clifford vertex.
+            2. If the node is not a Clifford node.
             3. If all neighbors are input nodes
                 in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
             4. If the node has no neighbors that are not connected only to output nodes.
         """
         self.ensure_node_exists(node)
         if node in self.input_nodes or node in self.output_nodes:
-            msg = "Clifford vertex removal not allowed for input node"
+            msg = "Clifford node removal not allowed for input node"
             raise ValueError(msg)
 
         if not (
             is_clifford_angle(self.meas_bases[node].angle, atol)
             and self.meas_bases[node].plane in {Plane.XY, Plane.XZ, Plane.YZ}
         ):
-            msg = "This node is not a Clifford vertex."
+            msg = "This node is not a Clifford node."
             raise ValueError(msg)
 
         if self._needs_nop(node, atol):
@@ -360,13 +360,13 @@ class ZXGraphState(GraphState):
             nbrs.remove(v)
             self.pivot(node, v)
         else:
-            msg = "This Clifford vertex is unremovable."
+            msg = "This Clifford node is unremovable."
             raise ValueError(msg)
 
         self._remove_clifford(node, atol)
 
     def is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node is a removable Clifford vertex.
+        """Check if the node is a removable Clifford node.
 
         Parameters
         ----------
@@ -378,7 +378,7 @@ class ZXGraphState(GraphState):
         Returns
         -------
         bool
-            True if the node is a removable Clifford vertex.
+            True if the node is a removable Clifford node.
         """
         return any(
             [
@@ -399,7 +399,7 @@ class ZXGraphState(GraphState):
         action_func : Callable[[int, float], None]
             action to perform on the node
         check_func : Callable[[int, float], bool]
-            check if the node is a removable Clifford vertex
+            check if the node is a removable Clifford node
         """
         self.check_meas_basis()
         while True:
@@ -574,14 +574,14 @@ class ZXGraphState(GraphState):
                 self.remove_physical_node(v)
 
     def full_reduce(self, atol: float = 1e-9) -> None:
-        """Reduce removable non-Clifford vertices from the graph state.
+        """Reduce all Clifford
 
-        Repeat the following steps until there are no non-Clifford vertices:
+        Repeat the following steps until there are no non-Clifford nodes:
             1. remove_cliffords
             2. convert_to_phase_gadget
             3. merge_yz_to_xy
             4. merge_yz_nodes
-            5. if there are some removable Clifford vertices, back to step 1.
+            5. if there are some removable Clifford nodes, back to step 1.
 
         Parameters
         ----------
