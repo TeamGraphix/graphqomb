@@ -15,12 +15,11 @@ This module provides:
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Union
 
-from graphix_zx.common import MeasBasis, default_meas_basis
-
 if TYPE_CHECKING:
+    from graphix_zx.common import MeasBasis
     from graphix_zx.decoder_backend import BaseDecoder
     from graphix_zx.euler import LocalClifford
 
@@ -61,16 +60,16 @@ class M:
         The node index to be measured.
     meas_basis : MeasBasis
         The measurement basis.
-    s_flag : `bool`
-        The s_flag of the measurement.
-    t_flag : `bool`
-        The t_flag of the measurement.
+    s_cbit : `int`
+        The index of s_domain control classical bit.
+    t_cbit : `int`
+        The index of t_domain control classical bit.
     """
 
     node: int
-    meas_basis: MeasBasis = field(default_factory=default_meas_basis)
-    s_flag: bool = False
-    t_flag: bool = False
+    meas_basis: MeasBasis
+    s_cbit: int
+    t_cbit: int
 
 
 @dataclass
@@ -81,22 +80,38 @@ class _Correction:
     ----------
     node : `int`
         The node index to apply the correction.
-    flag : `bool`
-        The domain of the correction.
+    cbit : `int`
+        The index of the classical bit to control the correction.
     """
 
     node: int
-    flag: bool = False
+    cbit: int
 
 
 @dataclass
 class X(_Correction):
-    """X correction command."""
+    """X correction command.
+
+    Attributes
+    ----------
+    node : `int`
+        The node index to apply the correction.
+    cbit : `int`
+        The index of the classical bit to control the correction.
+    """
 
 
 @dataclass
 class Z(_Correction):
-    """Z correction command."""
+    """Z correction command.
+
+    Attributes
+    ----------
+    node : `int`
+        The node index to apply the correction.
+    cbit : `int`
+        The index of the classical bit to control the correction.
+    """
 
 
 @dataclass
