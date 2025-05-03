@@ -1,4 +1,9 @@
-"""Decoder backend modules."""
+"""Decoder backend modules.
+
+This module provides:
+- `BaseDecoder`: Base class for decoders.
+- `XORDecoder`: XOR decoder class.
+"""
 
 import operator
 from abc import ABC, abstractmethod
