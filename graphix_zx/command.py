@@ -20,9 +20,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
 from graphix_zx.common import MeasBasis, default_meas_basis
-from graphix_zx.decoder_backend import BaseDecoder
 
 if TYPE_CHECKING:
+    from graphix_zx.decoder_backend import BaseDecoder
     from graphix_zx.euler import LocalClifford
 
 
