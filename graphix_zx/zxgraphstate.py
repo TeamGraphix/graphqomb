@@ -7,6 +7,7 @@ This module provides:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -554,26 +555,23 @@ class ZXGraphState(GraphState):
         If u, v nodes are measured in the YZ-plane and u, v have the same neighbors,
         then u, v can be merged into a single node.
         """
-        min_yz_nodes = 2
-        while (yz_nodes := {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}) and len(
-            yz_nodes
-        ) >= min_yz_nodes:
-            merged = False
-            for u in sorted(yz_nodes):
-                for v in sorted(yz_nodes - {u}):
-                    if self.get_neighbors(u) != self.get_neighbors(v):
-                        continue
+        min_nodes = 2
+        yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        if len(yz_nodes) < min_nodes:
+            return
+        neighbor_groups: dict[frozenset[int], list[int]] = defaultdict(list)
+        for u in yz_nodes:
+            neighbors = frozenset(self.get_neighbors(u))
+            neighbor_groups[neighbors].append(u)
 
-                    new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
-                    self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
-                    self.remove_physical_node(v)
-
-                    merged = True
-                    break
-                if merged:
-                    break
-            if not merged:
-                break
+        for neighbors, nodes in neighbor_groups.items():
+            if len(nodes) < min_nodes or len(neighbors) < min_nodes:
+                continue
+            u = nodes[0]
+            for v in nodes[1:]:
+                new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+                self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
+                self.remove_physical_node(v)
 
     def full_reduce(self, atol: float = 1e-9) -> None:
         """Reduce removable non-Clifford vertices from the graph state.
