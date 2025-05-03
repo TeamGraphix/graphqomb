@@ -17,7 +17,7 @@ from graphix_zx.euler import LocalClifford, _is_close_angle, is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable
 
 
 class ZXGraphState(GraphState):
