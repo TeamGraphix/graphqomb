@@ -28,7 +28,7 @@ from graphix_zx.zxgraphstate import ZXGraphState
 if TYPE_CHECKING:
     from typing import Callable
 
-    Measurements = list[tuple[int, Plane, float]]
+    Measurements = list[tuple[int, PlannerMeasBasis]]
 
 MEAS_ACTION_LC_TARGET: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
@@ -133,10 +133,10 @@ def _initialize_graph(
 
 
 def _apply_measurements(zx_graph: ZXGraphState, measurements: Measurements) -> None:
-    for node_id, plane, angle in measurements:
+    for node_id, planner_meas_basis in measurements:
         if node_id in zx_graph.output_nodes:
             continue
-        zx_graph.set_meas_basis(node_id, PlannerMeasBasis(plane, angle))
+        zx_graph.set_meas_basis(node_id, planner_meas_basis)
 
 
 def _test(
@@ -147,9 +147,9 @@ def _test(
 ) -> None:
     assert zx_graph.physical_nodes == exp_nodes
     assert zx_graph.physical_edges == exp_edges
-    for node_id, plane, angle in exp_measurements:
-        assert zx_graph.meas_bases[node_id].plane == plane
-        assert _is_close_angle(zx_graph.meas_bases[node_id].angle, angle)
+    for node_id, planner_meas_basis in exp_measurements:
+        assert zx_graph.meas_bases[node_id].plane == planner_meas_basis.plane
+        assert _is_close_angle(zx_graph.meas_bases[node_id].angle, planner_meas_basis.angle)
 
 
 def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
@@ -201,15 +201,15 @@ def test_local_complement_on_output_node(
     _initialize_graph(zx_graph, range(1, 4), {(1, 2), (2, 3)}, outputs=(2,))
     angle1 = rng.random() * 2 * np.pi
     angle3 = rng.random() * 2 * np.pi
-    measurements = [(1, plane1, angle1), (3, plane3, angle3)]
+    measurements = [(1, PlannerMeasBasis(plane1, angle1)), (3, PlannerMeasBasis(plane3, angle3))]
     _apply_measurements(zx_graph, measurements)
     zx_graph.local_complement(2)
 
     ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_NEIGHBORS[plane1]
     ref_plane3, ref_angle_func3 = MEAS_ACTION_LC_NEIGHBORS[plane3]
     exp_measurements = [
-        (1, ref_plane1, ref_angle_func1(measurements[0][2])),
-        (3, ref_plane3, ref_angle_func3(measurements[1][2])),
+        (1, PlannerMeasBasis(ref_plane1, ref_angle_func1(measurements[0][1].angle))),
+        (3, PlannerMeasBasis(ref_plane3, ref_angle_func3(measurements[1][1].angle))),
     ]
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (1, 3), (2, 3)}, exp_measurements=exp_measurements)
     assert zx_graph.meas_bases.get(2) is None
@@ -231,7 +231,10 @@ def test_local_complement_with_two_nodes_graph(
 
     ref_plane1, ref_angle_func1 = MEAS_ACTION_LC_TARGET[plane1]
     ref_plane2, ref_angle_func2 = MEAS_ACTION_LC_NEIGHBORS[plane2]
-    exp_measurements = [(1, ref_plane1, ref_angle_func1(angle1)), (2, ref_plane2, ref_angle_func2(angle2))]
+    exp_measurements = [
+        (1, PlannerMeasBasis(ref_plane1, ref_angle_func1(angle1))),
+        (2, PlannerMeasBasis(ref_plane2, ref_angle_func2(angle2))),
+    ]
     _test(zx_graph, exp_nodes={1, 2}, exp_edges={(1, 2)}, exp_measurements=exp_measurements)
 
 
@@ -255,9 +258,9 @@ def test_local_complement_with_minimal_graph(
     ref_angle2 = ref_angle_func2(angles[1])
     ref_angle3 = ref_angle_func3(angles[2])
     exp_measurements = [
-        (1, ref_plane1, ref_angle1),
-        (2, ref_plane2, ref_angle2),
-        (3, ref_plane3, ref_angle3),
+        (1, PlannerMeasBasis(ref_plane1, ref_angle1)),
+        (2, PlannerMeasBasis(ref_plane2, ref_angle2)),
+        (3, PlannerMeasBasis(ref_plane3, ref_angle3)),
     ]
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (2, 3), (1, 3)}, exp_measurements=exp_measurements)
 
@@ -266,9 +269,9 @@ def test_local_complement_with_minimal_graph(
     ref_plane2, ref_angle_func2 = MEAS_ACTION_LC_TARGET[ref_plane2]
     ref_plane3, ref_angle_func3 = MEAS_ACTION_LC_NEIGHBORS[ref_plane3]
     exp_measurements = [
-        (1, ref_plane1, ref_angle_func1(ref_angle1)),
-        (2, ref_plane2, ref_angle_func2(ref_angle2)),
-        (3, ref_plane3, ref_angle_func3(ref_angle3)),
+        (1, PlannerMeasBasis(ref_plane1, ref_angle_func1(ref_angle1))),
+        (2, PlannerMeasBasis(ref_plane2, ref_angle_func2(ref_angle2))),
+        (3, PlannerMeasBasis(ref_plane3, ref_angle_func3(ref_angle3))),
     ]
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (2, 3)}, exp_measurements=exp_measurements)
 
@@ -289,7 +292,7 @@ def test_local_complement_4_times(
     for _ in range(4):
         zx_graph.local_complement(2)
 
-    exp_measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 4)]
+    exp_measurements = [(i, PlannerMeasBasis(planes[i - 1], angles[i - 1])) for i in range(1, 4)]
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges={(1, 2), (2, 3)}, exp_measurements=exp_measurements)
 
 
@@ -321,9 +324,9 @@ def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
         zx_graph.add_physical_edge(i, j)
 
     measurements = [
-        (1, Plane.XY, 1.1 * np.pi),
-        (2, Plane.XZ, 1.2 * np.pi),
-        (3, Plane.YZ, 1.3 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 1.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 1.3 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
 
@@ -353,7 +356,7 @@ def test_pivot_with_minimal_graph(
         zx_graph.add_physical_edge(i, j)
 
     angles = [rng.random() * 2 * np.pi for _ in range(5)]
-    measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 6)]
+    measurements = [(i, PlannerMeasBasis(planes[i - 1], angles[i - 1])) for i in range(1, 6)]
     _apply_measurements(zx_graph, measurements)
     zx_graph_cp = deepcopy(zx_graph)
 
@@ -472,16 +475,16 @@ def test_remove_clifford(
 ) -> None:
     graph_2(zx_graph)
     angles = [rng.random() * 2 * np.pi for _ in range(3)]
-    EPSILON = 1e-10
-    angles[1] = rng.choice([0.0, np.pi, 2 * np.pi - EPSILON])
-    measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 4)]
+    epsilon = 1e-10
+    angles[1] = rng.choice([0.0, np.pi, 2 * np.pi - epsilon])
+    measurements = [(i, PlannerMeasBasis(planes[i - 1], angles[i - 1])) for i in range(1, 4)]
     ref_plane1, ref_angle_func1 = MEAS_ACTION_RC[planes[0]]
     ref_plane3, ref_angle_func3 = MEAS_ACTION_RC[planes[2]]
     ref_angle1 = ref_angle_func1(angles[1], angles[0])
     ref_angle3 = ref_angle_func3(angles[1], angles[2])
     exp_measurements = [
-        (1, ref_plane1, ref_angle1),
-        (3, ref_plane3, ref_angle3),
+        (1, PlannerMeasBasis(ref_plane1, ref_angle1)),
+        (3, PlannerMeasBasis(ref_plane3, ref_angle3)),
     ]
     _test_remove_clifford(
         zx_graph, node=2, measurements=measurements, exp_graph=({1, 3}, set()), exp_measurements=exp_measurements
@@ -491,9 +494,9 @@ def test_remove_clifford(
 def test_unremovable_clifford_vertex(zx_graph: ZXGraphState) -> None:
     _initialize_graph(zx_graph, nodes=range(1, 4), edges={(1, 2), (2, 3)}, inputs=(1, 3))
     measurements = [
-        (1, Plane.XY, 0.5 * np.pi),
-        (2, Plane.XY, np.pi),
-        (3, Plane.XY, 0.5 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XY, np.pi)),
+        (3, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     with pytest.raises(ValueError, match=r"This Clifford vertex is unremovable."):
@@ -504,10 +507,10 @@ def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
     """Test removing multiple Clifford vertices."""
     _initialize_graph(zx_graph, nodes=range(1, 5), edges={(1, 2), (1, 3), (1, 4)})
     measurements = [
-        (1, Plane.XY, 0.5 * np.pi),
-        (2, Plane.XY, 0.5 * np.pi),
-        (3, Plane.XY, 0.5 * np.pi),
-        (4, Plane.XY, 0.5 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (4, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -518,15 +521,15 @@ def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
     """Test removing multiple Clifford vertices."""
     graph_1(zx_graph)
     measurements = [
-        (1, Plane.YZ, np.pi),
-        (2, Plane.XY, 0.1 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
-        (4, Plane.YZ, 0.3 * np.pi),
+        (1, PlannerMeasBasis(Plane.YZ, np.pi)),
+        (2, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
+        (4, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
     ]
     exp_measurements = [
-        (2, Plane.XY, 1.1 * np.pi),
-        (3, Plane.XZ, 1.8 * np.pi),
-        (4, Plane.YZ, 1.7 * np.pi),
+        (2, PlannerMeasBasis(Plane.XY, 1.1 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XZ, 1.8 * np.pi)),
+        (4, PlannerMeasBasis(Plane.YZ, 1.7 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -536,13 +539,13 @@ def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
 def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
     graph_2(zx_graph)
     measurements = [
-        (1, Plane.XY, 0.1 * np.pi),
-        (2, Plane.YZ, 1.5 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.YZ, 1.5 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
     ]
     exp_measurements = [
-        (1, Plane.XY, 0.6 * np.pi),
-        (3, Plane.YZ, 0.2 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.6 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 0.2 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -552,19 +555,19 @@ def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
 def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
     graph_3(zx_graph)
     measurements = [
-        (1, Plane.XY, 0.1 * np.pi),
-        (2, Plane.XZ, 1.5 * np.pi),
-        (3, Plane.XZ, 0.2 * np.pi),
-        (4, Plane.YZ, 0.3 * np.pi),
-        (5, Plane.XY, 0.4 * np.pi),
-        (6, Plane.XZ, 0.5 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 1.5 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
+        (4, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
+        (5, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+        (6, PlannerMeasBasis(Plane.XZ, 0.5 * np.pi)),
     ]
     exp_measurements = [
-        (1, Plane.XY, 0.1 * np.pi),
-        (3, Plane.XZ, 1.7 * np.pi),
-        (4, Plane.YZ, 0.3 * np.pi),
-        (5, Plane.XY, 0.4 * np.pi),
-        (6, Plane.XZ, 1.5 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XZ, 1.7 * np.pi)),
+        (4, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
+        (5, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+        (6, PlannerMeasBasis(Plane.XZ, 1.5 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
@@ -580,12 +583,12 @@ def test_remove_cliffords_graph4(zx_graph: ZXGraphState) -> None:
     """Test removing multiple Clifford vertices."""
     graph_4(zx_graph)
     measurements = [
-        (1, Plane.XY, np.pi),
-        (4, Plane.XZ, 0.5 * np.pi),
+        (1, PlannerMeasBasis(Plane.XY, np.pi)),
+        (4, PlannerMeasBasis(Plane.XZ, 0.5 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
-    _test(zx_graph, {1, 2, 3, 5}, {(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)}, [(1, Plane.XY, np.pi)])
+    _test(zx_graph, {1, 2, 3, 5}, {(1, 3), (1, 5), (2, 3), (2, 5), (3, 5)}, [(1, PlannerMeasBasis(Plane.XY, np.pi))])
 
 
 def test_random_graph(zx_graph: ZXGraphState) -> None:
@@ -619,20 +622,20 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
         # and no node with XZ measurement
         (
             [
-                (1, Plane.XY, 0.11 * np.pi),
-                (2, Plane.XY, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.XY, 0.44 * np.pi),
-                (5, Plane.XY, 0.55 * np.pi),
-                (6, Plane.XY, 0.66 * np.pi),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+                (5, PlannerMeasBasis(Plane.XY, 0.55 * np.pi)),
+                (6, PlannerMeasBasis(Plane.XY, 0.66 * np.pi)),
             ],
             [
-                (1, Plane.XY, 0.11 * np.pi),
-                (2, Plane.XY, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.XY, 0.44 * np.pi),
-                (5, Plane.XY, 0.55 * np.pi),
-                (6, Plane.XY, 0.66 * np.pi),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+                (5, PlannerMeasBasis(Plane.XY, 0.55 * np.pi)),
+                (6, PlannerMeasBasis(Plane.XY, 0.66 * np.pi)),
             ],
             {(1, 2), (2, 3), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6)},
         ),
@@ -660,15 +663,15 @@ def test_convert_to_phase_gadget(
         (
             {(1, 2), (2, 3), (2, 4)},
             [
-                (1, Plane.YZ, 0.11 * np.pi),
-                (2, Plane.XY, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.XY, 0.44 * np.pi),
+                (1, PlannerMeasBasis(Plane.YZ, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
             ],
             [
-                (2, Plane.XY, 0.33 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.XY, 0.44 * np.pi),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
             ],
             {(2, 3), (2, 4)},
         ),
@@ -678,15 +681,15 @@ def test_convert_to_phase_gadget(
         (
             {(1, 2), (2, 3), (2, 4), (3, 4)},
             [
-                (1, Plane.YZ, 0.11 * np.pi),
-                (2, Plane.XY, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.YZ, 0.44 * np.pi),
+                (1, PlannerMeasBasis(Plane.YZ, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
             ],
             [
-                (2, Plane.XY, 0.33 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.YZ, 0.44 * np.pi),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
             ],
             {(2, 3), (2, 4), (3, 4)},
         ),
@@ -716,18 +719,18 @@ def test_merge_yz_to_xy(
         (
             {(1, 2), (1, 4), (1, 5), (2, 3), (3, 4), (3, 5)},
             [
-                (1, Plane.XY, 0.11 * np.pi),
-                (2, Plane.XY, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.YZ, 0.44 * np.pi),
-                (5, Plane.YZ, 0.55 * np.pi),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (5, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
             ],
             (
                 [
-                    (1, Plane.XY, 0.11 * np.pi),
-                    (2, Plane.XY, 0.22 * np.pi),
-                    (3, Plane.XY, 0.33 * np.pi),
-                    (4, Plane.YZ, 0.99 * np.pi),
+                    (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                    (4, PlannerMeasBasis(Plane.YZ, 0.99 * np.pi)),
                 ],
                 {(1, 2), (1, 4), (2, 3), (3, 4)},
                 {1, 2, 3, 4},
@@ -741,17 +744,17 @@ def test_merge_yz_to_xy(
         (
             {(1, 2), (1, 4), (1, 5), (2, 3), (3, 4), (3, 5)},
             [
-                (1, Plane.XY, 0.11 * np.pi),
-                (2, Plane.YZ, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.YZ, 0.44 * np.pi),
-                (5, Plane.YZ, 0.55 * np.pi),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.YZ, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (5, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
             ],
             (
                 [
-                    (1, Plane.XY, 0.11 * np.pi),
-                    (2, Plane.YZ, 1.21 * np.pi),
-                    (3, Plane.XY, 0.33 * np.pi),
+                    (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.YZ, 1.21 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
                 ],
                 {(1, 2), (2, 3)},
                 {1, 2, 3},
@@ -765,17 +768,17 @@ def test_merge_yz_to_xy(
         (
             {(1, 2), (1, 3), (1, 4), (1, 5), (2, 3), (3, 4), (3, 5)},
             [
-                (1, Plane.XY, 0.11 * np.pi),
-                (2, Plane.YZ, 0.22 * np.pi),
-                (3, Plane.XY, 0.33 * np.pi),
-                (4, Plane.YZ, 0.44 * np.pi),
-                (5, Plane.YZ, 0.55 * np.pi),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (2, PlannerMeasBasis(Plane.YZ, 0.22 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (5, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
             ],
             (
                 [
-                    (1, Plane.XY, 0.11 * np.pi),
-                    (2, Plane.YZ, 1.21 * np.pi),
-                    (3, Plane.XY, 0.33 * np.pi),
+                    (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.YZ, 1.21 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
                 ],
                 {(1, 2), (1, 3), (2, 3)},
                 {1, 2, 3},
@@ -803,15 +806,15 @@ def test_merge_yz_nodes(
         (
             (range(1, 5), {(1, 2), (2, 3), (2, 4)}),
             [
-                (1, Plane.YZ, 0.1 * np.pi),
-                (2, Plane.XY, 0.4 * np.pi),
-                (3, Plane.XY, 0.3 * np.pi),
-                (4, Plane.XY, 0.4 * np.pi),
+                (1, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.3 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
             ],
             (
                 [
-                    (3, Plane.XY, 1.8 * np.pi),
-                    (4, Plane.XY, 1.9 * np.pi),
+                    (3, PlannerMeasBasis(Plane.XY, 1.8 * np.pi)),
+                    (4, PlannerMeasBasis(Plane.XY, 1.9 * np.pi)),
                 ],
                 {(3, 4)},
                 {3, 4},
@@ -821,15 +824,15 @@ def test_merge_yz_nodes(
         (
             (range(1, 5), {(1, 2), (2, 3), (2, 4)}),
             [
-                (1, Plane.YZ, 0.1 * np.pi),
-                (2, Plane.XY, 0.9 * np.pi),
-                (3, Plane.XZ, 0.8 * np.pi),
-                (4, Plane.XY, 0.4 * np.pi),
+                (1, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XZ, 0.8 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
             ],
             (
                 [
-                    (3, Plane.XY, 0.2 * np.pi),
-                    (4, Plane.XY, 0.9 * np.pi),
+                    (3, PlannerMeasBasis(Plane.XY, 0.2 * np.pi)),
+                    (4, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
                 ],
                 {(3, 4)},
                 {3, 4},
@@ -839,17 +842,17 @@ def test_merge_yz_nodes(
         (
             (range(1, 7), {(1, 2), (2, 3), (2, 4), (3, 6), (4, 5)}),
             [
-                (1, Plane.YZ, 0.1 * np.pi),
-                (2, Plane.XY, 0.9 * np.pi),
-                (3, Plane.YZ, 1.2 * np.pi),
-                (4, Plane.XY, 1.4 * np.pi),
-                (5, Plane.YZ, 1.0 * np.pi),
-                (6, Plane.XY, 0.5 * np.pi),
+                (1, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 1.2 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 1.4 * np.pi)),
+                (5, PlannerMeasBasis(Plane.YZ, 1.0 * np.pi)),
+                (6, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
             ],
             (
                 [
-                    (3, Plane.XY, 1.8 * np.pi),
-                    (4, Plane.XY, 0.9 * np.pi),
+                    (3, PlannerMeasBasis(Plane.XY, 1.8 * np.pi)),
+                    (4, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
                 ],
                 {(3, 4)},
                 {3, 4},
