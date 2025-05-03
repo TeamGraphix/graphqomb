@@ -1,8 +1,9 @@
-"""Basic example of simplifying a measurement pattern via a ZX-diagram simplification.
+"""Basic example of simplifying a ZX-diagram.
 
-By using the `prune_non_cliffords` method,
-we can remove certain Clifford nodes and non-Clifford nodes from the ZX-diagram,
-which can simplify the resulting measurement pattern.
+By using the `full_reduce` method,
+we can remove all the internal Clifford nodes and some non-Clifford nodes from the graph state,
+which generates a simpler ZX-diagram.
+This example is a simple demonstration of the simplification process.
 """
 
 # %%
