@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import reduce
 
+import typing_extensions
+
 
 class BaseDecoder(ABC):
     """Base class for decoders."""
@@ -35,7 +37,8 @@ class BaseDecoder(ABC):
 class XORDecoder(BaseDecoder):
     """XOR decoder class."""
 
-    def decode(self, input_cbits: Mapping[int, bool], output_cbits: Sequence[int]) -> dict[int, bool]:  # noqa: PLR6301
+    @typing_extensions.override
+    def decode(self, input_cbits: Mapping[int, bool], output_cbits: Sequence[int]) -> dict[int, bool]:
         r"""Decode the input classical bits to a single bit.
 
         Parameters
