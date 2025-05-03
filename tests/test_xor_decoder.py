@@ -1,4 +1,3 @@
-# test_xor_decoder.py
 from __future__ import annotations
 
 import pytest
