@@ -117,7 +117,17 @@ class Clifford:
 
 @dataclass
 class D:
-    """Decode command."""
+    r"""Decode command.
+
+    Attributes
+    ----------
+    input_cbits : `dict`\[`int`, `bool`\]
+        A dictionary mapping classical bit indices to their boolean values.
+    output_cbits : `list`\[`int`\]
+        A list of classical bit indices that will store the decoding results.
+    decoder : `BaseDecoder`
+        The decoder instance used to process the input classical bits and produce the output.
+    """
 
     input_cbits: dict[int, bool]
     output_cbits: list[int]
