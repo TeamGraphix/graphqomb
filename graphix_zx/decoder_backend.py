@@ -55,3 +55,6 @@ class XORDecoder(BaseDecoder):
         """
         result: bool = reduce(operator.xor, input_cbits.values(), False)
         return dict.fromkeys(output_cbits, result)
+
+
+# another decoder class for FTQC will be added later
