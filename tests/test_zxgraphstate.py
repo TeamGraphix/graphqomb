@@ -472,7 +472,8 @@ def test_remove_clifford(
 ) -> None:
     graph_2(zx_graph)
     angles = [rng.random() * 2 * np.pi for _ in range(3)]
-    angles[1] = rng.choice([0.0, np.pi])
+    EPSILON = 1e-10
+    angles[1] = rng.choice([0.0, np.pi, 2 * np.pi - EPSILON])
     measurements = [(i, planes[i - 1], angles[i - 1]) for i in range(1, 4)]
     ref_plane1, ref_angle_func1 = MEAS_ACTION_RC[planes[0]]
     ref_plane3, ref_angle_func3 = MEAS_ACTION_RC[planes[2]]
