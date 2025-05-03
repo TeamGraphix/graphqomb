@@ -468,10 +468,9 @@ class ZXGraphState(GraphState):
             A pair of adjacent nodes that are both measured in the YZ-plane, or None if no such pair exists.
         """
         yz_nodes = {node for node, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
-        for u in yz_nodes:
-            for v in self.get_neighbors(u):
-                if v in yz_nodes:
-                    return (min(u, v), max(u, v))
+        for u, v in self.physical_edges:
+            if u in yz_nodes and v in yz_nodes:
+                return (min(u, v), max(u, v))
         return None
 
     def _extract_xz_node(self) -> int | None:
