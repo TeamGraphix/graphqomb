@@ -283,7 +283,7 @@ class ZXGraphState(GraphState):
             absolute tolerance, by default 1e-9
         """
         a_pi = self.meas_bases[node].angle % (2.0 * np.pi)
-        coeff = 0.0 if _is_close_angle(a_pi, np.pi, atol) else 1.0
+        coeff = 0.0 if _is_close_angle(a_pi, 0, atol) else 1.0
         lc = LocalClifford(coeff * np.pi, 0, 0)
         for v in self.get_neighbors(node) - self.output_nodes:
             self.apply_local_clifford(v, lc)
