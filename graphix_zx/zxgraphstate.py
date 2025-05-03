@@ -184,9 +184,7 @@ class ZXGraphState(GraphState):
             True if the node is a removable Clifford node.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol))) and (
-            self.meas_bases[node].plane in {Plane.YZ, Plane.XZ}
-        )
+        return _is_close_angle(2 * alpha, 0, atol) and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
@@ -207,18 +205,18 @@ class ZXGraphState(GraphState):
             True if the node needs a local complementation.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return any(
-            (_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol))
-        ) and self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
+        return _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and (
+            self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
+        )
 
     def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
         For this operation,
-        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
+        (a) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
         or
-        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
+        (b) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
 
         Parameters
         ----------
@@ -236,14 +234,10 @@ class ZXGraphState(GraphState):
             return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = (
-            any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol)))
-            and self.meas_bases[node].plane == Plane.XY
-        )
-        case_b = (
-            any((_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol)))
-            and self.meas_bases[node].plane == Plane.XZ
-        )
+        # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
+        case_a = _is_close_angle(2 * alpha, 0, atol) and self.meas_bases[node].plane == Plane.XY
+        # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
+        case_b = _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
 
     def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
@@ -251,9 +245,9 @@ class ZXGraphState(GraphState):
 
         The pivot operation is performed on the non-input but output neighbor of the node.
         For this operation,
-        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
+        (a) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
         or
-        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
+        (b) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
 
         Parameters
         ----------
@@ -272,14 +266,10 @@ class ZXGraphState(GraphState):
             return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = (
-            any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol)))
-            and self.meas_bases[node].plane == Plane.XY
-        )
-        case_b = (
-            any((_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol)))
-            and self.meas_bases[node].plane == Plane.XZ
-        )
+        # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
+        case_a = _is_close_angle(2 * alpha, 0, atol) and self.meas_bases[node].plane == Plane.XY
+        # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
+        case_b = _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
@@ -293,9 +283,7 @@ class ZXGraphState(GraphState):
             absolute tolerance, by default 1e-9
         """
         a_pi = self.meas_bases[node].angle % (2.0 * np.pi)
-        coeff = 1.0
-        if _is_close_angle(a_pi, 0, atol):
-            coeff = 0.0
+        coeff = 0.0 if _is_close_angle(a_pi, np.pi, atol) else 1.0
         lc = LocalClifford(coeff * np.pi, 0, 0)
         for v in self.get_neighbors(node) - self.output_nodes:
             self.apply_local_clifford(v, lc)
@@ -557,7 +545,7 @@ class ZXGraphState(GraphState):
                 self.remove_physical_node(v)
 
     def full_reduce(self, atol: float = 1e-9) -> None:
-        """Reduce all Clifford
+        """Reduce all Clifford nodes and some non-Clifford nodes.
 
         Repeat the following steps until there are no non-Clifford nodes:
             1. remove_cliffords
