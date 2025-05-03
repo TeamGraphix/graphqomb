@@ -15,7 +15,7 @@ class BaseDecoder(ABC):
     """Base class for decoders."""
 
     @abstractmethod
-    def decode(self, intput_cbits: Mapping[int, bool], output_cbits: Sequence[int]) -> dict[int, bool]:
+    def decode(self, input_cbits: Mapping[int, bool], output_cbits: Sequence[int]) -> dict[int, bool]:
         r"""Decode the input classical bits to a single bit.
 
         Parameters
@@ -50,5 +50,5 @@ class XORDecoder(BaseDecoder):
         `dict`\[`int`, `bool`\]
             The results of XOR operation on the input bits.
         """
-        result = reduce(operator.xor, input_cbits.values(), False)
+        result: bool = reduce(operator.xor, input_cbits.values(), False)
         return dict.fromkeys(output_cbits, result)
