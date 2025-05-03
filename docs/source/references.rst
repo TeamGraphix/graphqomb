@@ -12,3 +12,4 @@ Module reference
     feedforward
     focus_flow
     command
+    decoder_backend
