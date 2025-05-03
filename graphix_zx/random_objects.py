@@ -2,7 +2,7 @@
 
 This module provides:
 - get_random_flow_graph: Generate a random flow graph.
-- random_circ: Generate a random MBQC circuit with gflow.
+- random_circ: Generate a random MBQC circuit.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def random_circ(
     depth: int,
     rng: np.random.Generator | None = None,
     edge_p: float = 0.5,
-    angle_list: Sequence[float] = (0.0, np.pi / 3, 2 * np.pi / 3, np.pi),
+    angle_candidates: Sequence[float] = (0.0, np.pi / 3, 2 * np.pi / 3, np.pi),
 ) -> MBQCCircuit:
     """Generate a random MBQC circuit.
 
@@ -103,12 +103,12 @@ def random_circ(
         circuit width
     depth : int
         circuit depth
-    rng : np.random.Generator, optional
-        random number generator, by default np.random.default_rng()
+    rng : numpy.random.Generator, optional
+        random number generator, by default numpy.random.default_rng()
     edge_p : float, optional
         probability of adding CZ gate, by default 0.5
-    angle_list : Sequence[float], optional
-        list of angles, by default [0, np.pi / 3, 2 * np.pi / 3, np.pi]
+    angle_candidates : collections.abc.Sequence[float], optional
+        list of angles, by default (0, np.pi / 3, 2 * np.pi / 3, np.pi)
 
     Returns
     -------
@@ -120,14 +120,14 @@ def random_circ(
     circ = MBQCCircuit(width)
     for d in range(depth):
         for j in range(width):
-            circ.j(j, rng.choice(angle_list))
+            circ.j(j, rng.choice(angle_candidates))
         if d < depth - 1:
             for j in range(width):
                 if rng.random() < edge_p:
                     circ.cz(j, (j + 1) % width)
             num = rng.integers(0, width)
             if num > 0:
-                target = set(rng.choice(list(range(width)), num))
-                circ.phase_gadget(target, rng.choice(angle_list))
+                target = set(rng.choice(range(width), num))
+                circ.phase_gadget(target, rng.choice(angle_candidates))
 
     return circ
