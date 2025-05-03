@@ -5,10 +5,10 @@ This module provides:
 - `XORDecoder`: XOR decoder class.
 """
 
+import functools
 import operator
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from functools import reduce
 
 import typing_extensions
 
@@ -53,7 +53,7 @@ class XORDecoder(BaseDecoder):
         `dict`\[`int`, `bool`\]
             The results of XOR operation on the input bits.
         """
-        result: bool = reduce(operator.xor, input_cbits.values(), False)
+        result: bool = functools.reduce(operator.xor, input_cbits.values(), False)
         return dict.fromkeys(output_cbits, result)
 
 

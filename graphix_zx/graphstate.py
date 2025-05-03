@@ -15,10 +15,10 @@ This module provides:
 
 from __future__ import annotations
 
+import functools
+import itertools
 import operator
 from abc import ABC, abstractmethod
-from functools import reduce
-from itertools import product
 from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
@@ -826,7 +826,7 @@ def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) ->
     if not node_set1.isdisjoint(node_set2):
         msg = "The two sets of nodes must be disjoint."
         raise ValueError(msg)
-    return {(min(a, b), max(a, b)) for a, b in product(node_set1, node_set2)}
+    return {(min(a, b), max(a, b)) for a, b in itertools.product(node_set1, node_set2)}
 
 
 def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[int]:
@@ -844,4 +844,4 @@ def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[in
     `set`\[`int`\]
         set of odd neighbors
     """
-    return reduce(operator.xor, (graphstate.neighbors(node) for node in nodes), set())
+    return functools.reduce(operator.xor, (graphstate.neighbors(node) for node in nodes), set())
