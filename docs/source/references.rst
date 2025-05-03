@@ -11,3 +11,4 @@ Module reference
     random_objects
     feedforward
     focus_flow
+    command
