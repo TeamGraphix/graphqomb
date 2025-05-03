@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import _is_close_angle, is_clifford_angle
+from graphix_zx.euler import _is_close_angle
 from graphix_zx.random_objects import get_random_flow_graph
 from graphix_zx.zxgraphstate import ZXGraphState
 
@@ -54,15 +54,15 @@ ATOL = 1e-9
 MEAS_ACTION_RC: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
     Plane.XY: (
         Plane.XY,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else alpha + np.pi) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if _is_close_angle(a_pi, 0, ATOL) else alpha + np.pi) % (2.0 * np.pi),
     ),
     Plane.XZ: (
         Plane.XZ,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else -alpha) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if _is_close_angle(a_pi, 0, ATOL) else -alpha) % (2.0 * np.pi),
     ),
     Plane.YZ: (
         Plane.YZ,
-        lambda a_pi, alpha: (alpha if abs(a_pi % (2.0 * np.pi)) < ATOL else -alpha) % (2.0 * np.pi),
+        lambda a_pi, alpha: (alpha if _is_close_angle(a_pi, 0, ATOL) else -alpha) % (2.0 * np.pi),
     ),
 }
 
@@ -179,7 +179,7 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
         zx_graph.local_complement(1)
 
 
-@pytest.mark.parametrize("plane", [Plane.XY, Plane.XZ, Plane.YZ])
+@pytest.mark.parametrize("plane", list(Plane))
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.random() * 2 * np.pi
     ref_plane, ref_angle_func = MEAS_ACTION_LC_TARGET[plane]
@@ -463,7 +463,7 @@ def _test_remove_clifford(
 
 @pytest.mark.parametrize(
     "planes",
-    list(itertools.product([Plane.XY, Plane.XZ, Plane.YZ], [Plane.XZ, Plane.YZ], [Plane.XY, Plane.XZ, Plane.YZ])),
+    list(itertools.product(list(Plane), [Plane.XZ, Plane.YZ], list(Plane))),
 )
 def test_remove_clifford(
     zx_graph: ZXGraphState,
@@ -607,11 +607,7 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
     zx_graph.remove_cliffords()
     atol = 1e-9
     nodes = zx_graph.physical_nodes - zx_graph.input_nodes - zx_graph.output_nodes
-    clifford_nodes = [
-        node
-        for node in nodes
-        if is_clifford_angle(zx_graph.meas_bases[node].angle, atol) and zx_graph.is_removable_clifford(node, atol)
-    ]
+    clifford_nodes = [node for node in nodes if zx_graph.is_removable_clifford(node, atol)]
     assert clifford_nodes == []
 
 
