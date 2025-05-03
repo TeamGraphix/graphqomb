@@ -74,16 +74,6 @@ class M:
 
 @dataclass
 class _Correction:
-    """Base Correction command. Either X or Z.
-
-    Attributes
-    ----------
-    node : `int`
-        The node index to apply the correction.
-    cbit : `int`
-        The index of the classical bit to control the correction.
-    """
-
     node: int
     cbit: int
 
