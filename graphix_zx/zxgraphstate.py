@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import LocalClifford, is_clifford_angle, _is_close_angle
+from graphix_zx.euler import LocalClifford, _is_close_angle, is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
