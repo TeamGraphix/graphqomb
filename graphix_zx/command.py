@@ -3,12 +3,11 @@
 This module provides:
 
 - `N`: Preparation command.
-- `M`: Measurement command.
 - `E`: Entanglement command.
-- `C`: Clifford command.
-- `Correction`: Base class for Pauli correction command.
+- `M`: Measurement command.
 - `X`: X correction command.
 - `Z`: Z correction command.
+- `Clifford`: Clifford command.
 - `D`: Decode command.
 - `Command`: Type alias of all commands.
 """
@@ -40,6 +39,19 @@ class N:
 
 
 @dataclass
+class E:
+    r"""Entanglement command.
+
+    Attributes
+    ----------
+    nodes : `tuple`\[`int`, `int`\]
+        The node indices to be entangled.
+    """
+
+    nodes: tuple[int, int]
+
+
+@dataclass
 class M:
     """Measurement command.
 
@@ -62,20 +74,33 @@ class M:
 
 
 @dataclass
-class E:
-    r"""Entanglement command.
+class _Correction:
+    """Base Correction command. Either X or Z.
 
     Attributes
     ----------
-    nodes : `tuple`\[`int`, `int`\]
-        The node indices to be entangled.
+    node : `int`
+        The node index to apply the correction.
+    flag : `bool`
+        The domain of the correction.
     """
 
-    nodes: tuple[int, int]
+    node: int
+    flag: bool = False
 
 
 @dataclass
-class C:
+class X(_Correction):
+    """X correction command."""
+
+
+@dataclass
+class Z(_Correction):
+    """Z correction command."""
+
+
+@dataclass
+class Clifford:
     """Clifford command.
 
     Attributes
@@ -91,32 +116,6 @@ class C:
 
 
 @dataclass
-class Correction:
-    """Correction command.Either X or Z.
-
-    Attributes
-    ----------
-    node : `int`
-        The node index to apply the correction.
-    flag : `bool`
-        The domain of the correction
-    """
-
-    node: int
-    flag: bool = False
-
-
-@dataclass
-class X(Correction):
-    """X correction command."""
-
-
-@dataclass
-class Z(Correction):
-    """Z correction command."""
-
-
-@dataclass
 class D:
     """Decode command."""
 
@@ -126,6 +125,6 @@ class D:
 
 
 if sys.version_info >= (3, 10):
-    Command = N | M | E | C | X | Z | D
+    Command = N | E | M | X | Z | Clifford | D
 else:
-    Command = Union[N, M, E, C, X, Z, D]
+    Command = Union[N, E, M, X, Z, Clifford, D]
