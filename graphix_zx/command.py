@@ -14,8 +14,8 @@ This module provides:
 
 from __future__ import annotations
 
+import dataclasses
 import sys
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
 
 
-@dataclass
+@dataclasses.dataclass
 class N:
     """Preparation command.
 
@@ -37,7 +37,7 @@ class N:
     node: int
 
 
-@dataclass
+@dataclasses.dataclass
 class E:
     r"""Entanglement command.
 
@@ -50,7 +50,7 @@ class E:
     nodes: tuple[int, int]
 
 
-@dataclass
+@dataclasses.dataclass
 class M:
     """Measurement command.
 
@@ -72,13 +72,13 @@ class M:
     t_cbit: int
 
 
-@dataclass
+@dataclasses.dataclass
 class _Correction:
     node: int
     cbit: int
 
 
-@dataclass
+@dataclasses.dataclass
 class X(_Correction):
     """X correction command.
 
@@ -91,7 +91,7 @@ class X(_Correction):
     """
 
 
-@dataclass
+@dataclasses.dataclass
 class Z(_Correction):
     """Z correction command.
 
@@ -104,7 +104,7 @@ class Z(_Correction):
     """
 
 
-@dataclass
+@dataclasses.dataclass
 class Clifford:
     """Clifford command.
 
@@ -120,7 +120,7 @@ class Clifford:
     local_clifford: LocalClifford
 
 
-@dataclass
+@dataclasses.dataclass
 class D:
     r"""Decode command.
 
