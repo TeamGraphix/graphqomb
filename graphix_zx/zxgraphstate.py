@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import LocalClifford, is_clifford_angle
+from graphix_zx.euler import LocalClifford, is_clifford_angle, _is_close_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
@@ -200,7 +200,9 @@ class ZXGraphState(GraphState):
             True if the node is a removable Clifford vertex.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return abs(alpha % np.pi) < atol and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
+        return any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol))) and (
+            self.meas_bases[node].plane in {Plane.YZ, Plane.XZ}
+        )
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
@@ -221,7 +223,9 @@ class ZXGraphState(GraphState):
             True if the node needs a local complementation.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
+        return any(
+            (_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol))
+        ) and self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
 
     def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
@@ -248,8 +252,14 @@ class ZXGraphState(GraphState):
             return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
+        case_a = (
+            any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol)))
+            and self.meas_bases[node].plane == Plane.XY
+        )
+        case_b = (
+            any((_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol)))
+            and self.meas_bases[node].plane == Plane.XZ
+        )
         return case_a or case_b
 
     def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
@@ -278,8 +288,14 @@ class ZXGraphState(GraphState):
             return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
+        case_a = (
+            any((_is_close_angle(alpha, 0, atol), _is_close_angle(alpha, np.pi, atol)))
+            and self.meas_bases[node].plane == Plane.XY
+        )
+        case_b = (
+            any((_is_close_angle(alpha, np.pi / 2, atol), _is_close_angle(alpha, 3 * np.pi / 2, atol)))
+            and self.meas_bases[node].plane == Plane.XZ
+        )
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
@@ -294,7 +310,7 @@ class ZXGraphState(GraphState):
         """
         a_pi = self.meas_bases[node].angle % (2.0 * np.pi)
         coeff = 1.0
-        if abs(a_pi % (2 * np.pi)) < atol:
+        if _is_close_angle(a_pi, 0, atol):
             coeff = 0.0
         lc = LocalClifford(coeff * np.pi, 0, 0)
         for v in self.get_neighbors(node) - self.output_nodes:
