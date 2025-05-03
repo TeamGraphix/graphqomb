@@ -39,7 +39,7 @@ class N:
 
 @dataclass
 class M:
-    r"""Measurement command.
+    """Measurement command.
 
     Attributes
     ----------
@@ -47,16 +47,16 @@ class M:
         The node index to be measured.
     meas_basis : MeasBasis
         The measurement basis.
-    s_domain : `set`\[`int`\]
-        The s_domain of the measurement.
-    t_domain : `set`\[`int`\]
-        The t_domain of the measurement.
+    s_flag : `bool`
+        The s_flag of the measurement.
+    t_flag : `bool`
+        The t_flag of the measurement.
     """
 
     node: int
     meas_basis: MeasBasis = field(default_factory=default_meas_basis)
-    s_domain: set[int] = field(default_factory=set)
-    t_domain: set[int] = field(default_factory=set)
+    s_flag: bool = False
+    t_flag: bool = False
 
 
 @dataclass
@@ -90,18 +90,18 @@ class C:
 
 @dataclass
 class Correction:
-    r"""Correction command.Either X or Z.
+    """Correction command.Either X or Z.
 
     Attributes
     ----------
     node : `int`
         The node index to apply the correction.
-    domain : `set`\[`int`\]
+    flag : `bool`
         The domain of the correction
     """
 
     node: int
-    domain: set[int] = field(default_factory=set)
+    flag: bool = False
 
 
 @dataclass
