@@ -538,10 +538,9 @@ class ZXGraphState(GraphState):
         for neighbors, nodes in neighbor_groups.items():
             if len(nodes) < min_nodes or len(neighbors) < min_nodes:
                 continue
-            u = nodes[0]
+            new_angle = sum(self.meas_bases[v].angle for v in nodes) % (2.0 * np.pi)
+            self.set_meas_basis(nodes[0], PlannerMeasBasis(Plane.YZ, new_angle))
             for v in nodes[1:]:
-                new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
-                self.set_meas_basis(u, PlannerMeasBasis(Plane.YZ, new_angle))
                 self.remove_physical_node(v)
 
     def full_reduce(self, atol: float = 1e-9) -> None:
