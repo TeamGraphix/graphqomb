@@ -9,6 +9,7 @@ This module provides:
 - `Correction`: Base class for Pauli correction command.
 - `X`: X correction command.
 - `Z`: Z correction command.
+- `D`: Decode command.
 - `Command`: Type alias of all commands.
 """
 
@@ -19,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Union
 
 from graphix_zx.common import MeasBasis, default_meas_basis
+from graphix_zx.decoder_backend import BaseDecoder
 
 if TYPE_CHECKING:
     from graphix_zx.euler import LocalClifford
@@ -114,7 +116,16 @@ class Z(Correction):
     """Z correction command."""
 
 
+@dataclass
+class D:
+    """Decode command."""
+
+    input_cbits: dict[int, bool]
+    output_cbits: list[int]
+    decoder: BaseDecoder
+
+
 if sys.version_info >= (3, 10):
-    Command = N | M | E | C | X | Z
+    Command = N | M | E | C | X | Z | D
 else:
-    Command = Union[N, M, E, C, X, Z]
+    Command = Union[N, M, E, C, X, Z, D]
