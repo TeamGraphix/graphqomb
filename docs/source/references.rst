@@ -11,3 +11,5 @@ Module reference
     random_objects
     feedforward
     focus_flow
+    command
+    decoder_backend
