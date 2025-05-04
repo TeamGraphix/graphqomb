@@ -14,10 +14,12 @@ This module provides:
 
 from __future__ import annotations
 
+import abc
 import cmath
+import enum
 import math
-from abc import ABC, abstractmethod
-from enum import Enum, auto
+from abc import ABC
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -33,42 +35,42 @@ class Plane(Enum):
     We distinguish the axial measurements from the planar measurements.
     """
 
-    XY = auto()
-    YZ = auto()
-    XZ = auto()
+    XY = enum.auto()
+    YZ = enum.auto()
+    XZ = enum.auto()
 
 
 class Axis(Enum):
     """Measurement axis for Pauli measurement."""
 
-    X = auto()
-    Y = auto()
-    Z = auto()
+    X = enum.auto()
+    Y = enum.auto()
+    Z = enum.auto()
 
 
 class Sign(Enum):
     """Measurement sign for Pauli measurement."""
 
-    PLUS = auto()
-    MINUS = auto()
+    PLUS = enum.auto()
+    MINUS = enum.auto()
 
 
 class MeasBasis(ABC):
     """Abstract class to represent a measurement basis."""
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def plane(self) -> Plane:
         """Return the measurement plane."""
         raise NotImplementedError
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def angle(self) -> float:
         """Return the measurement angle."""
         raise NotImplementedError
 
-    @abstractmethod
+    @abc.abstractmethod
     def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector."""
         raise NotImplementedError

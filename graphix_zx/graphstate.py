@@ -15,10 +15,11 @@ This module provides:
 
 from __future__ import annotations
 
+import abc
 import functools
 import itertools
 import operator
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
@@ -36,7 +37,7 @@ class BaseGraphState(ABC):
     """Abstract base class for Graph State."""
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def input_node_indices(self) -> dict[int, int]:
         r"""Return map of input nodes to logical qubit indices.
 
@@ -47,7 +48,7 @@ class BaseGraphState(ABC):
         """
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def output_node_indices(self) -> dict[int, int]:
         r"""Return map of output nodes to logical qubit indices.
 
@@ -58,7 +59,7 @@ class BaseGraphState(ABC):
         """
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def physical_nodes(self) -> set[int]:
         r"""Return set of physical nodes.
 
@@ -69,7 +70,7 @@ class BaseGraphState(ABC):
         """
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def physical_edges(self) -> set[tuple[int, int]]:
         r"""Return set of physical edges.
 
@@ -80,7 +81,7 @@ class BaseGraphState(ABC):
         """
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def meas_bases(self) -> dict[int, MeasBasis]:
         r"""Return measurement bases.
 
@@ -90,7 +91,7 @@ class BaseGraphState(ABC):
             measurement bases of each physical node.
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def add_physical_node(self) -> int:
         """Add a physical node to the graph state.
 
@@ -100,7 +101,7 @@ class BaseGraphState(ABC):
             The node index intenally generated
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def add_physical_edge(self, node1: int, node2: int) -> None:
         """Add a physical edge to the graph state.
 
@@ -112,7 +113,7 @@ class BaseGraphState(ABC):
             node index
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def register_input(self, node: int) -> int:
         """Mark the node as an input node.
 
@@ -127,7 +128,7 @@ class BaseGraphState(ABC):
             logical qubit index
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def register_output(self, node: int, q_index: int) -> None:
         """Mark the node as an output node.
 
@@ -139,7 +140,7 @@ class BaseGraphState(ABC):
             logical qubit index
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
         """Assign the measurement basis of the node.
 
@@ -151,7 +152,7 @@ class BaseGraphState(ABC):
             measurement basis
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def neighbors(self, node: int) -> set[int]:
         r"""Return the neighbors of the node.
 
@@ -166,7 +167,7 @@ class BaseGraphState(ABC):
             set of neighboring nodes
         """
 
-    @abstractmethod
+    @abc.abstractmethod
     def is_canonical_form(self) -> bool:
         r"""Check if the graph state is in canonical form.
 

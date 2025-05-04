@@ -5,9 +5,10 @@ This module provides:
 - `XORDecoder`: XOR decoder class.
 """
 
+import abc
 import functools
 import operator
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Mapping, Sequence
 
 import typing_extensions
@@ -16,7 +17,7 @@ import typing_extensions
 class BaseDecoder(ABC):
     """Base class for decoders."""
 
-    @abstractmethod
+    @abc.abstractmethod
     def decode(self, input_cbits: Mapping[int, bool], output_cbits: Sequence[int]) -> dict[int, bool]:
         r"""Decode the input classical bits to a single bit.
 
