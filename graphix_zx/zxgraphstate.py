@@ -328,7 +328,6 @@ class ZXGraphState(GraphState):
         elif self._needs_pivot_1(node, atol) or self._needs_pivot_2(node, atol):
             nbrs = self.get_neighbors(node) - self.input_nodes
             v = min(nbrs)
-            nbrs.remove(v)
             self.pivot(node, v)
         else:
             msg = "This Clifford node is unremovable."
