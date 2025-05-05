@@ -47,8 +47,7 @@ class ZXGraphState(GraphState):
         self._clifford_rules: list[tuple[Callable[[int, float], bool], Callable[[int], None]]] = [
             (self._needs_nop, lambda _: None),
             (self._needs_lc, self.local_complement),
-            (self._needs_pivot_1, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
-            (self._needs_pivot_2, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
+            (self._needs_pivot, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
         ]
 
     def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
@@ -217,7 +216,7 @@ class ZXGraphState(GraphState):
             self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
         )
 
-    def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
+    def _needs_pivot(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
@@ -238,40 +237,10 @@ class ZXGraphState(GraphState):
         bool
             True if the nodes need a pivot operation.
         """
-        if not self.get_neighbors(node) - self.input_nodes:
-            return False
-
-        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
-        case_a = _is_close_angle(2 * alpha, 0, atol) and self.meas_bases[node].plane == Plane.XY
-        # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
-        case_b = _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
-        return case_a or case_b
-
-    def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node needs a pivot operation on output nodes in order to perform _remove_clifford.
-
-        The pivot operation is performed on the non-input but output neighbor of the node.
-        For this operation,
-        (a) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
-        or
-        (b) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-
-        Returns
-        -------
-        bool
-            True if the node needs a pivot operation on output nodes.
-        """
-        nbrs = self.get_neighbors(node)
-        if not (nbrs.issubset(self.output_nodes) and nbrs):
-            return False
+        if not (self.get_neighbors(node) - self.input_nodes):
+            nbrs = self.get_neighbors(node)
+            if not (nbrs.issubset(self.output_nodes) and nbrs):
+                return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
         # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
@@ -358,8 +327,7 @@ class ZXGraphState(GraphState):
             [
                 self._needs_nop(node, atol),
                 self._needs_lc(node, atol),
-                self._needs_pivot_1(node, atol),
-                self._needs_pivot_2(node, atol),
+                self._needs_pivot(node, atol),
             ]
         )
 
