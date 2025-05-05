@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import C, Command, E, M, N, X, Z
+from graphix_zx.command import Clifford, Command, E, M, N, X, Z, D
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -28,30 +28,21 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass(frozen=True)
 class ImmutablePattern:
-    """Immutable pattern class.
+    r"""Immutable pattern class.
 
     Attributes
     ----------
-    input_nodes : set[int]
-        Input nodes of the pattern
-    output_nodes : set[int]
-        Output nodes of the pattern
-    q_indices : dict[int, int]
-        Logical qubit indices map of the pattern
-    commands : list[Command]
+    input_nodes : `dict`\[`int`, `int`\]
+        The map of input nodes to their logical qubit indices
+    output_nodes : `dict`\[`int`, `int`\]
+        The map of output nodes to their logical qubit indices
+    commands : `list`\[`Command`\]
         Commands of the pattern
-    runnable : bool
-        True if the pattern is runnable
-    deterministic : bool
-        True if the pattern is deterministic
     """
 
-    input_nodes: set[int]
-    output_nodes: set[int]
-    q_indices: dict[int, int]
+    input_node_indices: dict[int, int]
+    output_node_indices: dict[int, int]
     commands: list[Command]
-    runnable: bool = False
-    deterministic: bool = False
 
     def __len__(self) -> int:
         return len(self.commands)
@@ -60,30 +51,15 @@ class ImmutablePattern:
         return iter(self.commands)
 
     @cached_property
-    def nodes(self) -> set[int]:
-        """Nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of nodes of the pattern
-        """
-        nodes = set(self.input_nodes)
-        for cmd in self.commands:
-            if isinstance(cmd, N):
-                nodes |= {cmd.node}
-        return nodes
-
-    @cached_property
     def max_space(self) -> int:
         """Maximum number of qubits prepared at any point in the pattern.
 
         Returns
         -------
-        int
+        `int`
             Maximum number of qubits prepared at any point in the pattern
         """
-        nodes = len(self.input_nodes)
+        nodes = len(self.input_node_indices)
         max_nodes = nodes
         for cmd in self.commands:
             if isinstance(cmd, N):
@@ -102,7 +78,7 @@ class ImmutablePattern:
         list[int]
             List of qubits prepared at each point in the pattern
         """
-        nodes = len(self.input_nodes)
+        nodes = len(self.input_node_indices)
         space_list = [nodes]
         for cmd in self.commands:
             if isinstance(cmd, N):
@@ -112,27 +88,6 @@ class ImmutablePattern:
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
-
-    # TODO: will be removed
-    def is_runnable(self) -> bool:
-        """Return True if the pattern is runnable.
-
-        Returns
-        -------
-        bool
-            True if the pattern is runnable
-        """
-        return self.runnable
-
-    def is_deterministic(self) -> bool:
-        """Return True if the pattern is deterministic.
-
-        Returns
-        -------
-        bool
-            True if the pattern is deterministic
-        """
-        return self.deterministic
 
 
 class BasePattern(ABC):
@@ -847,7 +802,7 @@ def print_pattern(
             M,
             X,
             Z,
-            C,
+            Clifford,
         ]
     nmax = min(lim, len(pattern))
     print_count = 0
