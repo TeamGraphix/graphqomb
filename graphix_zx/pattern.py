@@ -1,9 +1,8 @@
 """Pattern module.
 
 This module provides:
-- ImmutablePattern: Immutable pattern class
-- BasePattern: Base pattern class
-- MutablePattern: Mutable pattern class
+- `ImmutablePattern`: Immutable pattern class
+- `MutablePattern`: Mutable pattern class
 - NodeAlreadyPreparedError: Raised when a node is prepared more than once
 - is_standardized: Check if the pattern is standardized
 - is_runnable: Check if the pattern is runnable
@@ -70,11 +69,11 @@ class ImmutablePattern:
 
     @cached_property
     def space_list(self) -> list[int]:
-        """List of qubits prepared at each point in the pattern.
+        r"""List of qubits prepared at each point in the pattern.
 
         Returns
         -------
-        list[int]
+        `list`\[`int`\]
             List of qubits prepared at each point in the pattern
         """
         nodes = len(self.input_node_indices)
