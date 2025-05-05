@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import dataclasses
 import typing
-from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -90,136 +89,7 @@ class ImmutablePattern:
         return space_list
 
 
-class BasePattern(ABC):
-    """Base pattern class."""
-
-    def __len__(self) -> int:
-        return len(self.commands)
-
-    def __iter__(self) -> Iterator[Command]:
-        return iter(self.commands)
-
-    @typing.overload
-    def __getitem__(self, index: int) -> Command: ...
-
-    @typing.overload
-    def __getitem__(self, index: slice) -> list[Command]: ...
-
-    def __getitem__(self, index: int | slice) -> Command | list[Command]:
-        commands = self.commands
-        if isinstance(index, (int, slice)):
-            return commands[index]
-        msg = f"Index type not supported: {type(index)}"
-        raise TypeError(msg)
-
-    @property
-    @abstractmethod
-    def input_nodes(self) -> set[int]:
-        """Input nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of input nodes of the pattern
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def output_nodes(self) -> set[int]:
-        """Output nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of output nodes of the pattern
-        """
-        raise NotImplementedError
-
-    @cached_property
-    @abstractmethod
-    def nodes(self) -> set[int]:
-        """Nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of nodes of the pattern
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def q_indices(self) -> dict[int, int]:
-        """Logical qubit indices map of the pattern.
-
-        Returns
-        -------
-        dict[int, int]
-            Map of logical qubit indices
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def commands(self) -> list[Command]:
-        """Commands of the pattern.
-
-        Returns
-        -------
-        list[Command]
-            List of commands of the pattern
-        """
-        raise NotImplementedError
-
-    @cached_property
-    @abstractmethod
-    def max_space(self) -> int:
-        """Maximum number of qubits prepared at any point in the pattern.
-
-        Returns
-        -------
-        int
-            Maximum number of qubits prepared at any point in the pattern
-        """
-        raise NotImplementedError
-
-    @cached_property
-    @abstractmethod
-    def space_list(self) -> list[int]:
-        """List of qubits prepared at each point in the pattern.
-
-        Returns
-        -------
-        list[int]
-            List of qubits prepared at each point in the pattern
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def is_runnable(self) -> bool:
-        """Return True if the pattern is runnable.
-
-        Returns
-        -------
-        bool
-            True if the pattern is runnable
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def is_deterministic(self) -> bool:
-        """Return True if the pattern is deterministic.
-
-        Returns
-        -------
-        bool
-            True if the pattern is deterministic
-        """
-        raise NotImplementedError
-
-
-class MutablePattern(BasePattern):
+class MutablePattern:
     """Mutable pattern class.
 
     Attributes
