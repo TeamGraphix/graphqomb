@@ -38,10 +38,18 @@ class ZXGraphState(GraphState):
         qubit indices
     local_cliffords : dict[int, LocalClifford]
         local clifford operators
+    _clifford_rules : list[tuple[Callable[[int, float], bool], Callable[[int], None]]]
+        list of rules (check_func, action_func) for removing local clifford nodes
     """
 
     def __init__(self) -> None:
         super().__init__()
+        self._clifford_rules: list[tuple[Callable[[int, float], bool], Callable[[int], None]]] = [
+            (self._needs_nop, lambda _: None),
+            (self._needs_lc, self.local_complement),
+            (self._needs_pivot_1, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
+            (self._needs_pivot_2, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
+        ]
 
     def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
         """Update the physical edges of the graph state.
@@ -321,19 +329,15 @@ class ZXGraphState(GraphState):
             msg = "This node is not a Clifford node."
             raise ValueError(msg)
 
-        if self._needs_nop(node, atol):
-            pass
-        elif self._needs_lc(node, atol):
-            self.local_complement(node)
-        elif self._needs_pivot_1(node, atol) or self._needs_pivot_2(node, atol):
-            nbrs = self.get_neighbors(node) - self.input_nodes
-            v = min(nbrs)
-            self.pivot(node, v)
-        else:
-            msg = "This Clifford node is unremovable."
-            raise ValueError(msg)
+        for check, action in self._clifford_rules:
+            if not check(node, atol):
+                continue
+            action(node)
+            self._remove_clifford(node, atol)
+            return
 
-        self._remove_clifford(node, atol)
+        msg = "This Clifford node is unremovable."
+        raise ValueError(msg)
 
     def is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node is a removable Clifford node.
@@ -359,82 +363,6 @@ class ZXGraphState(GraphState):
             ]
         )
 
-    def _remove_cliffords(
-        self, action_func: Callable[[int, float], None], check_func: Callable[[int, float], bool], atol: float = 1e-9
-    ) -> None:
-        """Remove all local clifford nodes which are specified by the check_func and action_func.
-
-        Parameters
-        ----------
-        action_func : Callable[[int, float], None]
-            action to perform on the node
-        check_func : Callable[[int, float], bool]
-            check if the node is a removable Clifford node
-        """
-        self.check_meas_basis()
-        while True:
-            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = [node for node in nodes if check_func(node, atol)]
-            clifford_node = min(clifford_nodes, default=None)
-            if clifford_node is None:
-                break
-            action_func(clifford_node, atol)
-
-    def _step1_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_lc is True, apply local complement to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        self.local_complement(node)
-        self._remove_clifford(node, atol)
-
-    def _step2_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_nop is True, remove the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        self._remove_clifford(node, atol)
-
-    def _step3_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_pivot_1 is True, apply pivot operation to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        nbrs = self.get_neighbors(node) - self.input_nodes
-        nbr = min(nbrs)
-        self.pivot(node, nbr)
-        self._remove_clifford(node, atol)
-
-    def _step4_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_pivot_2 is True, apply pivot operation to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        nbrs = self.get_neighbors(node) - self.input_nodes
-        nbr = min(nbrs)
-        self.pivot(node, nbr)
-        self._remove_clifford(node, atol)
-
     def remove_cliffords(self, atol: float = 1e-9) -> None:
         """Remove all local clifford nodes which are removable.
 
@@ -447,14 +375,14 @@ class ZXGraphState(GraphState):
         while any(
             self.is_removable_clifford(n, atol) for n in (self.physical_nodes - self.input_nodes - self.output_nodes)
         ):
-            steps = [
-                (self._step1_action, self._needs_lc),
-                (self._step2_action, self._needs_nop),
-                (self._step3_action, self._needs_pivot_1),
-                (self._step4_action, self._needs_pivot_2),
-            ]
-            for action_func, check_func in steps:
-                self._remove_cliffords(action_func, check_func, atol)
+            for check, action in self._clifford_rules:
+                while True:
+                    candidates = self.physical_nodes - self.input_nodes - self.output_nodes
+                    clifford_node = next((node for node in candidates if check(node, atol)), None)
+                    if clifford_node is None:
+                        break
+                    action(clifford_node)
+                    self._remove_clifford(clifford_node, atol)
 
     def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
         """Call inside convert_to_phase_gadget.
