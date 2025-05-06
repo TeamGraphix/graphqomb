@@ -406,10 +406,14 @@ class ZXGraphState(GraphState):
         target_nodes = {
             u
             for u in target_candidates
-            if (v := next(iter(self.get_neighbors(u)))) and self.meas_bases[v].plane == Plane.XY
+            if (
+                (v := next(iter(self.get_neighbors(u))))
+                and (mb := self.meas_bases.get(v, None)) is not None
+                and mb.plane == Plane.XY
+            )
         }
         for u in target_nodes:
-            v = self.get_neighbors(u).pop()
+            (v,) = self.get_neighbors(u)
             new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
             self.set_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
             self.remove_physical_node(u)
