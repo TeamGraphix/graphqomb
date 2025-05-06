@@ -8,6 +8,7 @@ This module provides:
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -38,17 +39,27 @@ class ZXGraphState(GraphState):
         qubit indices
     local_cliffords : dict[int, LocalClifford]
         local clifford operators
-    _clifford_rules : list[tuple[Callable[[int, float], bool], Callable[[int], None]]]
-        list of rules (check_func, action_func) for removing local clifford nodes
+    _clifford_rules : tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]
+        tuple of rules (check_func, action_func) for removing local clifford nodes
     """
 
     def __init__(self) -> None:
         super().__init__()
-        self._clifford_rules: list[tuple[Callable[[int, float], bool], Callable[[int], None]]] = [
-            (self._needs_nop, lambda _: None),
+
+    @cached_property
+    def _clifford_rules(self) -> tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]:
+        """List of rules (check_func, action_func) for removing local clifford nodes.
+
+        The rules are applied in the order they are defined.
+        """
+        return (
             (self._needs_lc, self.local_complement),
-            (self._needs_pivot, lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes))),
-        ]
+            (self._needs_nop, lambda _: None),
+            (
+                self._needs_pivot,
+                lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes)),
+            ),
+        )
 
     def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
         """Update the physical edges of the graph state.
