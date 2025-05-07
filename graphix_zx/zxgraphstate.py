@@ -8,7 +8,6 @@ This module provides:
 from __future__ import annotations
 
 from collections import defaultdict
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -39,14 +38,12 @@ class ZXGraphState(GraphState):
         qubit indices
     local_cliffords : dict[int, LocalClifford]
         local clifford operators
-    _clifford_rules : tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]
-        tuple of rules (check_func, action_func) for removing local clifford nodes
     """
 
     def __init__(self) -> None:
         super().__init__()
 
-    @cached_property
+    @property
     def _clifford_rules(self) -> tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]:
         """List of rules (check_func, action_func) for removing local clifford nodes.
 
