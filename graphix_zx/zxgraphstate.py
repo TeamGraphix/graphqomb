@@ -7,16 +7,18 @@ This module provides:
 
 from __future__ import annotations
 
+from collections import defaultdict
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import is_clifford_angle
+from graphix_zx.euler import LocalClifford, _is_close_angle, is_clifford_angle
 from graphix_zx.graphstate import GraphState, bipartite_edges
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Callable, Iterable
 
 
 class ZXGraphState(GraphState):
@@ -30,17 +32,34 @@ class ZXGraphState(GraphState):
         set of output nodes
     physical_nodes : set[int]
         set of physical nodes
-    physical_edges : dict[int, set[int]]
+    physical_edges : set[tuple[int]]
         physical edges
     meas_bases : dict[int, MeasBasis]
     q_indices : dict[int, int]
         qubit indices
     local_cliffords : dict[int, LocalClifford]
         local clifford operators
+    _clifford_rules : tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]
+        tuple of rules (check_func, action_func) for removing local clifford nodes
     """
 
     def __init__(self) -> None:
         super().__init__()
+
+    @cached_property
+    def _clifford_rules(self) -> tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]:
+        """List of rules (check_func, action_func) for removing local clifford nodes.
+
+        The rules are applied in the order they are defined.
+        """
+        return (
+            (self._needs_lc, self.local_complement),
+            (self._needs_nop, lambda _: None),
+            (
+                self._needs_pivot,
+                lambda node: self.pivot(node, min(self.get_neighbors(node) - self.input_nodes)),
+            ),
+        )
 
     def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
         """Update the physical edges of the graph state.
@@ -56,23 +75,6 @@ class ZXGraphState(GraphState):
             self.remove_physical_edge(edge[0], edge[1])
         for edge in new_edges:
             self.add_physical_edge(edge[0], edge[1])
-
-    def _update_node_measurement(
-        self, measurement_action: Mapping[Plane, tuple[Plane, Callable[[float], float]]], v: int
-    ) -> None:
-        """Update the measurement action of the node.
-
-        Parameters
-        ----------
-        measurement_action : Mapping[Plane, tuple[Plane, Callable[[float], float]]]
-            mapping of the measurement plane to the new measurement plane and function to update the angle
-        v : int
-            node index
-        """
-        new_plane, new_angle_func = measurement_action[self.meas_bases[v].plane]
-        if new_plane:
-            new_angle = new_angle_func(v) % (2.0 * np.pi)
-            self.set_meas_basis(v, PlannerMeasBasis(new_plane, new_angle))
 
     def local_complement(self, node: int) -> None:
         """Local complement operation on the graph state: G*u.
@@ -101,23 +103,14 @@ class ZXGraphState(GraphState):
         self._update_connections(rmv_edges, new_edges)
 
         # update node measurement if not output node
-        measurement_action = {
-            Plane.XY: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: (self.meas_bases[v].angle + 0.5 * np.pi) % (2.0 * np.pi)),
-        }
+        lc = LocalClifford(0, np.pi / 2, 0)
         if node not in self.output_nodes:
-            self._update_node_measurement(measurement_action, node)
+            self.apply_local_clifford(node, lc)
 
         # update neighbors measurement if not output node
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle - 0.5 * np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.YZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-        }
-
+        lc = LocalClifford(-np.pi / 2, 0, 0)
         for v in nbrs - self.output_nodes:
-            self._update_node_measurement(measurement_action, v)
+            self.apply_local_clifford(v, lc)
 
     def _swap(self, node1: int, node2: int) -> None:
         """Swap nodes u and v in the graph state.
@@ -181,24 +174,14 @@ class ZXGraphState(GraphState):
         self._swap(node1, node2)
 
         # update node1 and node2 measurement
-        measurement_action = {
-            Plane.XY: (Plane.YZ, lambda v: self.meas_bases[v].angle),
-            Plane.XZ: (Plane.XZ, lambda v: (0.5 * np.pi - self.meas_bases[v].angle)),
-            Plane.YZ: (Plane.XY, lambda v: self.meas_bases[v].angle),
-        }
-
+        lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
         for a in {node1, node2} - self.output_nodes:
-            self._update_node_measurement(measurement_action, a)
+            self.apply_local_clifford(a, lc)
 
         # update nodes measurement of nbr_a
-        measurement_action = {
-            Plane.XY: (Plane.XY, lambda v: (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi)),
-            Plane.XZ: (Plane.XZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-            Plane.YZ: (Plane.YZ, lambda v: -self.meas_bases[v].angle % (2.0 * np.pi)),
-        }
-
+        lc = LocalClifford(np.pi, 0, 0)
         for w in nbr_a - self.output_nodes:
-            self._update_node_measurement(measurement_action, w)
+            self.apply_local_clifford(w, lc)
 
     def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
@@ -216,10 +199,10 @@ class ZXGraphState(GraphState):
         Returns
         -------
         bool
-            True if the node is a removable Clifford vertex.
+            True if the node is a removable Clifford node.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return abs(alpha % np.pi) < atol and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
+        return _is_close_angle(2 * alpha, 0, atol) and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
@@ -240,16 +223,18 @@ class ZXGraphState(GraphState):
             True if the node needs a local complementation.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
+        return _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and (
+            self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
+        )
 
-    def _needs_pivot_1(self, node: int, atol: float = 1e-9) -> bool:
+    def _needs_pivot(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the nodes need a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
         For this operation,
-        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
+        (a) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
         or
-        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
+        (b) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
 
         Parameters
         ----------
@@ -263,46 +248,20 @@ class ZXGraphState(GraphState):
         bool
             True if the nodes need a pivot operation.
         """
-        if not self.get_neighbors(node) - self.input_nodes:
-            return False
+        if not (self.get_neighbors(node) - self.input_nodes):
+            nbrs = self.get_neighbors(node)
+            if not (nbrs.issubset(self.output_nodes) and nbrs):
+                return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
-        return case_a or case_b
-
-    def _needs_pivot_2(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node needs a pivot operation on output nodes in order to perform _remove_clifford.
-
-        The pivot operation is performed on the non-input but output neighbor of the node.
-        For this operation,
-        (i) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
-        or
-        (ii) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-
-        Returns
-        -------
-        bool
-            True if the node needs a pivot operation on output nodes.
-        """
-        nbrs = self.get_neighbors(node)
-        if not (nbrs.issubset(self.output_nodes) and nbrs):
-            return False
-
-        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        case_a = abs(alpha % np.pi) < atol and self.meas_bases[node].plane == Plane.XY
-        case_b = abs((alpha + 0.5 * np.pi) % np.pi) < atol and self.meas_bases[node].plane == Plane.XZ
+        # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
+        case_a = _is_close_angle(2 * alpha, 0, atol) and self.meas_bases[node].plane == Plane.XY
+        # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
+        case_b = _is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
-        """Perform the Clifford vertex removal.
+        """Perform the Clifford node removal.
 
         Parameters
         ----------
@@ -311,34 +270,16 @@ class ZXGraphState(GraphState):
         atol : float, optional
             absolute tolerance, by default 1e-9
         """
-        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        measurement_action = {
-            Plane.XY: (
-                Plane.XY,
-                lambda v: self.meas_bases[v].angle
-                if abs(alpha % (2.0 * np.pi)) < atol
-                else (self.meas_bases[v].angle + np.pi) % (2.0 * np.pi),
-            ),
-            Plane.XZ: (
-                Plane.XZ,
-                lambda v: self.meas_bases[v].angle
-                if abs(alpha % (2.0 * np.pi)) < atol
-                else -self.meas_bases[v].angle % (2.0 * np.pi),
-            ),
-            Plane.YZ: (
-                Plane.YZ,
-                lambda v: self.meas_bases[v].angle
-                if abs(alpha % (2.0 * np.pi)) < atol
-                else -self.meas_bases[v].angle % (2.0 * np.pi),
-            ),
-        }
+        a_pi = self.meas_bases[node].angle % (2.0 * np.pi)
+        coeff = 0.0 if _is_close_angle(a_pi, 0, atol) else 1.0
+        lc = LocalClifford(coeff * np.pi, 0, 0)
         for v in self.get_neighbors(node) - self.output_nodes:
-            self._update_node_measurement(measurement_action, v)
+            self.apply_local_clifford(v, lc)
 
         self.remove_physical_node(node)
 
     def remove_clifford(self, node: int, atol: float = 1e-9) -> None:
-        """Remove the local clifford node.
+        """Remove the local Clifford node.
 
         Parameters
         ----------
@@ -351,40 +292,35 @@ class ZXGraphState(GraphState):
         ------
         ValueError
             1. If the node is an input node.
-            2. If the node is not a Clifford vertex.
+            2. If the node is not a Clifford node.
             3. If all neighbors are input nodes
                 in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
             4. If the node has no neighbors that are not connected only to output nodes.
         """
         self.ensure_node_exists(node)
         if node in self.input_nodes or node in self.output_nodes:
-            msg = "Clifford vertex removal not allowed for input node"
+            msg = "Clifford node removal not allowed for input node"
             raise ValueError(msg)
 
         if not (
             is_clifford_angle(self.meas_bases[node].angle, atol)
             and self.meas_bases[node].plane in {Plane.XY, Plane.XZ, Plane.YZ}
         ):
-            msg = "This node is not a Clifford vertex."
+            msg = "This node is not a Clifford node."
             raise ValueError(msg)
 
-        if self._needs_nop(node, atol):
-            pass
-        elif self._needs_lc(node, atol):
-            self.local_complement(node)
-        elif self._needs_pivot_1(node, atol) or self._needs_pivot_2(node, atol):
-            nbrs = self.get_neighbors(node) - self.input_nodes
-            v = min(nbrs)
-            nbrs.remove(v)
-            self.pivot(node, v)
-        else:
-            msg = "This Clifford vertex is unremovable."
-            raise ValueError(msg)
+        for check, action in self._clifford_rules:
+            if not check(node, atol):
+                continue
+            action(node)
+            self._remove_clifford(node, atol)
+            return
 
-        self._remove_clifford(node, atol)
+        msg = "This Clifford node is unremovable."
+        raise ValueError(msg)
 
     def is_removable_clifford(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node is a removable Clifford vertex.
+        """Check if the node is a removable Clifford node.
 
         Parameters
         ----------
@@ -396,92 +332,15 @@ class ZXGraphState(GraphState):
         Returns
         -------
         bool
-            True if the node is a removable Clifford vertex.
+            True if the node is a removable Clifford node.
         """
         return any(
             [
                 self._needs_nop(node, atol),
                 self._needs_lc(node, atol),
-                self._needs_pivot_1(node, atol),
-                self._needs_pivot_2(node, atol),
+                self._needs_pivot(node, atol),
             ]
         )
-
-    def _remove_cliffords(
-        self, action_func: Callable[[int, float], None], check_func: Callable[[int, float], bool], atol: float = 1e-9
-    ) -> None:
-        """Remove all local clifford nodes which are specified by the check_func and action_func.
-
-        Parameters
-        ----------
-        action_func : Callable[[int, float], None]
-            action to perform on the node
-        check_func : Callable[[int, float], bool]
-            check if the node is a removable Clifford vertex
-        """
-        self.check_meas_basis()
-        while True:
-            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = [node for node in nodes if check_func(node, atol)]
-            clifford_node = min(clifford_nodes, default=None)
-            if clifford_node is None:
-                break
-            action_func(clifford_node, atol)
-
-    def _step1_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_lc is True, apply local complement to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        self.local_complement(node)
-        self._remove_clifford(node, atol)
-
-    def _step2_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_nop is True, remove the node.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        self._remove_clifford(node, atol)
-
-    def _step3_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_pivot_1 is True, apply pivot operation to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        nbrs = self.get_neighbors(node) - self.input_nodes
-        nbr = min(nbrs)
-        self.pivot(node, nbr)
-        self._remove_clifford(node, atol)
-
-    def _step4_action(self, node: int, atol: float = 1e-9) -> None:
-        """If _needs_pivot_2 is True, apply pivot operation to the node, and remove it.
-
-        Parameters
-        ----------
-        node : int
-            node index
-        atol : float, optional
-            absolute tolerance, by default 1e-9
-        """
-        nbrs = self.get_neighbors(node) - self.input_nodes
-        nbr = min(nbrs)
-        self.pivot(node, nbr)
-        self._remove_clifford(node, atol)
 
     def remove_cliffords(self, atol: float = 1e-9) -> None:
         """Remove all local clifford nodes which are removable.
@@ -492,20 +351,129 @@ class ZXGraphState(GraphState):
             absolute tolerance, by default 1e-9
         """
         self.check_meas_basis()
+        while any(
+            self.is_removable_clifford(n, atol) for n in (self.physical_nodes - self.input_nodes - self.output_nodes)
+        ):
+            for check, action in self._clifford_rules:
+                while True:
+                    candidates = self.physical_nodes - self.input_nodes - self.output_nodes
+                    clifford_node = next((node for node in candidates if check(node, atol)), None)
+                    if clifford_node is None:
+                        break
+                    action(clifford_node)
+                    self._remove_clifford(clifford_node, atol)
+
+    def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
+        """Call inside convert_to_phase_gadget.
+
+        Find a pair of adjacent nodes that are both measured in the YZ-plane.
+
+        Returns
+        -------
+        tuple[int, int] | None
+            A pair of adjacent nodes that are both measured in the YZ-plane, or None if no such pair exists.
+        """
+        yz_nodes = {node for node, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        for u, v in self.physical_edges:
+            if u in yz_nodes and v in yz_nodes:
+                return (min(u, v), max(u, v))
+        return None
+
+    def _extract_xz_node(self) -> int | None:
+        """Call inside convert_to_phase_gadget.
+
+        Find a node that is measured in the XZ-plane.
+
+        Returns
+        -------
+        int | None
+            A node that is measured in the XZ-plane, or None if no such node exists.
+        """
+        for node, basis in self.meas_bases.items():
+            if basis.plane == Plane.XZ:
+                return node
+        return None
+
+    def convert_to_phase_gadget(self) -> None:
+        """Convert a ZX-diagram with gflow in MBQC+LC form into its phase-gadget form while preserving gflow."""
         while True:
-            nodes = self.physical_nodes - self.input_nodes - self.output_nodes
-            clifford_nodes = [
-                node
-                for node in nodes
-                if is_clifford_angle(self.meas_bases[node].angle, atol) and self.is_removable_clifford(node, atol)
-            ]
-            if clifford_nodes == []:
+            if pair := self._extract_yz_adjacent_pair():
+                self.pivot(*pair)
+                continue
+            if u := self._extract_xz_node():
+                self.local_complement(u)
+                continue
+            break
+
+    def merge_yz_to_xy(self) -> None:
+        """Merge YZ-measured nodes that have only one neighbor with an XY-measured node.
+
+        If a node u is measured in the YZ-plane and u has only one neighbor v with a XY-measurement,
+        then the node u can be merged into the node v.
+        """
+        target_candidates = {
+            u for u, basis in self.meas_bases.items() if (basis.plane == Plane.YZ and len(self.get_neighbors(u)) == 1)
+        }
+        target_nodes = {
+            u
+            for u in target_candidates
+            if (
+                (v := next(iter(self.get_neighbors(u))))
+                and (mb := self.meas_bases.get(v, None)) is not None
+                and mb.plane == Plane.XY
+            )
+        }
+        for u in target_nodes:
+            (v,) = self.get_neighbors(u)
+            new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+            self.set_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
+            self.remove_physical_node(u)
+
+    def merge_yz_nodes(self) -> None:
+        """Merge isolated YZ-measured nodes into a single node.
+
+        If u, v nodes are measured in the YZ-plane and u, v have the same neighbors,
+        then u, v can be merged into a single node.
+        """
+        min_nodes = 2
+        yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        if len(yz_nodes) < min_nodes:
+            return
+        neighbor_groups: dict[frozenset[int], list[int]] = defaultdict(list)
+        for u in yz_nodes:
+            neighbors = frozenset(self.get_neighbors(u))
+            neighbor_groups[neighbors].append(u)
+
+        for neighbors, nodes in neighbor_groups.items():
+            if len(nodes) < min_nodes or len(neighbors) < min_nodes:
+                continue
+            new_angle = sum(self.meas_bases[v].angle for v in nodes) % (2.0 * np.pi)
+            self.set_meas_basis(nodes[0], PlannerMeasBasis(Plane.YZ, new_angle))
+            for v in nodes[1:]:
+                self.remove_physical_node(v)
+
+    def full_reduce(self, atol: float = 1e-9) -> None:
+        """Reduce all Clifford nodes and some non-Clifford nodes.
+
+        Repeat the following steps until there are no non-Clifford nodes:
+            1. remove_cliffords
+            2. convert_to_phase_gadget
+            3. merge_yz_to_xy
+            4. merge_yz_nodes
+            5. if there are some removable Clifford nodes, back to step 1.
+
+        Parameters
+        ----------
+        atol : float, optional
+            absolute tolerance, by default 1e-9
+        """
+        while True:
+            self.remove_cliffords(atol)
+            self.convert_to_phase_gadget()
+            self.merge_yz_to_xy()
+            self.merge_yz_nodes()
+            if not any(
+                self.is_removable_clifford(node, atol)
+                for node in self.physical_nodes - self.input_nodes - self.output_nodes
+            ):
                 break
-            steps = [
-                (self._step1_action, self._needs_lc),
-                (self._step2_action, self._needs_nop),
-                (self._step3_action, self._needs_pivot_1),
-                (self._step4_action, self._needs_pivot_2),
-            ]
-            for action_func, check_func in steps:
-                self._remove_cliffords(action_func, check_func, atol)
