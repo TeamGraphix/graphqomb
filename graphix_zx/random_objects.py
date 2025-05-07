@@ -108,7 +108,7 @@ def random_circ(
     edge_p : float, optional
         probability of adding CZ gate, by default 0.5
     angle_candidates : collections.abc.Sequence[float], optional
-        list of angles, by default (0, np.pi / 3, 2 * np.pi / 3, np.pi)
+        sequence of angles, by default (0, np.pi / 3, 2 * np.pi / 3, np.pi)
 
     Returns
     -------
