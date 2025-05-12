@@ -1,23 +1,22 @@
 """Pattern module.
 
 This module provides:
+
 - `ImmutablePattern`: Immutable pattern class
 - `MutablePattern`: Mutable pattern class
-- NodeAlreadyPreparedError: Raised when a node is prepared more than once
-- is_standardized: Check if the pattern is standardized
-- is_runnable: Check if the pattern is runnable
-- print_command: Print a command
-- print_pattern: Print a pattern
+- `is_runnable`: Check if the pattern is runnable
+- `print_command`: Print a command
+- `print_pattern`: Print a pattern
 """
 
 from __future__ import annotations
 
 import dataclasses
+import functools
 import typing
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import Clifford, Command, E, M, N, X, Z, D
+from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -48,7 +47,7 @@ class ImmutablePattern:
     def __iter__(self) -> Iterator[Command]:
         return iter(self.commands)
 
-    @cached_property
+    @functools.cached_property
     def max_space(self) -> int:
         """Maximum number of qubits prepared at any point in the pattern.
 
@@ -67,7 +66,7 @@ class ImmutablePattern:
             max_nodes = max(nodes, max_nodes)
         return max_nodes
 
-    @cached_property
+    @functools.cached_property
     def space_list(self) -> list[int]:
         r"""List of qubits prepared at each point in the pattern.
 
@@ -89,49 +88,33 @@ class ImmutablePattern:
 
 
 class MutablePattern:
-    """Mutable pattern class.
+    r"""Mutable pattern class.
 
     Attributes
     ----------
-    __input_nodes : set[int]
-        Input nodes of the pattern
-    __output_nodes : set[int]
-        Output nodes of the pattern
-    __q_indices : dict[int, int]
-        Logical qubit indices map of the pattern
-    __num_nodes : int
-        Total number of nodes in the graph state
-    __commands : list[Command]
+    input_node_indices : `dict`\[`int`, `int`\]
+        The map of input nodes to their logical qubit indices
+    output_node_indices : `dict`\[`int`, `int`\]
+        The map of output nodes to their logical qubit indices
+    commands : `list`\[`Command`\]
         Commands of the pattern
-    __runnable : bool
-        True if the pattern is runnable
-    __deterministic : bool
-        True if the pattern is deterministic
     """
 
     def __init__(
         self,
-        input_nodes: AbstractSet[int] | None = None,
-        q_indices: Mapping[int, int] | None = None,
+        input_node_indices: Mapping[int, int] | None = None,
+        output_node_indices: Mapping[int, int] | None = None,
     ) -> None:
-        if input_nodes is None:
-            input_nodes = set()
-        self.__input_nodes: set[int] = set(input_nodes)  # input nodes (list() makes our own copy of the list)
-        self.__num_nodes: int = len(input_nodes)  # total number of nodes in the graph state
+        if input_node_indices is None:
+            input_node_indices = {}
+        if output_node_indices is None:
+            output_node_indices = {}
+        self.input_node_indices: dict[int, int] = dict(input_node_indices)  # input node indices
+        self.output_node_indices: dict[int, int] = dict(output_node_indices)  # output node indices
 
         self.__commands: list[Command] = []
-        # output nodes are initially input nodes, since none are measured yet
-        self.__output_nodes: set[int] = set(self.__input_nodes)
 
-        if q_indices is None:
-            q_indices = {}
-            for i, input_node in enumerate(input_nodes):
-                q_indices[input_node] = i
-
-        self.__q_indices: dict[int, int] = dict(q_indices)  # qubit index. used for simulation
-
-        self.__runnable: bool = False
-        self.__deterministic: bool = False
+        self._already_used_nodes: set[int] = set(self.input_node_indices)  # nodes already used
 
     def __len__(self) -> int:
         return len(self.__commands)
@@ -152,202 +135,58 @@ class MutablePattern:
         msg = f"Index type not supported: {type(index)}"
         raise TypeError(msg)
 
-    def __add(self, cmd: Command) -> None:
-        if isinstance(cmd, N):
-            if cmd.node in self.__output_nodes:
-                raise NodeAlreadyPreparedError(cmd.node)
-            self.__num_nodes += 1
-            self.__output_nodes |= {cmd.node}
-            self.__q_indices[cmd.node] = cmd.q_index
-        elif isinstance(cmd, M):
-            self.__output_nodes -= {cmd.node}
-        self.__commands.append(cmd)
-
     def add(self, cmd: Command) -> None:
         """Add a command to the pattern.
 
-        note: This method does not guarantee the pattern to be runnable or deterministic.
-
         Parameters
         ----------
-        cmd : Command
+        cmd : `Command`
             Command to add to the pattern
-        """
-        self.__add(cmd)
-
-        # runnablility and determinism are not guaranteed after adding a command
-        self.__runnable = False
-        self.__deterministic = False
-
-    def extend(self, cmds: Iterable[Command]) -> None:
-        """Extend the pattern with a list of commands.
-
-        note: This method does not guarantee the pattern to be runnable or deterministic.
-
-        Parameters
-        ----------
-        cmds : Iterable[Command]
-            List of commands to add to the pattern
-        """
-        for cmd in cmds:
-            self.__add(cmd)
-        self.__runnable = False
-        self.__deterministic = False
-
-    def clear(self) -> None:
-        """Clear the pattern.
-
-        note: This method does not guarantee the pattern to be runnable or deterministic.
-        """
-        self.__num_nodes = len(self.__input_nodes)
-        self.__commands = []
-        self.__output_nodes = set(self.__input_nodes)
-
-        self.__runnable = False
-        self.__deterministic = False
-
-    def replace(self, cmds: Iterable[Command], input_nodes: AbstractSet[int] | None = None) -> None:
-        """Replace the pattern with a list of commands.
-
-        Parameters
-        ----------
-        cmds : Iterable[Command]
-            List of commands to replace the pattern
-        input_nodes : AbstractSet[int] | None, optional
-            input nodes, by default None
-        """
-        if input_nodes is not None:
-            self.__input_nodes = set(input_nodes)
-        self.clear()
-        self.extend(cmds)
-
-    def append_pattern(self, pattern: MutablePattern | ImmutablePattern) -> MutablePattern:
-        """Append a pattern to the current pattern.
-
-        Parameters
-        ----------
-        pattern : MutablePattern | ImmutablePattern
-            Pattern to append to the current pattern
-
-        Returns
-        -------
-        MutablePattern
-            Combined pattern
 
         Raises
         ------
         ValueError
-            If duplicated nodes without border of two patterns
+            If the node has already been used
         """
-        common_nodes = self.nodes & pattern.nodes
-        border_nodes = self.output_nodes & pattern.input_nodes
+        if isinstance(cmd, N):
+            if cmd.node in self._already_used_nodes:
+                msg = f"The node {cmd.node} has already been used"
+                raise ValueError(msg)
+            self._already_used_nodes.add(cmd.node)
+        self.__commands.append(cmd)
 
-        if common_nodes != border_nodes:
-            msg = f"Detect duplicated nodes without border of two patterns. duplicated nodes: {common_nodes}"
-            raise ValueError(msg)
-        new_input_nodes = self.input_nodes | (pattern.input_nodes - self.output_nodes)
-        new_input_q_indices = {}
-        for node in new_input_nodes:
-            if node in self.input_nodes:
-                new_input_q_indices[node] = self.q_indices[node]
-            else:
-                new_input_q_indices[node] = pattern.q_indices[node]
+    def extend(self, cmds: Iterable[Command]) -> None:
+        r"""Extend the pattern with a list of commands.
 
-        new_pattern = MutablePattern(input_nodes=new_input_nodes, q_indices=new_input_q_indices)
-        for cmd in self.commands:
-            new_pattern.add(cmd)
-
-        for cmd in pattern.commands:
-            new_pattern.add(cmd)
-
-        if self.is_runnable() and pattern.is_runnable():
-            new_pattern.mark_runnable()
-
-        if self.is_deterministic() and pattern.is_deterministic():
-            new_pattern.mark_deterministic()
-
-        return new_pattern
-
-    @property
-    def input_nodes(self) -> set[int]:
-        """Input nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of input nodes of the pattern
+        Parameters
+        ----------
+        cmds : `collections.abc.Iterable`\[`Command`\]
+            List of commands to add to the pattern
         """
-        return set(self.__input_nodes)
-
-    @property
-    def output_nodes(self) -> set[int]:
-        """Output nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of output nodes of the pattern
-        """
-        return set(self.__output_nodes)
-
-    @property
-    def q_indices(self) -> dict[int, int]:
-        """Logical qubit indices map of the pattern.
-
-        Returns
-        -------
-        dict[int, int]
-            Map of logical qubit indices
-        """
-        return dict(self.__q_indices)
-
-    @property
-    def num_nodes(self) -> int:
-        """Total number of nodes in the graph state.
-
-        Returns
-        -------
-        int
-            Total number of nodes in the graph state
-        """
-        return self.__num_nodes
-
-    @cached_property
-    def nodes(self) -> set[int]:
-        """Nodes of the pattern.
-
-        Returns
-        -------
-        set[int]
-            Set of nodes of the pattern
-        """
-        nodes = set(self.__input_nodes)
-        for cmd in self.commands:
-            if isinstance(cmd, N):
-                nodes |= {cmd.node}
-        return nodes
+        for cmd in cmds:
+            self.add(cmd)
 
     @property
     def commands(self) -> list[Command]:
-        """Commands of the pattern.
+        r"""Commands of the pattern.
 
         Returns
         -------
-        list[Command]
+        `list`\[`Command`\]
             List of commands of the pattern
         """
         return self.__commands
 
-    @cached_property
+    @functools.cached_property
     def max_space(self) -> int:
         """Maximum number of qubits prepared at any point in the pattern.
 
         Returns
         -------
-        int
+        `int`
             Maximum number of qubits prepared at any point in the pattern
         """
-        nodes = len(self.input_nodes)
+        nodes = len(self.input_node_indices)
         max_nodes = nodes
         for cmd in self.commands:
             if isinstance(cmd, N):
@@ -357,16 +196,16 @@ class MutablePattern:
             max_nodes = max(nodes, max_nodes)
         return max_nodes
 
-    @cached_property
+    @functools.cached_property
     def space_list(self) -> list[int]:
-        """List of qubits prepared at each point in the pattern.
+        r"""List of qubits prepared at each point in the pattern.
 
         Returns
         -------
-        list[int]
+        `list`\[`int`\]
             List of qubits prepared at each point in the pattern
         """
-        nodes = len(self.input_nodes)
+        nodes = len(self.input_node_indices)
         space_list = [nodes]
         for cmd in self.commands:
             if isinstance(cmd, N):
@@ -377,125 +216,32 @@ class MutablePattern:
                 space_list.append(nodes)
         return space_list
 
-    def is_runnable(self) -> bool:
-        """Return True if the pattern is runnable.
-
-        Returns
-        -------
-        bool
-            True if the pattern is runnable
-        """
-        return self.__runnable
-
-    def is_deterministic(self) -> bool:
-        """Return True if the pattern is deterministic.
-
-        Returns
-        -------
-        bool
-            True if the pattern is deterministic
-        """
-        return self.__deterministic
-
-    def mark_runnable(self) -> None:
-        """Mark the pattern as runnable. Called where the pattern is guaranteed to be runnable."""
-        self.__runnable = True
-
-    def mark_deterministic(self) -> None:
-        """Mark the pattern as deterministic. Called where flow preservation is guaranteed."""
-        self.__deterministic = True
-
     def freeze(self) -> ImmutablePattern:
         """Immutarize the pattern.
 
         Returns
         -------
-        ImmutablePattern
+        `ImmutablePattern`
             Immutable pattern
         """
         return ImmutablePattern(
-            input_nodes=self.input_nodes,
-            output_nodes=self.output_nodes,
-            q_indices=self.q_indices,
+            input_node_indices=self.input_node_indices,
+            output_node_indices=self.output_node_indices,
             commands=self.commands,
-            runnable=self.is_runnable(),
-            deterministic=self.is_deterministic(),
         )
 
 
-class NodeAlreadyPreparedError(Exception):
-    """Raised when a node is prepared more than once."""
-
-    def __init__(self, node: int) -> None:
-        self.__node: int = node
-
-    @property
-    def node(self) -> int:
-        """Node index of the command.
-
-        Returns
-        -------
-        int
-            Node index of the command
-        """
-        return self.__node
-
-    def __str__(self) -> str:
-        return f"Node already prepared: {self.__node}"
-
-
-def is_standardized(pattern: BasePattern | ImmutablePattern) -> bool:
-    """Check if the pattern is standardized.
-
-    Parameters
-    ----------
-    pattern : BasePattern | ImmutablePattern
-        Pattern to check
-
-    Returns
-    -------
-    bool
-        True if the pattern is standardized
-
-    Raises
-    ------
-    ValueError
-        If the command is unknown
-    """
-    standardized = True
-    standardized_order = [
-        N,
-        E,
-        M,
-        X,
-        Z,
-        C,
-    ]
-    current_cmd_type: type[Command] = N
-    for cmd in pattern:
-        if isinstance(cmd, current_cmd_type):
-            continue
-        if type(cmd) not in standardized_order:
-            msg = f"Unknown command: {cmd}"
-            raise ValueError(msg)
-        if standardized_order.index(type(cmd)) < standardized_order.index(current_cmd_type):
-            standardized = False
-            break
-        current_cmd_type = type(cmd)
-    return standardized
-
-
-def is_runnable(pattern: BasePattern | ImmutablePattern) -> bool:
+def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
     """Check if the pattern is runnable.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
     Returns
     -------
-    bool
+    `bool`
         True if the pattern is runnable
     """
     runnable = True
@@ -510,43 +256,40 @@ def is_runnable(pattern: BasePattern | ImmutablePattern) -> bool:
     return runnable
 
 
-def _check_rule0(pattern: BasePattern | ImmutablePattern) -> bool:
+def _check_rule0(pattern: MutablePattern | ImmutablePattern) -> bool:
     """Check if no command depends on an output not yet measured.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
     Returns
     -------
-    bool
+    `bool`
         True if no command depends on an output not yet measured
     """
     measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
-            if len(cmd.s_domain & measured) > 0 or len(cmd.t_domain & measured) > 0:
-                return False
             measured.add(cmd.node)
-        elif isinstance(cmd, (X, Z)):
-            if len(cmd.domain & measured) > 0:
-                return False
+        if isinstance(cmd, D) and len(set(cmd.input_cbits) & measured) > 0:
+            return False
 
     return True
 
 
-def _check_rule1(pattern: BasePattern | ImmutablePattern) -> bool:
+def _check_rule1(pattern: MutablePattern | ImmutablePattern) -> bool:
     """Check if no command acts on a qubit already measured.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
     Returns
     -------
-    bool
+    `bool`
         True if no command acts on a qubit already measured
 
     Raises
@@ -563,60 +306,55 @@ def _check_rule1(pattern: BasePattern | ImmutablePattern) -> bool:
         elif isinstance(cmd, E):
             if len(set(cmd.nodes) & measured) > 0:
                 return False
-        elif isinstance(cmd, (N, X, Z, C)):
+        elif isinstance(cmd, (N, X, Z, Clifford)):
             if cmd.node in measured:
                 return False
         else:
-            msg = f"Unknown command kind: {cmd.kind}"
+            msg = f"Unknown command kind: {type(cmd)}"
             raise TypeError(msg)
     return True
 
 
-def _check_rule2(pattern: BasePattern | ImmutablePattern) -> bool:
+def _check_rule2(pattern: MutablePattern | ImmutablePattern) -> bool:
     """Check if no command acts on a qubit not yet prepared, unless it is an input qubit.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
     Returns
     -------
-    bool
+    `bool`
         True if no command acts on a qubit not yet prepared, unless it is an input qubit
     """
-    prepared = set(pattern.input_nodes)
+    prepared = set(pattern.input_node_indices)
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
         elif isinstance(cmd, E):
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
                 return False
-        elif isinstance(cmd, (M, X, Z, C)) and cmd.node not in prepared:
+        elif isinstance(cmd, (M, X, Z, Clifford)) and cmd.node not in prepared:
             return False
     return True
 
 
-def _check_rule3(pattern: BasePattern | ImmutablePattern) -> bool:
+def _check_rule3(pattern: MutablePattern | ImmutablePattern) -> bool:
     """Check if a qubit is measured if and only if it is not an output.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
     Returns
     -------
-    bool
+    `bool`
         True if a qubit is measured if and only if it is not an output
     """
-    output_nodes = pattern.output_nodes
+    output_nodes = set(pattern.output_node_indices)
     return all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
-
-
-# # NOTE: generally, difficult to prove that a pattern is deterministic
-# def is_deterministic(pattern: BasePattern) -> bool:
-#     raise NotImplementedError
 
 
 def print_command(cmd: Command) -> None:
@@ -624,7 +362,7 @@ def print_command(cmd: Command) -> None:
 
     Parameters
     ----------
-    cmd : Command
+    cmd : `Command`
         Command to print
     """
     if isinstance(cmd, N):
@@ -636,43 +374,46 @@ def print_command(cmd: Command) -> None:
             f"M, node = {cmd.node}",
             f"plane = {cmd.meas_basis.plane}",
             f"angle = {cmd.meas_basis.angle}",
-            f"s-domain = {cmd.s_domain}",
-            f"t_domain = {cmd.t_domain}",
+            f"s-domain = {cmd.s_cbit}",
+            f"t-domain = {cmd.t_cbit}",
         )
     elif isinstance(cmd, X):
-        print(f"X, node = {cmd.node}, domain = {cmd.domain}")  # noqa: T201
+        print(f"X, node = {cmd.node}, domain = {cmd.cbit}")  # noqa: T201
     elif isinstance(cmd, Z):
-        print(f"Z, node = {cmd.node}, domain = {cmd.domain}")  # noqa: T201
-    elif isinstance(cmd, C):
-        print(f"C, node = {cmd.node}")  # noqa: T201
+        print(f"Z, node = {cmd.node}, domain = {cmd.cbit}")  # noqa: T201
+    elif isinstance(cmd, D):
+        print(f"D, input_cbits = {cmd.input_cbits}, output_cbits = {cmd.output_cbits}, backend = {cmd.decoder}")  # noqa: T201
+    elif isinstance(cmd, Clifford):
+        print(f"Clifford, node = {cmd.node}")  # noqa: T201
         cmd.local_clifford.print_angles()
     else:
         print(f"Unknown command: {cmd}")  # noqa: T201
 
 
 def print_pattern(
-    pattern: BasePattern | ImmutablePattern, lim: int = 40, cmd_filter: list[type[Command]] | None = None
+    pattern: MutablePattern | ImmutablePattern, lim: int = 40, cmd_filter: AbstractSet[type[Command]] | None = None
 ) -> None:
-    """Print a pattern.
+    r"""Print a pattern.
 
     Parameters
     ----------
-    pattern : BasePattern | ImmutablePattern
+    pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to print
-    lim : int, optional
+    lim : `int`, optional
         Maximum number of commands to print, by default 40
-    cmd_filter : list[type[Command]] | None, optional
+    cmd_filter : `collections.abc.Set`\[`type`\[`Command`\]\] | None, optional
         Command filter, by default None
     """
     if cmd_filter is None:
-        cmd_filter = [
+        cmd_filter = {
             N,
             E,
             M,
             X,
             Z,
+            D,
             Clifford,
-        ]
+        }
     nmax = min(lim, len(pattern))
     print_count = 0
     for i, cmd in enumerate(pattern):
