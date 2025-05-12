@@ -52,7 +52,3 @@ def test_pattern_calc_max_space() -> None:
     pattern.extend(cmds)
     max_space = pattern.max_space
     assert max_space == 3  # Maximum space needed during execution
-
-
-if __name__ == "__main__":
-    pytest.main()
