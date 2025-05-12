@@ -96,8 +96,6 @@ class MutablePattern:
         The map of input nodes to their logical qubit indices
     output_node_indices : `dict`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
-    commands : `list`\[`Command`\]
-        Commands of the pattern
     """
 
     def __init__(

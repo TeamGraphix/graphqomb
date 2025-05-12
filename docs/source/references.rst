@@ -13,3 +13,4 @@ Module reference
     focus_flow
     command
     decoder_backend
+    pattern
