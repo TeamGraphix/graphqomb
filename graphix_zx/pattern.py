@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import dataclasses
 import functools
-import typing
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
@@ -62,15 +61,7 @@ class ImmutablePattern:
         `int`
             Maximum number of qubits prepared at any point in the pattern
         """
-        nodes = len(self.input_node_indices)
-        max_nodes = nodes
-        for cmd in self.commands:
-            if isinstance(cmd, N):
-                nodes += 1
-            elif isinstance(cmd, M):
-                nodes -= 1
-            max_nodes = max(nodes, max_nodes)
-        return max_nodes
+        return max(self.space_list)
 
     @functools.cached_property
     def space_list(self) -> list[int]:
@@ -126,19 +117,6 @@ class MutablePattern:
     def __iter__(self) -> Iterator[Command]:
         return iter(self.__commands)
 
-    @typing.overload
-    def __getitem__(self, index: int) -> Command: ...
-
-    @typing.overload
-    def __getitem__(self, index: slice) -> list[Command]: ...
-
-    def __getitem__(self, index: int | slice) -> Command | list[Command]:
-        commands = self.__commands
-        if isinstance(index, (int, slice)):
-            return commands[index]
-        msg = f"Index type not supported: {type(index)}"
-        raise TypeError(msg)
-
     def add(self, cmd: Command) -> None:
         """Add a command to the pattern.
 
@@ -181,7 +159,7 @@ class MutablePattern:
         """
         return self.__commands
 
-    @functools.cached_property
+    @property
     def max_space(self) -> int:
         """Maximum number of qubits prepared at any point in the pattern.
 
@@ -190,17 +168,9 @@ class MutablePattern:
         `int`
             Maximum number of qubits prepared at any point in the pattern
         """
-        nodes = len(self.input_node_indices)
-        max_nodes = nodes
-        for cmd in self.commands:
-            if isinstance(cmd, N):
-                nodes += 1
-            elif isinstance(cmd, M):
-                nodes -= 1
-            max_nodes = max(nodes, max_nodes)
-        return max_nodes
+        return max(self.space_list)
 
-    @functools.cached_property
+    @property
     def space_list(self) -> list[int]:
         r"""List of qubits prepared at each point in the pattern.
 
