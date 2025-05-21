@@ -14,12 +14,13 @@ from __future__ import annotations
 import dataclasses
 import functools
 import typing
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Mapping
+    from collections.abc import Iterable, Iterator, Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
 
@@ -29,17 +30,22 @@ class ImmutablePattern:
 
     Attributes
     ----------
-    input_node_indices : `dict`\[`int`, `int`\]
+    input_node_indices : `collections.abc.Mapping`\[`int`, `int`\]
         The map of input nodes to their logical qubit indices
-    output_node_indices : `dict`\[`int`, `int`\]
+    output_node_indices : `collections.abc.Mapping`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
-    commands : `list`\[`Command`\]
+    commands : `collections.abc.Sequence`\[`Command`\]
         Commands of the pattern
     """
 
-    input_node_indices: dict[int, int]
-    output_node_indices: dict[int, int]
-    commands: list[Command]
+    input_node_indices: Mapping[int, int]
+    output_node_indices: Mapping[int, int]
+    commands: Sequence[Command]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "input_node_indices", MappingProxyType(self.input_node_indices))
+        object.__setattr__(self, "output_node_indices", MappingProxyType(self.output_node_indices))
+        object.__setattr__(self, "commands", tuple(self.input_node_indices))
 
     def __len__(self) -> int:
         return len(self.commands)
