@@ -29,9 +29,9 @@ class ImmutablePattern:
 
     Attributes
     ----------
-    input_nodes : `dict`\[`int`, `int`\]
+    input_node_indices : `dict`\[`int`, `int`\]
         The map of input nodes to their logical qubit indices
-    output_nodes : `dict`\[`int`, `int`\]
+    output_node_indices : `dict`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
     commands : `list`\[`Command`\]
         Commands of the pattern
