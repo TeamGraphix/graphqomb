@@ -9,7 +9,6 @@ This module provides:
 - `check_rule1`: Check if no command acts on a qubit already measured
 - `check_rule2`: Check if no command acts on a qubit not yet prepared, unless it is an input qubit
 - `check_rule3`: Check if a qubit is measured if and only if it is not an output
-- `print_command`: Print a command
 - `print_pattern`: Print a pattern
 """
 
@@ -139,68 +138,26 @@ class MutablePattern(Sequence[Command]):
     def __getitem__(self, index: int) -> Command: ...
 
     @typing.overload
-    def __getitem__(self, index: slice[int, int, int]) -> list[Command]: ...
+    def __getitem__(self, index: slice) -> tuple[Command, ...]: ...
 
-    def __getitem__(self, index: int | slice[int, int, int]) -> Command | list[Command]:
-        return self.__commands[index]
+    def __getitem__(self, index: int | slice) -> Command | tuple[Command, ...]:
+        if isinstance(index, slice):
+            return tuple(self.__commands[index])
+        if isinstance(index, int):
+            return self.__commands[index]
+        msg = f"Index must be int or slice, not {type(index)}"
+        raise TypeError(msg)
 
     @property
-    def commands(self) -> list[Command]:
+    def commands(self) -> tuple[Command, ...]:
         r"""List of commands in the pattern.
 
         Returns
         -------
-        `list`\[`Command`\]
+        `tuple`\[`Command`, ...\]
             List of commands in the pattern
         """
-        return self.__commands
-
-    def __add(self, cmd: Command) -> None:
-        if isinstance(cmd, N):
-            if cmd.node in self._already_used_nodes:
-                msg = f"The node {cmd.node} has already been used"
-                raise ValueError(msg)
-            self._already_used_nodes.add(cmd.node)
-        self.__commands.append(cmd)
-
-    def add(self, cmd: Command) -> None:
-        """Add a command to the pattern.
-
-        Parameters
-        ----------
-        cmd : `Command`
-            Command to add to the pattern
-        """
-        self.__add(cmd)
-        self.__dict__.pop("max_space", None)
-        self.__dict__.pop("space_list", None)
-
-    def extend(self, cmds: Sequence[Command]) -> None:
-        r"""Extend the pattern with a list of commands.
-
-        Parameters
-        ----------
-        cmds : `collections.abc.Sequence`\[`Command`\]
-            Commands to add to the pattern
-        """
-        for cmd in cmds:
-            self.__add(cmd)
-        self.__dict__.pop("max_space", None)
-        self.__dict__.pop("space_list", None)
-
-    def freeze(self) -> ImmutablePattern:
-        """Immutabilize the pattern.
-
-        Returns
-        -------
-        `ImmutablePattern`
-            Immutable pattern
-        """
-        return ImmutablePattern(
-            input_node_indices=self.input_node_indices,
-            output_node_indices=self.output_node_indices,
-            commands=self.commands,
-        )
+        return tuple(self.__commands)
 
     @functools.cached_property
     def max_space(self) -> int:
@@ -232,6 +189,56 @@ class MutablePattern(Sequence[Command]):
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
+
+    def _add(self, cmd: Command) -> None:
+        if isinstance(cmd, N):
+            if cmd.node in self._already_used_nodes:
+                msg = f"The node {cmd.node} has already been used"
+                raise ValueError(msg)
+            self._already_used_nodes.add(cmd.node)
+        self.__commands.append(cmd)
+
+    def _invalidate_cache(self, name: str) -> None:
+        self.__dict__.pop(name, None)
+
+    def add(self, cmd: Command) -> None:
+        """Add a command to the pattern.
+
+        Parameters
+        ----------
+        cmd : `Command`
+            Command to add to the pattern
+        """
+        self._add(cmd)
+        self._invalidate_cache("max_space")
+        self._invalidate_cache("space_list")
+
+    def extend(self, cmds: Sequence[Command]) -> None:
+        r"""Extend the pattern with a list of commands.
+
+        Parameters
+        ----------
+        cmds : `collections.abc.Sequence`\[`Command`\]
+            Commands to add to the pattern
+        """
+        for cmd in cmds:
+            self._add(cmd)
+        self._invalidate_cache("max_space")
+        self._invalidate_cache("space_list")
+
+    def freeze(self) -> ImmutablePattern:
+        """Freeze the pattern.
+
+        Returns
+        -------
+        `ImmutablePattern`
+            Immutable pattern
+        """
+        return ImmutablePattern(
+            input_node_indices=self.input_node_indices,
+            output_node_indices=self.output_node_indices,
+            commands=self.commands,
+        )
 
 
 def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
