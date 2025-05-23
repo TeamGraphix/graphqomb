@@ -17,18 +17,20 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import typing
+from collections.abc import Sequence
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Mapping, Sequence
+    from collections.abc import Iterator, Mapping
     from collections.abc import Set as AbstractSet
 
 
 @dataclasses.dataclass(frozen=True)
-class ImmutablePattern:
+class ImmutablePattern(Sequence[Command]):
     r"""Immutable pattern class.
 
     Attributes
@@ -46,15 +48,27 @@ class ImmutablePattern:
     commands: Sequence[Command]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "input_node_indices", MappingProxyType(self.input_node_indices))
-        object.__setattr__(self, "output_node_indices", MappingProxyType(self.output_node_indices))
-        object.__setattr__(self, "commands", tuple(self.input_node_indices))
+        object.__setattr__(self, "input_node_indices", MappingProxyType(dict(self.input_node_indices)))
+        object.__setattr__(self, "output_node_indices", MappingProxyType(dict(self.output_node_indices)))
+        object.__setattr__(self, "commands", tuple(self.commands))
 
     def __len__(self) -> int:
         return len(self.commands)
 
     def __iter__(self) -> Iterator[Command]:
         return iter(self.commands)
+
+    @typing.overload
+    def __getitem__(self, index: int) -> Command: ...
+    @typing.overload
+    def __getitem__(self, index: slice) -> tuple[Command, ...]: ...
+    def __getitem__(self, index: int | slice) -> Command | tuple[Command, ...]:
+        if isinstance(index, slice):
+            return tuple(self.commands[index])
+        if isinstance(index, int):
+            return self.commands[index]
+        msg = f"Index must be int or slice, not {type(index)}"
+        raise TypeError(msg)
 
     @functools.cached_property
     def max_space(self) -> int:
@@ -88,7 +102,7 @@ class ImmutablePattern:
         return space_list
 
 
-class MutablePattern:
+class MutablePattern(Sequence[Command]):
     r"""Mutable pattern class.
 
     Attributes
@@ -121,19 +135,27 @@ class MutablePattern:
     def __iter__(self) -> Iterator[Command]:
         return iter(self.__commands)
 
-    def add(self, cmd: Command) -> None:
-        """Add a command to the pattern.
+    @typing.overload
+    def __getitem__(self, index: int) -> Command: ...
 
-        Parameters
-        ----------
-        cmd : `Command`
-            Command to add to the pattern
+    @typing.overload
+    def __getitem__(self, index: slice[int, int, int]) -> list[Command]: ...
 
-        Raises
-        ------
-        ValueError
-            If the node has already been used
+    def __getitem__(self, index: int | slice[int, int, int]) -> Command | list[Command]:
+        return self.__commands[index]
+
+    @property
+    def commands(self) -> list[Command]:
+        r"""List of commands in the pattern.
+
+        Returns
+        -------
+        `list`\[`Command`\]
+            List of commands in the pattern
         """
+        return self.__commands
+
+    def __add(self, cmd: Command) -> None:
         if isinstance(cmd, N):
             if cmd.node in self._already_used_nodes:
                 msg = f"The node {cmd.node} has already been used"
@@ -141,29 +163,46 @@ class MutablePattern:
             self._already_used_nodes.add(cmd.node)
         self.__commands.append(cmd)
 
-    def extend(self, cmds: Iterable[Command]) -> None:
+    def add(self, cmd: Command) -> None:
+        """Add a command to the pattern.
+
+        Parameters
+        ----------
+        cmd : `Command`
+            Command to add to the pattern
+        """
+        self.__add(cmd)
+        self.__dict__.pop("max_space", None)
+        self.__dict__.pop("space_list", None)
+
+    def extend(self, cmds: Sequence[Command]) -> None:
         r"""Extend the pattern with a list of commands.
 
         Parameters
         ----------
-        cmds : `collections.abc.Iterable`\[`Command`\]
-            List of commands to add to the pattern
+        cmds : `collections.abc.Sequence`\[`Command`\]
+            Commands to add to the pattern
         """
         for cmd in cmds:
-            self.add(cmd)
+            self.__add(cmd)
+        self.__dict__.pop("max_space", None)
+        self.__dict__.pop("space_list", None)
 
-    @property
-    def commands(self) -> list[Command]:
-        r"""Commands of the pattern.
+    def freeze(self) -> ImmutablePattern:
+        """Immutabilize the pattern.
 
         Returns
         -------
-        `list`\[`Command`\]
-            List of commands of the pattern
+        `ImmutablePattern`
+            Immutable pattern
         """
-        return self.__commands
+        return ImmutablePattern(
+            input_node_indices=self.input_node_indices,
+            output_node_indices=self.output_node_indices,
+            commands=self.commands,
+        )
 
-    @property
+    @functools.cached_property
     def max_space(self) -> int:
         """Maximum number of qubits prepared at any point in the pattern.
 
@@ -174,7 +213,7 @@ class MutablePattern:
         """
         return max(self.space_list)
 
-    @property
+    @functools.cached_property
     def space_list(self) -> list[int]:
         r"""List of qubits prepared at each point in the pattern.
 
@@ -193,20 +232,6 @@ class MutablePattern:
                 nodes -= 1
                 space_list.append(nodes)
         return space_list
-
-    def freeze(self) -> ImmutablePattern:
-        """Immutarize the pattern.
-
-        Returns
-        -------
-        `ImmutablePattern`
-            Immutable pattern
-        """
-        return ImmutablePattern(
-            input_node_indices=self.input_node_indices,
-            output_node_indices=self.output_node_indices,
-            commands=self.commands,
-        )
 
 
 def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
@@ -246,9 +271,8 @@ def check_rule0(pattern: MutablePattern | ImmutablePattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
-        if isinstance(cmd, D) and len(set(cmd.input_cbits) & measured) > 0:
-            msg = "The above command depends on an unmeasured qubit(s)"
-            print_command(cmd)
+        if isinstance(cmd, D) and any(c in measured for c in cmd.input_cbits):
+            msg = f"The command depends on an output not yet measured: {cmd}"
             raise ValueError(msg)
 
 
@@ -268,21 +292,21 @@ def check_rule1(pattern: MutablePattern | ImmutablePattern) -> None:
         If the command kind is unknown
     """
     measured = set()
-    verror_msg = "The above command acts on a qubit already measured"
+    verror_msg = "The command acts on a qubit already measured: "
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in measured:
-                print_command(cmd)
-                raise ValueError(verror_msg)
+                msg = verror_msg + f"{cmd}"
+                raise ValueError(msg)
             measured.add(cmd.node)
         elif isinstance(cmd, E):
             if len(set(cmd.nodes) & measured) > 0:
-                print_command(cmd)
-                raise ValueError(verror_msg)
+                msg = verror_msg + f"{cmd}"
+                raise ValueError(msg)
         elif isinstance(cmd, (N, X, Z, Clifford)):
             if cmd.node in measured:
-                print_command(cmd)
-                raise ValueError(verror_msg)
+                msg = verror_msg + f"{cmd}"
+                raise ValueError(msg)
         else:
             msg = f"Unknown command kind: {type(cmd)}"
             raise TypeError(msg)
@@ -302,17 +326,17 @@ def check_rule2(pattern: MutablePattern | ImmutablePattern) -> None:
         If the command acts on a qubit not yet prepared
     """
     prepared = set(pattern.input_node_indices)
-    verror_msg = "The above command acts on a qubit not yet prepared"
+    verror_msg = "The command acts on a qubit not yet prepared: "
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
         elif isinstance(cmd, E):
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
-                print_command(cmd)
-                raise ValueError(verror_msg)
+                msg = verror_msg + f"{cmd}"
+                raise ValueError(msg)
         elif isinstance(cmd, (M, X, Z, Clifford)) and cmd.node not in prepared:
-            print_command(cmd)
-            raise ValueError(verror_msg)
+            msg = verror_msg + f"{cmd}"
+            raise ValueError(msg)
 
 
 def check_rule3(pattern: MutablePattern | ImmutablePattern) -> None:
@@ -338,46 +362,12 @@ def check_rule3(pattern: MutablePattern | ImmutablePattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in output_nodes:
-                msg = "The above command measures an output qubit"
-                print_command(cmd)
+                msg = f"The command measures an output qubit: {cmd}"
                 raise ValueError(msg)
             measured.add(cmd.node)
     if measured != non_output_nodes:
         msg = "Not all the non-output qubits are measured"
         raise ValueError(msg)
-
-
-def print_command(cmd: Command) -> None:
-    """Print a command.
-
-    Parameters
-    ----------
-    cmd : `Command`
-        Command to print
-    """
-    if isinstance(cmd, N):
-        print(f"N, node = {cmd.node}")  # noqa: T201
-    elif isinstance(cmd, E):
-        print(f"E, nodes = {cmd.nodes}")  # noqa: T201
-    elif isinstance(cmd, M):
-        print(  # noqa: T201
-            f"M, node = {cmd.node}",
-            f"plane = {cmd.meas_basis.plane}",
-            f"angle = {cmd.meas_basis.angle}",
-            f"s-domain = {cmd.s_cbit}",
-            f"t-domain = {cmd.t_cbit}",
-        )
-    elif isinstance(cmd, X):
-        print(f"X, node = {cmd.node}, domain = {cmd.cbit}")  # noqa: T201
-    elif isinstance(cmd, Z):
-        print(f"Z, node = {cmd.node}, domain = {cmd.cbit}")  # noqa: T201
-    elif isinstance(cmd, D):
-        print(f"D, input_cbits = {cmd.input_cbits}, output_cbits = {cmd.output_cbits}, backend = {cmd.decoder}")  # noqa: T201
-    elif isinstance(cmd, Clifford):
-        print(f"Clifford, node = {cmd.node}")  # noqa: T201
-        cmd.local_clifford.print_angles()
-    else:
-        print(f"Unknown command: {cmd}")  # noqa: T201
 
 
 def print_pattern(
@@ -408,10 +398,10 @@ def print_pattern(
     print_count = 0
     for i, cmd in enumerate(pattern):
         if type(cmd) in cmd_filter:
-            print_command(cmd)
+            print(cmd)  # noqa: T201
             print_count += 1
 
-        if print_count > nmax:
+        if print_count >= nmax:
             print(  # noqa: T201
                 f"{len(pattern) - i - 1} more commands truncated. Change lim argument of print_pattern() to show more"
             )
