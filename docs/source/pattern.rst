@@ -30,6 +30,4 @@ Functions
 
 .. autofunction:: graphix_zx.pattern.check_rule3
 
-.. autofunction:: graphix_zx.pattern.print_command
-
 .. autofunction:: graphix_zx.pattern.print_pattern
