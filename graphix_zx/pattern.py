@@ -5,6 +5,10 @@ This module provides:
 - `ImmutablePattern`: Immutable pattern class
 - `MutablePattern`: Mutable pattern class
 - `is_runnable`: Check if the pattern is runnable
+- `check_rule0`: Check if no command depends on an output not yet measured
+- `check_rule1`: Check if no command acts on a qubit already measured
+- `check_rule2`: Check if no command acts on a qubit not yet prepared, unless it is an input qubit
+- `check_rule3`: Check if a qubit is measured if and only if it is not an output
 - `print_command`: Print a command
 - `print_pattern`: Print a pattern
 """
@@ -218,19 +222,14 @@ def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
     `bool`
         True if the pattern is runnable
     """
-    runnable = True
-    if not _check_rule0(pattern):
-        runnable = False
-    if not _check_rule1(pattern):
-        runnable = False
-    if not _check_rule2(pattern):
-        runnable = False
-    if not _check_rule3(pattern):
-        runnable = False
-    return runnable
+    check_rule0(pattern)
+    check_rule1(pattern)
+    check_rule2(pattern)
+    check_rule3(pattern)
+    return True
 
 
-def _check_rule0(pattern: MutablePattern | ImmutablePattern) -> bool:
+def check_rule0(pattern: MutablePattern | ImmutablePattern) -> None:
     """Check if no command depends on an output not yet measured.
 
     Parameters
@@ -238,22 +237,22 @@ def _check_rule0(pattern: MutablePattern | ImmutablePattern) -> bool:
     pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
-    Returns
-    -------
-    `bool`
-        True if no command depends on an output not yet measured
+    Raises
+    ------
+    ValueError
+        If the command depends on an output not yet measured
     """
     measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
         if isinstance(cmd, D) and len(set(cmd.input_cbits) & measured) > 0:
-            return False
+            msg = "The above command depends on an unmeasured qubit(s)"
+            print_command(cmd)
+            raise ValueError(msg)
 
-    return True
 
-
-def _check_rule1(pattern: MutablePattern | ImmutablePattern) -> bool:
+def check_rule1(pattern: MutablePattern | ImmutablePattern) -> None:
     """Check if no command acts on a qubit already measured.
 
     Parameters
@@ -261,35 +260,35 @@ def _check_rule1(pattern: MutablePattern | ImmutablePattern) -> bool:
     pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
-    Returns
-    -------
-    `bool`
-        True if no command acts on a qubit already measured
-
     Raises
     ------
+    ValueError
+        If the command acts on a qubit already measured
     TypeError
         If the command kind is unknown
     """
     measured = set()
+    verror_msg = "The above command acts on a qubit already measured"
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in measured:
-                return False
+                print_command(cmd)
+                raise ValueError(verror_msg)
             measured.add(cmd.node)
         elif isinstance(cmd, E):
             if len(set(cmd.nodes) & measured) > 0:
-                return False
+                print_command(cmd)
+                raise ValueError(verror_msg)
         elif isinstance(cmd, (N, X, Z, Clifford)):
             if cmd.node in measured:
-                return False
+                print_command(cmd)
+                raise ValueError(verror_msg)
         else:
             msg = f"Unknown command kind: {type(cmd)}"
             raise TypeError(msg)
-    return True
 
 
-def _check_rule2(pattern: MutablePattern | ImmutablePattern) -> bool:
+def check_rule2(pattern: MutablePattern | ImmutablePattern) -> None:
     """Check if no command acts on a qubit not yet prepared, unless it is an input qubit.
 
     Parameters
@@ -297,24 +296,26 @@ def _check_rule2(pattern: MutablePattern | ImmutablePattern) -> bool:
     pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
-    Returns
-    -------
-    `bool`
-        True if no command acts on a qubit not yet prepared, unless it is an input qubit
+    Raises
+    ------
+    ValueError
+        If the command acts on a qubit not yet prepared
     """
     prepared = set(pattern.input_node_indices)
+    verror_msg = "The above command acts on a qubit not yet prepared"
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
         elif isinstance(cmd, E):
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
-                return False
+                print_command(cmd)
+                raise ValueError(verror_msg)
         elif isinstance(cmd, (M, X, Z, Clifford)) and cmd.node not in prepared:
-            return False
-    return True
+            print_command(cmd)
+            raise ValueError(verror_msg)
 
 
-def _check_rule3(pattern: MutablePattern | ImmutablePattern) -> bool:
+def check_rule3(pattern: MutablePattern | ImmutablePattern) -> None:
     """Check if a qubit is measured if and only if it is not an output.
 
     Parameters
@@ -322,13 +323,28 @@ def _check_rule3(pattern: MutablePattern | ImmutablePattern) -> bool:
     pattern : `MutablePattern` | `ImmutablePattern`
         Pattern to check
 
-    Returns
-    -------
-    `bool`
-        True if a qubit is measured if and only if it is not an output
+    Raises
+    ------
+    ValueError
+        1. If the command measures an output qubit
+        2. If not all the non-output qubits are measured
     """
     output_nodes = set(pattern.output_node_indices)
-    return all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
+    # if not all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
+    non_output_nodes = {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(
+        pattern.input_node_indices
+    ) - output_nodes
+    measured = set()
+    for cmd in pattern:
+        if isinstance(cmd, M):
+            if cmd.node in output_nodes:
+                msg = "The above command measures an output qubit"
+                print_command(cmd)
+                raise ValueError(msg)
+            measured.add(cmd.node)
+    if measured != non_output_nodes:
+        msg = "Not all the non-output qubits are measured"
+        raise ValueError(msg)
 
 
 def print_command(cmd: Command) -> None:
