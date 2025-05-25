@@ -2,8 +2,7 @@
 
 This module provides:
 
-- `ImmutablePattern`: Immutable pattern class
-- `MutablePattern`: Mutable pattern class
+- `Pattern`: Pattern class
 - `is_runnable`: Check if the pattern is runnable
 - `check_rule0`: Check if no command depends on an output not yet measured
 - `check_rule1`: Check if no command acts on a qubit already measured
@@ -29,8 +28,8 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass(frozen=True)
-class ImmutablePattern(Sequence[Command]):
-    r"""Immutable pattern class.
+class Pattern(Sequence[Command]):
+    r"""Pattern class.
 
     Attributes
     ----------
@@ -101,152 +100,12 @@ class ImmutablePattern(Sequence[Command]):
         return space_list
 
 
-class MutablePattern(Sequence[Command]):
-    r"""Mutable pattern class.
-
-    Attributes
-    ----------
-    input_node_indices : `dict`\[`int`, `int`\]
-        The map of input nodes to their logical qubit indices
-    output_node_indices : `dict`\[`int`, `int`\]
-        The map of output nodes to their logical qubit indices
-    """
-
-    def __init__(
-        self,
-        input_node_indices: Mapping[int, int] | None = None,
-        output_node_indices: Mapping[int, int] | None = None,
-    ) -> None:
-        if input_node_indices is None:
-            input_node_indices = {}
-        if output_node_indices is None:
-            output_node_indices = {}
-        self.input_node_indices: dict[int, int] = dict(input_node_indices)  # input node indices
-        self.output_node_indices: dict[int, int] = dict(output_node_indices)  # output node indices
-
-        self.__commands: list[Command] = []
-
-        self._already_used_nodes: set[int] = set(self.input_node_indices)  # nodes already used
-
-    def __len__(self) -> int:
-        return len(self.__commands)
-
-    def __iter__(self) -> Iterator[Command]:
-        return iter(self.__commands)
-
-    @typing.overload
-    def __getitem__(self, index: int) -> Command: ...
-
-    @typing.overload
-    def __getitem__(self, index: slice) -> tuple[Command, ...]: ...
-
-    def __getitem__(self, index: int | slice) -> Command | tuple[Command, ...]:
-        if isinstance(index, slice):
-            return tuple(self.__commands[index])
-        if isinstance(index, int):
-            return self.__commands[index]
-        msg = f"Index must be int or slice, not {type(index)}"
-        raise TypeError(msg)
-
-    @property
-    def commands(self) -> tuple[Command, ...]:
-        r"""List of commands in the pattern.
-
-        Returns
-        -------
-        `tuple`\[`Command`, ...\]
-            List of commands in the pattern
-        """
-        return tuple(self.__commands)
-
-    @functools.cached_property
-    def max_space(self) -> int:
-        """Maximum number of qubits prepared at any point in the pattern.
-
-        Returns
-        -------
-        `int`
-            Maximum number of qubits prepared at any point in the pattern
-        """
-        return max(self.space_list)
-
-    @functools.cached_property
-    def space_list(self) -> list[int]:
-        r"""List of qubits prepared at each point in the pattern.
-
-        Returns
-        -------
-        `list`\[`int`\]
-            List of qubits prepared at each point in the pattern
-        """
-        nodes = len(self.input_node_indices)
-        space_list = [nodes]
-        for cmd in self.commands:
-            if isinstance(cmd, N):
-                nodes += 1
-                space_list.append(nodes)
-            elif isinstance(cmd, M):
-                nodes -= 1
-                space_list.append(nodes)
-        return space_list
-
-    def _add(self, cmd: Command) -> None:
-        if isinstance(cmd, N):
-            if cmd.node in self._already_used_nodes:
-                msg = f"The node {cmd.node} has already been used"
-                raise ValueError(msg)
-            self._already_used_nodes.add(cmd.node)
-        self.__commands.append(cmd)
-
-    def _invalidate_cache(self, name: str) -> None:
-        self.__dict__.pop(name, None)
-
-    def add(self, cmd: Command) -> None:
-        """Add a command to the pattern.
-
-        Parameters
-        ----------
-        cmd : `Command`
-            Command to add to the pattern
-        """
-        self._add(cmd)
-        self._invalidate_cache("max_space")
-        self._invalidate_cache("space_list")
-
-    def extend(self, cmds: Sequence[Command]) -> None:
-        r"""Extend the pattern with a list of commands.
-
-        Parameters
-        ----------
-        cmds : `collections.abc.Sequence`\[`Command`\]
-            Commands to add to the pattern
-        """
-        for cmd in cmds:
-            self._add(cmd)
-        self._invalidate_cache("max_space")
-        self._invalidate_cache("space_list")
-
-    def freeze(self) -> ImmutablePattern:
-        """Freeze the pattern.
-
-        Returns
-        -------
-        `ImmutablePattern`
-            Immutable pattern
-        """
-        return ImmutablePattern(
-            input_node_indices=self.input_node_indices,
-            output_node_indices=self.output_node_indices,
-            commands=self.commands,
-        )
-
-
-def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
+def is_runnable(pattern: Pattern) -> bool:
     """Check if the pattern is runnable.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to check
 
     Returns
@@ -261,12 +120,12 @@ def is_runnable(pattern: MutablePattern | ImmutablePattern) -> bool:
     return True
 
 
-def check_rule0(pattern: MutablePattern | ImmutablePattern) -> None:
+def check_rule0(pattern: Pattern) -> None:
     """Check if no command depends on an output not yet measured.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to check
 
     Raises
@@ -283,12 +142,12 @@ def check_rule0(pattern: MutablePattern | ImmutablePattern) -> None:
             raise ValueError(msg)
 
 
-def check_rule1(pattern: MutablePattern | ImmutablePattern) -> None:
+def check_rule1(pattern: Pattern) -> None:
     """Check if no command acts on a qubit already measured.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to check
 
     Raises
@@ -319,12 +178,12 @@ def check_rule1(pattern: MutablePattern | ImmutablePattern) -> None:
             raise TypeError(msg)
 
 
-def check_rule2(pattern: MutablePattern | ImmutablePattern) -> None:
+def check_rule2(pattern: Pattern) -> None:
     """Check if no command acts on a qubit not yet prepared, unless it is an input qubit.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to check
 
     Raises
@@ -346,12 +205,12 @@ def check_rule2(pattern: MutablePattern | ImmutablePattern) -> None:
             raise ValueError(msg)
 
 
-def check_rule3(pattern: MutablePattern | ImmutablePattern) -> None:
+def check_rule3(pattern: Pattern) -> None:
     """Check if a qubit is measured if and only if it is not an output.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to check
 
     Raises
@@ -377,14 +236,12 @@ def check_rule3(pattern: MutablePattern | ImmutablePattern) -> None:
         raise ValueError(msg)
 
 
-def print_pattern(
-    pattern: MutablePattern | ImmutablePattern, lim: int = 40, cmd_filter: AbstractSet[type[Command]] | None = None
-) -> None:
+def print_pattern(pattern: Pattern, lim: int = 40, cmd_filter: AbstractSet[type[Command]] | None = None) -> None:
     r"""Print a pattern.
 
     Parameters
     ----------
-    pattern : `MutablePattern` | `ImmutablePattern`
+    pattern : `Pattern`
         Pattern to print
     lim : `int`, optional
         Maximum number of commands to print, by default 40
