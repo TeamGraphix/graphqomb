@@ -218,13 +218,21 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
         raise ValueError(msg)
 
 
-def print_pattern(pattern: Pattern, lim: int = 40, cmd_filter: AbstractSet[type[Command]] | None = None) -> None:
+def print_pattern(
+    pattern: Pattern,
+    *,
+    file: typing.TextIO | None = None,
+    lim: int = 40,
+    cmd_filter: AbstractSet[type[Command]] | None = None,
+) -> None:
     r"""Print a pattern.
 
     Parameters
     ----------
     pattern : `Pattern`
         Pattern to print
+    file : `typing.TextIO`, optional
+        File to print to, by default None (prints to stdout)
     lim : `int`, optional
         Maximum number of commands to print, by default 40
     cmd_filter : `collections.abc.Set`\[`type`\[`Command`\]\] | None, optional
@@ -244,11 +252,12 @@ def print_pattern(pattern: Pattern, lim: int = 40, cmd_filter: AbstractSet[type[
     print_count = 0
     for i, cmd in enumerate(pattern):
         if type(cmd) in cmd_filter:
-            print(cmd)  # noqa: T201
+            print(cmd, file=file)
             print_count += 1
 
         if print_count >= nmax:
-            print(  # noqa: T201
-                f"{len(pattern) - i - 1} more commands truncated. Change lim argument of print_pattern() to show more"
+            print(
+                f"{len(pattern) - i - 1} more commands truncated. Change lim argument of print_pattern() to show more",
+                file=file,
             )
             break
