@@ -32,7 +32,7 @@ class Pattern(Sequence[Command]):
         The map of input nodes to their logical qubit indices
     output_node_indices : `dict`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
-    commands : `tuple`\[`Command, ...`\]
+    commands : `tuple`\[`Command`, ...\]
         Commands of the pattern
     """
 
