@@ -4,10 +4,6 @@ This module provides:
 
 - `Pattern`: Pattern class
 - `is_runnable`: Check if the pattern is runnable
-- `check_rule0`: Check if no command depends on an output not yet measured
-- `check_rule1`: Check if no command acts on a qubit already measured
-- `check_rule2`: Check if no command acts on a qubit not yet prepared, unless it is an input qubit
-- `check_rule3`: Check if a qubit is measured if and only if it is not an output
 - `print_pattern`: Print a pattern
 """
 
@@ -77,10 +73,10 @@ class Pattern(Sequence[Command]):
         `int`
             Maximum number of qubits prepared at any point in the pattern
         """
-        return max(self.space_list)
+        return max(self.space)
 
     @functools.cached_property
-    def space_list(self) -> list[int]:
+    def space(self) -> list[int]:
         r"""List of qubits prepared at each point in the pattern.
 
         Returns
@@ -113,114 +109,110 @@ def is_runnable(pattern: Pattern) -> bool:
     `bool`
         True if the pattern is runnable
     """
-    check_rule0(pattern)
-    check_rule1(pattern)
-    check_rule2(pattern)
-    check_rule3(pattern)
+    _ensure_no_unmeasured_output_dependencies(pattern)
+    _ensure_no_operations_on_measured_qubits(pattern)
+    _ensure_no_unprepared_qubit_operations(pattern)
+    _ensure_measurement_consistency(pattern)
     return True
 
 
-def check_rule0(pattern: Pattern) -> None:
-    """Check if no command depends on an output not yet measured.
+def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:
+    """Ensure that no command depends on an output that has not yet been measured.
 
     Parameters
     ----------
     pattern : `Pattern`
-        Pattern to check
+        The sequence of commands to validate.
 
     Raises
     ------
     ValueError
-        If the command depends on an output not yet measured
+        If any command depends on an output that has not yet been measured.
     """
     measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
         if isinstance(cmd, D) and any(c in measured for c in cmd.input_cbits):
-            msg = f"The command depends on an output not yet measured: {cmd}"
+            msg = f"A command depends on an output that hasn't been measured yet: {cmd}"
             raise ValueError(msg)
 
 
-def check_rule1(pattern: Pattern) -> None:
-    """Check if no command acts on a qubit already measured.
+def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
+    """Ensure that no command operates on a qubit that has already been measured.
 
     Parameters
     ----------
     pattern : `Pattern`
-        Pattern to check
+        The sequence of commands to validate.
 
     Raises
     ------
     ValueError
-        If the command acts on a qubit already measured
+        If any command attempts to act on a qubit that has already been measured.
     TypeError
-        If the command kind is unknown
+        If an unknown command type is encountered.
     """
     measured = set()
-    verror_msg = "The command acts on a qubit already measured: "
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in measured:
-                msg = verror_msg + f"{cmd}"
+                msg = f"A measurement is repeated on the same qubit: {cmd}"
                 raise ValueError(msg)
             measured.add(cmd.node)
         elif isinstance(cmd, E):
             if len(set(cmd.nodes) & measured) > 0:
-                msg = verror_msg + f"{cmd}"
+                msg = f"Entanglement operation targets a measured qubit: {cmd}"
                 raise ValueError(msg)
         elif isinstance(cmd, (N, X, Z, Clifford)):
             if cmd.node in measured:
-                msg = verror_msg + f"{cmd}"
+                msg = f"Operation on a measured qubit: {cmd}"
                 raise ValueError(msg)
         else:
             msg = f"Unknown command kind: {type(cmd)}"
             raise TypeError(msg)
 
 
-def check_rule2(pattern: Pattern) -> None:
-    """Check if no command acts on a qubit not yet prepared, unless it is an input qubit.
+def _ensure_no_unprepared_qubit_operations(pattern: Pattern) -> None:
+    """Ensure that no command operates on a qubit that hasn't been prepared yet, except for input qubits.
 
     Parameters
     ----------
     pattern : `Pattern`
-        Pattern to check
+        The sequence of commands to validate.
 
     Raises
     ------
     ValueError
-        If the command acts on a qubit not yet prepared
+        If any command targets a qubit that hasn't been prepared.
     """
     prepared = set(pattern.input_node_indices)
-    verror_msg = "The command acts on a qubit not yet prepared: "
     for cmd in pattern:
         if isinstance(cmd, N):
             prepared.add(cmd.node)
         elif isinstance(cmd, E):
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
-                msg = verror_msg + f"{cmd}"
+                msg = f"Entanglement operation targets a qubit that hasn't been prepared yet: {cmd}"
                 raise ValueError(msg)
         elif isinstance(cmd, (M, X, Z, Clifford)) and cmd.node not in prepared:
-            msg = verror_msg + f"{cmd}"
+            msg = f"Operation on a qubit that hasn't been prepared yet: {cmd}"
             raise ValueError(msg)
 
 
-def check_rule3(pattern: Pattern) -> None:
-    """Check if a qubit is measured if and only if it is not an output.
+def _ensure_measurement_consistency(pattern: Pattern) -> None:
+    """Ensure that measurements are applied exactly to all non-output qubits and that no output qubit is ever measured.
 
     Parameters
     ----------
     pattern : `Pattern`
-        Pattern to check
+        The sequence of commands to validate.
 
     Raises
     ------
     ValueError
-        1. If the command measures an output qubit
-        2. If not all the non-output qubits are measured
+        If a measurement targets an output qubit, or if some non-output qubits are never measured.
     """
     output_nodes = set(pattern.output_node_indices)
-    # if not all(not (isinstance(cmd, M) and cmd.node in output_nodes) for cmd in pattern)
     non_output_nodes = {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(
         pattern.input_node_indices
     ) - output_nodes
@@ -232,7 +224,8 @@ def check_rule3(pattern: Pattern) -> None:
                 raise ValueError(msg)
             measured.add(cmd.node)
     if measured != non_output_nodes:
-        msg = "Not all the non-output qubits are measured"
+        missing = non_output_nodes - measured
+        msg = f"Missing measurements on qubit(s): {sorted(missing)}"
         raise ValueError(msg)
 
 
