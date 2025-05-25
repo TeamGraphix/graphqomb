@@ -32,13 +32,13 @@ class Pattern(Sequence[Command]):
         The map of input nodes to their logical qubit indices
     output_node_indices : `dict`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
-    commands : `tuple`\[`Command`\]
+    commands : `tuple`\[`Command, ...`\]
         Commands of the pattern
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
-    commands: tuple[Command]
+    commands: tuple[Command, ...]
 
     def __len__(self) -> int:
         return len(self.commands)
@@ -122,8 +122,8 @@ def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
-        if isinstance(cmd, D) and any(c in measured for c in cmd.input_cbits):
-            msg = f"A command depends on an output that hasn't been measured yet: {cmd}"
+        if isinstance(cmd, D) and any(c not in measured for c in cmd.input_cbits):
+            msg = f"D command depends on an output that hasn't been measured yet: {cmd}"
             raise ValueError(msg)
 
 
@@ -150,7 +150,7 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
                 raise ValueError(msg)
             measured.add(cmd.node)
         elif isinstance(cmd, E):
-            if set(cmd.nodes).isdisjoint(measured):
+            if not set(cmd.nodes).isdisjoint(measured):
                 msg = f"Entanglement operation targets a measured qubit: {cmd}"
                 raise ValueError(msg)
         elif isinstance(cmd, (N, X, Z, Clifford)):
