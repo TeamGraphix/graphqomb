@@ -150,7 +150,7 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
                 raise ValueError(msg)
             measured.add(cmd.node)
         elif isinstance(cmd, E):
-            if len(set(cmd.nodes) & measured) > 0:
+            if set(cmd.nodes).isdisjoint(measured):
                 msg = f"Entanglement operation targets a measured qubit: {cmd}"
                 raise ValueError(msg)
         elif isinstance(cmd, (N, X, Z, Clifford)):
