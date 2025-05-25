@@ -13,13 +13,12 @@ import dataclasses
 import functools
 import typing
 from collections.abc import Sequence
-from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
     from collections.abc import Set as AbstractSet
 
 
@@ -29,22 +28,17 @@ class Pattern(Sequence[Command]):
 
     Attributes
     ----------
-    input_node_indices : `collections.abc.Mapping`\[`int`, `int`\]
+    input_node_indices : `dict`\[`int`, `int`\]
         The map of input nodes to their logical qubit indices
-    output_node_indices : `collections.abc.Mapping`\[`int`, `int`\]
+    output_node_indices : `dict`\[`int`, `int`\]
         The map of output nodes to their logical qubit indices
-    commands : `collections.abc.Sequence`\[`Command`\]
+    commands : `tuple`\[`Command`\]
         Commands of the pattern
     """
 
-    input_node_indices: Mapping[int, int]
-    output_node_indices: Mapping[int, int]
-    commands: Sequence[Command]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "input_node_indices", MappingProxyType(dict(self.input_node_indices)))
-        object.__setattr__(self, "output_node_indices", MappingProxyType(dict(self.output_node_indices)))
-        object.__setattr__(self, "commands", tuple(self.commands))
+    input_node_indices: dict[int, int]
+    output_node_indices: dict[int, int]
+    commands: tuple[Command]
 
     def __len__(self) -> int:
         return len(self.commands)
@@ -57,12 +51,7 @@ class Pattern(Sequence[Command]):
     @typing.overload
     def __getitem__(self, index: slice) -> tuple[Command, ...]: ...
     def __getitem__(self, index: int | slice) -> Command | tuple[Command, ...]:
-        if isinstance(index, slice):
-            return tuple(self.commands[index])
-        if isinstance(index, int):
-            return self.commands[index]
-        msg = f"Index must be int or slice, not {type(index)}"
-        raise TypeError(msg)
+        return self.commands[index]
 
     @functools.cached_property
     def max_space(self) -> int:
