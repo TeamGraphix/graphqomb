@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import abc
 import cmath
-import enu
+import enum
 import math
 from abc import ABC
 from enum import Enum
