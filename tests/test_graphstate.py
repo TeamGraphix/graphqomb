@@ -284,7 +284,3 @@ def test_odd_neighbors(graph: GraphState) -> None:
 
     assert odd_neighbors({node1}, graph) == {node2, node3}
     assert odd_neighbors({node1, node2}, graph) == {node1, node2}
-
-
-if __name__ == "__main__":
-    pytest.main()
