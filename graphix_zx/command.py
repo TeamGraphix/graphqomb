@@ -66,18 +66,18 @@ class M:
         The node index to be measured.
     meas_basis : MeasBasis
         The measurement basis.
-    s_cbit : `int`
+    s_cbit : `int` | `None`
         The index of s_domain control classical bit.
-        Default is -1, meaning the flag is always False.
-    t_cbit : `int`
+        Default is None, meaning the flag is always False.
+    t_cbit : `int` | `None`
         The index of t_domain control classical bit.
-        Default is -1, meaning the flag is always False.
+        Default is None, meaning the flag is always False.
     """
 
     node: int
     meas_basis: MeasBasis
-    s_cbit: int = -1
-    t_cbit: int = -1
+    s_cbit: int | None = None
+    t_cbit: int | None = None
 
     def __str__(self) -> str:
         return (
@@ -89,7 +89,7 @@ class M:
 @dataclasses.dataclass
 class _Correction:
     node: int
-    cbit: int = -1
+    cbit: int | None = None
 
 
 @dataclasses.dataclass
@@ -100,9 +100,9 @@ class X(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `int`
+    cbit : `int` | `None`
         The index of the classical bit to control the correction.
-        If cbit is -1, the flag is always False, meaning the correction will not be applied.
+        If cbit is None, the flag is always False, meaning the correction will not be applied.
     """
 
     def __str__(self) -> str:
@@ -117,9 +117,9 @@ class Z(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `int`
+    cbit : `int` | `None`
         The index of the classical bit to control the correction.
-        If cbit is -1, the flag is always False, meaning the correction will not be applied.
+        If cbit is None, the flag is always False, meaning the correction will not be applied.
     """
 
     def __str__(self) -> str:
