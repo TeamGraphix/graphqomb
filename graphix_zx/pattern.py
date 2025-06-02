@@ -232,10 +232,12 @@ def print_pattern(
     cmd_filter : `typing.Callable`\[\[`Command`\], `Command` | `None`\] | `None`, optional
         Command filter, by default None
     """
-    if cmd_filter is None:
 
-        def cmd_filter(cmd: Command) -> Command | None:
-            return cmd if isinstance(cmd, (N, E, M, X, Z, D, Clifford)) else None
+    def identity_filter(cmd: Command) -> Command | None:
+        return cmd if isinstance(cmd, (N, E, M, X, Z, D, Clifford)) else None
+
+    if cmd_filter is None:
+        cmd_filter = identity_filter
 
     nmax = min(lim, len(pattern))
     print_count = 0
