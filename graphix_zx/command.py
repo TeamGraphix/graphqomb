@@ -37,7 +37,7 @@ class N:
     node: int
 
     def __str__(self) -> str:
-        return f"N, node={self.node}"
+        return f"N: node={self.node}"
 
 
 @dataclasses.dataclass
@@ -53,7 +53,7 @@ class E:
     nodes: tuple[int, int]
 
     def __str__(self) -> str:
-        return f"E, nodes={self.nodes}"
+        return f"E: nodes={self.nodes}"
 
 
 @dataclasses.dataclass
@@ -81,7 +81,7 @@ class M:
 
     def __str__(self) -> str:
         return (
-            f"M, node={self.node}, plane={self.meas_basis.plane}, "
+            f"M: node={self.node}, plane={self.meas_basis.plane}, "
             f"angle={self.meas_basis.angle}, s_cbit={self.s_cbit}, t_cbit={self.t_cbit}"
         )
 
@@ -106,7 +106,7 @@ class X(_Correction):
     """
 
     def __str__(self) -> str:
-        return f"X, node={self.node}, cbit={self.cbit}"
+        return f"X: node={self.node}, cbit={self.cbit}"
 
 
 @dataclasses.dataclass
@@ -123,7 +123,7 @@ class Z(_Correction):
     """
 
     def __str__(self) -> str:
-        return f"Z, node={self.node}, cbit={self.cbit}"
+        return f"Z: node={self.node}, cbit={self.cbit}"
 
 
 @dataclasses.dataclass
@@ -143,7 +143,7 @@ class Clifford:
 
     def __str__(self) -> str:
         return (
-            f"Clifford, node={self.node}, alpha={self.local_clifford.alpha}, "
+            f"Clifford: node={self.node}, alpha={self.local_clifford.alpha}, "
             f"beta={self.local_clifford.beta}, gamma={self.local_clifford.gamma}"
         )
 
@@ -167,7 +167,7 @@ class D:
     decoder: BaseDecoder
 
     def __str__(self) -> str:
-        return f"D, input_cbits={self.input_cbits}, output_cbits={self.output_cbits}, decoder={self.decoder}"
+        return f"D: input_cbits={self.input_cbits}, output_cbits={self.output_cbits}, decoder={self.decoder}"
 
 
 if sys.version_info >= (3, 10):
