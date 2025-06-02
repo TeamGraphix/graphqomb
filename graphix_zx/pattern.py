@@ -19,7 +19,7 @@ from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from collections.abc import Set as AbstractSet
+    from typing import Callable
 
 
 @dataclasses.dataclass(frozen=True)
@@ -217,7 +217,7 @@ def print_pattern(
     *,
     file: typing.TextIO | None = None,
     lim: int = 40,
-    cmd_filter: AbstractSet[type[Command]] | None = None,
+    cmd_filter: Callable[[Command], Command | None] | None = None,
 ) -> None:
     r"""Print a pattern.
 
@@ -229,25 +229,22 @@ def print_pattern(
         File to print to, by default None (prints to stdout)
     lim : `int`, optional
         Maximum number of commands to print, by default 40
-    cmd_filter : `collections.abc.Set`\[`type`\[`Command`\]\] | None, optional
+    cmd_filter : `typing.Callable`\[\[`Command`\], `Command` | `None`\] | `None`, optional
         Command filter, by default None
     """
     if cmd_filter is None:
-        cmd_filter = {
-            N,
-            E,
-            M,
-            X,
-            Z,
-            D,
-            Clifford,
-        }
+
+        def cmd_filter(cmd: Command) -> Command | None:
+            return cmd if isinstance(cmd, (N, E, M, X, Z, D, Clifford)) else None
+
     nmax = min(lim, len(pattern))
     print_count = 0
     for i, cmd in enumerate(pattern):
-        if type(cmd) in cmd_filter:
-            print(cmd, file=file)
-            print_count += 1
+        cmd_filtered = cmd_filter(cmd)
+        if cmd_filtered is None:
+            continue
+        print(cmd_filtered, file=file)
+        print_count += 1
 
         if print_count >= nmax:
             print(
