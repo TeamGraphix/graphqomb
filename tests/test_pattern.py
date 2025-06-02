@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from graphix_zx.command import Command, D, E, M, N, X

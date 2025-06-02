@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
