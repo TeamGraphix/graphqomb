@@ -85,24 +85,18 @@ class Pattern(Sequence[Command]):
         return space_list
 
 
-def is_runnable(pattern: Pattern) -> bool:
+def is_runnable(pattern: Pattern) -> None:
     """Check if the pattern is runnable.
 
     Parameters
     ----------
     pattern : `Pattern`
         Pattern to check
-
-    Returns
-    -------
-    `bool`
-        True if the pattern is runnable
     """
     _ensure_no_unmeasured_output_dependencies(pattern)
     _ensure_no_operations_on_measured_qubits(pattern)
     _ensure_no_unprepared_qubit_operations(pattern)
     _ensure_measurement_consistency(pattern)
-    return True
 
 
 def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:

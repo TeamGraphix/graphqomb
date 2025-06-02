@@ -42,7 +42,7 @@ def test_is_runnable_happy_path() -> None:
     cmds: list[Command] = [N(1), E((0, 1)), M(0, default_meas_basis()), M(1, default_meas_basis())]
     pattern = Pattern(input_node_indices, output_node_indices, tuple(cmds))
 
-    assert is_runnable(pattern)
+    is_runnable(pattern)
 
 
 def test_dependency_on_unmeasured_qubit_raises() -> None:
