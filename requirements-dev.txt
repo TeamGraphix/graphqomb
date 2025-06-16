@@ -1,4 +1,4 @@
 ruff==0.11.12
 mypy==1.16.0
-pyright==1.1.401
+pyright==1.1.402
 pytest==8.4.0
