@@ -15,13 +15,30 @@ This module provides:
 from __future__ import annotations
 
 import dataclasses
+import enum
 import sys
+from enum import Enum
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from graphix_zx.common import MeasBasis
     from graphix_zx.decoder_backend import BaseDecoder
     from graphix_zx.euler import LocalClifford
+
+
+class CBitType(Enum):
+    """Type of classical bit dependence on Pauli frame.
+
+    Identity: No dependence
+    X: dependence on X state
+    Z: dependence on Z state
+    Y: dependence on both X and Z states
+    """
+
+    Identity = enum.auto()
+    X = enum.auto()
+    Z = enum.auto()
+    Y = enum.auto()
 
 
 @dataclasses.dataclass
@@ -66,18 +83,18 @@ class M:
         The node index to be measured.
     meas_basis : MeasBasis
         The measurement basis.
-    s_cbit : `int` | `None`
-        The index of s_domain control classical bit.
-        Default is None, meaning the flag is always False.
-    t_cbit : `int` | `None`
-        The index of t_domain control classical bit.
-        Default is None, meaning the flag is always False.
+    s_cbit : `CBitType`
+        The classical bit dependence type of s_domain.
+        Default is CBitType.Identity, meaning there is no control
+    t_cbit : `CBitType`
+        The classical bit dependence type of t_domain.
+        Default is CBitType.Identity, meaning there is no control.
     """
 
     node: int
     meas_basis: MeasBasis
-    s_cbit: int | None = None
-    t_cbit: int | None = None
+    s_cbit: CBitType = CBitType.Identity
+    t_cbit: CBitType = CBitType.Identity
 
     def __str__(self) -> str:
         return (
@@ -89,7 +106,7 @@ class M:
 @dataclasses.dataclass
 class _Correction:
     node: int
-    cbit: int | None = None
+    cbit: CBitType = CBitType.Identity
 
 
 @dataclasses.dataclass
@@ -100,9 +117,9 @@ class X(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `int` | `None`
-        The index of the classical bit to control the correction.
-        If cbit is None, the flag is always False, meaning the correction will not be applied.
+    cbit : `CBitType`
+        The classical bit dependence type of the correction.
+        Default is CBitType.Identity, meaning there is no control.
     """
 
     def __str__(self) -> str:
@@ -117,9 +134,9 @@ class Z(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `int` | `None`
-        The index of the classical bit to control the correction.
-        If cbit is None, the flag is always False, meaning the correction will not be applied.
+    cbit : `CBitType`
+        The classical bit dependence type of the correction.
+        Default is CBitType.Identity, meaning there is no control.
     """
 
     def __str__(self) -> str:
