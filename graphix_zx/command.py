@@ -15,30 +15,13 @@ This module provides:
 from __future__ import annotations
 
 import dataclasses
-import enum
 import sys
-from enum import Enum
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from graphix_zx.common import MeasBasis
     from graphix_zx.decoder_backend import BaseDecoder
     from graphix_zx.euler import LocalClifford
-
-
-class CBitType(Enum):
-    """Type of classical bit dependence on Pauli frame.
-
-    Identity: No dependence
-    X: dependence on X state
-    Z: dependence on Z state
-    Y: dependence on both X and Z states
-    """
-
-    Identity = enum.auto()
-    X = enum.auto()
-    Z = enum.auto()
-    Y = enum.auto()
 
 
 @dataclasses.dataclass
@@ -95,7 +78,6 @@ class M:
 @dataclasses.dataclass
 class _Correction:
     node: int
-    cbit: CBitType = CBitType.Identity
 
 
 @dataclasses.dataclass
@@ -106,9 +88,6 @@ class X(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `CBitType`
-        The classical bit dependence type of the correction.
-        Default is CBitType.Identity, meaning there is no control.
     """
 
     def __str__(self) -> str:
@@ -123,9 +102,6 @@ class Z(_Correction):
     ----------
     node : `int`
         The node index to apply the correction.
-    cbit : `CBitType`
-        The classical bit dependence type of the correction.
-        Default is CBitType.Identity, meaning there is no control.
     """
 
     def __str__(self) -> str:
