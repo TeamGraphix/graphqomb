@@ -103,7 +103,8 @@ def focus_gflow(
         raise ValueError(msg)
     outputs = graph.physical_nodes - set(flowlike)
     dag = dag_from_flow(flowlike, graph)
-    topo_order = reversed(list(TopologicalSorter(dag).static_order()))  # children first
+    topo_order = list(TopologicalSorter(dag).static_order())
+    topo_order.reverse()  # children first
 
     for output in outputs:
         topo_order.remove(output)
