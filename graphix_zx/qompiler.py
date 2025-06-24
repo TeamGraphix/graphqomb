@@ -12,8 +12,6 @@ This module provides:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from collections.abc import Set as AbstractSet
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
@@ -25,6 +23,9 @@ from graphix_zx.pattern import Pattern
 from graphix_zx.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.graphstate import BaseGraphState
 
 
