@@ -16,11 +16,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
-from graphix_zx.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Callable
+
+    from graphix_zx.pauli_frame import PauliFrame
 
 
 @dataclasses.dataclass(frozen=True)
