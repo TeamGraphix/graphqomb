@@ -13,230 +13,186 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from collections.abc import Set as AbstractSet
+from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import Clifford, E, M, N, X, Z
-from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.command import Command, E, M, N, X, Z
+from graphix_zx.common import Plane
 from graphix_zx.feedforward import check_causality
+from graphix_zx.graphstate import odd_neighbors
 from graphix_zx.pattern import Pattern
+from graphix_zx.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState
 
 
-# extended MBQC
-def _generate_m_cmd(
-    node: int,
-    meas_basis: MeasBasis,
-    x_correction: AbstractSet[int],
-    z_correction: AbstractSet[int],
-) -> M:
-    r"""Generate a measurement command.
+def initialize_pauli_frame(
+    graph: BaseGraphState,
+    x_flow: Mapping[int, AbstractSet[int]],
+    z_flow: Mapping[int, AbstractSet[int]],
+) -> PauliFrame:
+    r"""Initialize a Pauli frame from the graph and correction flows.
 
     Parameters
     ----------
-    node : `int`
-        node to be measured
-    meas_basis : `MeasBasis`
-        measurement basis
-    x_correction : `collections.abc.AbstractSet`\[`int`\]
-        x correction applied to the node
-    z_correction : `collections.abc.AbstractSet`\[`int`\]
-        z correction applied to the node
-
-    Raises
-    ------
-    ValueError
-        invalid measurement plane
+    graph : `BaseGraphState`
+        The graph state.
+    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+        The X correction flow.
+    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+        The Z correction flow.
 
     Returns
     -------
-    `M`
-        measurement command
+    `PauliFrame`
+        The initialized Pauli frame.
     """
-    if meas_basis.plane == Plane.XY:
-        s_domain = x_correction
-        t_domain = z_correction
-    elif meas_basis.plane == Plane.XZ:
-        s_domain = x_correction | z_correction
-        t_domain = x_correction
-    elif meas_basis.plane == Plane.YZ:
-        s_domain = z_correction
-        t_domain = x_correction
-    else:  # NOTE: possible to include Pauli simplification.
-        msg = "Invalid measurement plane"
-        raise ValueError(msg)
-    return M(
-        node=node,
-        meas_basis=meas_basis,
-        s_domain=set(s_domain),
-        t_domain=set(t_domain),
+    nodes = graph.physical_nodes
+    non_output_nodes = nodes - set(graph.output_node_indices)
+
+    x2x_dag = {}
+    x2z_dag = {}
+    z2x_dag = {}
+    z2z_dag = {}
+
+    for node in non_output_nodes:
+        if graph.meas_bases[node].plane == Plane.XY:
+            # Z byproduct
+            z2x_dag[node] = set(x_flow.get(node, set()))
+            z2z_dag[node] = set(z_flow.get(node, set()))
+        elif graph.meas_bases[node].plane == Plane.XZ:
+            # Y byproduct
+            x2x_dag[node] = set(x_flow.get(node, set()))
+            x2z_dag[node] = set(z_flow.get(node, set()))
+            z2x_dag[node] = set(x_flow.get(node, set()))
+            z2z_dag[node] = set(z_flow.get(node, set()))
+        else:
+            # X byproduct
+            x2x_dag[node] = set(x_flow.get(node, set()))
+            x2z_dag[node] = set(z_flow.get(node, set()))
+
+    return PauliFrame(
+        nodes=nodes,
+        x2x_dag=x2x_dag,
+        x2z_dag=x2z_dag,
+        z2x_dag=z2x_dag,
+        z2z_dag=z2z_dag,
     )
 
 
-def _generate_corrections(graph: BaseGraphState, flowlike: FlowLike) -> CorrectionMap:
-    """Generate correction from flowlike object.
+def qompile_from_flow(
+    graph: BaseGraphState, gflow: Mapping[int, AbstractSet[int]], *, correct_output: bool = True
+) -> Pattern:
+    r"""Compile graph state into pattern with flowlike object.
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         graph state
-    flowlike : FlowLike
-        flowlike object
-
-    Returns
-    -------
-    CorrectionMap
-        correction mapping
-    """
-    corrections: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
-
-    for node in flowlike:
-        for correction in flowlike[node]:
-            corrections[correction] |= {node}
-
-    # remove self-corrections
-    for node in corrections:
-        corrections[node] -= {node}
-
-    return corrections
-
-
-def qompile_from_flow(graph: BaseGraphState, gflow: FlowLike, *, correct_output: bool = True) -> ImmutablePattern:
-    """Compile graph state into pattern with gflow.
-
-    Parameters
-    ----------
-    graph : BaseGraphState
-        graph state
-    gflow : FlowLike
-        gflow
-    correct_output : bool, optional
+    gflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        flowlike object, which is a mapping from node to its target nodes
+    correct_output : `bool`, optional
         whether to correct outputs or not. Defaults to True.
 
     Returns
     -------
-    ImmutablePattern
-        immutable pattern
+    `Pattern`
+        compiled pattern
 
     Raises
     ------
     ValueError
         if the flow is invalid
     """
-    # TODO: check the validity of the flows
     if not check_causality(graph, gflow):
         msg = "Invalid flow"
         raise ValueError(msg)
 
     # generate corrections
     x_flow = gflow
-    z_flow = {node: oddneighbors(gflow[node], graph) for node in gflow}
+    z_flow = {node: odd_neighbors(gflow[node], graph) for node in gflow}
     return qompile_from_xz_flow(graph, x_flow, z_flow, correct_output=correct_output)
 
 
 def qompile_from_xz_flow(
     graph: BaseGraphState,
-    x_flow: FlowLike,
-    z_flow: FlowLike,
+    x_flow: Mapping[int, AbstractSet[int]],
+    z_flow: Mapping[int, AbstractSet[int]],
     *,
     correct_output: bool = True,
-) -> ImmutablePattern:
-    """Compile graph state into pattern with x/z correction flows.
+) -> Pattern:
+    r"""Compile graph state into pattern with x/z correction flows.
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         graph state
-    x_flow : FlowLike
+    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         x correction flow
-    z_flow : FlowLike
+    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         z correction flow
-    correct_output : bool, optional
+    correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
     Returns
     -------
-    ImmutablePattern
-        immutable pattern
+    `Pattern`
+        compiled pattern
     """
-    x_corrections = _generate_corrections(graph, x_flow)
-    z_corrections = _generate_corrections(graph, z_flow)
+    pauli_frame = initialize_pauli_frame(graph, x_flow, z_flow)
 
-    dag = {node: (x_flow.get(node, set()) | z_flow.get(node, set())) - {node} for node in x_flow}
-    for node in graph.output_nodes:
-        dag[node] = set()
-
-    pattern = qompile(graph, x_corrections, z_corrections, dag, correct_output=correct_output)
-    pattern.mark_runnable()
-    pattern.mark_deterministic()
-    return pattern.freeze()
+    return qompile(graph, pauli_frame, correct_output=correct_output)
 
 
 def qompile(
     graph: BaseGraphState,
-    x_corrections: CorrectionMap,
-    z_corrections: CorrectionMap,
-    dag: Mapping[int, AbstractSet[int]],
+    pauli_frame: PauliFrame,
     *,
     correct_output: bool = True,
-) -> MutablePattern:
+) -> Pattern:
     """Compile graph state into pattern with correctionmaps and directed acyclic graph.
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         graph state
-    x_corrections : CorrectionMap
-        x corrections
-    z_corrections : CorrectionMap
-        z corrections
-    dag : Mappinh[int, AbstratcSet[int]]
-        directed acyclic graph representation of the causality of flow
-    correct_output : bool, optional
+    pauli_frame : `PauliFrame`
+        Pauli frame to track the Pauli state of each node
+    correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
     Returns
     -------
-    MutablePattern
-        mutable pattern
+    `Pattern`
+        compiled pattern
     """
-    # TODO: check the validity of graph(appropriate input, output, meas_bases, etc.)
-
-    input_nodes = graph.input_nodes
-    output_nodes = graph.output_nodes
     meas_bases = graph.meas_bases
-    q_indices = graph.q_indices
-    local_cliffords = graph.local_cliffords
-
-    input_q_indices = {node: q_indices[node] for node in input_nodes}
-
     internal_nodes = graph.physical_nodes - input_nodes - output_nodes
+    non_input_nodes = graph.physical_nodes - set(graph.input_node_indices)
 
-    topo_order = topological_sort_kahn(dag)
+    dag = {
+        node: pauli_frame.x2x_dag.get(node, set())
+        | pauli_frame.x2z_dag.get(node, set())
+        | pauli_frame.z2x_dag.get(node, set())
+        | pauli_frame.z2z_dag.get(node, set())
+        for node in non_input_nodes
+    }
+    topo_order = list(TopologicalSorter(dag).static_order())
 
-    pattern = MutablePattern(input_nodes=input_nodes, q_indices=input_q_indices)
-    pattern.extend(N(node=node, q_index=q_indices[node]) for node in internal_nodes)
-    pattern.extend(N(node=node, q_index=q_indices[node]) for node in output_nodes - input_nodes)
-    pattern.extend(E(nodes=edge) for edge in graph.physical_edges)
-    # TODO: local clifford on input nodes if we want to have arbitrary input states
-    pattern.extend(
-        _generate_m_cmd(
-            node,
-            meas_bases[node],
-            x_corrections[node],
-            z_corrections[node],
-        )
-        for node in topo_order
-        if node not in output_nodes
-    )
+    commands: list[Command] = []
+    commands.extend(N(node=node) for node in non_input_nodes)
+    commands.extend(E(nodes=edge) for edge in graph.physical_edges)
+    commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
     if correct_output:
-        pattern.extend(X(node=node, domain=set(x_corrections[node])) for node in output_nodes)
-        pattern.extend(Z(node=node, domain=set(z_corrections[node])) for node in output_nodes)
-    pattern.extend(
-        C(node=node, local_clifford=local_cliffords[node])
-        for node in output_nodes
-        if local_cliffords.get(node, None) is not None
-    )
+        commands.extend(X(node=node) for node in graph.output_node_indices)
+        commands.extend(Z(node=node) for node in graph.output_node_indices)
 
-    return pattern
+    # NOTE: currently, we remove local Clifford commands
+
+    return Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices=graph.output_node_indices,
+        commands=tuple(commands),
+        pauli_frame=pauli_frame,
+    )
