@@ -2,8 +2,8 @@
 Basic Pattern Generation Example
 ================================
 
-This example demonstrates how to generate a pattern from a quantum circuit
-and simulate it using the graphix-zx library.
+This example demonstrates how to generate a pattern from a graph state
+using the graphix-zx library.
 """
 
 # %%
