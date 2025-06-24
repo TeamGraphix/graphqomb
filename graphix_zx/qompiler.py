@@ -171,15 +171,19 @@ def qompile(
     """
     meas_bases = graph.meas_bases
     non_input_nodes = graph.physical_nodes - set(graph.input_node_indices)
+    non_output_nodes = graph.physical_nodes - set(graph.output_node_indices)
 
     dag = {
-        node: pauli_frame.x2x_dag.get(node, set())
-        | pauli_frame.x2z_dag.get(node, set())
-        | pauli_frame.z2x_dag.get(node, set())
-        | pauli_frame.z2z_dag.get(node, set())
-        for node in non_input_nodes
+        node: (
+            pauli_frame.x2x_dag.get(node, set())
+            | pauli_frame.x2z_dag.get(node, set())
+            | pauli_frame.z2x_dag.get(node, set())
+            | pauli_frame.z2z_dag.get(node, set())
+        )
+        - {node}
+        for node in non_output_nodes
     }
-    topo_order = list(TopologicalSorter(dag).static_order())
+    topo_order = reversed(list(TopologicalSorter(dag).static_order()))  # children first
 
     commands: list[Command] = []
     commands.extend(N(node=node) for node in non_input_nodes)
