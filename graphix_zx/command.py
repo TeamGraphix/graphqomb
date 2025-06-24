@@ -91,7 +91,7 @@ class X(_Correction):
     """
 
     def __str__(self) -> str:
-        return f"X: node={self.node}, cbit={self.cbit}"
+        return f"X: node={self.node}"
 
 
 @dataclasses.dataclass
@@ -105,7 +105,7 @@ class Z(_Correction):
     """
 
     def __str__(self) -> str:
-        return f"Z: node={self.node}, cbit={self.cbit}"
+        return f"Z: node={self.node}"
 
 
 @dataclasses.dataclass
