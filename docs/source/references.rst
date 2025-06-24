@@ -14,3 +14,5 @@ Module reference
     command
     decoder_backend
     pattern
+    pauli_frame
+    qompiler
