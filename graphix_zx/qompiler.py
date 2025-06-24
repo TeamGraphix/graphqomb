@@ -1,9 +1,10 @@
-"""Quantum Compiler(qompiler) module for Measurement-Based Quantum Computation (MBQC).
+"""Quantum Compiler(qompiler) module for Measurement-Based Quantum Computing (MBQC).
 
 note: `compile` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
 
+- `initialize_pauli_frame`: Initialize a Pauli frame from the graph and correction flows.
 - `qompile_from_flow`: Compile graph state into pattern with gflow.
 - `qompile_from_xz_flow`: Compile graph state into pattern with x/z correction flows.
 - `qompile`: Compile graph state into pattern with correctionmaps and directed acyclic graph.
@@ -151,7 +152,7 @@ def qompile(
     *,
     correct_output: bool = True,
 ) -> Pattern:
-    """Compile graph state into pattern with correctionmaps and directed acyclic graph.
+    """Compile graph state into pattern with a given Pauli frame.
 
     Parameters
     ----------
@@ -168,7 +169,6 @@ def qompile(
         compiled pattern
     """
     meas_bases = graph.meas_bases
-    internal_nodes = graph.physical_nodes - input_nodes - output_nodes
     non_input_nodes = graph.physical_nodes - set(graph.input_node_indices)
 
     dag = {
