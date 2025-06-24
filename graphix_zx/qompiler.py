@@ -40,9 +40,9 @@ def initialize_pauli_frame(
     ----------
     graph : `BaseGraphState`
         The graph state.
-    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The X correction flow.
-    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]`
+    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The Z correction flow.
 
     Returns
