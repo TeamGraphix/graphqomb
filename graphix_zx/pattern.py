@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
+from graphix_zx.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -34,11 +35,14 @@ class Pattern(Sequence[Command]):
         The map of output nodes to their logical qubit indices
     commands : `tuple`\[`Command`, ...\]
         Commands of the pattern
+    pauli_frame : `PauliFrame`
+        Pauli frame of the pattern to track the Pauli state of each node
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
+    pauli_frame: PauliFrame
 
     def __len__(self) -> int:
         return len(self.commands)
