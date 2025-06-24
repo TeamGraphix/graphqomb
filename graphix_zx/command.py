@@ -83,24 +83,13 @@ class M:
         The node index to be measured.
     meas_basis : MeasBasis
         The measurement basis.
-    s_cbit : `CBitType`
-        The classical bit dependence type of s_domain.
-        Default is CBitType.Identity, meaning there is no control
-    t_cbit : `CBitType`
-        The classical bit dependence type of t_domain.
-        Default is CBitType.Identity, meaning there is no control.
     """
 
     node: int
     meas_basis: MeasBasis
-    s_cbit: CBitType = CBitType.Identity
-    t_cbit: CBitType = CBitType.Identity
 
     def __str__(self) -> str:
-        return (
-            f"M: node={self.node}, plane={self.meas_basis.plane}, "
-            f"angle={self.meas_basis.angle}, s_cbit={self.s_cbit}, t_cbit={self.t_cbit}"
-        )
+        return f"M: node={self.node}, plane={self.meas_basis.plane}, angle={self.meas_basis.angle}"
 
 
 @dataclasses.dataclass
