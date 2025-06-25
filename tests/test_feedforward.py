@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_dag, check_flow, dag_from_flow
 from graphix_zx.graphstate import GraphState
 
 
@@ -36,7 +36,8 @@ def test_dag_from_flow_basic_flow() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
 
-    dag = dag_from_flow(flow, graphstate, check=True)
+    dag = dag_from_flow(graphstate, flow)
+    check_dag(dag)
 
     assert dag[0] == {1}
 
@@ -45,7 +46,8 @@ def test_dag_from_flow_basic_gflow() -> None:
     graphstate, node1, node2 = two_node_graph()
     gflow = {node1: {node2}, node2: set()}
 
-    dag = dag_from_flow(gflow, graphstate, check=True)
+    dag = dag_from_flow(graphstate, gflow)
+    check_dag(dag)
 
     assert dag[node1] == {node2}
     assert dag[node2] == set()
@@ -55,24 +57,26 @@ def test_dag_from_flow_invalid_type_raises() -> None:
     graphstate, node1, node2 = two_node_graph()
     invalid = {node1: node2, node2: {node2}}  # mixed types
     with pytest.raises(TypeError):
-        dag_from_flow(invalid, graphstate)  # type: ignore[arg-type]
+        dag_from_flow(graphstate, invalid)  # type: ignore[arg-type]
 
 
 def test_dag_from_flow_cycle_detection() -> None:
     graphstate, node1, node2 = two_node_graph()
     cyclic_flow = {node1: node2, node2: node1}
 
-    with pytest.raises(ValueError, match="Cycle detected in the graph"):
-        dag_from_flow(cyclic_flow, graphstate, check=True)
+    dag = dag_from_flow(graphstate, cyclic_flow)
+    with pytest.raises(ValueError, match="Cycle detected in the graph:"):
+        check_dag(dag)
 
 
-def test_check_causality_false_for_cycle() -> None:
+def test_check_flow_false_for_cycle() -> None:
     graphstate, node1, node2 = two_node_graph()
     cyclic_flow = {node1: node2, node2: node1}
-    assert not check_causality(graphstate, cyclic_flow)
+    with pytest.raises(ValueError, match="Cycle detected in the graph:"):
+        check_flow(graphstate, cyclic_flow)
 
 
-def test_check_causality_true_for_acyclic() -> None:
+def test_check_flow_true_for_acyclic() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
-    assert check_causality(graphstate, flow)
+    check_flow(graphstate, flow)
