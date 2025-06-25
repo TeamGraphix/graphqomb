@@ -63,7 +63,7 @@ docstring-code-format = true
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = [
   "S101",    # `assert` detected
-  "SLF001", # private method
+  "SLF001",  # private method
   "PLC2701", # private method
   "PLR2004", # magic value in test(should be removed)
   "D100",
@@ -88,3 +88,8 @@ files = ["graphix_zx", "tests", "examples"]
 
 [tool.pyright]
 include = ["graphix_zx", "tests", "examples"]
+reportUnknownArgumentType = "information"
+reportUnknownLambdaType = "information"
+reportUnknownMemberType = "information"
+reportUnknownParameterType = "information"
+reportUnknownVariableType = "information"
