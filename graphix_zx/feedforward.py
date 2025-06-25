@@ -79,7 +79,7 @@ def dag_from_flow(
     ValueError
         If a cycle is detected in the graph
     """  # noqa: E501
-    dag = {}
+    dag: dict[int, set[int]] = {}
     outputs = graph.physical_nodes - set(flowlike)
     for node in flowlike:
         if _is_flow(flowlike):

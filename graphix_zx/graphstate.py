@@ -246,7 +246,7 @@ class GraphState(BaseGraphState):
         `set`\[`tuple`\[`int`, `int`\]
             set of physical edges.
         """
-        edges = set()
+        edges: set[tuple[int, int]] = set()
         for node1 in self.__physical_edges:
             for node2 in self.__physical_edges[node1]:
                 if node1 < node2:
@@ -578,7 +578,7 @@ class GraphState(BaseGraphState):
             A dictionary mapping input node indices to the new node indices created.
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_input_indices = []
+        new_input_indices: list[int] = []
         for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(input_node)
             if lc is None:
@@ -616,8 +616,8 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `LocalCliffordExpansion`\]
             A dictionary mapping output node indices to the new node indices created.
         """
-        node_index_addition_map = {}
-        new_output_index_map = {}
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
+        new_output_index_map: dict[int, int] = {}
         for output_node, q_index in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(output_node)
             if lc is None:
@@ -695,8 +695,8 @@ def compose_sequentially(  # noqa: C901
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
-    node_map1 = {}
-    node_map2 = {}
+    node_map1: dict[int, int] = {}
+    node_map2: dict[int, int] = {}
     composed_graph = GraphState()
 
     for node in graph1.physical_nodes - graph1.output_node_indices.keys():
@@ -762,8 +762,8 @@ def compose_in_parallel(  # noqa: C901
     if not graph2.is_canonical_form():
         msg = "graph2 must be in canonical form."
         raise ValueError(msg)
-    node_map1 = {}
-    node_map2 = {}
+    node_map1: dict[int, int] = {}
+    node_map2: dict[int, int] = {}
     composed_graph = GraphState()
 
     for node in graph1.physical_nodes:
@@ -780,8 +780,8 @@ def compose_in_parallel(  # noqa: C901
             composed_graph.assign_meas_basis(node_index, meas_basis)
         node_map2[node] = node_index
 
-    q_index_map1 = {}
-    q_index_map2 = {}
+    q_index_map1: dict[int, int] = {}
+    q_index_map2: dict[int, int] = {}
     for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         new_q_index = composed_graph.register_input(node_map1[input_node])
         q_index_map1[old_q_index] = new_q_index
@@ -845,4 +845,4 @@ def odd_neighbors(nodes: AbstractSet[int], graphstate: BaseGraphState) -> set[in
     `set`\[`int`\]
         set of odd neighbors
     """
-    return functools.reduce(operator.xor, (graphstate.neighbors(node) for node in nodes), set())
+    return functools.reduce(operator.xor, (graphstate.neighbors(node) for node in nodes), set())  # pyright: ignore[reportUnknownArgumentType]

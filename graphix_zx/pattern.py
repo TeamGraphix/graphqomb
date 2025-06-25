@@ -136,7 +136,7 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
     TypeError
         If an unknown command type is encountered.
     """
-    measured = set()
+    measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in measured:
@@ -199,7 +199,7 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
     non_output_nodes = {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(
         pattern.input_node_indices
     ) - output_nodes
-    measured = set()
+    measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
             if cmd.node in output_nodes:
