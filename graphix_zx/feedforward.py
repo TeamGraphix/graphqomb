@@ -68,7 +68,7 @@ def dag_from_flow(
     xflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The X correction flow (flow and gflow are included)
     zflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
-        The Z correction flow. If `None`, it is generated from `xflow` by odd neighbors.
+        The Z correction flow. If `None`, it is generated from xflow by odd neighbors.
 
     Returns
     -------
@@ -143,7 +143,7 @@ def check_flow(
     xflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The  X correction flow (flow and gflow are included)
     zflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
-        The  Z correction flow. If `None`, it is generated from `xflow` by odd neighbors.
+        The  Z correction flow. If `None`, it is generated from xflow by odd neighbors.
     """  # noqa: E501
     dag = dag_from_flow(graph, xflow, zflow)
     check_dag(dag)

@@ -42,7 +42,7 @@ def qompile(
         x correction flow
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
-        if `None`, it is generated from `xflow` by odd neighbors
+        if `None`, it is generated from xflow by odd neighbors
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
