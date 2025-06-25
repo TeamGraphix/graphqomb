@@ -12,7 +12,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow
 from graphix_zx.graphstate import odd_neighbors
 
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ def focus_gflow(
     else:
         msg = "Invalid flowlike object"
         raise TypeError(msg)
-    if not check_causality(graph, flowlike):
+    if not check_flow(graph, flowlike):
         msg = "The flowlike object is not causal with respect to the graph state"
         raise ValueError(msg)
     outputs = graph.physical_nodes - set(flowlike)
