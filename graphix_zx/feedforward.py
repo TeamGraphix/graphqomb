@@ -84,18 +84,25 @@ def dag_from_flow(
     output_nodes = set(graph.output_node_indices)
     non_output_nodes = graph.physical_nodes - output_nodes
     if _is_flow(xflow):
-        flag_flow = True
+        _xflow = {node: {xflow[node]} for node in xflow}
     elif _is_gflow(xflow):
-        flag_flow = False
+        _xflow = {node: set(xflow[node]) for node in xflow}
     else:
         msg = "Invalid flowlike object"
         raise TypeError(msg)
 
     if zflow is None:
-        zflow = {node: odd_neighbors({xflow[node]} if flag_flow else xflow[node], graph) for node in xflow}
+        zflow = {node: odd_neighbors(_xflow[node], graph) for node in xflow}
+    elif _is_flow(zflow):
+        zflow = {node: {zflow[node]} for node in zflow}
+    elif _is_gflow(zflow):
+        zflow = {node: set(zflow[node]) for node in zflow}
+    else:
+        msg = "Invalid zflow object"
+        raise TypeError(msg)
     for node in non_output_nodes:
         if node in xflow:
-            target_nodes = ({xflow[node]} if flag_flow else xflow[node]) | zflow.get(node, set()) - {node}
+            target_nodes = _xflow[node] | zflow.get(node, set()) - {node}
         else:
             target_nodes = set()
         dag[node] = target_nodes
