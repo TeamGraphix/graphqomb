@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from graphix_zx.common import Plane
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
-    from graphix_zx.common import Plane
 
 
 class PauliFrame:

@@ -50,6 +50,11 @@ def qompile(
     -------
     `Pattern`
         compiled pattern
+
+    Raises
+    ------
+    ValueError
+        If the x flow or z flow is invalid with respect to the graph state
     """
     if not check_causality(graph, x_flow):
         msg = "Invalid x flow"
