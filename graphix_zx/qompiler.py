@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 
 def qompile(
     graph: BaseGraphState,
-    x_flow: Mapping[int, AbstractSet[int]],
-    z_flow: Mapping[int, AbstractSet[int]] | None = None,
+    xflow: Mapping[int, AbstractSet[int]],
+    zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     correct_output: bool = True,
 ) -> Pattern:
@@ -38,11 +38,11 @@ def qompile(
     ----------
     graph : `BaseGraphState`
         graph state
-    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+    xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         x correction flow
-    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
-        if `None`, it is generated from `x_flow` by odd neighbors
+        if `None`, it is generated from `xflow` by odd neighbors
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
@@ -60,11 +60,11 @@ def qompile(
     if not graph.is_canonical_form():
         msg = "Graph state must be in canonical form."
         raise ValueError(msg)
-    if z_flow is None:
-        z_flow = {node: odd_neighbors(x_flow[node], graph) - {node} for node in x_flow}
-    check_flow(graph, x_flow, z_flow)
+    if zflow is None:
+        zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
+    check_flow(graph, xflow, zflow)
 
-    pauli_frame = PauliFrame.from_xzflow(graph, x_flow, z_flow)
+    pauli_frame = PauliFrame.from_xzflow(graph, xflow, zflow)
 
     return _qompile(graph, pauli_frame, correct_output=correct_output)
 
