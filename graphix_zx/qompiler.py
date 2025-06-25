@@ -103,7 +103,8 @@ def _qompile(
         - {node}
         for node in non_output_nodes
     }
-    topo_order = reversed(list(TopologicalSorter(dag).static_order()))  # children first
+    topo_order = list(TopologicalSorter(dag).static_order())
+    topo_order.reverse()  # children first
 
     commands: list[Command] = []
     commands.extend(N(node=node) for node in non_input_nodes)
