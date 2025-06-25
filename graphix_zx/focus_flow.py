@@ -88,8 +88,6 @@ def focus_gflow(
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    ValueError
-        if the flowlike object is not causal with respect to the graph state
     """  # noqa: E501
     if _is_flow(flowlike):
         flowlike = {key: {value} for key, value in flowlike.items()}

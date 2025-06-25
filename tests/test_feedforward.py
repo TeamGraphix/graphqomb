@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow, check_dag
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_dag, check_flow, dag_from_flow
 from graphix_zx.graphstate import GraphState
 
 
