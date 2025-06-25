@@ -113,10 +113,10 @@ class PauliFrame:
         nodes = graph.physical_nodes
         non_output_nodes = nodes - set(graph.output_node_indices)
 
-        x2x_dag = {}
-        x2z_dag = {}
-        z2x_dag = {}
-        z2z_dag = {}
+        x2x_dag: dict[int, set[int]] = {}
+        x2z_dag: dict[int, set[int]] = {}
+        z2x_dag: dict[int, set[int]] = {}
+        z2z_dag: dict[int, set[int]] = {}
 
         for node in non_output_nodes:
             if graph.meas_bases[node].plane == Plane.XY:
