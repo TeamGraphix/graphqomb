@@ -61,7 +61,7 @@ def qompile(
         msg = "Graph state must be in canonical form."
         raise ValueError(msg)
     if zflow is None:
-        zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
+        zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
 
     pauli_frame = PauliFrame(graph.physical_nodes, xflow, zflow)

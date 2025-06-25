@@ -101,7 +101,7 @@ def dag_from_flow(
         msg = "Invalid zflow object"
         raise TypeError(msg)
     for node in non_output_nodes:
-        target_nodes = xflow.get(node, set()) | zflow.get(node, set()) - {node}
+        target_nodes = xflow.get(node, set()) | zflow.get(node, set()) - {node}  # remove self-loops
         dag[node] = target_nodes
     for output in output_nodes:
         dag[output] = set()
