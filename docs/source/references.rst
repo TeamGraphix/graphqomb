@@ -12,7 +12,6 @@ Module reference
     feedforward
     focus_flow
     command
-    decoder_backend
     pattern
     pauli_frame
     qompiler

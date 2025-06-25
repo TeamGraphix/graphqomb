@@ -7,8 +7,6 @@ This module provides:
 - `M`: Measurement command.
 - `X`: X correction command.
 - `Z`: Z correction command.
-- `Clifford`: Clifford command.
-- `D`: Decode command.
 - `Command`: Type alias of all commands.
 """
 
@@ -20,8 +18,6 @@ from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from graphix_zx.common import MeasBasis
-    from graphix_zx.decoder_backend import BaseDecoder
-    from graphix_zx.euler import LocalClifford
 
 
 @dataclasses.dataclass
@@ -108,51 +104,7 @@ class Z(_Correction):
         return f"Z: node={self.node}"
 
 
-@dataclasses.dataclass
-class Clifford:
-    """Clifford command.
-
-    Attributes
-    ----------
-    node : `int`
-        The node index to apply the local Clifford.
-    local_clifford : `LocalClifford`
-        The local Clifford to apply
-    """
-
-    node: int
-    local_clifford: LocalClifford
-
-    def __str__(self) -> str:
-        return (
-            f"Clifford: node={self.node}, alpha={self.local_clifford.alpha}, "
-            f"beta={self.local_clifford.beta}, gamma={self.local_clifford.gamma}"
-        )
-
-
-@dataclasses.dataclass
-class D:
-    r"""Decode command.
-
-    Attributes
-    ----------
-    input_cbits : `list`\[`int`\]
-        A list of classical bit indices that will serve as input to the decoder.
-    output_cbits : `list`\[`int`\]
-        A list of classical bit indices that will store the decoding results.
-    decoder : `BaseDecoder`
-        The decoder instance used to process the input classical bits and produce the output.
-    """
-
-    input_cbits: list[int]
-    output_cbits: list[int]
-    decoder: BaseDecoder
-
-    def __str__(self) -> str:
-        return f"D: input_cbits={self.input_cbits}, output_cbits={self.output_cbits}, decoder={self.decoder}"
-
-
 if sys.version_info >= (3, 10):
-    Command = N | E | M | X | Z | Clifford | D
+    Command = N | E | M | X | Z
 else:
-    Command = Union[N, E, M, X, Z, Clifford, D]
+    Command = Union[N, E, M, X, Z]
