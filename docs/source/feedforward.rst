@@ -11,4 +11,6 @@ Functions
 
 .. autofunction:: graphix_zx.feedforward.dag_from_flow
 
-.. autofunction:: graphix_zx.feedforward.check_causality
+.. autofunction:: graphix_zx.feedforward.check_dag
+
+.. autofunction:: graphix_zx.feedforward.check_flow
