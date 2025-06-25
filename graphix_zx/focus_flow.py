@@ -98,11 +98,9 @@ def focus_gflow(
     else:
         msg = "Invalid flowlike object"
         raise TypeError(msg)
-    if not check_flow(graph, flowlike):
-        msg = "The flowlike object is not causal with respect to the graph state"
-        raise ValueError(msg)
+    check_flow(graph, flowlike)
     outputs = graph.physical_nodes - set(flowlike)
-    dag = dag_from_flow(flowlike, graph)
+    dag = dag_from_flow(graph, flowlike)
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # children first
 
