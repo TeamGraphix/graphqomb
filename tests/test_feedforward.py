@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow
 from graphix_zx.graphstate import GraphState
 
 
@@ -66,13 +66,13 @@ def test_dag_from_flow_cycle_detection() -> None:
         dag_from_flow(cyclic_flow, graphstate, check=True)
 
 
-def test_check_causality_false_for_cycle() -> None:
+def test_check_flow_false_for_cycle() -> None:
     graphstate, node1, node2 = two_node_graph()
     cyclic_flow = {node1: node2, node2: node1}
-    assert not check_causality(graphstate, cyclic_flow)
+    assert not check_flow(graphstate, cyclic_flow)
 
 
-def test_check_causality_true_for_acyclic() -> None:
+def test_check_flow_true_for_acyclic() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
-    assert check_causality(graphstate, flow)
+    assert check_flow(graphstate, flow)
