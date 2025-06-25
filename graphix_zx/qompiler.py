@@ -4,7 +4,6 @@ note: `compile` is used in Python built-in functions, so we use `qompile` instea
 
 This module provides:
 
-- `initialize_pauli_frame`: Initialize a Pauli frame from the graph and correction flows.
 - `qompile_from_flow`: Compile graph state into pattern with gflow.
 - `qompile_from_xz_flow`: Compile graph state into pattern with x/z correction flows.
 - `qompile`: Compile graph state into pattern with correctionmaps and directed acyclic graph.
@@ -16,7 +15,6 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Command, E, M, N, X, Z
-from graphix_zx.common import Plane
 from graphix_zx.feedforward import check_causality
 from graphix_zx.graphstate import odd_neighbors
 from graphix_zx.pattern import Pattern
@@ -28,59 +26,6 @@ if TYPE_CHECKING:
 
     from graphix_zx.graphstate import BaseGraphState
 
-
-def initialize_pauli_frame(
-    graph: BaseGraphState,
-    x_flow: Mapping[int, AbstractSet[int]],
-    z_flow: Mapping[int, AbstractSet[int]],
-) -> PauliFrame:
-    r"""Initialize a Pauli frame from the graph and correction flows.
-
-    Parameters
-    ----------
-    graph : `BaseGraphState`
-        The graph state.
-    x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        The X correction flow.
-    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        The Z correction flow.
-
-    Returns
-    -------
-    `PauliFrame`
-        The initialized Pauli frame.
-    """
-    nodes = graph.physical_nodes
-    non_output_nodes = nodes - set(graph.output_node_indices)
-
-    x2x_dag = {}
-    x2z_dag = {}
-    z2x_dag = {}
-    z2z_dag = {}
-
-    for node in non_output_nodes:
-        if graph.meas_bases[node].plane == Plane.XY:
-            # Z byproduct
-            z2x_dag[node] = set(x_flow.get(node, set()))
-            z2z_dag[node] = set(z_flow.get(node, set()))
-        elif graph.meas_bases[node].plane == Plane.XZ:
-            # Y byproduct
-            x2x_dag[node] = set(x_flow.get(node, set()))
-            x2z_dag[node] = set(z_flow.get(node, set()))
-            z2x_dag[node] = set(x_flow.get(node, set()))
-            z2z_dag[node] = set(z_flow.get(node, set()))
-        else:
-            # X byproduct
-            x2x_dag[node] = set(x_flow.get(node, set()))
-            x2z_dag[node] = set(z_flow.get(node, set()))
-
-    return PauliFrame(
-        nodes=nodes,
-        x2x_dag=x2x_dag,
-        x2z_dag=x2z_dag,
-        z2x_dag=z2x_dag,
-        z2z_dag=z2z_dag,
-    )
 
 
 def qompile_from_flow(
@@ -142,7 +87,7 @@ def qompile_from_xz_flow(
     `Pattern`
         compiled pattern
     """
-    pauli_frame = initialize_pauli_frame(graph, x_flow, z_flow)
+    pauli_frame = PauliFrame.from_xzflow(graph, x_flow, z_flow)
 
     return qompile(graph, pauli_frame, correct_output=correct_output)
 
