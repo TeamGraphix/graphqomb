@@ -49,6 +49,26 @@ class PauliFrame:
         self.x_pauli = dict.fromkeys(nodes, False)
         self.z_pauli = dict.fromkeys(nodes, False)
 
+    def x_flip(self, node: int) -> None:
+        """Flip the X Pauli mask for the given node
+
+        Parameters
+        ----------
+        node : `int`
+            The node to flip.
+        """
+        self.x_pauli[node] = not self.x_pauli[node]
+
+    def z_flip(self, node: int) -> None:
+        """Flip the Z Pauli mask for the given node
+
+        Parameters
+        ----------
+        node : `int`
+            The node to flip.
+        """
+        self.z_pauli[node] = not self.z_pauli[node]
+
     def meas_flip(self, node: int) -> None:
         """Update the Pauli frame for a measurement flip based on the given correction flows.
 
