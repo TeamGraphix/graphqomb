@@ -90,7 +90,7 @@ class PauliFrame:
             self.z_pauli[target] = not self.z_pauli[target]
 
     def children(self, node: int) -> set[int]:
-        """Get the children of a node in the Pauli frame.
+        r"""Get the children of a node in the Pauli frame.
 
         Parameters
         ----------
