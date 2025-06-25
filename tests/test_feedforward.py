@@ -65,14 +65,14 @@ def test_dag_from_flow_cycle_detection() -> None:
     cyclic_flow = {node1: node2, node2: node1}
 
     dag = dag_from_flow(graphstate, cyclic_flow)
-    with pytest.raises(ValueError, match="Cycle detected in the graph"):
+    with pytest.raises(ValueError, match="Cycle detected in the graph:"):
         check_dag(dag)
 
 
 def test_check_flow_false_for_cycle() -> None:
     graphstate, node1, node2 = two_node_graph()
     cyclic_flow = {node1: node2, node2: node1}
-    with pytest.raises(ValueError, match="Cycle detected in the graph"):
+    with pytest.raises(ValueError, match="Cycle detected in the graph:"):
         check_flow(graphstate, cyclic_flow)
 
 

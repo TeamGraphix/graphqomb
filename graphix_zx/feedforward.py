@@ -92,9 +92,12 @@ def dag_from_flow(
         raise TypeError(msg)
 
     if zflow is None:
-        zflow = {node: odd_neighbors(set(xflow[node]) if flag_flow else xflow[node], graph) for node in xflow}
+        zflow = {node: odd_neighbors({xflow[node]} if flag_flow else xflow[node], graph) for node in xflow}
     for node in non_output_nodes:
-        target_nodes = (set(xflow[node]) if flag_flow else xflow[node]) | zflow[node] - {node}
+        if node in xflow:
+            target_nodes = ({xflow[node]} if flag_flow else xflow[node]) | zflow.get(node, set()) - {node}
+        else:
+            target_nodes = set()
         dag[node] = target_nodes
     for output in output_nodes:
         dag[output] = set()
@@ -118,7 +121,7 @@ def check_dag(dag: Mapping[int, Iterable[int]]) -> None:
     for node, children in dag.items():
         for child in children:
             if node in dag[child]:
-                msg = f"Cycle detected: {node} -> {child}"
+                msg = f"Cycle detected in the graph: {node} -> {child}"
                 raise ValueError(msg)
 
 
