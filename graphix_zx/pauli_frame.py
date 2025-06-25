@@ -89,6 +89,26 @@ class PauliFrame:
         for target in self.z2z_dag[node]:
             self.z_pauli[target] = not self.z_pauli[target]
 
+    def children(self, node: int) -> set[int]:
+        """Get the children of a node in the Pauli frame.
+
+        Parameters
+        ----------
+        node : `int`
+            The node to get children for.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            The set of child nodes.
+        """
+        return (
+            self.x2x_dag.get(node, set())
+            | self.x2z_dag.get(node, set())
+            | self.z2x_dag.get(node, set())
+            | self.z2z_dag.get(node, set())
+        ) - {node}
+
     @staticmethod
     def from_xzflow(
         graph: BaseGraphState,
