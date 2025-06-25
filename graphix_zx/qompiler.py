@@ -4,9 +4,7 @@ note: `compile` is used in Python built-in functions, so we use `qompile` instea
 
 This module provides:
 
-- `qompile_from_flow`: Compile graph state into pattern with gflow.
-- `qompile_from_xz_flow`: Compile graph state into pattern with x/z correction flows.
-- `qompile`: Compile graph state into pattern with correctionmaps and directed acyclic graph.
+- `qompile`: Compile graph state into a pattern with x/z correction flows.
 """
 
 from __future__ import annotations
@@ -27,45 +25,10 @@ if TYPE_CHECKING:
     from graphix_zx.graphstate import BaseGraphState
 
 
-
-def qompile_from_flow(
-    graph: BaseGraphState, gflow: Mapping[int, AbstractSet[int]], *, correct_output: bool = True
-) -> Pattern:
-    r"""Compile graph state into pattern with flowlike object.
-
-    Parameters
-    ----------
-    graph : `BaseGraphState`
-        graph state
-    gflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        flowlike object, which is a mapping from node to its target nodes
-    correct_output : `bool`, optional
-        whether to correct outputs or not. Defaults to True.
-
-    Returns
-    -------
-    `Pattern`
-        compiled pattern
-
-    Raises
-    ------
-    ValueError
-        if the flow is invalid
-    """
-    if not check_causality(graph, gflow):
-        msg = "Invalid flow"
-        raise ValueError(msg)
-
-    # generate corrections
-    x_flow = gflow
-    z_flow = {node: odd_neighbors(gflow[node], graph) for node in gflow}
-    return qompile_from_xz_flow(graph, x_flow, z_flow, correct_output=correct_output)
-
-
-def qompile_from_xz_flow(
+def qompile(
     graph: BaseGraphState,
     x_flow: Mapping[int, AbstractSet[int]],
-    z_flow: Mapping[int, AbstractSet[int]],
+    z_flow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     correct_output: bool = True,
 ) -> Pattern:
@@ -77,8 +40,9 @@ def qompile_from_xz_flow(
         graph state
     x_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         x correction flow
-    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+    z_flow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
+        if `None`, it is generated from `x_flow` by odd neighbors
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
@@ -87,18 +51,29 @@ def qompile_from_xz_flow(
     `Pattern`
         compiled pattern
     """
+    if not check_causality(graph, x_flow):
+        msg = "Invalid x flow"
+        raise ValueError(msg)
+    if z_flow is None:
+        z_flow = {node: odd_neighbors(x_flow[node], graph) for node in x_flow}
+    if not check_causality(graph, z_flow):
+        msg = "Invalid z flow"
+        raise ValueError(msg)
+
     pauli_frame = PauliFrame.from_xzflow(graph, x_flow, z_flow)
 
-    return qompile(graph, pauli_frame, correct_output=correct_output)
+    return _qompile(graph, pauli_frame, correct_output=correct_output)
 
 
-def qompile(
+def _qompile(
     graph: BaseGraphState,
     pauli_frame: PauliFrame,
     *,
     correct_output: bool = True,
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
+
+    note: This is an internal function of `qompile`.
 
     Parameters
     ----------
