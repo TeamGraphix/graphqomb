@@ -54,16 +54,16 @@ def qompile(
     Raises
     ------
     ValueError
-        If the x flow or z flow is invalid with respect to the graph state
+        1. If the graph state is not in canonical form
+        2. If the x flow or z flow is invalid with respect to the graph state
     """
-    if not check_causality(graph, x_flow):
-        msg = "Invalid x flow"
+    if not graph.is_canonical_form():
+        msg = "Graph state must be in canonical form."
         raise ValueError(msg)
     if z_flow is None:
-        z_flow = {node: odd_neighbors(x_flow[node], graph) for node in x_flow}
-    if not check_causality(graph, z_flow):
-        msg = "Invalid z flow"
-        raise ValueError(msg)
+        z_flow = {node: odd_neighbors(x_flow[node], graph) - {node} for node in x_flow}
+        print(z_flow)
+    check_causality(graph, x_flow, z_flow)
 
     pauli_frame = PauliFrame.from_xzflow(graph, x_flow, z_flow)
 
@@ -118,8 +118,6 @@ def _qompile(
     if correct_output:
         commands.extend(X(node=node) for node in graph.output_node_indices)
         commands.extend(Z(node=node) for node in graph.output_node_indices)
-
-    # NOTE: currently, we remove local Clifford commands
 
     return Pattern(
         input_node_indices=graph.input_node_indices,
