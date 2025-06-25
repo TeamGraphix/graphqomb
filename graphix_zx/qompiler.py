@@ -13,7 +13,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Command, E, M, N, X, Z
-from graphix_zx.feedforward import check_flow
+from graphix_zx.feedforward import check_flow, dag_from_flow
 from graphix_zx.graphstate import odd_neighbors
 from graphix_zx.pattern import Pattern
 from graphix_zx.pauli_frame import PauliFrame
@@ -64,7 +64,7 @@ def qompile(
         zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
     check_flow(graph, xflow, zflow)
 
-    pauli_frame = PauliFrame.from_xzflow(graph, xflow, zflow)
+    pauli_frame = PauliFrame(graph.physical_nodes, xflow, zflow)
 
     return _qompile(graph, pauli_frame, correct_output=correct_output)
 
@@ -95,18 +95,8 @@ def _qompile(
     """
     meas_bases = graph.meas_bases
     non_input_nodes = graph.physical_nodes - set(graph.input_node_indices)
-    non_output_nodes = graph.physical_nodes - set(graph.output_node_indices)
 
-    dag = {
-        node: (
-            pauli_frame.x2x_dag.get(node, set())
-            | pauli_frame.x2z_dag.get(node, set())
-            | pauli_frame.z2x_dag.get(node, set())
-            | pauli_frame.z2z_dag.get(node, set())
-        )
-        - {node}
-        for node in non_output_nodes
-    }
+    dag = dag_from_flow(graph, xflow=pauli_frame.xflow, zflow=pauli_frame.zflow)
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # children first
 
