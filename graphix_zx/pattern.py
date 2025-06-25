@@ -15,7 +15,7 @@ import typing
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import Clifford, Command, D, E, M, N, X, Z
+from graphix_zx.command import Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -121,9 +121,11 @@ def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
-        if isinstance(cmd, D) and any(c not in measured for c in cmd.input_cbits):
-            msg = f"D command depends on an output that hasn't been measured yet: {cmd}"
-            raise ValueError(msg)
+            children_nodes = pattern.pauli_frame.children(cmd.node)
+            acausal_children = children_nodes - measured
+            if acausal_children:
+                msg = f"These nodes depend on a unmeasured output: {sorted(acausal_children)}"
+                raise ValueError(msg)
 
 
 def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
@@ -152,7 +154,7 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
             if not set(cmd.nodes).isdisjoint(measured):
                 msg = f"Entanglement operation targets a measured qubit: {cmd}"
                 raise ValueError(msg)
-        elif isinstance(cmd, (N, X, Z, Clifford)):
+        elif isinstance(cmd, (N, X, Z)):
             if cmd.node in measured:
                 msg = f"Operation on a measured qubit: {cmd}"
                 raise ValueError(msg)
@@ -182,7 +184,7 @@ def _ensure_no_unprepared_qubit_operations(pattern: Pattern) -> None:
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
                 msg = f"Entanglement operation targets a qubit that hasn't been prepared yet: {cmd}"
                 raise ValueError(msg)
-        elif isinstance(cmd, (M, X, Z, Clifford)) and cmd.node not in prepared:
+        elif isinstance(cmd, (M, X, Z)) and cmd.node not in prepared:
             msg = f"Operation on a qubit that hasn't been prepared yet: {cmd}"
             raise ValueError(msg)
 
@@ -239,7 +241,7 @@ def print_pattern(
     """
 
     def identity_filter(cmd: Command) -> Command | None:
-        return cmd if isinstance(cmd, (N, E, M, X, Z, D, Clifford)) else None
+        return cmd if isinstance(cmd, (N, E, M, X, Z)) else None
 
     if cmd_filter is None:
         cmd_filter = identity_filter
