@@ -13,7 +13,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import Command, E, M, N, X, Z
-from graphix_zx.feedforward import check_causality
+from graphix_zx.feedforward import check_flow
 from graphix_zx.graphstate import odd_neighbors
 from graphix_zx.pattern import Pattern
 from graphix_zx.pauli_frame import PauliFrame
@@ -62,8 +62,7 @@ def qompile(
         raise ValueError(msg)
     if z_flow is None:
         z_flow = {node: odd_neighbors(x_flow[node], graph) - {node} for node in x_flow}
-        print(z_flow)
-    check_causality(graph, x_flow, z_flow)
+    check_flow(graph, x_flow, z_flow)
 
     pauli_frame = PauliFrame.from_xzflow(graph, x_flow, z_flow)
 

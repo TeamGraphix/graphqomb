@@ -3,7 +3,8 @@
 This module provides:
 
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
-- `check_causality`: Check if the flowlike object is causal with respect to the graph state.
+- `check_dag`: Check if a directed acyclic graph (DAG) does not contain a cycle.
+- `check_flow`: Check if the flowlike object is causal with respect to the graph state.
 """
 
 from __future__ import annotations
@@ -54,7 +55,9 @@ def _is_gflow(flowlike: Mapping[int, Any]) -> TypeGuard[Mapping[int, AbstractSet
 
 
 def dag_from_flow(
-    graph: BaseGraphState, xflow: Mapping[int, int] | Mapping[int, AbstractSet[int]], zflow: Mapping[int, int] | Mapping[int, AbstractSet[int]] | None = None
+    graph: BaseGraphState,
+    xflow: Mapping[int, int] | Mapping[int, AbstractSet[int]],
+    zflow: Mapping[int, int] | Mapping[int, AbstractSet[int]] | None = None,
 ) -> dict[int, set[int]]:
     r"""Construct a directed acyclic graph (DAG) from a flowlike object.
 
@@ -79,7 +82,7 @@ def dag_from_flow(
     """  # noqa: E501
     dag = {}
     output_nodes = set(graph.output_node_indices)
-    non_output_nodes  = graph.physical_nodes - output_nodes
+    non_output_nodes = graph.physical_nodes - output_nodes
     if _is_flow(xflow):
         flag_flow = True
     elif _is_gflow(xflow):
@@ -99,13 +102,18 @@ def dag_from_flow(
     return dag
 
 
-def _check_dag(dag: Mapping[int, Iterable[int]]) -> None:
+def check_dag(dag: Mapping[int, Iterable[int]]) -> None:
     r"""Check if a directed acyclic graph (DAG) does not contain a cycle.
 
     Parameters
     ----------
     dag : `collections.abc.Mapping`\[`int`, `collections.abc.Iterable`\[`int`\]\]
         directed acyclic graph
+
+    Raises
+    ------
+    ValueError
+        If the flowlike object is not causal with respect to the graph state
     """
     for node, children in dag.items():
         for child in children:
@@ -114,7 +122,11 @@ def _check_dag(dag: Mapping[int, Iterable[int]]) -> None:
                 raise ValueError(msg)
 
 
-def check_causality(graph: BaseGraphState, xflow: Mapping[int, int] | Mapping[int, AbstractSet[int]], zflow: Mapping[int, int] | Mapping[int, AbstractSet[int]] | None = None) -> None:
+def check_flow(
+    graph: BaseGraphState,
+    xflow: Mapping[int, int] | Mapping[int, AbstractSet[int]],
+    zflow: Mapping[int, int] | Mapping[int, AbstractSet[int]] | None = None,
+) -> None:
     r"""Check if the flowlike object is causal with respect to the graph state.
 
     Parameters
@@ -125,11 +137,6 @@ def check_causality(graph: BaseGraphState, xflow: Mapping[int, int] | Mapping[in
         The  X correction flow (flow and gflow are included)
     zflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         The  Z correction flow. If `None`, it is generated from `xflow` by odd neighbors.
-
-    Raises
-    ------
-    ValueError
-        If the flowlike object is not causal with respect to the graph state
     """  # noqa: E501
     dag = dag_from_flow(graph, xflow, zflow)
-    _check_dag(dag)
+    check_dag(dag)
