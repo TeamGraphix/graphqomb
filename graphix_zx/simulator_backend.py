@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import abc
+from abc import ABC
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ class BaseSimulatorBackend(ABC):
     """Base class for simulator backends."""
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def num_qubits(self) -> int:
         """Get the number of qubits in the state.
 
@@ -30,7 +31,7 @@ class BaseSimulatorBackend(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
+    @abc.abstractmethod
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
         r"""Evolve the state by applying an operator to a subset of qubits.
 
@@ -43,7 +44,7 @@ class BaseSimulatorBackend(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
+    @abc.abstractmethod
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
         """Measure a qubit in a given measurement basis.
 
