@@ -75,7 +75,7 @@ class StateVector(BaseSimulatorBackend):
         operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (range(len(qubits), 2 * len(qubits)), qubits)
-        self.state = np.tensordot(operator, self.state, axes=axes)
+        self.state = np.tensordot(operator, self.state, axes=axes).astype(np.complex128)
 
         self.state = np.moveaxis(self.state, range(len(qubits)), qubits)
 
@@ -97,7 +97,7 @@ class StateVector(BaseSimulatorBackend):
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
         self.state = self.state.reshape([2] * self.num_qubits)
-        self.state = np.tensordot(basis_vector.conjugate(), self.state, axes=(0, qubit))
+        self.state = np.tensordot(basis_vector.conjugate(), self.state, axes=(0, qubit)).astype(np.complex128)
         self.state = self.state.reshape(2 ** (self.num_qubits - 1))
 
         self.num_qubits -= 1
@@ -131,7 +131,7 @@ class StateVector(BaseSimulatorBackend):
         other : `StateVector`
             other state vector
         """
-        self.state = np.kron(self.state, other.state)
+        self.state = np.kron(self.state, other.state).astype(np.complex128)
         self.num_qubits += other.num_qubits
 
     def normalize(self) -> None:
@@ -215,8 +215,8 @@ class StateVector(BaseSimulatorBackend):
         operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (range(len(qubits), 2 * len(qubits)), qubits)
-        state = np.tensordot(operator, state, axes=axes)
+        state = np.tensordot(operator, state, axes=axes).astype(np.complex128)
 
         state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self.num_qubits)
 
-        return float(np.dot(self.state.conjugate(), state) / self.norm**2)
+        return float(np.dot(self.state.conjugate(), state) / self.norm()**2)
