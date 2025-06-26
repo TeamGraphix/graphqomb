@@ -233,4 +233,4 @@ class StateVector(BaseSimulatorBackend):
 
         state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self._num_qubits)
 
-        return np.real(np.dot(self.state.conjugate(), state) / self.norm() ** 2)
+        return float(np.real(np.dot(self.state.conjugate(), state) / self.norm() ** 2))
