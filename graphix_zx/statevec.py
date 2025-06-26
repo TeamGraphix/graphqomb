@@ -33,21 +33,11 @@ CZ_TENSOR = np.asarray(
 
 
 class StateVector(BaseSimulatorBackend):
-    r"""State vector representation.
-
-    Attributes
-    ----------
-    state : `numpy.typing.NDArray`\[`numpy.complex128`\]
-        The state vector as a numpy array.
-
-    Properties
-    ----------
-    num_qubits : `int`
-        The number of qubits in the state vector.
-    """
+    r"""State vector representation."""
 
     _num_qubits: int
     state: NDArray[np.complex128]
+    """The state vector as a numpy array."""
 
     def __init__(self, num_qubits: int, state: NDArray[np.complex128] | None = None) -> None:
         self._num_qubits = num_qubits
@@ -117,7 +107,7 @@ class StateVector(BaseSimulatorBackend):
         self._num_qubits -= 1
 
     def add_node(self, num_qubits: int) -> None:
-        """Add |+> state to the end of state vector.
+        """Add plus state to the end of state vector.
 
         Parameters
         ----------
