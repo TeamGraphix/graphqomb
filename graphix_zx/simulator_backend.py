@@ -25,20 +25,20 @@ class BaseSimulatorBackend(ABC):
 
         Returns
         -------
-        int
+        `int`
             The number of qubits in the state.
         """
         raise NotImplementedError
 
     @abstractmethod
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
-        """Evolve the state by applying an operator to a subset of qubits.
+        r"""Evolve the state by applying an operator to a subset of qubits.
 
         Parameters
         ----------
-        operator : NDArray
+        operator : `numpy.typing.NDArray`\[`numpy.complex128`\]
             The operator to apply.
-        qubits : Sequence[int]
+        qubits : `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
         raise NotImplementedError
@@ -49,11 +49,11 @@ class BaseSimulatorBackend(ABC):
 
         Parameters
         ----------
-        qubit : int
+        qubit : `int`
             The qubit to measure.
-        meas_basis : MeasBasis
+        meas_basis : `MeasBasis`
             The measurement basis to use.
-        result : int
+        result : `int`
             The measurement result.
         """
         raise NotImplementedError
