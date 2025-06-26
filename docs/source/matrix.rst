@@ -10,3 +10,5 @@ Functions
 ---------
 
 .. autofunction:: graphix_zx.matrix.is_unitary
+
+.. autofunction:: graphix_zx.matrix.is_hermitian
