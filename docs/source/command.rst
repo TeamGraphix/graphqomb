@@ -24,12 +24,6 @@ Command Classes
 .. autoclass:: graphix_zx.command.Z
     :members:
 
-.. autoclass:: graphix_zx.command.Clifford
-    :members:
-
-.. autoclass:: graphix_zx.command.D
-    :members:
-
 Type Alias
 ----------
 

@@ -12,7 +12,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 from graphix_zx.common import Plane
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_causality, dag_from_flow
+from graphix_zx.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow
 from graphix_zx.graphstate import odd_neighbors
 
 if TYPE_CHECKING:
@@ -88,8 +88,6 @@ def focus_gflow(
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    ValueError
-        if the flowlike object is not causal with respect to the graph state
     """  # noqa: E501
     if _is_flow(flowlike):
         flowlike = {key: {value} for key, value in flowlike.items()}
@@ -98,12 +96,11 @@ def focus_gflow(
     else:
         msg = "Invalid flowlike object"
         raise TypeError(msg)
-    if not check_causality(graph, flowlike):
-        msg = "The flowlike object is not causal with respect to the graph state"
-        raise ValueError(msg)
+    check_flow(graph, flowlike)
     outputs = graph.physical_nodes - set(flowlike)
-    dag = dag_from_flow(flowlike, graph)
+    dag = dag_from_flow(graph, flowlike)
     topo_order = list(TopologicalSorter(dag).static_order())
+    topo_order.reverse()  # children first
 
     for output in outputs:
         topo_order.remove(output)
