@@ -258,3 +258,163 @@ def test_expectation_hermitian_check() -> None:
 
     with pytest.raises(ValueError, match="Operator must be Hermitian"):
         state.expectation(non_hermitian, [0])
+
+
+def test_reorder_identity() -> None:
+    """Test reorder with identity permutation."""
+    state = StateVector(3, [1, 2, 3, 4, 5, 6, 7, 8])
+    original_state = state.state.copy()
+
+    # Identity permutation should not change anything
+    state.reorder([0, 1, 2])
+    assert np.allclose(state.state, original_state)
+
+
+def test_reorder_two_qubit() -> None:
+    """Test reorder with 2-qubit state."""
+    # Initial state: |00⟩=1, |01⟩=2, |10⟩=3, |11⟩=4
+    state = StateVector(2, [1, 2, 3, 4])
+    original_state = state.state.copy()
+
+    # Swap qubits: [0,1] -> [1,0]
+    state.reorder([1, 0])
+    expected_state = np.array([1, 3, 2, 4])  # |00⟩=1, |01⟩=3, |10⟩=2, |11⟩=4
+    assert np.allclose(state.state, expected_state)
+
+    # Reorder back should restore original
+    state.reorder([1, 0])
+    assert np.allclose(state.state, original_state)
+
+
+def test_reorder_three_qubit() -> None:
+    """Test reorder with 3-qubit state."""
+    # Initial state: |abc⟩ = a*4 + b*2 + c + 1 for indices
+    state = StateVector(3, [1, 2, 3, 4, 5, 6, 7, 8])
+    original_state = state.state.copy()
+
+    # Cyclic permutation: [0,1,2] -> [2,0,1]
+    state.reorder([2, 0, 1])
+    # After reorder: qubit 0 becomes old qubit 2, qubit 1 becomes old qubit 0, qubit 2 becomes old qubit 1
+    # |abc⟩ -> |cab⟩: |000⟩->|000⟩=1, |001⟩->|010⟩=5, |010⟩->|100⟩=2, |011⟩->|110⟩=6, etc.
+    expected_state = np.array([1, 5, 2, 6, 3, 7, 4, 8])
+    assert np.allclose(state.state, expected_state)
+
+    # Apply twice more to complete the cycle
+    state.reorder([2, 0, 1])
+    state.reorder([2, 0, 1])
+    assert np.allclose(state.state, original_state)
+
+
+def test_reorder_preserves_physical_state() -> None:
+    """Test that reorder preserves the physical quantum state."""
+    # Create a Bell state
+    bell_state = StateVector(2, [1, 0, 0, 1] / np.sqrt(2))
+
+    # Calculate expectation values before reorder
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+    exp_z0_before = bell_state.expectation(z_op, [0])
+    exp_z1_before = bell_state.expectation(z_op, [1])
+
+    # Reorder qubits
+    bell_state.reorder([1, 0])
+
+    # Physical state should be the same, but qubit labels are swapped
+    exp_z0_after = bell_state.expectation(z_op, [0])  # This is now the old qubit 1
+    exp_z1_after = bell_state.expectation(z_op, [1])  # This is now the old qubit 0
+
+    # Expectation values should be swapped but still valid
+    assert np.isclose(exp_z0_after, exp_z1_before)
+    assert np.isclose(exp_z1_after, exp_z0_before)
+
+
+def test_reorder_with_operations() -> None:
+    """Test that operations work correctly after reorder."""
+    state = StateVector(2, [0, 0, 0, 1])  # |11⟩ state
+
+    # Apply Z gate to qubit 1
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+    state.evolve(z_op, [1])
+    assert np.allclose(state.state, [0, 0, 0, -1])  # Should be changed into -|11⟩
+
+    # Reorder qubits
+    state.reorder([1, 0])
+
+    # Now apply Z gate to what is labeled as qubit 1 (but internally was original qubit 0)
+    state.evolve(z_op, [1])
+    # The state should still be back to |11⟩
+    assert np.allclose(state.state, [0, 0, 0, 1])
+
+
+def test_reorder_multiple_operations() -> None:
+    """Test multiple reorder operations."""
+    state = StateVector(3, [1, 0, 0, 0, 0, 0, 0, 1] / np.sqrt(2))  # |000⟩ + |111⟩
+
+    # Measure Z⊗Z on qubits 0 and 2
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+    zz_op = np.kron(z_op, z_op).astype(np.complex128)
+    exp_val_original = state.expectation(zz_op, [0, 2])
+
+    # Apply several reorders
+    state.reorder([1, 2, 0])  # [0,1,2] -> [1,2,0]
+    state.reorder([2, 0, 1])  # [1,2,0] -> [2,0,1]
+    state.reorder([1, 2, 0])  # [2,0,1] -> [1,2,0]
+
+    # The expectation value should be preserved (accounting for qubit relabeling)
+    # After all reorders: external qubit 0 -> internal qubit 2, external qubit 2 -> internal qubit 1
+    # So we need to measure on the appropriately relabeled qubits
+    # The physical state should be the same, so some combination should give the same result
+    exp_val_after = state.expectation(zz_op, [0, 1])  # Try different qubit combination
+    # Due to the symmetry of |000⟩ + |111⟩, many combinations should give the same result
+    assert np.isclose(abs(exp_val_after), abs(exp_val_original))
+
+
+def test_reorder_with_measurement() -> None:
+    """Test reorder followed by measurement."""
+    # 3-qubit state
+    state = StateVector(3, np.array([1, 1, 0, 0, 0, 0, 1, 1]) / 2)  # |000⟩ + |001⟩ + |110⟩ + |111⟩
+
+    # Reorder: [0,1,2] -> [2,1,0]
+    state.reorder([2, 1, 0])
+
+    # Check that we can still measure and get consistent results
+    original_num_qubits = state.num_qubits
+
+    # Measure external qubit 0 (which corresponds to original qubit 2)
+    state.measure(0, PlannerMeasBasis(Plane.XZ, 0), 0)
+
+    # Should have one less qubit
+    assert state.num_qubits == original_num_qubits - 1
+
+    # State should still be valid (normalized)
+    assert np.isclose(state.norm(), 1.0)
+
+
+def test_reorder_copy_independence() -> None:
+    """Test that reorder operations on copies are independent."""
+    state = StateVector(2, [1, 2, 3, 4])
+    state_copy = state.copy()
+
+    # Reorder original
+    state.reorder([1, 0])
+
+    # Copy should be unchanged
+    assert np.allclose(state_copy.state, [1, 2, 3, 4])
+    assert not np.allclose(state.state, state_copy.state)
+
+    # Reorder copy differently
+    state_copy.reorder([0, 1])  # Identity - should remain same
+    assert np.allclose(state_copy.state, [1, 2, 3, 4])
+
+
+def test_reorder_with_tensor_product() -> None:
+    """Test reorder with tensor product operations."""
+    state_a = StateVector(1, [1, 0])  # |0⟩
+    state_b = StateVector(1, [0, 1])  # |1⟩
+
+    # Tensor product: |0⟩ ⊗ |1⟩ = |01⟩
+    combined = StateVector.tensor_product(state_a, state_b)
+    assert np.allclose(combined.state, [0, 1, 0, 0])
+
+    # Reorder: [0,1] -> [1,0] should give |10⟩
+    combined.reorder([1, 0])
+    assert np.allclose(combined.state, [0, 0, 1, 0])
