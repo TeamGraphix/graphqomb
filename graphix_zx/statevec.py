@@ -18,7 +18,7 @@ from graphix_zx.simulator_backend import BaseSimulatorBackend
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from numpy.typing import NDArray
+    from numpy.typing import ArrayLike, NDArray
 
     from graphix_zx.common import MeasBasis
 
@@ -39,9 +39,10 @@ class StateVector(BaseSimulatorBackend):
     state: NDArray[np.complex128]
     """The state vector as a numpy array."""
 
-    def __init__(self, num_qubits: int, state: NDArray[np.complex128] | None = None) -> None:
+    def __init__(self, num_qubits: int, state: ArrayLike | None = None) -> None:
         self._num_qubits = num_qubits
         if state is not None:
+            state = np.asarray(state, dtype=np.complex128) if state is not None else None
             #  Check if the state is a valid state vector
             if state.ndim != 1 or state.size != 2**num_qubits:
                 msg = f"State vector must be a 1D array of size {2**num_qubits}, got {state.shape}."
