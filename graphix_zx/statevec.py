@@ -127,15 +127,17 @@ class StateVector(BaseSimulatorBackend):
         """
         self.state = np.repeat(self.state, 1 << num_qubits) / np.sqrt(2**num_qubits)
 
-    def entangle(self, qubits: tuple[int, int]) -> None:
+    def entangle(self, qubit1: int, qubit2: int) -> None:
         r"""Entangle two qubits.
 
         Parameters
         ----------
-        qubits : `tuple`\[`int`, `int`\]
-            qubits to entangle, e.g. (0, 1) for qubit 0 and qubit 1
+        qubit1 : `int`
+            first qubit index
+        qubit2 : `int`
+            second qubit index
         """
-        self.evolve(CZ_TENSOR, qubits)
+        self.evolve(CZ_TENSOR, (qubit1, qubit2))
 
     def tensor_product(self, other: StateVector) -> None:
         """Tensor product with other state vector, self ⊗ other.
