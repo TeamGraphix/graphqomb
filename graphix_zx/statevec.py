@@ -35,12 +35,10 @@ CZ_TENSOR = np.asarray(
 class StateVector(BaseSimulatorBackend):
     r"""State vector representation."""
 
-    _num_qubits: int
     state: NDArray[np.complex128]
     """The state vector as a numpy array."""
 
     def __init__(self, num_qubits: int, state: ArrayLike | None = None) -> None:
-        self._num_qubits = num_qubits
         if state is not None:
             state = np.asarray(state, dtype=np.complex128) if state is not None else None
             #  Check if the state is a valid state vector
@@ -60,10 +58,10 @@ class StateVector(BaseSimulatorBackend):
         `int`
             The number of qubits in the state vector.
         """
-        return self._num_qubits
+        return int(np.log2(self.state.size))
 
     def __copy__(self) -> StateVector:
-        return StateVector(self._num_qubits, self.state.copy())
+        return StateVector(self.num_qubits, self.state.copy())
 
     @typing_extensions.override
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
@@ -76,7 +74,7 @@ class StateVector(BaseSimulatorBackend):
         qubits : `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
-        self.state = self.state.reshape([2] * self._num_qubits)
+        self.state = self.state.reshape([2] * self.num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (range(len(qubits), 2 * len(qubits)), qubits)
@@ -84,7 +82,7 @@ class StateVector(BaseSimulatorBackend):
 
         self.state = np.moveaxis(self.state, range(len(qubits)), qubits)
 
-        self.state = self.state.reshape(2**self._num_qubits)
+        self.state = self.state.reshape(2**self.num_qubits)
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -101,11 +99,9 @@ class StateVector(BaseSimulatorBackend):
         """
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
-        self.state = self.state.reshape([2] * self._num_qubits)
+        self.state = self.state.reshape([2] * self.num_qubits)
         self.state = np.tensordot(basis_vector.conjugate(), self.state, axes=(0, qubit)).astype(np.complex128)
-        self.state = self.state.reshape(2 ** (self._num_qubits - 1))
-
-        self._num_qubits -= 1
+        self.state = self.state.reshape(2 ** (self.num_qubits))
 
     def add_node(self, num_qubits: int) -> None:
         """Add plus state to the end of state vector.
@@ -116,7 +112,6 @@ class StateVector(BaseSimulatorBackend):
             number of qubits to add
         """
         self.state = np.kron(self.state, np.ones(2**num_qubits) / np.sqrt(2**num_qubits))
-        self._num_qubits += num_qubits
 
     def entangle(self, qubits: tuple[int, int]) -> None:
         r"""Entangle two qubits.
@@ -137,7 +132,6 @@ class StateVector(BaseSimulatorBackend):
             other state vector
         """
         self.state = np.kron(self.state, other.state).astype(np.complex128)
-        self._num_qubits += other._num_qubits
 
     def normalize(self) -> None:
         """Normalize the state."""
@@ -154,8 +148,8 @@ class StateVector(BaseSimulatorBackend):
         permutation : `collections.abc.Sequence`\[`int`\]
             permutation list
         """
-        axes = [permutation.index(i) for i in range(self._num_qubits)]
-        self.state = self.state.reshape([2] * self._num_qubits)
+        axes = [permutation.index(i) for i in range(self.num_qubits)]
+        self.state = self.state.reshape([2] * self.num_qubits)
         self.state = self.state.transpose(axes).flatten()
 
     def is_isolated(self, qubit: int) -> bool:
@@ -171,7 +165,7 @@ class StateVector(BaseSimulatorBackend):
         `bool`
             True if isolated, False otherwise
         """
-        state = self.state.reshape([2] * self._num_qubits)
+        state = self.state.reshape([2] * self.num_qubits)
         state0 = state.take(indices=0, axis=qubit)
         state1 = state.take(indices=1, axis=qubit)
 
@@ -216,12 +210,12 @@ class StateVector(BaseSimulatorBackend):
         if not is_hermitian(operator):
             msg = "Operator must be Hermitian"
             raise ValueError(msg)
-        state = self.state.reshape([2] * self._num_qubits)
+        state = self.state.reshape([2] * self.num_qubits)
         operator = operator.reshape([2] * len(qubits) * 2)
 
         axes = (range(len(qubits), 2 * len(qubits)), qubits)
         state = np.tensordot(operator, state, axes=axes).astype(np.complex128)
 
-        state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self._num_qubits)
+        state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self.num_qubits)
 
         return float(np.real(np.dot(self.state.conjugate(), state) / self.norm() ** 2))
