@@ -42,9 +42,10 @@ class StateVector(BaseSimulatorBackend):
             if state.ndim != 1 or state.size != 2**num_qubits:
                 msg = f"State vector must be a 1D array of size {2**num_qubits}, got {state.shape}."
                 raise ValueError(msg)
-            self.__state = state
+            self.__state = state.reshape((2,) * num_qubits)
         else:
-            self.__state = np.ones(2**num_qubits, dtype=np.complex128) / np.sqrt(2**num_qubits)
+            init_state = np.ones(2**num_qubits, dtype=np.complex128) / np.sqrt(2**num_qubits)
+            self.__state = init_state.reshape((2,) * num_qubits)
 
         # Internal qubit ordering: maps external qubit index to internal index
         self.__qubit_order = list(range(num_qubits))
@@ -58,7 +59,7 @@ class StateVector(BaseSimulatorBackend):
         `int`
             The number of qubits in the state vector.
         """
-        return int(np.log2(self.__state.size))
+        return len(self.__state.shape)
 
     @property
     def state(self) -> NDArray[np.complex128]:
@@ -71,12 +72,11 @@ class StateVector(BaseSimulatorBackend):
         """
         # If internal order matches external order, return directly
         if self.__qubit_order == list(range(self.num_qubits)):
-            return self.__state.copy()
+            return self.__state.flatten()
 
         # Otherwise, reorder to external qubit order
         axes = [self.__qubit_order.index(i) for i in range(self.num_qubits)]
-        state_view = self.__state.reshape((2,) * self.num_qubits)
-        return state_view.transpose(axes).flatten()
+        return self.__state.transpose(axes).flatten()
 
     def _external_to_internal_qubits(self, external_qubits: Sequence[int]) -> tuple[int, ...]:
         r"""Convert external qubit indices to internal indices.
@@ -138,17 +138,16 @@ class StateVector(BaseSimulatorBackend):
         rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
         perm = internal_qubits + rest
 
-        state_view = self.__state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = self.__state.transpose(perm)
         state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
 
-        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits), copy=False)
+        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits))
 
         new_state = op_view @ state_view
 
         inv_perm = np.argsort(perm)
-        new_state.shape = (2,) * self.num_qubits
-        new_state = new_state.transpose(inv_perm).ravel()
-        self.__state = new_state
+        new_state = new_state.reshape((2,) * self.num_qubits)
+        self.__state = new_state.transpose(inv_perm)
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -168,11 +167,10 @@ class StateVector(BaseSimulatorBackend):
 
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
-        state_reshaped = self.__state.reshape((2,) * self.num_qubits, copy=False)
-        new_state = np.tensordot(basis_vector.conjugate(), state_reshaped, axes=(0, internal_qubit)).astype(
+        new_state = np.tensordot(basis_vector.conjugate(), self.__state, axes=(0, internal_qubit)).astype(
             np.complex128
         )
-        self.__state = new_state.reshape(2 ** (self.num_qubits - 1), copy=False)
+        self.__state = new_state
 
         # Update qubit order: remove the measured qubit
         self.__qubit_order = [q if q < internal_qubit else q - 1 for q in self.__qubit_order if q != internal_qubit]
@@ -187,7 +185,9 @@ class StateVector(BaseSimulatorBackend):
         num_qubits : `int`
             number of qubits to add
         """
-        self.__state = np.repeat(self.__state, 1 << num_qubits) / np.sqrt(2**num_qubits)
+        flat_state = self.__state.flatten()
+        flat_state = np.repeat(flat_state, 1 << num_qubits) / np.sqrt(2**num_qubits)
+        self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
         current_max = max(self.__qubit_order) if self.__qubit_order else -1
         self.__qubit_order.extend(range(current_max + 1, current_max + 1 + num_qubits))
@@ -264,10 +264,10 @@ class StateVector(BaseSimulatorBackend):
         perm = internal_qubits + rest
 
         # Reorder both ⟨ψ| and |ψ⟩ for efficient computation
-        state_view = self.__state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = self.__state.transpose(perm)
         state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
 
-        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits), copy=False)
+        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits))
 
         # Apply operator: O|ψ⟩ (reordered)
         transformed_state = op_view @ state_view
