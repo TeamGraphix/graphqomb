@@ -70,6 +70,24 @@ class StateVector(BaseSimulatorBackend):
         """
         return StateVector(self.num_qubits, self.state.copy())
 
+    @staticmethod
+    def tensor_product(a: StateVector, b: StateVector) -> StateVector:
+        """Tensor product with other state vector, self ⊗ other.
+
+        Parameters
+        ----------
+        a : `StateVector`
+            first state vector
+        b : `StateVector`
+            second state vector
+
+        Returns
+        -------
+        `StateVector`
+            The resulting state vector after tensor product.
+        """
+        return StateVector(a.num_qubits + b.num_qubits, np.kron(a.state, b.state))
+
     @typing_extensions.override
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
         r"""Evolve the state by applying an operator to a subset of qubits.
@@ -138,16 +156,6 @@ class StateVector(BaseSimulatorBackend):
             second qubit index
         """
         self.evolve(CZ_TENSOR, (qubit1, qubit2))
-
-    def tensor_product(self, other: StateVector) -> None:
-        """Tensor product with other state vector, self ⊗ other.
-
-        Parameters
-        ----------
-        other : `StateVector`
-            other state vector
-        """
-        self.state = np.kron(self.state, other.state).astype(np.complex128)
 
     def normalize(self) -> None:
         """Normalize the state."""

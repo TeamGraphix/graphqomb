@@ -119,10 +119,10 @@ def test_measure(state_vector: StateVector) -> None:
 def test_tensor_product(state_vector: StateVector) -> None:
     expected_state = np.asarray([i // 2 for i in range(2 ** (state_vector.num_qubits + 1))]) / np.sqrt(2)
     other_vector = StateVector(1)
-    state_vector.tensor_product(other_vector)
+    result = StateVector.tensor_product(state_vector, other_vector)
 
-    assert state_vector.num_qubits == 4
-    assert np.allclose(state_vector.state, expected_state)
+    assert result.num_qubits == 4
+    assert np.allclose(result.state, expected_state)
 
 
 def test_normalize(state_vector: StateVector) -> None:
