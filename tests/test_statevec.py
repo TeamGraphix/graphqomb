@@ -131,23 +131,6 @@ def test_normalize(state_vector: StateVector) -> None:
     assert np.isclose(state_vector.norm(), expected_norm)
 
 
-# def test_reorder(state_vector: StateVector):
-#     pass
-
-
-def test_is_isolated(plus_state: StateVector) -> None:
-    isolated = plus_state.is_isolated(0)
-    assert isolated
-
-
-def test_is_not_isolated(plus_state: StateVector) -> None:
-    cz = np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
-
-    plus_state.evolve(cz, [0, 1])
-    isolated = plus_state.is_isolated(0)
-    assert not isolated
-
-
 def test_get_norm(state_vector: StateVector) -> None:
     state = np.arange(2**state_vector.num_qubits)
     expected_norm = np.linalg.norm(state)

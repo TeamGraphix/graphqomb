@@ -176,31 +176,6 @@ class StateVector(BaseSimulatorBackend):
         self.state = self.state.reshape([2] * self.num_qubits)
         self.state = self.state.transpose(axes).flatten()
 
-    def is_isolated(self, qubit: int) -> bool:
-        """Check if qubit is isolated(product state).
-
-        Parameters
-        ----------
-        qubit : `int`
-            qubit index
-
-        Returns
-        -------
-        `bool`
-            True if isolated, False otherwise
-        """
-        state = self.state.reshape([2] * self.num_qubits)
-        state0 = state.take(indices=0, axis=qubit)
-        state1 = state.take(indices=1, axis=qubit)
-
-        # normalize
-        state0 /= np.linalg.norm(state0)
-        state1 /= np.linalg.norm(state1)
-
-        match_rate = np.dot(state0.conjugate(), state1)
-
-        return bool(np.isclose(match_rate, 1.0))
-
     def norm(self) -> float:
         """Get norm of state vector.
 
