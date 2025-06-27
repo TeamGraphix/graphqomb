@@ -35,19 +35,19 @@ CZ_TENSOR = np.asarray(
 class StateVector(BaseSimulatorBackend):
     r"""State vector representation."""
 
-    state: NDArray[np.complex128]
-    """The state vector as a numpy array."""
-
     def __init__(self, num_qubits: int, state: ArrayLike | None = None) -> None:
         if state is not None:
-            state = np.asarray(state, dtype=np.complex128) if state is not None else None
+            state = np.asarray(state, dtype=np.complex128)
             #  Check if the state is a valid state vector
             if state.ndim != 1 or state.size != 2**num_qubits:
                 msg = f"State vector must be a 1D array of size {2**num_qubits}, got {state.shape}."
                 raise ValueError(msg)
-            self.state = state
+            self.__state = state
         else:
-            self.state = np.ones(2**num_qubits, dtype=np.complex128) / np.sqrt(2**num_qubits)
+            self.__state = np.ones(2**num_qubits, dtype=np.complex128) / np.sqrt(2**num_qubits)
+
+        # Internal qubit ordering: maps external qubit index to internal index
+        self.__qubit_order = list(range(num_qubits))
 
     @property
     def num_qubits(self) -> int:
@@ -58,7 +58,40 @@ class StateVector(BaseSimulatorBackend):
         `int`
             The number of qubits in the state vector.
         """
-        return int(np.log2(self.state.size))
+        return int(np.log2(self.__state.size))
+
+    @property
+    def state(self) -> NDArray[np.complex128]:
+        r"""Get the state vector in external qubit order.
+
+        Returns
+        -------
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The state vector as a numpy array in external qubit order.
+        """
+        # If internal order matches external order, return directly
+        if self.__qubit_order == list(range(self.num_qubits)):
+            return self.__state.copy()
+
+        # Otherwise, reorder to external qubit order
+        axes = [self.__qubit_order.index(i) for i in range(self.num_qubits)]
+        state_view = self.__state.reshape((2,) * self.num_qubits)
+        return state_view.transpose(axes).flatten()
+
+    def _external_to_internal_qubits(self, external_qubits: Sequence[int]) -> tuple[int, ...]:
+        r"""Convert external qubit indices to internal indices.
+
+        Parameters
+        ----------
+        external_qubits : `collections.abc.Sequence`\[`int`\]
+            External qubit indices.
+
+        Returns
+        -------
+        `tuple`\[`int`, ...\]
+            Internal qubit indices.
+        """
+        return tuple(self.__qubit_order[q] for q in external_qubits)
 
     def copy(self) -> StateVector:
         """Create a copy of the state vector.
@@ -68,7 +101,7 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             A new `StateVector` instance with the same state.
         """
-        return StateVector(self.num_qubits, self.state.copy())
+        return StateVector(self.num_qubits, self.state)
 
     @staticmethod
     def tensor_product(a: StateVector, b: StateVector) -> StateVector:
@@ -99,21 +132,23 @@ class StateVector(BaseSimulatorBackend):
         qubits : `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
-        qubits = tuple(qubits)
-        rest = tuple(i for i in range(self.num_qubits) if i not in qubits)
-        perm = qubits + rest
+        # Convert external qubit indices to internal indices
+        internal_qubits = self._external_to_internal_qubits(qubits)
+        internal_qubits = tuple(internal_qubits)
+        rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
+        perm = internal_qubits + rest
 
-        state_view = self.state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
-        state_view = state_view.reshape(2 ** len(qubits), 2 ** len(rest))  # This sometimes does copy data
+        state_view = self.__state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
 
-        op_view = operator.reshape(2 ** len(qubits), 2 ** len(qubits), copy=False)
+        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits), copy=False)
 
         new_state = op_view @ state_view
 
         inv_perm = np.argsort(perm)
         new_state.shape = (2,) * self.num_qubits
         new_state = new_state.transpose(inv_perm).ravel()
-        self.state = new_state
+        self.__state = new_state
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -128,11 +163,20 @@ class StateVector(BaseSimulatorBackend):
         result : `int`
             The measurement result.
         """
+        # Convert external qubit index to internal index
+        internal_qubit = self.__qubit_order[qubit]
+
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
-        self.state = self.state.reshape([2] * self.num_qubits, copy=False)
-        self.state = np.tensordot(basis_vector.conjugate(), self.state, axes=(0, qubit)).astype(np.complex128)
-        self.state = self.state.reshape(2 ** (self.num_qubits), copy=False)
+        state_reshaped = self.__state.reshape((2,) * self.num_qubits, copy=False)
+        new_state = np.tensordot(basis_vector.conjugate(), state_reshaped, axes=(0, internal_qubit)).astype(
+            np.complex128
+        )
+        self.__state = new_state.reshape(2 ** (self.num_qubits - 1), copy=False)
+
+        # Update qubit order: remove the measured qubit
+        self.__qubit_order = [q if q < internal_qubit else q - 1 for q in self.__qubit_order if q != internal_qubit]
+
         self.normalize()
 
     def add_node(self, num_qubits: int) -> None:
@@ -143,7 +187,10 @@ class StateVector(BaseSimulatorBackend):
         num_qubits : `int`
             number of qubits to add
         """
-        self.state = np.repeat(self.state, 1 << num_qubits) / np.sqrt(2**num_qubits)
+        self.__state = np.repeat(self.__state, 1 << num_qubits) / np.sqrt(2**num_qubits)
+        # Append new qubits to the end of the qubit order
+        current_max = max(self.__qubit_order) if self.__qubit_order else -1
+        self.__qubit_order.extend(range(current_max + 1, current_max + 1 + num_qubits))
 
     def entangle(self, qubit1: int, qubit2: int) -> None:
         r"""Entangle two qubits.
@@ -159,7 +206,7 @@ class StateVector(BaseSimulatorBackend):
 
     def normalize(self) -> None:
         """Normalize the state."""
-        self.state /= np.linalg.norm(self.state)
+        self.__state /= np.linalg.norm(self.__state)
 
     def reorder(self, permutation: Sequence[int]) -> None:
         r"""Permute qubits.
@@ -172,9 +219,9 @@ class StateVector(BaseSimulatorBackend):
         permutation : `collections.abc.Sequence`\[`int`\]
             permutation list
         """
-        axes = [permutation.index(i) for i in range(self.num_qubits)]
-        self.state = self.state.reshape([2] * self.num_qubits)
-        self.state = self.state.transpose(axes).flatten()
+        # Update the internal qubit order only (no state reordering)
+        new_order = [self.__qubit_order[permutation[i]] for i in range(self.num_qubits)]
+        self.__qubit_order = new_order
 
     def norm(self) -> float:
         """Get norm of state vector.
@@ -184,7 +231,7 @@ class StateVector(BaseSimulatorBackend):
         `float`
             norm of state vector
         """
-        return float(np.linalg.norm(self.state))
+        return float(np.linalg.norm(self.__state))
 
     def expectation(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> float:
         r"""Calculate expectation value of operator.
@@ -210,15 +257,17 @@ class StateVector(BaseSimulatorBackend):
             msg = "Operator must be Hermitian"
             raise ValueError(msg)
 
-        qubits = tuple(qubits)
-        rest = tuple(i for i in range(self.num_qubits) if i not in qubits)
-        perm = qubits + rest
+        # Convert external qubit indices to internal indices
+        internal_qubits = self._external_to_internal_qubits(qubits)
+        internal_qubits = tuple(internal_qubits)
+        rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
+        perm = internal_qubits + rest
 
         # Reorder both ⟨ψ| and |ψ⟩ for efficient computation
-        state_view = self.state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
-        state_view = state_view.reshape(2 ** len(qubits), 2 ** len(rest))
+        state_view = self.__state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
 
-        op_view = operator.reshape(2 ** len(qubits), 2 ** len(qubits), copy=False)
+        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits), copy=False)
 
         # Apply operator: O|ψ⟩ (reordered)
         transformed_state = op_view @ state_view
