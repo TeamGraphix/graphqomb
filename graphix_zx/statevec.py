@@ -167,9 +167,7 @@ class StateVector(BaseSimulatorBackend):
 
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
-        new_state = np.tensordot(basis_vector.conjugate(), self.__state, axes=(0, internal_qubit)).astype(
-            np.complex128
-        )
+        new_state = np.tensordot(basis_vector.conjugate(), self.__state, axes=(0, internal_qubit)).astype(np.complex128)
         self.__state = new_state
 
         # Update qubit order: remove the measured qubit
