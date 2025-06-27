@@ -1,8 +1,34 @@
+from collections.abc import Mapping
+
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.statevec import StateVector
+
+
+def kron_n(ops: Mapping[int, NDArray[np.complex128]], num_qubits: int) -> NDArray[np.complex128]:
+    """Compute the Kronecker product of a sequence of operators, filling in identity matrices for missing qubits.
+
+    Parameters
+    ----------
+    ops : Mapping[int, NDArray[np.complex128]]
+        The operators to include in the Kronecker product.
+    num_qubits : int
+        The total number of qubits in the resulting state vector.
+
+    Returns
+    -------
+    NDArray[np.complex128]
+        The resulting Kronecker product as a state vector.
+    """
+    identity = np.eye(2, dtype=np.complex128)
+    mats = [(ops.get(i, identity)) for i in range(num_qubits)]
+    out = mats[0]
+    for m in mats[1:]:
+        out = np.kron(out, m).astype(np.complex128)
+    return out
 
 
 @pytest.fixture
@@ -29,6 +55,51 @@ def test_evolve(state_vector: StateVector) -> None:
     expected_state = np.arange(2**state_vector.num_qubits, dtype=np.complex128)
     expected_state[len(expected_state) // 2 :] *= -1  # apply Z gate to qubit 0
     assert np.allclose(state_vector.state, expected_state)
+
+
+def test_two_qubit_z_on_qubit1() -> None:
+    bell = np.array([1, 0, 0, 1], dtype=np.complex128) / np.sqrt(2)
+    qs = StateVector(2, bell.copy())
+    z = np.diag([1, -1]).astype(np.complex128)
+
+    qs.evolve(z, [1])
+
+    expected = np.array([1, 0, 0, -1], dtype=np.complex128) / np.sqrt(2)
+    assert np.allclose(qs.state, expected)
+
+
+def test_noncontiguous_qubit_selection() -> None:
+    n = 3
+    rng = np.random.default_rng(42)
+    psi0 = rng.normal(size=2**n) + 1j * rng.normal(size=2**n)
+    psi0 /= np.linalg.norm(psi0)
+
+    qs = StateVector(n, psi0.copy())
+
+    h = (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]], dtype=np.complex128)
+    qs.evolve(h, [2])
+
+    u_full = kron_n({2: h}, n)
+    expected = u_full @ psi0
+
+    assert np.allclose(qs.state, expected, atol=1e-12)
+
+
+@pytest.mark.parametrize(("n", "k"), [(3, 1), (3, 2)])
+def test_norm_preserved_random_unitary(n: int, k: int) -> None:
+    rng = np.random.default_rng(123)
+    psi0 = rng.normal(size=2**n) + 1j * rng.normal(size=2**n)
+    psi0 /= np.linalg.norm(psi0)
+
+    a = rng.normal(size=(2**k, 2**k)) + 1j * rng.normal(size=(2**k, 2**k))
+    q, _ = np.linalg.qr(a)
+    u = q.astype(np.complex128)
+
+    qubits = tuple(int(x) for x in sorted(rng.choice(n, k, replace=False).astype(int)))
+    qs = StateVector(n, psi0.copy())
+    qs.evolve(u, list(qubits))
+
+    assert np.allclose(np.linalg.norm(qs.state), 1.0, atol=1e-12)
 
 
 def test_measure(state_vector: StateVector) -> None:
