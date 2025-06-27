@@ -125,7 +125,7 @@ class StateVector(BaseSimulatorBackend):
         num_qubits : `int`
             number of qubits to add
         """
-        self.state = np.kron(self.state, np.ones(2**num_qubits) / np.sqrt(2**num_qubits))
+        self.state = np.repeat(self.state, 1 << num_qubits) / np.sqrt(2**num_qubits)
 
     def entangle(self, qubits: tuple[int, int]) -> None:
         r"""Entangle two qubits.
