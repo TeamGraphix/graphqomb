@@ -199,13 +199,13 @@ def test_expectation_two_qubit_states() -> None:
     assert np.isclose(exp_val_1, 0.0)  # ⟨Bell|Z₁|Bell⟩ = 0
 
     # Two-qubit operator: Z⊗Z
-    zz_op = np.kron(z_op, z_op)
+    zz_op = np.kron(z_op, z_op).astype(np.complex128)
     exp_val_zz = bell_state.expectation(zz_op, [0, 1])
     assert np.isclose(exp_val_zz, 1.0)  # ⟨Bell|Z⊗Z|Bell⟩ = 1
 
     # Two-qubit operator: X⊗X
     x_op = np.array([[0, 1], [1, 0]], dtype=np.complex128)
-    xx_op = np.kron(x_op, x_op)
+    xx_op = np.kron(x_op, x_op).astype(np.complex128)
     exp_val_xx = bell_state.expectation(xx_op, [0, 1])
     assert np.isclose(exp_val_xx, 1.0)  # ⟨Bell|X⊗X|Bell⟩ = 1
 
@@ -217,7 +217,7 @@ def test_expectation_non_contiguous_qubits() -> None:
 
     # Two-qubit operator on qubits 0 and 2
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
-    zz_op = np.kron(z_op, z_op)
+    zz_op = np.kron(z_op, z_op).astype(np.complex128)
     exp_val = state.expectation(zz_op, [0, 2])
     assert np.isclose(exp_val, 1.0)  # ⟨state|Z₀⊗Z₂|state⟩ = 1
 
