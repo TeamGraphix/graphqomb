@@ -112,9 +112,10 @@ class StateVector(BaseSimulatorBackend):
         """
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
-        self.state = self.state.reshape([2] * self.num_qubits)
+        self.state = self.state.reshape([2] * self.num_qubits, copy=False)
         self.state = np.tensordot(basis_vector.conjugate(), self.state, axes=(0, qubit)).astype(np.complex128)
-        self.state = self.state.reshape(2 ** (self.num_qubits))
+        self.state = self.state.reshape(2 ** (self.num_qubits), copy=False)
+        self.normalize()
 
     def add_node(self, num_qubits: int) -> None:
         """Add plus state to the end of state vector.

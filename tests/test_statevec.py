@@ -104,8 +104,9 @@ def test_norm_preserved_random_unitary(n: int, k: int) -> None:
 
 def test_measure(state_vector: StateVector) -> None:
     # Initial state: [0, 1, 2, 3, 4, 5, 6, 7] representing |000⟩, |001⟩, ..., |111⟩
-    # Based on actual behavior, measuring qubit 0 with result 0 gives [0, 1, 2, 3]
-    # This corresponds to selecting states where qubit 1 = 0: |000⟩, |001⟩, |010⟩, |011⟩
+    # Measuring qubit 0 in XZ plane with angle 0 (|0⟩ basis) and result 0
+    # This selects states where qubit 0 = 0: |000⟩, |001⟩, |010⟩, |011⟩
+    # Corresponding to coefficients [0, 1, 2, 3]
     expected_state = np.array([0, 1, 2, 3], dtype=np.complex128)
     expected_state /= np.linalg.norm(expected_state)
 
