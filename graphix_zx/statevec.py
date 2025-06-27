@@ -60,7 +60,14 @@ class StateVector(BaseSimulatorBackend):
         """
         return int(np.log2(self.state.size))
 
-    def __copy__(self) -> StateVector:
+    def copy(self) -> StateVector:
+        """Create a copy of the state vector.
+
+        Returns
+        -------
+        `StateVector`
+            A new `StateVector` instance with the same state.
+        """
         return StateVector(self.num_qubits, self.state.copy())
 
     @typing_extensions.override
