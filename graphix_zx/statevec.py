@@ -209,12 +209,23 @@ class StateVector(BaseSimulatorBackend):
         if not is_hermitian(operator):
             msg = "Operator must be Hermitian"
             raise ValueError(msg)
-        state = self.state.reshape([2] * self.num_qubits)
-        operator = operator.reshape([2] * len(qubits) * 2)
 
-        axes = (range(len(qubits), 2 * len(qubits)), qubits)
-        state = np.tensordot(operator, state, axes=axes).astype(np.complex128)
+        qubits = tuple(qubits)
+        rest = tuple(i for i in range(self.num_qubits) if i not in qubits)
+        perm = qubits + rest
 
-        state = np.moveaxis(state, range(len(qubits)), qubits).reshape(2**self.num_qubits)
+        # Reorder both ⟨ψ| and |ψ⟩ for efficient computation
+        state_view = self.state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = state_view.reshape(2 ** len(qubits), 2 ** len(rest))
 
-        return float(np.real(np.dot(self.state.conjugate(), state) / self.norm() ** 2))
+        op_view = operator.reshape(2 ** len(qubits), 2 ** len(qubits), copy=False)
+
+        # Apply operator: O|ψ⟩ (reordered)
+        transformed_state = op_view @ state_view
+
+        # Calculate expectation value: ⟨ψ|O|ψ⟩ using reordered states
+        # No need to restore original order since both sides are reordered identically
+        norm_squared = np.real(np.vdot(state_view.ravel(), state_view.ravel()))
+        expectation = np.real(np.vdot(state_view.ravel(), transformed_state.ravel()))
+
+        return float(expectation / norm_squared)
