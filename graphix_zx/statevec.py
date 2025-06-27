@@ -81,15 +81,21 @@ class StateVector(BaseSimulatorBackend):
         qubits : `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
-        self.state = self.state.reshape([2] * self.num_qubits)
-        operator = operator.reshape([2] * len(qubits) * 2)
+        qubits = tuple(qubits)
+        rest = tuple(i for i in range(self.num_qubits) if i not in qubits)
+        perm = qubits + rest
 
-        axes = (range(len(qubits), 2 * len(qubits)), qubits)
-        self.state = np.tensordot(operator, self.state, axes=axes).astype(np.complex128)
+        state_view = self.state.reshape((2,) * self.num_qubits, copy=False).transpose(perm)
+        state_view = state_view.reshape(2 ** len(qubits), 2 ** len(rest))  # This sometimes does copy data
 
-        self.state = np.moveaxis(self.state, range(len(qubits)), qubits)
+        op_view = operator.reshape(2 ** len(qubits), 2 ** len(qubits), copy=False)
 
-        self.state = self.state.reshape(2**self.num_qubits)
+        new_state = op_view @ state_view
+
+        inv_perm = np.argsort(perm)
+        new_state.shape = (2,) * self.num_qubits
+        new_state = new_state.transpose(inv_perm).ravel()
+        self.state = new_state
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
