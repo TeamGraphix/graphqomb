@@ -345,29 +345,6 @@ def test_reorder_with_operations() -> None:
     assert np.allclose(state.state, [0, 0, 0, 1])
 
 
-def test_reorder_multiple_operations() -> None:
-    """Test multiple reorder operations."""
-    state = StateVector(3, [1, 0, 0, 0, 0, 0, 0, 1] / np.sqrt(2))  # |000⟩ + |111⟩
-
-    # Measure Z⊗Z on qubits 0 and 2
-    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
-    zz_op = np.kron(z_op, z_op).astype(np.complex128)
-    exp_val_original = state.expectation(zz_op, [0, 2])
-
-    # Apply several reorders
-    state.reorder([1, 2, 0])  # [0,1,2] -> [1,2,0]
-    state.reorder([2, 0, 1])  # [1,2,0] -> [2,0,1]
-    state.reorder([1, 2, 0])  # [2,0,1] -> [1,2,0]
-
-    # The expectation value should be preserved (accounting for qubit relabeling)
-    # After all reorders: external qubit 0 -> internal qubit 2, external qubit 2 -> internal qubit 1
-    # So we need to measure on the appropriately relabeled qubits
-    # The physical state should be the same, so some combination should give the same result
-    exp_val_after = state.expectation(zz_op, [0, 1])  # Try different qubit combination
-    # Due to the symmetry of |000⟩ + |111⟩, many combinations should give the same result
-    assert np.isclose(abs(exp_val_after), abs(exp_val_original))
-
-
 def test_reorder_with_measurement() -> None:
     """Test reorder followed by measurement."""
     # 3-qubit state
@@ -418,3 +395,86 @@ def test_reorder_with_tensor_product() -> None:
     # Reorder: [0,1] -> [1,0] should give |10⟩
     combined.reorder([1, 0])
     assert np.allclose(combined.state, [0, 0, 1, 0])
+
+
+def test_expectation_invariance_under_permutation() -> None:
+    """Test that expectation values are invariant under qubit permutation when operator indices are adjusted."""
+    # Create a 3-qubit entangled state: |000⟩ + |011⟩ + |101⟩ + |110⟩
+    state = StateVector(3, np.array([1, 0, 0, 1, 0, 1, 1, 0]) / 2)
+
+    # Single qubit operators
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+
+    # Test: Single qubit expectation values
+    exp_z0_before = state.expectation(z_op, [0])
+    exp_z1_before = state.expectation(z_op, [1])
+    exp_z2_before = state.expectation(z_op, [2])
+
+    # Apply permutation [0,1,2] -> [2,0,1]
+    state_copy = state.copy()
+    state_copy.reorder([2, 0, 1])
+
+    # After reorder: external qubit 0 was original qubit 2, external qubit 1 was original qubit 0, etc.
+    # So expectation on external qubit i should match original expectation on qubit permutation[i]
+    exp_z0_after = state_copy.expectation(z_op, [0])  # Should match original qubit 2
+    exp_z1_after = state_copy.expectation(z_op, [1])  # Should match original qubit 0
+    exp_z2_after = state_copy.expectation(z_op, [2])  # Should match original qubit 1
+
+    assert np.isclose(exp_z0_after, exp_z2_before)  # external 0 = original 2
+    assert np.isclose(exp_z1_after, exp_z0_before)  # external 1 = original 0
+    assert np.isclose(exp_z2_after, exp_z1_before)  # external 2 = original 1
+
+
+def test_expectation_invariance_asymmetric_state() -> None:
+    """Test expectation invariance with asymmetric states where order matters."""
+    # Create an asymmetric 3-qubit state: |001⟩ + |010⟩
+    state = StateVector(3, np.array([0, 1, 1, 0, 0, 0, 0, 0]) / np.sqrt(2**3))
+
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+
+    # Original expectation values
+    exp_z0_original = state.expectation(z_op, [0])
+    exp_z1_original = state.expectation(z_op, [1])
+    exp_z2_original = state.expectation(z_op, [2])
+
+    # Apply permutation [0,1,2] -> [2,1,0]
+    state.reorder([2, 1, 0])
+
+    # After permutation, the state becomes: |100⟩ + |010⟩ in external qubit order
+    # So external qubit expectation values should be:
+    # - External qubit 0 (was qubit 2): should match original Z_2
+    # - External qubit 1 (was qubit 1): should match original Z_1
+    # - External qubit 2 (was qubit 0): should match original Z_0
+    exp_z0_after = state.expectation(z_op, [0])
+    exp_z1_after = state.expectation(z_op, [1])
+    exp_z2_after = state.expectation(z_op, [2])
+
+    assert np.isclose(exp_z0_after, exp_z2_original)
+    assert np.isclose(exp_z1_after, exp_z1_original)
+    assert np.isclose(exp_z2_after, exp_z0_original)
+
+
+def test_expectation_invariance_mixed_operators() -> None:
+    """Test expectation invariance with mixed X and Z operators."""
+    # Create |+0⟩ state: (|00⟩ + |10⟩)/√2
+    state = StateVector(2, np.array([1, 0, 1, 0]) / np.sqrt(2))
+
+    x_op = np.array([[0, 1], [1, 0]], dtype=np.complex128)
+    z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+    xz_op = np.kron(x_op, z_op).astype(np.complex128)
+    zx_op = np.kron(z_op, x_op).astype(np.complex128)
+
+    # Original expectation values
+    exp_xz_original = state.expectation(xz_op, [0, 1])  # X on qubit 0, Z on qubit 1
+    exp_zx_original = state.expectation(zx_op, [0, 1])  # Z on qubit 0, X on qubit 1
+
+    # Apply swap permutation [0,1] -> [1,0]
+    state.reorder([1, 0])
+
+    # After swap, X⊗Z on external [0,1] should match original Z⊗X on [0,1] (indices swapped)
+    # And Z⊗X on external [0,1] should match original X⊗Z on [0,1] (indices swapped)
+    exp_xz_after = state.expectation(xz_op, [0, 1])
+    exp_zx_after = state.expectation(zx_op, [0, 1])
+
+    assert np.isclose(exp_xz_after, exp_zx_original)
+    assert np.isclose(exp_zx_after, exp_xz_original)
