@@ -103,7 +103,7 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             A new `StateVector` instance with the same state.
         """
-        return StateVector(self.state)
+        return StateVector(self.state.copy())
 
     @staticmethod
     def from_num_qubits(num_qubits: int) -> StateVector:
