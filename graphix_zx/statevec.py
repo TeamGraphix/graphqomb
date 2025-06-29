@@ -107,7 +107,7 @@ class StateVector(BaseSimulatorBackend):
 
     @staticmethod
     def from_num_qubits(num_qubits: int) -> StateVector:
-        """Create a state vector in the |+⟩ state with given number of qubits.
+        """Create a state vector in the plus state with given number of qubits.
 
         Parameters
         ----------
@@ -117,12 +117,12 @@ class StateVector(BaseSimulatorBackend):
         Returns
         -------
         `StateVector`
-            The resulting state vector in the |+⟩ state.
+            The resulting state vector in the plus state.
 
         Raises
         ------
         ValueError
-            If `num_qubits` is negative.
+            If num_qubits is negative.
         """
         if num_qubits < 0:
             msg = "Number of qubits must be non-negative."
