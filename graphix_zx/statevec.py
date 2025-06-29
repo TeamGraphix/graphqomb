@@ -35,17 +35,19 @@ CZ_TENSOR = np.asarray(
 class StateVector(BaseSimulatorBackend):
     r"""State vector representation."""
 
-    def __init__(self, state: ArrayLike | None = None, *, num_qubits: int = 0) -> None:
+    def __init__(self, state: ArrayLike | None = None) -> None:
         if state is not None:
             state = np.asarray(state, dtype=np.complex128)
-            #  Check if the state is a valid state vector
-            if state.ndim != 1 or state.size != 2**num_qubits:
-                msg = f"State vector must be a 1D array of size {2**num_qubits}, got {state.shape}."
+            num_qubits = np.log2(state.size)
+            if not np.isclose(num_qubits, int(num_qubits)):
+                msg = f"State vector size must be a power of 2, got {state.size}."
                 raise ValueError(msg)
+            num_qubits = int(num_qubits)
+            #  Check if the state is a valid state vector
             self.__state = state.reshape((2,) * num_qubits)
         else:
-            init_state = np.ones(2**num_qubits, dtype=np.complex128) / np.sqrt(2**num_qubits)
-            self.__state = init_state.reshape((2,) * num_qubits)
+            num_qubits = 0
+            self.__state = np.zeros((2,) * 0, dtype=np.complex128)
 
         # Internal qubit ordering: maps external qubit index to internal index
         self.__qubit_order = list(range(num_qubits))
@@ -101,7 +103,31 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             A new `StateVector` instance with the same state.
         """
-        return StateVector(self.state, num_qubits=self.num_qubits)
+        return StateVector(self.state)
+
+    @staticmethod
+    def from_num_qubits(num_qubits: int) -> StateVector:
+        """Create a state vector in the |+⟩ state with given number of qubits.
+
+        Parameters
+        ----------
+        num_qubits : `int`
+            Number of qubits in the state vector.
+
+        Returns
+        -------
+        `StateVector`
+            The resulting state vector in the |+⟩ state.
+
+        Raises
+        ------
+        ValueError
+            If `num_qubits` is negative.
+        """
+        if num_qubits < 0:
+            msg = "Number of qubits must be non-negative."
+            raise ValueError(msg)
+        return StateVector(np.full((2,) * num_qubits, 1 / np.sqrt(2**num_qubits), dtype=np.complex128))
 
     @staticmethod
     def tensor_product(a: StateVector, b: StateVector) -> StateVector:
@@ -119,7 +145,7 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             The resulting state vector after tensor product.
         """
-        return StateVector(np.kron(a.state, b.state), num_qubits=a.num_qubits + b.num_qubits)
+        return StateVector(np.kron(a.state, b.state))
 
     @typing_extensions.override
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:

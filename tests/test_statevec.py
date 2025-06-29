@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.statevec import StateVector
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from numpy.typing import NDArray
 
 
 def kron_n(ops: Mapping[int, NDArray[np.complex128]], num_qubits: int) -> NDArray[np.complex128]:
@@ -35,14 +39,14 @@ def kron_n(ops: Mapping[int, NDArray[np.complex128]], num_qubits: int) -> NDArra
 
 @pytest.fixture
 def plus_state() -> StateVector:
-    return StateVector(num_qubits=2)
+    return StateVector.from_num_qubits(2)
 
 
 @pytest.fixture
 def state_vector() -> StateVector:
     num_qubits = 3
     state = np.arange(2**num_qubits, dtype=np.complex128)
-    return StateVector(state, num_qubits=num_qubits)
+    return StateVector(state)
 
 
 def test_initialization(state_vector: StateVector) -> None:
@@ -61,7 +65,7 @@ def test_evolve(state_vector: StateVector) -> None:
 
 def test_two_qubit_z_on_qubit1() -> None:
     bell = np.array([1, 0, 0, 1], dtype=np.complex128) / np.sqrt(2)
-    qs = StateVector(bell.copy(), num_qubits=2)
+    qs = StateVector(bell.copy())
     z = np.diag([1, -1]).astype(np.complex128)
 
     qs.evolve(z, [1])
@@ -76,7 +80,7 @@ def test_noncontiguous_qubit_selection() -> None:
     psi0 = rng.normal(size=2**n) + 1j * rng.normal(size=2**n)
     psi0 /= np.linalg.norm(psi0)
 
-    qs = StateVector(psi0.copy(), num_qubits=n)
+    qs = StateVector(psi0.copy())
 
     h = (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]], dtype=np.complex128)
     qs.evolve(h, [2])
@@ -98,7 +102,7 @@ def test_norm_preserved_random_unitary(n: int, k: int) -> None:
     u = q.astype(np.complex128)
 
     qubits = tuple(int(x) for x in sorted(rng.choice(n, k, replace=False).astype(int)))
-    qs = StateVector(psi0.copy(), num_qubits=n)
+    qs = StateVector(psi0.copy())
     qs.evolve(u, list(qubits))
 
     assert np.allclose(np.linalg.norm(qs.state), 1.0, atol=1e-12)
@@ -120,7 +124,7 @@ def test_measure(state_vector: StateVector) -> None:
 
 def test_tensor_product(state_vector: StateVector) -> None:
     expected_state = np.asarray([i // 2 for i in range(2 ** (state_vector.num_qubits + 1))]) / np.sqrt(2)
-    other_vector = StateVector(num_qubits=1)
+    other_vector = StateVector.from_num_qubits(1)
     result = StateVector.tensor_product(state_vector, other_vector)
 
     assert result.num_qubits == 4
@@ -149,13 +153,13 @@ def test_expectation(plus_state: StateVector) -> None:
 def test_expectation_computational_basis() -> None:
     """Test expectation values with computational basis states."""
     # Test |0⟩ state with Z operator
-    zero_state = StateVector([1, 0], num_qubits=1)
+    zero_state = StateVector([1, 0])
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
     exp_val = zero_state.expectation(z_op, [0])
     assert np.isclose(exp_val, 1.0)  # ⟨0|Z|0⟩ = 1
 
     # Test |1⟩ state with Z operator
-    one_state = StateVector([0, 1], num_qubits=1)
+    one_state = StateVector([0, 1])
     exp_val = one_state.expectation(z_op, [0])
     assert np.isclose(exp_val, -1.0)  # ⟨1|Z|1⟩ = -1
 
@@ -172,13 +176,13 @@ def test_expectation_computational_basis() -> None:
 def test_expectation_superposition_states() -> None:
     """Test expectation values with superposition states."""
     # Test |+⟩ state with X operator
-    plus_state = StateVector([1, 1] / np.sqrt(2), num_qubits=1)
+    plus_state = StateVector([1, 1] / np.sqrt(2))
     x_op = np.array([[0, 1], [1, 0]], dtype=np.complex128)
     exp_val = plus_state.expectation(x_op, [0])
     assert np.isclose(exp_val, 1.0)  # ⟨+|X|+⟩ = 1
 
     # Test |-⟩ state with X operator
-    minus_state = StateVector([1, -1] / np.sqrt(2), num_qubits=1)
+    minus_state = StateVector([1, -1] / np.sqrt(2))
     exp_val = minus_state.expectation(x_op, [0])
     assert np.isclose(exp_val, -1.0)  # ⟨-|X|-⟩ = -1
 
@@ -191,7 +195,7 @@ def test_expectation_superposition_states() -> None:
 def test_expectation_two_qubit_states() -> None:
     """Test expectation values with two-qubit states."""
     # Bell state: (|00⟩ + |11⟩)/√2
-    bell_state = StateVector([1, 0, 0, 1] / np.sqrt(2), num_qubits=2)
+    bell_state = StateVector([1, 0, 0, 1] / np.sqrt(2))
 
     # Single qubit operators
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -215,7 +219,7 @@ def test_expectation_two_qubit_states() -> None:
 def test_expectation_non_contiguous_qubits() -> None:
     """Test expectation values with non-contiguous qubit selection."""
     # 3-qubit state: |000⟩ + |111⟩
-    state = StateVector([1, 0, 0, 0, 0, 0, 0, 1] / np.sqrt(2), num_qubits=3)
+    state = StateVector([1, 0, 0, 0, 0, 0, 0, 1] / np.sqrt(2))
 
     # Two-qubit operator on qubits 0 and 2
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -227,13 +231,13 @@ def test_expectation_non_contiguous_qubits() -> None:
 def test_expectation_unnormalized_state() -> None:
     """Test expectation values with unnormalized states."""
     # Unnormalized |0⟩ state with amplitude 2
-    unnormalized_state = StateVector([2, 0], num_qubits=1)
+    unnormalized_state = StateVector([2, 0])
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
     exp_val = unnormalized_state.expectation(z_op, [0])
     assert np.isclose(exp_val, 1.0)  # Should still give ⟨0|Z|0⟩ = 1
 
     # Unnormalized superposition state
-    unnormalized_plus = StateVector([3, 3], num_qubits=1)  # 3(|0⟩ + |1⟩)
+    unnormalized_plus = StateVector([3, 3])  # 3(|0⟩ + |1⟩)
     x_op = np.array([[0, 1], [1, 0]], dtype=np.complex128)
     exp_val = unnormalized_plus.expectation(x_op, [0])
     assert np.isclose(exp_val, 1.0)  # Should still give ⟨+|X|+⟩ = 1
@@ -242,7 +246,7 @@ def test_expectation_unnormalized_state() -> None:
 def test_expectation_identity_operator() -> None:
     """Test expectation values with identity operator."""
     # Any state should give expectation value 1 for identity
-    state_vector = StateVector([0.5, 0.5, 0.5, 0.5], num_qubits=2)
+    state_vector = StateVector([0.5, 0.5, 0.5, 0.5])
     identity = np.eye(2, dtype=np.complex128)
     exp_val = state_vector.expectation(identity, [0])
     assert np.isclose(exp_val, 1.0)
@@ -255,7 +259,7 @@ def test_expectation_identity_operator() -> None:
 
 def test_expectation_hermitian_check() -> None:
     """Test that non-Hermitian operators raise ValueError."""
-    state = StateVector([1, 0], num_qubits=1)
+    state = StateVector([1, 0])
     non_hermitian = np.array([[1, 1], [0, 1]], dtype=np.complex128)  # Not Hermitian
 
     with pytest.raises(ValueError, match="Operator must be Hermitian"):
@@ -264,7 +268,7 @@ def test_expectation_hermitian_check() -> None:
 
 def test_reorder_identity() -> None:
     """Test reorder with identity permutation."""
-    state = StateVector([1, 2, 3, 4, 5, 6, 7, 8], num_qubits=3)
+    state = StateVector([1, 2, 3, 4, 5, 6, 7, 8])
     original_state = state.state.copy()
 
     # Identity permutation should not change anything
@@ -275,7 +279,7 @@ def test_reorder_identity() -> None:
 def test_reorder_two_qubit() -> None:
     """Test reorder with 2-qubit state."""
     # Initial state: |00⟩=1, |01⟩=2, |10⟩=3, |11⟩=4
-    state = StateVector([1, 2, 3, 4], num_qubits=2)
+    state = StateVector([1, 2, 3, 4])
     original_state = state.state.copy()
 
     # Swap qubits: [0,1] -> [1,0]
@@ -291,7 +295,7 @@ def test_reorder_two_qubit() -> None:
 def test_reorder_three_qubit() -> None:
     """Test reorder with 3-qubit state."""
     # Initial state: |abc⟩ = a*4 + b*2 + c + 1 for indices
-    state = StateVector([1, 2, 3, 4, 5, 6, 7, 8], num_qubits=3)
+    state = StateVector([1, 2, 3, 4, 5, 6, 7, 8])
     original_state = state.state.copy()
 
     # Cyclic permutation: [0,1,2] -> [2,0,1]
@@ -310,7 +314,7 @@ def test_reorder_three_qubit() -> None:
 def test_reorder_preserves_physical_state() -> None:
     """Test that reorder preserves the physical quantum state."""
     # Create a Bell state
-    bell_state = StateVector([1, 0, 0, 1] / np.sqrt(2), num_qubits=2)
+    bell_state = StateVector([1, 0, 0, 1] / np.sqrt(2))
 
     # Calculate expectation values before reorder
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -331,7 +335,7 @@ def test_reorder_preserves_physical_state() -> None:
 
 def test_reorder_with_operations() -> None:
     """Test that operations work correctly after reorder."""
-    state = StateVector([0, 0, 0, 1], num_qubits=2)  # |11⟩ state
+    state = StateVector([0, 0, 0, 1])  # |11⟩ state
 
     # Apply Z gate to qubit 1
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -350,7 +354,7 @@ def test_reorder_with_operations() -> None:
 def test_reorder_with_measurement() -> None:
     """Test reorder followed by measurement."""
     # 3-qubit state
-    state = StateVector([1, 1, 0, 0, 0, 0, 1, 1], num_qubits=3)  # |000⟩ + |001⟩ + |110⟩ + |111⟩
+    state = StateVector([1, 1, 0, 0, 0, 0, 1, 1])  # |000⟩ + |001⟩ + |110⟩ + |111⟩
 
     # Reorder: [0,1,2] -> [2,1,0]
     state.reorder([2, 1, 0])
@@ -370,7 +374,7 @@ def test_reorder_with_measurement() -> None:
 
 def test_reorder_copy_independence() -> None:
     """Test that reorder operations on copies are independent."""
-    state = StateVector([1, 2, 3, 4], num_qubits=2)
+    state = StateVector([1, 2, 3, 4])
     state_copy = state.copy()
 
     # Reorder original
@@ -387,8 +391,8 @@ def test_reorder_copy_independence() -> None:
 
 def test_reorder_with_tensor_product() -> None:
     """Test reorder with tensor product operations."""
-    state_a = StateVector([1, 0], num_qubits=1)  # |0⟩
-    state_b = StateVector([0, 1], num_qubits=1)  # |1⟩
+    state_a = StateVector([1, 0])  # |0⟩
+    state_b = StateVector([0, 1])  # |1⟩
 
     # Tensor product: |0⟩ ⊗ |1⟩ = |01⟩
     combined = StateVector.tensor_product(state_a, state_b)
@@ -402,7 +406,7 @@ def test_reorder_with_tensor_product() -> None:
 def test_expectation_invariance_under_permutation() -> None:
     """Test that expectation values are invariant under qubit permutation when operator indices are adjusted."""
     # Create a 3-qubit entangled state: |000⟩ + |011⟩ + |101⟩ + |110⟩
-    state = StateVector([1, 0, 0, 1, 0, 1, 1, 0], num_qubits=3)
+    state = StateVector([1, 0, 0, 1, 0, 1, 1, 0])
 
     # Single qubit operators
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
@@ -430,7 +434,7 @@ def test_expectation_invariance_under_permutation() -> None:
 def test_expectation_invariance_asymmetric_state() -> None:
     """Test expectation invariance with asymmetric states where order matters."""
     # Create an asymmetric 3-qubit state: |001⟩ + |010⟩
-    state = StateVector(np.array([0, 1, 1, 0, 0, 0, 0, 0]) / np.sqrt(2**3), num_qubits=3)
+    state = StateVector(np.array([0, 1, 1, 0, 0, 0, 0, 0]) / np.sqrt(2**3))
 
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
 
@@ -459,7 +463,7 @@ def test_expectation_invariance_asymmetric_state() -> None:
 def test_expectation_invariance_mixed_operators() -> None:
     """Test expectation invariance with mixed X and Z operators."""
     # Create |+0⟩ state: (|00⟩ + |10⟩)/√2
-    state = StateVector(np.array([1, 0, 1, 0]) / np.sqrt(2), num_qubits=2)
+    state = StateVector(np.array([1, 0, 1, 0]) / np.sqrt(2))
 
     x_op = np.array([[0, 1], [1, 0]], dtype=np.complex128)
     z_op = np.array([[1, 0], [0, -1]], dtype=np.complex128)
