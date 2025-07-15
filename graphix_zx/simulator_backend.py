@@ -101,9 +101,9 @@ class QubitIndexManager:
     def external_to_internal(self, external_qubits: int) -> int: ...
 
     @typing.overload
-    def external_to_internal(self, external_qubits: Sequence[int]) -> list[int]: ...
+    def external_to_internal(self, external_qubits: Sequence[int]) -> tuple[int, ...]: ...
 
-    def external_to_internal(self, external_qubits: int | Sequence[int]) -> int | list[int]:
+    def external_to_internal(self, external_qubits: int | Sequence[int]) -> int | tuple[int, ...]:
         r"""Convert external qubit indices to internal indices.
 
         Parameters
@@ -113,12 +113,12 @@ class QubitIndexManager:
 
         Returns
         -------
-        `int` | `list`\[`int`\]
+        `int` | `tuple`\[`int`, ...\]
             A list of internal qubit indices corresponding to the external ones.
         """
         if isinstance(external_qubits, int):
             return self.__indices[external_qubits]
-        return [self.__indices[q] for q in external_qubits]
+        return tuple(self.__indices[q] for q in external_qubits)
 
 
 # backend for all simulator backends
