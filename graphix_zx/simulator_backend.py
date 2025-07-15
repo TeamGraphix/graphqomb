@@ -1,4 +1,11 @@
-"""The base class for simulator backends."""
+"""The base class for simulator backends.
+
+This module provides:
+
+- `QubitIndexManager`: Manages the mapping of external qubit indices to internal indices
+- `BaseSimulatorBackend`: Abstract base class for simulator backends.
+
+"""
 
 from __future__ import annotations
 
