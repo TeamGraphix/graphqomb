@@ -7,6 +7,7 @@ This module provides:
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -126,7 +127,7 @@ class StateVector(BaseSimulatorBackend):
         if num_qubits < 0:
             msg = "Number of qubits must be non-negative."
             raise ValueError(msg)
-        return StateVector(np.full((2,) * num_qubits, 1 / np.sqrt(2**num_qubits), dtype=np.complex128))
+        return StateVector(np.full((2,) * num_qubits, 1 / math.sqrt(2**num_qubits), dtype=np.complex128))
 
     @staticmethod
     def tensor_product(a: StateVector, b: StateVector) -> StateVector:
@@ -209,7 +210,7 @@ class StateVector(BaseSimulatorBackend):
             number of qubits to add
         """
         flat_state = self.__state.flatten()
-        flat_state = np.repeat(flat_state, 1 << num_qubits) / np.sqrt(2**num_qubits)
+        flat_state = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
         self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
         current_max = max(self.__qubit_order) if self.__qubit_order else -1
