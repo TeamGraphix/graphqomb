@@ -63,7 +63,6 @@ class StateVector(BaseSimulatorBackend):
         """
         return self.__state.ndim
 
-    @property
     def state(self) -> NDArray[np.complex128]:
         r"""Get the state vector in external qubit order.
 
