@@ -36,9 +36,12 @@ CZ_TENSOR = np.asarray(
 class StateVector(BaseSimulatorBackend):
     r"""State vector representation."""
 
-    def __init__(self, state: ArrayLike | None = None, copy: bool = False) -> None:
+    def __init__(self, state: ArrayLike | None = None, *, copy: bool = False) -> None:
         if state is not None:
-            state = np.asarray(state, dtype=np.complex128, copy=copy)
+            if copy:
+                state = np.array(state, dtype=np.complex128)
+            else:
+                state = np.asarray(state, dtype=np.complex128)
             num_qubits = np.log2(state.size)
             if not np.isclose(num_qubits, int(num_qubits)):
                 msg = f"State vector size must be a power of 2, got {state.size}."
@@ -103,7 +106,7 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             A new `StateVector` instance with the same state.
         """
-        return StateVector(self.state, copy=True)
+        return StateVector(self.state(), copy=True)
 
     @staticmethod
     def from_num_qubits(num_qubits: int) -> StateVector:
@@ -145,7 +148,7 @@ class StateVector(BaseSimulatorBackend):
         `StateVector`
             The resulting state vector after tensor product.
         """
-        return StateVector(np.kron(a.state, b.state))
+        return StateVector(np.kron(a.state(), b.state()))
 
     @typing_extensions.override
     def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
