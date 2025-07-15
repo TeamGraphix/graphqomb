@@ -61,7 +61,7 @@ class StateVector(BaseSimulatorBackend):
         `int`
             The number of qubits in the state vector.
         """
-        return len(self.__state.shape)
+        return self.__state.ndim
 
     @property
     def state(self) -> NDArray[np.complex128]:
