@@ -74,11 +74,11 @@ class StateVector(BaseSimulatorBackend):
         """
         # If internal order matches external order, return directly
         if self.__qubit_order == list(range(self.num_qubits)):
-            return self.__state.flatten()
+            return self.__state
 
         # Otherwise, reorder to external qubit order
         axes = [self.__qubit_order.index(i) for i in range(self.num_qubits)]
-        return self.__state.transpose(axes).flatten()
+        return self.__state.transpose(axes)
 
     def _external_to_internal_qubits(self, external_qubits: Sequence[int]) -> tuple[int, ...]:
         r"""Convert external qubit indices to internal indices.
