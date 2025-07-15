@@ -14,7 +14,7 @@ import numpy as np
 import typing_extensions
 
 from graphix_zx.matrix import is_hermitian
-from graphix_zx.simulator_backend import BaseSimulatorBackend
+from graphix_zx.simulator_backend import BaseSimulatorBackend, QubitIndexManager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,7 +51,7 @@ class StateVector(BaseSimulatorBackend):
             self.__state = np.zeros((2,) * 0, dtype=np.complex128)
 
         # Internal qubit ordering: maps external qubit index to internal index
-        self.__qubit_order = list(range(num_qubits))
+        self.__qindex_mng = QubitIndexManager(range(num_qubits))
 
     @property
     def num_qubits(self) -> int:
@@ -73,27 +73,12 @@ class StateVector(BaseSimulatorBackend):
             The state vector as a numpy array in external qubit order.
         """
         # If internal order matches external order, return directly
-        if self.__qubit_order == list(range(self.num_qubits)):
+        if self.__qindex_mng.match(range(self.num_qubits)):
             return self.__state
 
         # Otherwise, reorder to external qubit order
-        axes = [self.__qubit_order.index(i) for i in range(self.num_qubits)]
+        axes = self.__qindex_mng.recovery_permutation()
         return self.__state.transpose(axes)
-
-    def _external_to_internal_qubits(self, external_qubits: Sequence[int]) -> tuple[int, ...]:
-        r"""Convert external qubit indices to internal indices.
-
-        Parameters
-        ----------
-        external_qubits : `collections.abc.Sequence`\[`int`\]
-            External qubit indices.
-
-        Returns
-        -------
-        `tuple`\[`int`, ...\]
-            Internal qubit indices.
-        """
-        return tuple(self.__qubit_order[q] for q in external_qubits)
 
     def copy(self) -> StateVector:
         """Create a copy of the state vector.
@@ -148,19 +133,19 @@ class StateVector(BaseSimulatorBackend):
         return StateVector(np.kron(a.state(), b.state()))
 
     @typing_extensions.override
-    def evolve(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> None:
+    def evolve(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> None:
         r"""Evolve the state by applying an operator to a subset of qubits.
 
         Parameters
         ----------
         operator : `numpy.typing.NDArray`\[`numpy.complex128`\]
             The operator to apply.
-        qubits : `collections.abc.Sequence`\[`int`\]
+        qubits : `int` | `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
         # Convert external qubit indices to internal indices
-        internal_qubits = self._external_to_internal_qubits(qubits)
-        internal_qubits = tuple(internal_qubits)
+        internal_qubits = self.__qindex_mng.external_to_internal(qubits)
+        internal_qubits = tuple(internal_qubits) if isinstance(internal_qubits, list) else (internal_qubits,)
         rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
         perm = internal_qubits + rest
 
@@ -189,7 +174,7 @@ class StateVector(BaseSimulatorBackend):
             The measurement result.
         """
         # Convert external qubit index to internal index
-        internal_qubit = self.__qubit_order[qubit]
+        internal_qubit = self.__qindex_mng.external_to_internal(qubit)
 
         meas_basis = meas_basis.flip() if result else meas_basis
         basis_vector = meas_basis.vector()
@@ -197,7 +182,7 @@ class StateVector(BaseSimulatorBackend):
         self.__state = new_state
 
         # Update qubit order: remove the measured qubit
-        self.__qubit_order = [q if q < internal_qubit else q - 1 for q in self.__qubit_order if q != internal_qubit]
+        self.__qindex_mng.remove_qubit(internal_qubit)
 
         self.normalize()
 
@@ -213,8 +198,7 @@ class StateVector(BaseSimulatorBackend):
         flat_state = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
         self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
-        current_max = max(self.__qubit_order) if self.__qubit_order else -1
-        self.__qubit_order.extend(range(current_max + 1, current_max + 1 + num_qubits))
+        self.__qindex_mng.add_qubits(num_qubits)
 
     def entangle(self, qubit1: int, qubit2: int) -> None:
         r"""Entangle two qubits.
@@ -244,8 +228,7 @@ class StateVector(BaseSimulatorBackend):
             permutation list
         """
         # Update the internal qubit order only (no state reordering)
-        new_order = [self.__qubit_order[permutation[i]] for i in range(self.num_qubits)]
-        self.__qubit_order = new_order
+        self.__qindex_mng.reorder(permutation)
 
     def norm(self) -> float:
         """Get norm of state vector.
@@ -257,14 +240,14 @@ class StateVector(BaseSimulatorBackend):
         """
         return float(np.linalg.norm(self.__state))
 
-    def expectation(self, operator: NDArray[np.complex128], qubits: Sequence[int]) -> float:
+    def expectation(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> float:
         r"""Calculate expectation value of operator.
 
         Parameters
         ----------
         operator : `numpy.typing.NDArray`\[`numpy.complex128`\]
             Hermitian operator matrix
-        qubits : `collections.abc.Sequence`\[`int`\]
+        qubits : `int` | `collections.abc.Sequence`\[`int`\]
             target qubits
 
         Returns
@@ -282,8 +265,8 @@ class StateVector(BaseSimulatorBackend):
             raise ValueError(msg)
 
         # Convert external qubit indices to internal indices
-        internal_qubits = self._external_to_internal_qubits(qubits)
-        internal_qubits = tuple(internal_qubits)
+        internal_qubits = self.__qindex_mng.external_to_internal(qubits)
+        internal_qubits = tuple(internal_qubits) if isinstance(internal_qubits, list) else (internal_qubits,)
         rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
         perm = internal_qubits + rest
 
