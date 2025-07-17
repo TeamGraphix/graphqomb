@@ -140,6 +140,30 @@ def test_external_to_internal_sequence(manager: QubitIndexManager) -> None:
     assert manager.external_to_internal([1, 0]) == (0, 2)
 
 
+def test_internal_to_external_single(manager: QubitIndexManager) -> None:
+    """Test internal to external conversion for single qubit."""
+    assert manager.internal_to_external(0) == 0
+    assert manager.internal_to_external(1) == 1
+    assert manager.internal_to_external(2) == 2
+
+    # After reordering
+    manager.reorder([2, 0, 1])  # [0, 1, 2] -> [2, 0, 1]
+    assert manager.internal_to_external(0) == 1
+    assert manager.internal_to_external(1) == 2
+    assert manager.internal_to_external(2) == 0
+
+
+def test_internal_to_external_sequence(manager: QubitIndexManager) -> None:
+    """Test internal to external conversion for sequence of qubits."""
+    assert manager.internal_to_external([0, 1, 2]) == (0, 1, 2)
+    assert manager.internal_to_external([2, 0]) == (2, 0)
+
+    # After reordering
+    manager.reorder([2, 0, 1])  # [0, 1, 2] -> [2, 0, 1]
+    assert manager.internal_to_external([0, 1, 2]) == (1, 2, 0)
+    assert manager.internal_to_external([1, 0]) == (2, 1)
+
+
 def test_complex_operations() -> None:
     """Test complex sequence of operations."""
     manager = QubitIndexManager([0, 1])

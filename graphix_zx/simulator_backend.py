@@ -124,6 +124,30 @@ class QubitIndexManager:
             return self.__indices[external_qubits]
         return tuple(self.__indices[q] for q in external_qubits)
 
+    @typing.overload
+    def internal_to_external(self, internal_qubits: int) -> int: ...
+
+    @typing.overload
+    def internal_to_external(self, internal_qubits: Sequence[int]) -> tuple[int, ...]: ...
+
+    def internal_to_external(self, internal_qubits: int | Sequence[int]) -> int | tuple[int, ...]:
+        r"""Convert internal qubit indices to external indices.
+
+        Parameters
+        ----------
+        internal_qubits : `int` | `collections.abc.Sequence`\[`int`\]
+            A sequence of internal qubit indices.
+
+        Returns
+        -------
+        `int` | `tuple`\[`int`, ...\]
+            A list of external qubit indices corresponding to the internal ones.
+        """
+        inverse_perm = self.inverse_permutation()
+        if isinstance(internal_qubits, int):
+            return inverse_perm[internal_qubits]
+        return tuple(inverse_perm[q] for q in internal_qubits)
+
 
 # backend for all simulator backends
 class BaseSimulatorBackend(ABC):
