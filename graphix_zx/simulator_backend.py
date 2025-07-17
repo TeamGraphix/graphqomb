@@ -96,7 +96,10 @@ class QubitIndexManager:
         `list`\[`int`\]
             A sequence of indices that maps the current order back to the original order.
         """
-        return [self.__indices.index(i) for i in range(len(self.__indices))]
+        inverse_perm = [0] * len(self.__indices)
+        for i, index in enumerate(self.__indices):
+            inverse_perm[index] = i
+        return inverse_perm
 
     @typing.overload
     def external_to_internal(self, external_qubits: int) -> int: ...
