@@ -38,7 +38,7 @@ class QubitIndexManager:
         num_qubits : `int`
             The number of qubits to add.
         """
-        current_max = max(self.__indices) if self.__indices else -1
+        current_max = max(self.__indices, default=-1)
         self.__indices.extend(range(current_max + 1, current_max + 1 + num_qubits))
 
     def remove_qubit(self, qubit: int) -> None:
