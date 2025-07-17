@@ -27,9 +27,9 @@ if TYPE_CHECKING:
 class QubitIndexManager:
     """Manages the mapping of external qubit indices to internal indices."""
 
-    def __init__(self, initial_indices: Sequence[int]) -> None:
+    def __init__(self, num_qubits: int) -> None:
         """Initialize the QubitIndexManager with a list of initial indices."""
-        self.__indices = list(initial_indices)
+        self.__indices = list(range(num_qubits))
 
     def add_qubits(self, num_qubits: int) -> None:
         """Add a specified number of qubits to the index manager.

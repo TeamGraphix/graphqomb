@@ -16,21 +16,17 @@ def manager() -> QubitIndexManager:
     QubitIndexManager
         Initialized manager with indices [0, 1, 2].
     """
-    return QubitIndexManager([0, 1, 2])
+    return QubitIndexManager(3)
 
 
 def test_qubit_index_manager_init() -> None:
     """Test QubitIndexManager initialization."""
-    manager = QubitIndexManager([0, 1, 2])
+    manager = QubitIndexManager(3)
     assert manager.match([0, 1, 2])
 
     # Test with empty list
-    empty_manager = QubitIndexManager([])
+    empty_manager = QubitIndexManager(0)
     assert empty_manager.match([])
-
-    # Test with non-sequential indices
-    non_seq_manager = QubitIndexManager([5, 3, 1])
-    assert non_seq_manager.match([5, 3, 1])
 
 
 def test_add_qubits(manager: QubitIndexManager) -> None:
@@ -46,7 +42,7 @@ def test_add_qubits(manager: QubitIndexManager) -> None:
 
 def test_add_qubits_empty() -> None:
     """Test adding qubits to an empty manager."""
-    manager = QubitIndexManager([])
+    manager = QubitIndexManager(0)
     manager.add_qubits(3)
     assert manager.match([0, 1, 2])
 
@@ -64,7 +60,7 @@ def test_remove_qubit(manager: QubitIndexManager) -> None:
 
 def test_remove_qubit_edge_cases() -> None:
     """Test edge cases for removing qubits."""
-    manager = QubitIndexManager([0, 1, 2, 3])
+    manager = QubitIndexManager(4)
 
     # Remove last qubit
     manager.remove_qubit(3)
@@ -96,7 +92,7 @@ def test_reorder(manager: QubitIndexManager) -> None:
 
 def test_reorder_invalid_length() -> None:
     """Test reorder with invalid permutation length."""
-    manager = QubitIndexManager([0, 1, 2])
+    manager = QubitIndexManager(3)
 
     with pytest.raises(ValueError, match="Permutation length must match the number of indices"):
         manager.reorder([0, 1])  # Too short
@@ -166,7 +162,7 @@ def test_internal_to_external_sequence(manager: QubitIndexManager) -> None:
 
 def test_complex_operations() -> None:
     """Test complex sequence of operations."""
-    manager = QubitIndexManager([0, 1])
+    manager = QubitIndexManager(2)
 
     # Add qubits
     manager.add_qubits(2)  # [0, 1, 2, 3]
@@ -186,7 +182,7 @@ def test_complex_operations() -> None:
 
 def test_edge_case_single_qubit() -> None:
     """Test operations with single qubit."""
-    manager = QubitIndexManager([0])
+    manager = QubitIndexManager(1)
 
     assert manager.match([0])
     assert manager.inverse_permutation() == [0]

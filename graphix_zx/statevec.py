@@ -51,7 +51,7 @@ class StateVector(BaseSimulatorBackend):
             self.__state = np.zeros((2,) * 0, dtype=np.complex128)
 
         # Internal qubit ordering: maps external qubit index to internal index
-        self.__qindex_mng = QubitIndexManager(range(num_qubits))
+        self.__qindex_mng = QubitIndexManager(num_qubits)
 
     @property
     def num_qubits(self) -> int:
