@@ -88,7 +88,7 @@ class QubitIndexManager:
             raise ValueError(msg)
         self.__indices = [self.__indices[i] for i in permutation]
 
-    def recovery_permutation(self) -> list[int]:
+    def inverse_permutation(self) -> list[int]:
         r"""Get the permutation that would recover the original order of indices.
 
         Returns

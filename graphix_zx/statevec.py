@@ -77,7 +77,7 @@ class StateVector(BaseSimulatorBackend):
             return self.__state
 
         # Otherwise, reorder to external qubit order
-        axes = self.__qindex_mng.recovery_permutation()
+        axes = self.__qindex_mng.inverse_permutation()
         return self.__state.transpose(axes)
 
     def copy(self) -> StateVector:

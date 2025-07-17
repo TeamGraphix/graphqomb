@@ -105,14 +105,14 @@ def test_reorder_invalid_length() -> None:
         manager.reorder([0, 1, 2, 3])  # Too long
 
 
-def test_recovery_permutation(manager: QubitIndexManager) -> None:
+def test_inverse_permutation(manager: QubitIndexManager) -> None:
     """Test getting recovery permutation."""
     # Initial state [0, 1, 2], recovery should be [0, 1, 2]
-    assert manager.recovery_permutation() == [0, 1, 2]
+    assert manager.inverse_permutation() == [0, 1, 2]
 
     # After reordering [2, 0, 1] -> indices become [2, 0, 1]
     manager.reorder([2, 0, 1])
-    recovery = manager.recovery_permutation()
+    recovery = manager.inverse_permutation()
     assert recovery == [1, 2, 0]  # To get back to [0, 1, 2] from [2, 0, 1]
 
 
@@ -165,7 +165,7 @@ def test_edge_case_single_qubit() -> None:
     manager = QubitIndexManager([0])
 
     assert manager.match([0])
-    assert manager.recovery_permutation() == [0]
+    assert manager.inverse_permutation() == [0]
     assert manager.external_to_internal(0) == 0
     assert manager.external_to_internal([0]) == (0,)
 
