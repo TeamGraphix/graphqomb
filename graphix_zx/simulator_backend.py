@@ -10,6 +10,7 @@ This module provides:
 from __future__ import annotations
 
 import abc
+import itertools
 import typing
 from abc import ABC
 from typing import TYPE_CHECKING
@@ -64,7 +65,7 @@ class QubitIndexManager:
         `bool`
             True if the current indices match the given order, False otherwise.
         """
-        return self.__indices == list(order)
+        return all(lhs == rhs for lhs, rhs in itertools.zip_longest(self.__indices, order, fillvalue=None))
 
     def reorder(self, permutation: Sequence[int]) -> None:
         r"""Reorder the indices based on a given permutation.
