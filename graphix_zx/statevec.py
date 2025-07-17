@@ -194,7 +194,7 @@ class StateVector(BaseSimulatorBackend):
         num_qubits : `int`
             number of qubits to add
         """
-        flat_state = self.__state.flatten()
+        flat_state = self.__state.ravel()
         flat_state = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
         self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
