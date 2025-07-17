@@ -146,7 +146,7 @@ class StateVector(BaseSimulatorBackend):
         # Convert external qubit indices to internal indices
         internal_qubits = self.__qindex_mng.external_to_internal(qubits)
         internal_qubits = (internal_qubits,) if isinstance(internal_qubits, int) else internal_qubits
-        rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
+        rest = tuple(i for i in range(self.num_qubits) if i not in set(internal_qubits))
         perm = internal_qubits + rest
 
         state_view = self.__state.transpose(perm)
