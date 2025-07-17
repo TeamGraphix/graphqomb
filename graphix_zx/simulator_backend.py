@@ -31,6 +31,17 @@ class QubitIndexManager:
         """Initialize the QubitIndexManager with a list of initial indices."""
         self.__indices = list(range(num_qubits))
 
+    @property
+    def num_qubits(self) -> int:
+        """Get the number of qubits managed by this manager.
+
+        Returns
+        -------
+        `int`
+            The number of qubits.
+        """
+        return len(self.__indices)
+
     def add_qubits(self, num_qubits: int) -> None:
         """Add a specified number of qubits to the index manager.
 
