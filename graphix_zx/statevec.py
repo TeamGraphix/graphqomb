@@ -281,7 +281,7 @@ class StateVector(BaseSimulatorBackend):
 
         # Calculate expectation value: ⟨ψ|O|ψ⟩ using reordered states
         # No need to restore original order since both sides are reordered identically
-        norm_squared = np.real(np.vdot(state_view.ravel(), state_view.ravel()))
-        expectation = np.real(np.vdot(state_view.ravel(), transformed_state.ravel()))
+        norm_squared = np.real(np.vdot(state_view, state_view))
+        expectation = np.real(np.vdot(state_view, transformed_state))
 
         return float(expectation / norm_squared)
