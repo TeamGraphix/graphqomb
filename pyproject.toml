@@ -54,6 +54,12 @@ ignore = [
   "PLR0904", # too-many-public-methods
 ]
 
+[tool.ruff.lint.pylint]
+allow-dunder-method-names = [
+  "__array__",
+  "__asarray__",
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
