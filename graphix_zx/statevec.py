@@ -141,19 +141,17 @@ class StateVector(BaseSimulatorBackend):
         # Convert external qubit indices to internal indices
         internal_qubits = self.__qindex_mng.external_to_internal(qubits)
         internal_qubits = (internal_qubits,) if isinstance(internal_qubits, int) else internal_qubits
+        k = len(internal_qubits)
+
         rest = tuple(i for i in range(self.num_qubits) if i not in set(internal_qubits))
         perm = internal_qubits + rest
-
-        state_view = self.__state.transpose(perm)
-        state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
-
-        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits))
-
-        new_state = op_view @ state_view
-
         inv_perm = np.argsort(perm)
-        new_state = new_state.reshape((2,) * self.num_qubits)
-        self.__state = new_state.transpose(inv_perm)
+
+        op_tensor = operator.reshape((2,) * (2 * k))
+
+        contracted = np.tensordot(op_tensor, self.__state, axes=(tuple(range(k, 2 * k)), internal_qubits))
+
+        self.__state = contracted.transpose(inv_perm)
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -262,21 +260,19 @@ class StateVector(BaseSimulatorBackend):
         # Convert external qubit indices to internal indices
         internal_qubits = self.__qindex_mng.external_to_internal(qubits)
         internal_qubits = (internal_qubits,) if isinstance(internal_qubits, int) else internal_qubits
+        k = len(internal_qubits)
+
         rest = tuple(i for i in range(self.num_qubits) if i not in internal_qubits)
         perm = internal_qubits + rest
 
-        # Reorder both ⟨ψ| and |ψ⟩ for efficient computation
-        state_view = self.__state.transpose(perm)
-        state_view = state_view.reshape(2 ** len(internal_qubits), 2 ** len(rest))
+        state_perm = self.__state.transpose(perm)
+        op_tensor = operator.reshape((2,) * (2 * k))
 
-        op_view = operator.reshape(2 ** len(internal_qubits), 2 ** len(internal_qubits))
+        # Apply operator: O|ψ⟩
+        transformed_state = np.tensordot(op_tensor, state_perm, axes=(tuple(range(k, 2 * k)), tuple(range(k))))
 
-        # Apply operator: O|ψ⟩ (reordered)
-        transformed_state = op_view @ state_view
-
-        # Calculate expectation value: ⟨ψ|O|ψ⟩ using reordered states
-        # No need to restore original order since both sides are reordered identically
-        norm_squared = np.real(np.vdot(state_view, state_view))
-        expectation = np.real(np.vdot(state_view, transformed_state))
+        # Calculate expectation value: ⟨ψ|O|ψ⟩
+        norm_squared = np.real(np.vdot(state_perm, state_perm))
+        expectation = np.real(np.vdot(state_perm, transformed_state))
 
         return float(expectation / norm_squared)
