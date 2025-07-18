@@ -42,7 +42,11 @@ class StateVector(BaseSimulatorBackend):
     def __init__(self, state: ArrayLike | None = None, *, copy: bool | None = None) -> None:
         if state is not None:
             state = np.asarray(state, dtype=np.complex128, copy=copy)
-            num_qubits = (state.size - 1).bit_count()
+            size = state.size
+            if size & (size - 1):
+                msg = "State vector must have a size that is a power of 2."
+                raise ValueError(msg)
+            num_qubits = (size - 1).bit_length()
             self.__state = state.reshape((2,) * num_qubits)
         else:
             num_qubits = 0
