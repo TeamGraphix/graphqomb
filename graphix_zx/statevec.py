@@ -36,6 +36,9 @@ CZ_TENSOR = np.asarray(
 class StateVector(BaseSimulatorBackend):
     r"""State vector representation."""
 
+    __state: NDArray[np.complex128]
+    __qindex_mng: QubitIndexManager
+
     def __init__(self, state: ArrayLike | None = None, *, copy: bool | None = None) -> None:
         if state is not None:
             state = np.asarray(state, dtype=np.complex128, copy=copy)
@@ -150,8 +153,8 @@ class StateVector(BaseSimulatorBackend):
         op_tensor = operator.reshape((2,) * (2 * k))
 
         contracted = np.tensordot(op_tensor, self.__state, axes=(tuple(range(k, 2 * k)), internal_qubits))
-
-        self.__state = contracted.transpose(inv_perm)
+        contracted = contracted.transpose(inv_perm)
+        self.__state = np.asarray(contracted, dtype=np.complex128, copy=False)  # for type checker
 
     @typing_extensions.override
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
