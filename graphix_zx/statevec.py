@@ -162,7 +162,7 @@ class StateVector(BaseSimulatorBackend):
 
         op_tensor = operator.reshape((2,) * (2 * k))
 
-        contracted = np.tensordot(op_tensor, self.__state, axes=(tuple(range(k, 2 * k)), internal_qubits))
+        contracted = np.tensordot(op_tensor, self.__state, axes=(range(k, 2 * k), internal_qubits))
         contracted = contracted.transpose(inv_perm)
         self.__state = np.asarray(contracted, dtype=np.complex128, copy=False)  # for type checker
 
@@ -282,7 +282,7 @@ class StateVector(BaseSimulatorBackend):
         op_tensor = operator.reshape((2,) * (2 * k))
 
         # Apply operator: O|ψ⟩
-        transformed_state = np.tensordot(op_tensor, state_perm, axes=(tuple(range(k, 2 * k)), tuple(range(k))))
+        transformed_state = np.tensordot(op_tensor, state_perm, axes=(range(k, 2 * k), range(k)))
 
         # Calculate expectation value: ⟨ψ|O|ψ⟩
         norm_squared = np.real(np.vdot(state_perm, state_perm))
