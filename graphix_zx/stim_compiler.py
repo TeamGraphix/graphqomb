@@ -24,6 +24,9 @@ def stim_compile(pattern: Pattern) -> str:
         The compiled stim string.
     """
     stim_str = ""
+    measurement_list = []
+    pframe = pattern.pauli_frame
+    detector_group: dict[int, set[int]] = {}
     for cmd in pattern:
         if isinstance(cmd, N):
             # prepare node in |+> state
@@ -34,5 +37,9 @@ def stim_compile(pattern: Pattern) -> str:
         if isinstance(cmd, M):
             # need X/Z switch
             stim_str += f"MX {cmd.node}\n"
+            measurement_list.append(cmd.node)
+
+            for target in pframe.zflow[cmd.node]:
+
 
     return stim_str.strip()
