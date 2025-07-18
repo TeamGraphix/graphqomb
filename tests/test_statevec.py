@@ -138,7 +138,7 @@ def test_normalize(state_vector: StateVector) -> None:
 
 
 def test_get_norm(state_vector: StateVector) -> None:
-    state = np.arange(2**state_vector.num_qubits)
+    state = np.arange(2**state_vector.num_qubits, dtype=np.complex128)
     expected_norm = np.linalg.norm(state)
     assert np.isclose(state_vector.norm(), expected_norm)
 
