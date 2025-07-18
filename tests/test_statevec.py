@@ -94,7 +94,7 @@ def test_noncontiguous_qubit_selection() -> None:
 @pytest.mark.parametrize(("n", "k"), [(3, 1), (3, 2)])
 def test_norm_preserved_random_unitary(n: int, k: int) -> None:
     rng = np.random.default_rng(123)
-    psi0 = rng.normal(size=2**n) + 1j * rng.normal(size=2**n)
+    psi0 = rng.normal(size=(2**n,)) + 1j * rng.normal(size=(2**n,))
     psi0 /= np.linalg.norm(psi0)
 
     a = rng.normal(size=(2**k, 2**k)) + 1j * rng.normal(size=(2**k, 2**k))
