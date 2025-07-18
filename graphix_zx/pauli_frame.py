@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
 
@@ -36,18 +36,24 @@ class PauliFrame:
     zflow: dict[int, set[int]]
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
+    syndrome_parity_group: list[set[int]] | None
 
     def __init__(
         self,
         nodes: AbstractSet[int],
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
+        ancilla_parity_group: Sequence[AbstractSet[int]] | None = None,
     ) -> None:
+        if ancilla_parity_group is None:
+            ancilla_parity_group = []
         self.nodes = set(nodes)
         self.xflow = {node: set(targets) for node, targets in xflow.items()}
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
         self.x_pauli = dict.fromkeys(nodes, False)
         self.z_pauli = dict.fromkeys(nodes, False)
+
+        self.syndrome_parity_group = [set(group) for group in ancilla_parity_group]
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
