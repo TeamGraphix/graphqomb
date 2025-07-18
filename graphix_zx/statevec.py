@@ -19,7 +19,7 @@ from graphix_zx.simulator_backend import BaseSimulatorBackend, QubitIndexManager
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from numpy.typing import ArrayLike, NDArray
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
 
     from graphix_zx.common import MeasBasis
 
@@ -54,6 +54,12 @@ class StateVector(BaseSimulatorBackend):
 
         # Internal qubit ordering: maps external qubit index to internal index
         self.__qindex_mng = QubitIndexManager(num_qubits)
+
+    def __array__(self, dtype: DTypeLike = None) -> NDArray[np.complex128]:
+        return np.array(self.state(), dtype=dtype)
+
+    def __asarray__(self, dtype: DTypeLike = None) -> NDArray[np.complex128]:
+        return np.asarray(self.state(), dtype=dtype)
 
     @property
     def num_qubits(self) -> int:
