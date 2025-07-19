@@ -41,6 +41,10 @@ def stim_compile(  # noqa: C901, PLR0912
     stim_str = ""
     meas_order = []
     pframe = pattern.pauli_frame
+    for input_node in pattern.input_node_indices:
+        stim_str += f"H {input_node}\n"
+        if after_clifford_depolarization > 0.0:
+            stim_str += f"DEPOLARIZE1({after_clifford_depolarization}) {input_node}\n"
     for cmd in pattern:
         if isinstance(cmd, N):
             # prepare node in |+> state
