@@ -10,13 +10,19 @@ if TYPE_CHECKING:
     from graphix_zx.pattern import Pattern
 
 
-def stim_compile(pattern: Pattern) -> str:
+def stim_compile(  # noqa: C901
+    pattern: Pattern, *, after_clifford_depolarization: float = 0.0, before_measure_flip_probability: float = 0.0
+) -> str:
     """Compile a pattern to stim format.
 
     Parameters
     ----------
     pattern : `Pattern`
         The pattern to compile.
+    after_clifford_depolarization : `float`, optional
+        The probability of depolarization after a Clifford gate, by default 0.0.
+    before_measure_flip_probability : `float`, optional
+        The probability of flipping a measurement result before measurement, by default 0.0.
 
     Returns
     -------
@@ -30,11 +36,17 @@ def stim_compile(pattern: Pattern) -> str:
         if isinstance(cmd, N):
             # prepare node in |+> state
             stim_str += f"H {cmd.node}\n"
+            if after_clifford_depolarization > 0.0:
+                stim_str += f"DEPOLARIZE1({after_clifford_depolarization}) {cmd.node}\n"
         if isinstance(cmd, E):
             q1, q2 = cmd.nodes
             stim_str += f"CZ {q1} {q2}\n"
+            if after_clifford_depolarization > 0.0:
+                stim_str += f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n"
         if isinstance(cmd, M):
             # need X/Z switch
+            if before_measure_flip_probability > 0.0:
+                stim_str += f"Z_ERROR({before_measure_flip_probability}) {cmd.node}\n"
             stim_str += f"MX {cmd.node}\n"
             meas_order.append(cmd.node)
 
