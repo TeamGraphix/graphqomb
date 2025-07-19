@@ -63,6 +63,13 @@ def stim_compile(  # noqa: C901, PLR0912
             stim_str += f"MX {cmd.node}\n"
             meas_order.append(cmd.node)
 
+    # measure output qubits
+    for output_node in pattern.output_node_indices:
+        if before_measure_flip_probability > 0.0:
+            stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
+        stim_str += f"MX {output_node}\n"
+        meas_order.append(output_node)
+
     x_check_groups, z_check_groups = pframe.detector_groups()
     for x_checks in x_check_groups:
         target_str = ""
@@ -75,16 +82,9 @@ def stim_compile(  # noqa: C901, PLR0912
             target_str += f"rec[{meas_order.index(z_check)}] "
         stim_str += f"DETECTOR {target_str.strip()}\n"
 
-    # measure output qubits
-    for output_node in pattern.output_node_indices:
-        if before_measure_flip_probability > 0.0:
-            stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
-        stim_str += f"MX {output_node}\n"
-        meas_order.append(output_node)
-
     # logical observables
     if logical_observables is not None:
-        qindex_to_output = {q: i for i, q in enumerate(pattern.output_node_indices)}
+        qindex_to_output = {q: i for i, q in pattern.output_node_indices.items()}
         for log_idx, obs in logical_observables.items():
             target_str = ""
             for q_index in obs:
