@@ -7,22 +7,27 @@ from typing import TYPE_CHECKING
 from graphix_zx.command import E, M, N
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.pattern import Pattern
 
 
 def stim_compile(  # noqa: C901, PLR0912
     pattern: Pattern,
+    logical_observables: Mapping[int, AbstractSet[int]] | None = None,
     *,
     after_clifford_depolarization: float = 0.0,
     before_measure_flip_probability: float = 0.0,
-    logical_observables: dict[int, set[int]] | None = None,
 ) -> str:
-    """Compile a pattern to stim format.
+    r"""Compile a pattern to stim format.
 
     Parameters
     ----------
     pattern : `Pattern`
         The pattern to compile.
+    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`=\]\], optional
+        A mapping from logical observable index to a set of output qubit indices that
     after_clifford_depolarization : `float`, optional
         The probability of depolarization after a Clifford gate, by default 0.0.
     before_measure_flip_probability : `float`, optional
@@ -75,10 +80,11 @@ def stim_compile(  # noqa: C901, PLR0912
 
     # logical observables
     if logical_observables is not None:
+        qindex_to_output = {q: i for i, q in enumerate(pattern.output_node_indices)}
         for log_idx, obs in logical_observables.items():
             target_str = ""
-            for node in obs:
-                target_str += f"rec[{meas_order.index(node)}] "
+            for q_index in obs:
+                target_str += f"rec[{meas_order.index(qindex_to_output[q_index])}] "
             stim_str += f"OBSERVABLE_INCLUDE({log_idx}) {target_str.strip()}\n"
 
     return stim_str.strip()
