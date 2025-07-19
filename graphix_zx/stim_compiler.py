@@ -10,8 +10,12 @@ if TYPE_CHECKING:
     from graphix_zx.pattern import Pattern
 
 
-def stim_compile(  # noqa: C901
-    pattern: Pattern, *, after_clifford_depolarization: float = 0.0, before_measure_flip_probability: float = 0.0
+def stim_compile(  # noqa: C901, PLR0912
+    pattern: Pattern,
+    *,
+    after_clifford_depolarization: float = 0.0,
+    before_measure_flip_probability: float = 0.0,
+    logical_observables: dict[int, set[int]] | None = None,
 ) -> str:
     """Compile a pattern to stim format.
 
@@ -61,5 +65,20 @@ def stim_compile(  # noqa: C901
         for z_check in z_checks:
             target_str += f"rec[{meas_order.index(z_check)}] "
         stim_str += f"DETECTOR {target_str.strip()}\n"
+
+    # measure output qubits
+    for output_node in pattern.output_node_indices:
+        if before_measure_flip_probability > 0.0:
+            stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
+        stim_str += f"MX {output_node}\n"
+        meas_order.append(output_node)
+
+    # logical observables
+    if logical_observables is not None:
+        for log_idx, obs in logical_observables.items():
+            target_str = ""
+            for node in obs:
+                target_str += f"rec[{meas_order.index(node)}] "
+            stim_str += f"OBSERVABLE_INCLUDE({log_idx}) {target_str.strip()}\n"
 
     return stim_str.strip()
