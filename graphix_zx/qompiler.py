@@ -19,17 +19,19 @@ from graphix_zx.pattern import Pattern
 from graphix_zx.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
 
 
-def qompile(
+def qompile(  # noqa: PLR0913
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
+    x_parity_check_group: Sequence[tuple[int, int]] | None = None,
+    z_parity_check_group: Sequence[tuple[int, int]] | None = None,
     correct_output: bool = True,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
@@ -43,6 +45,10 @@ def qompile(
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
         if `None`, it is generated from xflow by odd neighbors
+    x_parity_check_group : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\] | `None`
+        x parity check group for FTQC
+    z_parity_check_group : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\] | `None`
+        z parity check group for FTQC
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
 
@@ -64,7 +70,9 @@ def qompile(
         zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
 
-    pauli_frame = PauliFrame(graph.physical_nodes, xflow, zflow)
+    pauli_frame = PauliFrame(
+        graph, xflow, zflow, x_parity_check_group=x_parity_check_group, z_parity_check_group=z_parity_check_group
+    )
 
     return _qompile(graph, pauli_frame, correct_output=correct_output)
 
