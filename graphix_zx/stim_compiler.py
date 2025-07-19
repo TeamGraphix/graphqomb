@@ -74,12 +74,12 @@ def stim_compile(  # noqa: C901, PLR0912
     for x_checks in x_check_groups:
         target_str = ""
         for x_check in x_checks:
-            target_str += f"rec[{meas_order.index(x_check)}] "
+            target_str += f"rec[{meas_order.index(x_check) - len(meas_order)}] "
         stim_str += f"DETECTOR {target_str.strip()}\n"
     for z_checks in z_check_groups:
         target_str = ""
         for z_check in z_checks:
-            target_str += f"rec[{meas_order.index(z_check)}] "
+            target_str += f"rec[{meas_order.index(z_check) - len(meas_order)}] "
         stim_str += f"DETECTOR {target_str.strip()}\n"
 
     # logical observables
@@ -88,7 +88,7 @@ def stim_compile(  # noqa: C901, PLR0912
         for log_idx, obs in logical_observables.items():
             target_str = ""
             for q_index in obs:
-                target_str += f"rec[{meas_order.index(qindex_to_output[q_index])}] "
+                target_str += f"rec[{meas_order.index(qindex_to_output[q_index]) - len(meas_order)}] "
             stim_str += f"OBSERVABLE_INCLUDE({log_idx}) {target_str.strip()}\n"
 
     return stim_str.strip()
