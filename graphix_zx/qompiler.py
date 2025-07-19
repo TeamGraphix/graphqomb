@@ -30,8 +30,8 @@ def qompile(  # noqa: PLR0913
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
-    x_parity_check_group: Sequence[tuple[int, int]] | None = None,
-    z_parity_check_group: Sequence[tuple[int, int]] | None = None,
+    x_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
+    z_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
     correct_output: bool = True,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
@@ -45,9 +45,9 @@ def qompile(  # noqa: PLR0913
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
         if `None`, it is generated from xflow by odd neighbors
-    x_parity_check_group : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\] | `None`
+    x_parity_check_group : `collections.abc.Sequence`\[`int` | `tuple`\[`int`, `int`\]\] | `None`
         x parity check group for FTQC
-    z_parity_check_group : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\] | `None`
+    z_parity_check_group : `collections.abc.Sequence`\[`int` | `tuple`\[`int`, `int`\]\] | `None`
         z parity check group for FTQC
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True

@@ -38,16 +38,16 @@ class PauliFrame:
     zflow: dict[int, set[int]]
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
-    x_parity_check_group: list[tuple[int, int]]
-    z_parity_check_group: list[tuple[int, int]]
+    x_parity_check_group: list[int | tuple[int, int]]
+    z_parity_check_group: list[int | tuple[int, int]]
 
     def __init__(
         self,
         graphstate: BaseGraphState,
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
-        x_parity_check_group: Sequence[tuple[int, int]] | None = None,
-        z_parity_check_group: Sequence[tuple[int, int]] | None = None,
+        x_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
+        z_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
     ) -> None:
         if x_parity_check_group is None:
             x_parity_check_group = []
@@ -125,9 +125,17 @@ class PauliFrame:
 
         x_groups = []
         z_groups = []
-        for u, v in self.x_parity_check_group:
-            x_groups.append({u, v} | inv_z_flow[v])
-        for u, v in self.z_parity_check_group:
-            z_groups.append({u, v} | inv_z_flow[v])
+        for item in self.x_parity_check_group:
+            if isinstance(item, tuple):
+                u, v = item
+                x_groups.append({u, v} | inv_z_flow[v])
+            else:
+                x_groups.append({item})
+        for item in self.z_parity_check_group:
+            if isinstance(item, tuple):
+                u, v = item
+                z_groups.append({u, v} | inv_z_flow[v])
+            else:
+                z_groups.append({item})
 
         return x_groups, z_groups
