@@ -13,13 +13,15 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
+    from graphix_zx.graphstate import BaseGraphState
+
 
 class PauliFrame:
     r"""Pauli frame tracker.
 
     Attributes
     ----------
-    nodes : `set`\[`int`\]
+    graphstate : `BaseGraphState`
         Set of nodes in the resource graph
     xflow : `dict`\[`int`, `set`\[`int`\]
         X correction flow for each measurement flip
@@ -31,29 +33,34 @@ class PauliFrame:
         Current Z Pauli state for each node
     """
 
-    nodes: set[int]
+    graphstate: BaseGraphState
     xflow: dict[int, set[int]]
     zflow: dict[int, set[int]]
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
-    syndrome_parity_group: list[set[int]] | None
+    x_parity_check_group: list[tuple[int, int]]
+    z_parity_check_group: list[tuple[int, int]]
 
     def __init__(
         self,
-        nodes: AbstractSet[int],
+        graphstate: BaseGraphState,
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
-        ancilla_parity_group: Sequence[AbstractSet[int]] | None = None,
+        x_parity_check_group: Sequence[tuple[int, int]] | None = None,
+        z_parity_check_group: Sequence[tuple[int, int]] | None = None,
     ) -> None:
-        if ancilla_parity_group is None:
-            ancilla_parity_group = []
-        self.nodes = set(nodes)
+        if x_parity_check_group is None:
+            x_parity_check_group = []
+        if z_parity_check_group is None:
+            z_parity_check_group = []
+        self.graphstate = graphstate
         self.xflow = {node: set(targets) for node, targets in xflow.items()}
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
-        self.x_pauli = dict.fromkeys(nodes, False)
-        self.z_pauli = dict.fromkeys(nodes, False)
+        self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
+        self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
 
-        self.syndrome_parity_group = [set(group) for group in ancilla_parity_group]
+        self.x_parity_check_group = list(x_parity_check_group)
+        self.z_parity_check_group = list(z_parity_check_group)
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
@@ -102,3 +109,25 @@ class PauliFrame:
             The set of child nodes.
         """
         return (self.xflow.get(node, set()) | self.zflow.get(node, set())) - {node}
+
+    def detector_groups(self) -> tuple[list[set[int]], list[set[int]]]:
+        r"""Get the X and Z parity check groups.
+
+        Returns
+        -------
+        `tuple`\[`list`\[`set`\[`int`\]\], `list`\[`set`\[`int`\]\]\]
+            The X and Z parity check groups.
+        """
+        inv_z_flow: dict[int, set[int]] = {node: set() for node in self.graphstate.physical_nodes}
+        for node, targets in self.zflow.items():
+            for target in targets:
+                inv_z_flow[target].add(node)
+
+        x_groups = []
+        z_groups = []
+        for u, v in self.x_parity_check_group:
+            x_groups.append({u, v} | inv_z_flow[v])
+        for u, v in self.z_parity_check_group:
+            z_groups.append({u, v} | inv_z_flow[v])
+
+        return x_groups, z_groups
