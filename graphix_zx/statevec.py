@@ -58,9 +58,6 @@ class StateVector(BaseSimulatorBackend):
     def __array__(self, dtype: DTypeLike = None) -> NDArray[np.complex128]:
         return np.array(self.state(), dtype=dtype)
 
-    def __asarray__(self, dtype: DTypeLike = None) -> NDArray[np.complex128]:
-        return np.asarray(self.state(), dtype=dtype)
-
     @property
     def num_qubits(self) -> int:
         """Get the number of qubits in the state vector.

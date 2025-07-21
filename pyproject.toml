@@ -57,7 +57,6 @@ ignore = [
 [tool.ruff.lint.pylint]
 allow-dunder-method-names = [
   "__array__",
-  "__asarray__",
 ]
 
 [tool.ruff.lint.pydocstyle]
