@@ -139,3 +139,36 @@ class PauliFrame:
                 z_groups.append({item})
 
         return x_groups, z_groups
+
+    def logical_observables_group(self, target_nodes: AbstractSet[int]) -> set[int]:
+        r"""Get the logical observables group for the given target nodes.
+
+        Parameters
+        ----------
+        target_nodes : `collections.abc.Set`\[`int`\]
+            The target nodes to get the logical observables group for.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            The logical observables group for the given target nodes.
+        """
+        # NOTE: This logic assumes that all the measurements are X-based.
+        group = set()
+        inv_z_flow: dict[int, set[int]] = {node: set() for node in self.graphstate.physical_nodes}
+        for node, targets in self.zflow.items():
+            for target in targets:
+                inv_z_flow[target].add(node)
+        for node in target_nodes:
+            untracked = set()
+            tracked = set()
+            group.add(node)
+            untracked.add(node)
+            while untracked:
+                current = untracked.pop()
+                for parent in inv_z_flow[current]:
+                    group.add(parent)
+                    if parent not in tracked:
+                        untracked.add(parent)
+                tracked.add(current)
+        return group
