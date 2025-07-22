@@ -56,7 +56,7 @@ class StateVector(BaseSimulatorBackend):
         self.__qindex_mng = QubitIndexManager(num_qubits)
 
     def __array__(self, dtype: DTypeLike = None, copy: bool | None = None) -> NDArray[np.complex128]:
-        return np.array(self.state(), dtype=dtype, copy=copy)
+        return np.asarray(self.state(), dtype=dtype, copy=copy)
 
     @property
     def num_qubits(self) -> int:

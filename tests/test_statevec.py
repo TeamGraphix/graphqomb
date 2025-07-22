@@ -484,3 +484,50 @@ def test_expectation_invariance_mixed_operators() -> None:
 
     assert np.isclose(exp_xz_after, exp_zx_original)
     assert np.isclose(exp_zx_after, exp_xz_original)
+
+
+def test_array_method() -> None:
+    """Test the __array__ method for numpy array conversion."""
+    # Test basic conversion
+    state = np.array([1, 2, 3, 4], dtype=np.complex128)
+    sv = StateVector(state)
+
+    # Convert to numpy array
+    arr = np.array(sv)
+    assert isinstance(arr, np.ndarray)
+    assert arr.dtype == np.complex128
+    assert np.allclose(arr.flatten(), state)
+
+    # Test with different state
+    plus_state = StateVector.from_num_qubits(2)  # |++⟩ state
+    plus_arr = np.array(plus_state)
+    expected = np.full(4, 0.5, dtype=np.complex128)  # All amplitudes are 1/2
+    assert np.allclose(plus_arr.flatten(), expected)
+
+
+def test_array_method_with_dtype() -> None:
+    """Test __array__ method with different dtype specifications."""
+    state = np.array([1, 2, 3, 4], dtype=np.complex128)
+    sv = StateVector(state)
+
+    # Test with explicit dtype
+    arr_complex64 = np.array(sv, dtype=np.complex64)
+    assert arr_complex64.dtype == np.complex64
+    assert np.allclose(arr_complex64.flatten(), state.astype(np.complex64))
+
+    # Test with float64 dtype (should keep real part only)
+    arr_float = np.array(sv, dtype=np.float64)
+    assert arr_float.dtype == np.float64
+    assert np.allclose(arr_float.flatten(), state.real.astype(np.float64))
+
+
+def test_array_method_preserves_shape() -> None:
+    """Test that __array__ method preserves the tensor structure for multi-qubit states."""
+    # 3-qubit state
+    state = StateVector(np.arange(8, dtype=np.complex128))
+    arr = np.array(state)
+
+    # Should be able to reshape to tensor form
+    tensor_form = arr.reshape((2, 2, 2))
+    expected_tensor = np.arange(8, dtype=np.complex128).reshape((2, 2, 2))
+    assert np.allclose(tensor_form, expected_tensor)
