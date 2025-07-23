@@ -21,13 +21,13 @@ def test_is_flow_true() -> None:
 
 
 def test_is_flow_false_if_mixed_types() -> None:
-    mixed = {0: 1, 1: {2}}
+    mixed: dict[int, int | set[int]] = {0: 1, 1: {2}}
     assert not _is_flow(mixed)
     assert not _is_gflow(mixed)
 
 
 def test_is_gflow_true() -> None:
-    gflow = {0: {1}, 1: set()}
+    gflow: dict[int, set[int]] = {0: {1}, 1: set()}
     assert _is_gflow(gflow)
     assert not _is_flow(gflow)
 
@@ -44,7 +44,7 @@ def test_dag_from_flow_basic_flow() -> None:
 
 def test_dag_from_flow_basic_gflow() -> None:
     graphstate, node1, node2 = two_node_graph()
-    gflow = {node1: {node2}, node2: set()}
+    gflow: dict[int, set[int]] = {node1: {node2}, node2: set()}
 
     dag = dag_from_flow(graphstate, gflow)
     check_dag(dag)
@@ -55,7 +55,7 @@ def test_dag_from_flow_basic_gflow() -> None:
 
 def test_dag_from_flow_invalid_type_raises() -> None:
     graphstate, node1, node2 = two_node_graph()
-    invalid = {node1: node2, node2: {node2}}  # mixed types
+    invalid: dict[int, int | set[int]] = {node1: node2, node2: {node2}}  # mixed types
     with pytest.raises(TypeError):
         dag_from_flow(graphstate, invalid)  # type: ignore[arg-type]
 

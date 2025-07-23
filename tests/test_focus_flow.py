@@ -14,7 +14,7 @@ def graphstate() -> GraphState:
 
 def test_update_gflow_selects_minimal_node() -> None:
     """_update_gflow must XOR with the *earliest* node in topo_order."""
-    gflow = {0: {1}, 1: {2}, 2: set()}
+    gflow: dict[int, set[int]] = {0: {1}, 1: {2}, 2: set()}
     _update_gflow(0, gflow, s_k=[2, 1], topo_order=[0, 1, 2])
     assert gflow[0] == {1, 2}
 

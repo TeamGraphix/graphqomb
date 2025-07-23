@@ -80,7 +80,7 @@ def dag_from_flow(
     TypeError
         If the flowlike object is not a Flow or GFlow
     """  # noqa: E501
-    dag = {}
+    dag: dict[int, set[int]] = {}
     output_nodes = set(graph.output_node_indices)
     non_output_nodes = graph.physical_nodes - output_nodes
     if _is_flow(xflow):
