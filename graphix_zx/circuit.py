@@ -205,44 +205,44 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     graph = GraphState()
     gflow = {}
 
-    front_nodes = []  # list index  corresponds to qubit index
-    num_nodes = 0
+    qindex2front_nodes: dict[int, int] = {}
+    qid_ex2in: dict[int, int] = {}
 
     # input nodes
     for i in range(circuit.num_qubits):
-        graph.add_physical_node(num_nodes, is_input=True)
-        graph.set_q_index(num_nodes, i)
-        front_nodes.append(num_nodes)
-        num_nodes += 1
+        node = graph.add_physical_node()
+        qindex = graph.register_input(node)
+        qindex2front_nodes[qindex] = node
+        qid_ex2in[i] = qindex
 
     for instruction in circuit.get_instructions():
         if isinstance(instruction, J):
-            graph.add_physical_node(num_nodes)
-            graph.add_physical_edge(front_nodes[instruction.qubit], num_nodes)
-            graph.set_meas_basis(front_nodes[instruction.qubit], PlannerMeasBasis(Plane.XY, -instruction.angle))
-            graph.set_q_index(num_nodes, instruction.qubit)
+            new_node = graph.add_physical_node()
+            graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
+            graph.assign_meas_basis(
+                qindex2front_nodes[qid_ex2in[instruction.qubit]], PlannerMeasBasis(Plane.XY, -instruction.angle)
+            )
 
-            gflow[front_nodes[instruction.qubit]] = {num_nodes}
-            front_nodes[instruction.qubit] = num_nodes
-
-            num_nodes += 1
+            gflow[qindex2front_nodes[qid_ex2in[instruction.qubit]]] = {new_node}
+            qindex2front_nodes[instruction.qubit] = new_node
 
         elif isinstance(instruction, CZ):
-            graph.add_physical_edge(front_nodes[instruction.qubits[0]], front_nodes[instruction.qubits[1]])
+            graph.add_physical_edge(
+                qindex2front_nodes[qid_ex2in[instruction.qubits[0]]],
+                qindex2front_nodes[qid_ex2in[instruction.qubits[1]]],
+            )
         elif isinstance(instruction, PhaseGadget):
-            graph.add_physical_node(num_nodes)
-            graph.set_meas_basis(num_nodes, PlannerMeasBasis(Plane.YZ, instruction.angle))
+            new_node = graph.add_physical_node()
+            graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
             for qubit in instruction.qubits:
-                graph.add_physical_edge(front_nodes[qubit], num_nodes)
+                graph.add_physical_edge(qindex2front_nodes[qid_ex2in[qubit]], new_node)
 
-            gflow[num_nodes] = {num_nodes}
-
-            num_nodes += 1
+            gflow[new_node] = {new_node}
         else:
             msg = f"Invalid instruction {instruction=}"
             raise TypeError(msg)
 
-    for node in front_nodes:
-        graph.set_output(node)
+    for qindex, node in qindex2front_nodes.items():
+        graph.register_output(node, qindex)
 
     return graph, gflow
