@@ -33,7 +33,7 @@ from __future__ import annotations
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NewType
 
 import numpy as np
 
@@ -227,11 +227,13 @@ class PhaseGadget(MultiGate):
 
 
 if sys.version_info >= (3, 10):
-    UnitGate = J | CZ | PhaseGadget
+    UnitGate = NewType("UnitGate", J | CZ | PhaseGadget)
+    """Unit gate type"""
 else:
     from typing import Union
 
-    UnitGate = Union[J, CZ, PhaseGadget]
+    UnitGate = NewType("UnitGate", Union[J, CZ, PhaseGadget])
+    """Unit gate type"""
 
 
 @dataclass(frozen=True)
@@ -431,7 +433,9 @@ class H(SingleGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             H gate matrix.
         """
-        array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray([[1, 1], [1, -1]], dtype=np.complex128)
+        array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray(
+            [[1, 1], [1, -1]], dtype=np.complex128
+        )
         return array
 
 
