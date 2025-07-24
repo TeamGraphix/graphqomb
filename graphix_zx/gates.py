@@ -33,7 +33,7 @@ from __future__ import annotations
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -227,10 +227,14 @@ class PhaseGadget(MultiGate):
 
 
 if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+
     UnitGate: TypeAlias = J | CZ | PhaseGadget
     """Unit gate type"""
 else:
     from typing import Union
+
+    from typing_extensions import TypeAlias
 
     UnitGate: TypeAlias = Union[J, CZ, PhaseGadget]
     """Unit gate type"""
