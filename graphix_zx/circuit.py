@@ -4,7 +4,7 @@ This module provides:
 
 - `BaseCircuit`: An abstract base class for quantum circuits.
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
-- `MacroCircuit`: A class for circuits that include macro instructions.
+- `Circuit`: A class for circuits that include macro instructions.
 - `circuit2graph`: A function that converts a circuit to a graph state and gflow.
 """
 
@@ -48,7 +48,7 @@ class BaseCircuit(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_instructions(self) -> list[UnitGate]:
+    def instructions(self) -> list[UnitGate]:
         r"""Get the list of instructions in the circuit.
 
         Returns
@@ -86,7 +86,7 @@ class MBQCCircuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    def get_instructions(self) -> list[UnitGate]:
+    def instructions(self) -> list[UnitGate]:
         r"""Get the list of instructions in the circuit.
 
         Returns
@@ -160,7 +160,7 @@ class MacroCircuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    def get_instructions(self) -> list[UnitGate]:
+    def instructions(self) -> list[UnitGate]:
         r"""Get the list of instructions in the circuit.
 
         Returns
@@ -215,12 +215,13 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
         qindex2front_nodes[qindex] = node
         qid_ex2in[i] = qindex
 
-    for instruction in circuit.get_instructions():
+    for instruction in circuit.instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
             graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
             graph.assign_meas_basis(
-                qindex2front_nodes[qid_ex2in[instruction.qubit]], PlannerMeasBasis(Plane.XY, -instruction.angle)
+                qindex2front_nodes[qid_ex2in[instruction.qubit]],
+                PlannerMeasBasis(Plane.XY, -instruction.angle),
             )
 
             gflow[qindex2front_nodes[qid_ex2in[instruction.qubit]]] = {new_node}
