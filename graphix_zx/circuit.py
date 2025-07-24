@@ -28,11 +28,6 @@ class BaseCircuit(ABC):
     This class defines the interface for quantum circuit objects.
     It enforces implementation of core methods that must be present
     in any subclass representing a specific type of quantum circuit.
-
-    Attributes
-    ----------
-    num_qubits : `int`
-        The number of qubits in the circuit.
     """
 
     @property
@@ -60,13 +55,7 @@ class BaseCircuit(ABC):
 
 
 class MBQCCircuit(BaseCircuit):
-    """A circuit class composed solely of a unit gate set.
-
-    Attributes
-    ----------
-    num_qubits : `int`
-        The number of qubits in the circuit.
-    """
+    """A circuit class composed solely of a unit gate set."""
 
     __num_qubits: int
     __gate_instructions: list[UnitGate]
@@ -133,7 +122,7 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions.append(PhaseGadget(qubits=list(qubits), angle=angle))
 
 
-class MacroCircuit(BaseCircuit):
+class Circuit(BaseCircuit):
     """A class for circuits that include macro instructions.
 
     Attributes
@@ -189,7 +178,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
 
     Parameters
     ----------
-    circuit : BaseCircuit
+    circuit : `BaseCircuit`
         The quantum circuit to convert.
 
     Returns
@@ -218,7 +207,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     for instruction in circuit.instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
-            graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
+            graph.add_physical_edge(
+                qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node
+            )
             graph.assign_meas_basis(
                 qindex2front_nodes[qid_ex2in[instruction.qubit]],
                 PlannerMeasBasis(Plane.XY, -instruction.angle),
@@ -234,7 +225,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
             )
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
-            graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
+            graph.assign_meas_basis(
+                new_node, PlannerMeasBasis(Plane.YZ, instruction.angle)
+            )
             for qubit in instruction.qubits:
                 graph.add_physical_edge(qindex2front_nodes[qid_ex2in[qubit]], new_node)
 
