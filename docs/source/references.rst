@@ -5,6 +5,7 @@ Module reference
     :maxdepth: 2
 
     common
+    circuit
     simulator_backend
     statevec
     euler
