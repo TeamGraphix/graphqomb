@@ -207,9 +207,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     for instruction in circuit.instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
-            graph.add_physical_edge(
-                qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node
-            )
+            graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
             graph.assign_meas_basis(
                 qindex2front_nodes[qid_ex2in[instruction.qubit]],
                 PlannerMeasBasis(Plane.XY, -instruction.angle),
@@ -225,9 +223,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
             )
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
-            graph.assign_meas_basis(
-                new_node, PlannerMeasBasis(Plane.YZ, instruction.angle)
-            )
+            graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
             for qubit in instruction.qubits:
                 graph.add_physical_edge(qindex2front_nodes[qid_ex2in[qubit]], new_node)
 
