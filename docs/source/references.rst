@@ -9,7 +9,7 @@ Module reference
     simulator_backend
     statevec
     euler
-    matrix
+    matrix_utility
     graphstate
     random_objects
     feedforward

@@ -1,5 +1,5 @@
-Matrix
-======
+Matrix Utilities
+================
 
 :mod:`graphix_zx.matrix` module
 +++++++++++++++++++++++++++++++
