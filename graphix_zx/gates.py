@@ -163,7 +163,9 @@ class CZ(TwoQubitGate):
         """
         return [self]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301 to align with pyright checks
+    def matrix(  # noqa: PLR6301
+        self,
+    ) -> NDArray[np.complex128]:
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -171,7 +173,10 @@ class CZ(TwoQubitGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             Matrix representation of the gate.
         """
-        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]], dtype=np.complex128)
+        return np.asarray(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]],
+            dtype=np.complex128,
+        )
 
 
 @dataclass(frozen=True)
@@ -205,15 +210,13 @@ class PhaseGadget(MultiGate):
     def matrix(self) -> NDArray[np.complex128]:
         r"""Get the `matrix` representation of the gate.
 
-        TODO: Add the matrix representation of the PhaseGadget gate.
-
         Returns
         -------
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             Matrix representation of the gate.
         """
 
-        def count_ones_in_binary(array: NDArray) -> NDArray[np.uint64]:
+        def count_ones_in_binary(array: NDArray[np.uint64]) -> NDArray[np.uint64]:
             count_ones = np.vectorize(lambda x: bin(x).count("1"))
             binary_array: NDArray[np.uint64] = count_ones(array)
             return binary_array
@@ -645,7 +648,10 @@ class Ry(SingleGate):
             Ry gate matrix.
         """
         return np.asarray(
-            [[np.cos(self.angle / 2), -np.sin(self.angle / 2)], [np.sin(self.angle / 2), np.cos(self.angle / 2)]],
+            [
+                [np.cos(self.angle / 2), -np.sin(self.angle / 2)],
+                [np.sin(self.angle / 2), np.cos(self.angle / 2)],
+            ],
             dtype=np.complex128,
         )
 
@@ -689,7 +695,10 @@ class Rz(SingleGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             Rz gate matrix.
         """
-        return np.asarray([[np.exp(-1j * self.angle / 2), 0], [0, np.exp(1j * self.angle / 2)]], dtype=np.complex128)
+        return np.asarray(
+            [[np.exp(-1j * self.angle / 2), 0], [0, np.exp(1j * self.angle / 2)]],
+            dtype=np.complex128,
+        )
 
 
 @dataclass(frozen=True)
@@ -800,7 +809,10 @@ class CNOT(TwoQubitGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             Matrix representation of the gate.
         """
-        return np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], dtype=np.complex128)
+        return np.asarray(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]],
+            dtype=np.complex128,
+        )
 
 
 @dataclass(frozen=True)
