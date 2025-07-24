@@ -143,12 +143,12 @@ class CZ(TwoQubitGate):
         The qubits the gate acts on.
 
         .. math::
-        CZ = \begin{pmatrix}
-        1 & 0 & 0 & 0 \\
-        0 & 1 & 0 & 0 \\
-        0 & 0 & 1 & 0 \\
+        CZ = \\begin{pmatrix}
+        1 & 0 & 0 & 0 \\\\
+        0 & 1 & 0 & 0 \\\\
+        0 & 0 & 1 & 0 \\\\
         0 & 0 & 0 & -1
-        \end{pmatrix}
+        \\end{pmatrix}
     """
 
     qubits: tuple[int, int]
@@ -433,7 +433,9 @@ class H(SingleGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             H gate matrix.
         """
-        array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray([[1, 1], [1, -1]], dtype=np.complex128)
+        array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray(
+            [[1, 1], [1, -1]], dtype=np.complex128
+        )
         return array
 
 

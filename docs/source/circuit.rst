@@ -15,4 +15,3 @@ Gate
 
 .. automodule:: graphix_zx.gates
     :members:
-    :undoc-members:
