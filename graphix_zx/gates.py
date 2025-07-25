@@ -38,8 +38,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from numpy.typing import NDArray
 
 
@@ -84,7 +82,7 @@ class TwoQubitGate(Gate):
 class MultiGate(Gate):
     """Base class for multi qubit macro gates."""
 
-    qubits: Sequence[int]
+    qubits: list[int]
 
 
 @dataclass(frozen=True)
@@ -99,11 +97,12 @@ class J(SingleGate):
         The angle of the J gate.
 
         .. math::
-            J = \\frac{1}{\\sqrt{2}}
-            \\begin{pmatrix}
-            1 & e^{i\\theta} \\\\
-            1 & -e^{i\\theta}
-            \\end{pmatrix}
+
+            J = \frac{1}{\sqrt{2}}
+            \begin{pmatrix}
+            1 & e^{i\theta} \\
+            1 & -e^{i\theta}
+            \end{pmatrix}
 
     """
 
@@ -144,12 +143,13 @@ class CZ(TwoQubitGate):
         The qubits the gate acts on.
 
         .. math::
-            CZ = \\begin{pmatrix}
-            1 & 0 & 0 & 0 \\\\
-            0 & 1 & 0 & 0 \\\\
-            0 & 0 & 1 & 0 \\\\
+
+            CZ = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 1 & 0 \\
             0 & 0 & 0 & -1
-            \\end{pmatrix}
+            \end{pmatrix}
 
     """
 
@@ -187,17 +187,18 @@ class PhaseGadget(MultiGate):
 
     Attributes
     ----------
-    qubits : `Sequence`\[`int`\]
+    qubits : `list`\[`int`\]
         The qubits the gate acts on.
     angle : `float`
         The angle of the PhaseGadget gate.
 
         .. math::
-            PhaseGadget(\\theta) = \\exp\\left(-i\\frac{\\theta}{2}\\prod_{j}Z_j\\right)
+
+            PhaseGadget(\theta) = \exp\left(-i\frac{\theta}{2}\prod_{j}Z_j\right)
 
     """
 
-    qubits: Sequence[int]
+    qubits: list[int]
     angle: float
 
     def unit_gates(self) -> list[UnitGate]:
@@ -253,10 +254,11 @@ class Identity(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        I = \\begin{pmatrix}
-        1 & 0 \\\\
-        0 & 1
-        \\end{pmatrix}
+
+            I = \begin{pmatrix}
+            1 & 0 \\
+            0 & 1
+            \end{pmatrix}
 
     """
 
@@ -293,10 +295,11 @@ class X(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        X = \\begin{pmatrix}
-        0 & 1 \\\\
-        1 & 0
-        \\end{pmatrix}
+
+            X = \begin{pmatrix}
+            0 & 1 \\
+            1 & 0
+            \end{pmatrix}
 
     """
 
@@ -333,10 +336,11 @@ class Y(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        Y = \\begin{pmatrix}
-        0 & -i \\\\
-        i & 0
-        \\end{pmatrix}
+
+            Y = \begin{pmatrix}
+            0 & -i \\
+            i & 0
+            \end{pmatrix}
 
     """
 
@@ -378,10 +382,11 @@ class Z(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        Z = \\begin{pmatrix}
-        1 & 0 \\\\
-        0 & -1
-        \\end{pmatrix}
+
+            Z = \begin{pmatrix}
+            1 & 0 \\
+            0 & -1
+            \end{pmatrix}
 
     """
 
@@ -418,10 +423,11 @@ class H(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        H = \\frac{1}{\\sqrt{2}}\\begin{pmatrix}
-        1 & 1 \\\\
-        1 & -1
-        \\end{pmatrix}
+
+            H = \frac{1}{\sqrt{2}}\begin{pmatrix}
+            1 & 1 \\
+            1 & -1
+            \end{pmatrix}
 
     """
 
@@ -459,10 +465,11 @@ class S(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        S = \\begin{pmatrix}
-        1 & 0 \\\\
-        0 & i
-        \\end{pmatrix}
+
+            S = \begin{pmatrix}
+            1 & 0 \\
+            0 & i
+            \end{pmatrix}
 
     """
 
@@ -499,10 +506,11 @@ class T(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        T = \\begin{pmatrix}
-        1 & 0 \\\\
-        0 & e^{i\\pi/4}
-        \\end{pmatrix}
+
+            T = \begin{pmatrix}
+            1 & 0 \\
+            0 & e^{i\pi/4}
+            \end{pmatrix}
 
     """
 
@@ -539,10 +547,11 @@ class Tdg(SingleGate):
         The qubit the gate acts on.
 
         .. math::
-        T^\\dagger = \\begin{pmatrix}
-        1 & 0 \\\\
-        0 & e^{-i\\pi/4}
-        \\end{pmatrix}
+
+            T^\dagger = \begin{pmatrix}
+            1 & 0 \\
+            0 & e^{-i\pi/4}
+            \end{pmatrix}
 
     """
 
@@ -581,10 +590,11 @@ class Rx(SingleGate):
         The angle of the Rx gate.
 
         .. math::
-        R_x(\\theta) = \\begin{pmatrix}
-        \\cos(\\theta/2) & -i\\sin(\\theta/2) \\\\
-        -i\\sin(\\theta/2) & \\cos(\\theta/2)
-        \\end{pmatrix}
+
+            R_x(\theta) = \begin{pmatrix}
+            \cos(\theta/2) & -i\sin(\theta/2) \\
+            -i\sin(\theta/2) & \cos(\theta/2)
+            \end{pmatrix}
 
     """
 
@@ -633,10 +643,11 @@ class Ry(SingleGate):
         The angle of the Ry gate.
 
         .. math::
-        R_y(\\theta) = \\begin{pmatrix}
-        \\cos(\\theta/2) & -\\sin(\\theta/2) \\\\
-        \\sin(\\theta/2) & \\cos(\\theta/2)
-        \\end{pmatrix}
+
+            R_y(\theta) = \begin{pmatrix}
+            \cos(\theta/2) & -\sin(\theta/2) \\
+            \sin(\theta/2) & \cos(\theta/2)
+            \end{pmatrix}
 
     """
 
@@ -687,10 +698,11 @@ class Rz(SingleGate):
         The angle of the Rz gate.
 
         .. math::
-        R_z(\\theta) = \\begin{pmatrix}
-        e^{-i\\theta/2} & 0 \\\\
-        0 & e^{i\\theta/2}
-        \\end{pmatrix}
+
+            R_z(\theta) = \begin{pmatrix}
+            e^{-i\theta/2} & 0 \\
+            0 & e^{i\theta/2}
+            \end{pmatrix}
 
     """
 
@@ -737,10 +749,11 @@ class U3(SingleGate):
         The third angle of the U3 gate.
 
         .. math::
-        U3(\\theta, \\phi, \\lambda) = \\begin{pmatrix}
-        \\cos(\\theta/2) & -e^{i\\lambda}\sin(\\theta/2) \\\\
-        e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)
-        \\end{pmatrix}
+
+            U3(\theta, \phi, \lambda) = \begin{pmatrix}
+            \cos(\theta/2) & -e^{i\lambda}\sin(\theta/2) \\
+            e^{i\phi}\sin(\theta/2) & e^{i(\phi+\lambda)}\cos(\theta/2)
+            \end{pmatrix}
 
     """
 
@@ -797,12 +810,13 @@ class CNOT(TwoQubitGate):
         The qubits the gate acts on [control target].
 
         .. math::
-        CNOT = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & 0 & 1 \\\\
-        0 & 0 & 1 & 0
-        \\end{pmatrix}
+
+            CNOT = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & 1 \\
+            0 & 0 & 1 & 0
+            \end{pmatrix}
 
     """
 
@@ -847,12 +861,13 @@ class SWAP(TwoQubitGate):
         The qubits the gate acts on [control target].
 
         .. math::
-        SWAP = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 0 & 1 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & 0 & 1
-        \\end{pmatrix}
+
+            SWAP = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 0 & 1 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & 1
+            \end{pmatrix}
 
     """
 
@@ -909,12 +924,13 @@ class CRz(TwoQubitGate):
         The angle of the CRz gate.
 
         .. math::
-        CR_z(\\theta) = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & e^{-i\\theta/2} & 0 \\\\
-        0 & 0 & 0 & e^{i\\theta/2}
-        \\end{pmatrix}
+
+            CR_z(\theta) = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & e^{-i\theta/2} & 0 \\
+            0 & 0 & 0 & e^{i\theta/2}
+            \end{pmatrix}
 
     """
 
@@ -972,12 +988,13 @@ class CRx(TwoQubitGate):
         The angle of the CRx gate.
 
         .. math::
-        CR_x(\\theta) = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & \\cos(\\theta/2) & -i\\sin(\\theta/2) \\\\
-        0 & 0 & -i\\sin(\\theta/2) & \\cos(\\theta/2)
-        \\end{pmatrix}
+
+            CR_x(\theta) = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & \cos(\theta/2) & -i\sin(\theta/2) \\
+            0 & 0 & -i\sin(\theta/2) & \cos(\theta/2)
+            \end{pmatrix}
 
     """
 
@@ -1038,12 +1055,13 @@ class CU3(TwoQubitGate):
         The third angle of the CU3 gate.
 
         .. math::
-        CU3(\\theta, \\phi, \\lambda) = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & \\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2) \\\\
-        0 & 0 & e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)
-        \\end{pmatrix}
+
+            CU3(\theta, \phi, \lambda) = \begin{pmatrix}
+            1 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 \\
+            0 & 0 & \cos(\theta/2) & -e^{i\lambda}\sin(\theta/2) \\
+            0 & 0 & e^{i\phi}\sin(\theta/2) & e^{i(\phi+\lambda)}\cos(\theta/2)
+            \end{pmatrix}
 
     """
 
@@ -1110,24 +1128,25 @@ class Toffoli(MultiGate):
 
     Attributes
     ----------
-    qubits : `Sequence`\[`int`\]
+    qubits : `list`\[`int`\]
         The qubits the gate acts on [control1, control2, target].
 
         .. math::
-        Toffoli = \\begin{pmatrix}
-        1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\\\
-        0 & 0 & 0 & 0 & 0 & 0 & 1 & 0
-        \\end{pmatrix}
+
+            Toffoli = \begin{pmatrix}
+            1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+            0 & 0 & 0 & 0 & 0 & 0 & 1 & 0
+            \end{pmatrix}
 
     """
 
-    qubits: Sequence[int]
+    qubits: list[int]
 
     def unit_gates(self) -> list[UnitGate]:
         r"""Get the `unit_gates` that make up the gate.
@@ -1191,24 +1210,25 @@ class CCZ(MultiGate):
 
     Attributes
     ----------
-    qubits : `Sequence`\[`int`\]
+    qubits : `list`\[`int`\]
         The qubits the gate acts on [control1, control2, target].
 
         .. math::
-        CCZ = \\begin{pmatrix}
-        1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\\\
-        0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\\\
-        0 & 0 & 0 & 0 & 0 & 0 & 0 & -1
-        \\end{pmatrix}
+
+            CCZ = \begin{pmatrix}
+            1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+            0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+            0 & 0 & 0 & 0 & 0 & 0 & 0 & -1
+            \end{pmatrix}
 
     """
 
-    qubits: Sequence[int]
+    qubits: list[int]
 
     def unit_gates(self) -> list[UnitGate]:
         r"""Get the `unit_gates` that make up the gate.
@@ -1223,7 +1243,7 @@ class CCZ(MultiGate):
         target = self.qubits[2]
         macro_gates = [
             H(target),
-            Toffoli((control1, control2, target)),
+            Toffoli([control1, control2, target]),
             H(target),
         ]
         unit_gates: list[UnitGate] = []
