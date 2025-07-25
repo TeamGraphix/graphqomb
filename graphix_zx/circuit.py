@@ -18,7 +18,7 @@ from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Sequence
 
 
 class BaseCircuit(ABC):
@@ -83,7 +83,7 @@ class MBQCCircuit(BaseCircuit):
         `list`\[`UnitGate`\]
             List of unit instructions in the circuit.
         """
-        return self.__gate_instructions
+        return list(self.__gate_instructions)
 
     def j(self, qubit: int, angle: float) -> None:
         """Add a J gate to the circuit.
@@ -109,12 +109,12 @@ class MBQCCircuit(BaseCircuit):
         """
         self.__gate_instructions.append(CZ(qubits=(qubit1, qubit2)))
 
-    def phase_gadget(self, qubits: Iterable[int], angle: float) -> None:
+    def phase_gadget(self, qubits: Sequence[int], angle: float) -> None:
         r"""Add a phase gadget to the circuit.
 
         Parameters
         ----------
-        qubits : `collections.abc.Iterable`\[`int`\]
+        qubits : `collections.abc.Sequence`\[`int`\]
             The qubit indices.
         angle : `float`
             The angle of the phase gadget
