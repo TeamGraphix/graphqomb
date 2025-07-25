@@ -123,13 +123,7 @@ class MBQCCircuit(BaseCircuit):
 
 
 class Circuit(BaseCircuit):
-    """A class for circuits that include macro instructions.
-
-    Attributes
-    ----------
-    num_qubits : `int`
-        The number of qubits in the circuit.
-    """
+    """A class for circuits that include macro instructions."""
 
     __num_qubits: int
     __macro_gate_instructions: list[Gate]
