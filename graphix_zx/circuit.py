@@ -143,6 +143,17 @@ class Circuit(BaseCircuit):
         """
         return self.__num_qubits
 
+    @property
+    def macro_gate_instructions(self) -> list[Gate]:
+        r"""Get the list of macro gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            The list of macro gate instructions in the circuit.
+        """
+        return list(self.__macro_gate_instructions)
+
     def instructions(self) -> list[UnitGate]:
         r"""Get the list of instructions in the circuit.
 
