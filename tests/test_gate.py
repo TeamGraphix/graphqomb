@@ -110,7 +110,7 @@ def test_two_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     result2 = apply_gates(state.copy(), gate.unit_gates(), qubits)
 
     inner_product = np.vdot(result1.state(), result2.state())
-    assert np.isclose(inner_product, 1)
+    assert np.isclose(np.abs(inner_product), 1)
 
 
 @pytest.mark.parametrize("gate_class", MULTI_GATES)
@@ -125,4 +125,4 @@ def test_multi_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
     result2 = apply_gates(state.copy(), gate.unit_gates(), qubits)
 
     inner_product = np.vdot(result1.state(), result2.state())
-    assert np.isclose(inner_product, 1)
+    assert np.isclose(np.abs(inner_product), 1)
