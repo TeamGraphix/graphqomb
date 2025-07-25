@@ -99,11 +99,12 @@ class J(SingleGate):
         The angle of the J gate.
 
         .. math::
-        J = \\frac{1}{\\sqrt{2}}
-        \\begin{pmatrix}
-        1 & e^{i\\theta} \\\\
-        1 & -e^{i\\theta}
-        \\end{pmatrix}
+            J = \\frac{1}{\\sqrt{2}}
+            \\begin{pmatrix}
+            1 & e^{i\\theta} \\\\
+            1 & -e^{i\\theta}
+            \\end{pmatrix}
+
     """
 
     qubit: int
@@ -143,12 +144,13 @@ class CZ(TwoQubitGate):
         The qubits the gate acts on.
 
         .. math::
-        CZ = \\begin{pmatrix}
-        1 & 0 & 0 & 0 \\\\
-        0 & 1 & 0 & 0 \\\\
-        0 & 0 & 1 & 0 \\\\
-        0 & 0 & 0 & -1
-        \\end{pmatrix}
+            CZ = \\begin{pmatrix}
+            1 & 0 & 0 & 0 \\\\
+            0 & 1 & 0 & 0 \\\\
+            0 & 0 & 1 & 0 \\\\
+            0 & 0 & 0 & -1
+            \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -191,7 +193,8 @@ class PhaseGadget(MultiGate):
         The angle of the PhaseGadget gate.
 
         .. math::
-        PhaseGadget(\\theta) = \\exp\\left(-i\\frac{\\theta}{2}\\prod_{j}Z_j\\right)
+            PhaseGadget(\\theta) = \\exp\\left(-i\\frac{\\theta}{2}\\prod_{j}Z_j\\right)
+
     """
 
     qubits: Sequence[int]
@@ -254,6 +257,7 @@ class Identity(SingleGate):
         1 & 0 \\\\
         0 & 1
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -293,6 +297,7 @@ class X(SingleGate):
         0 & 1 \\\\
         1 & 0
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -332,6 +337,7 @@ class Y(SingleGate):
         0 & -i \\\\
         i & 0
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -376,6 +382,7 @@ class Z(SingleGate):
         1 & 0 \\\\
         0 & -1
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -415,6 +422,7 @@ class H(SingleGate):
         1 & 1 \\\\
         1 & -1
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -455,6 +463,7 @@ class S(SingleGate):
         1 & 0 \\\\
         0 & i
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -494,6 +503,7 @@ class T(SingleGate):
         1 & 0 \\\\
         0 & e^{i\\pi/4}
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -533,6 +543,7 @@ class Tdg(SingleGate):
         1 & 0 \\\\
         0 & e^{-i\\pi/4}
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -574,6 +585,7 @@ class Rx(SingleGate):
         \\cos(\\theta/2) & -i\\sin(\\theta/2) \\\\
         -i\\sin(\\theta/2) & \\cos(\\theta/2)
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -622,9 +634,10 @@ class Ry(SingleGate):
 
         .. math::
         R_y(\\theta) = \\begin{pmatrix}
-        \\cos(\\theta/2) & -\\sin(\\theta/2) \\
+        \\cos(\\theta/2) & -\\sin(\\theta/2) \\\\
         \\sin(\\theta/2) & \\cos(\\theta/2)
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -678,6 +691,7 @@ class Rz(SingleGate):
         e^{-i\\theta/2} & 0 \\\\
         0 & e^{i\\theta/2}
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -727,6 +741,7 @@ class U3(SingleGate):
         \\cos(\\theta/2) & -e^{i\\lambda}\sin(\\theta/2) \\\\
         e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)
         \\end{pmatrix}
+
     """
 
     qubit: int
@@ -788,6 +803,7 @@ class CNOT(TwoQubitGate):
         0 & 0 & 0 & 1 \\\\
         0 & 0 & 1 & 0
         \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -837,6 +853,7 @@ class SWAP(TwoQubitGate):
         0 & 1 & 0 & 0 \\\\
         0 & 0 & 0 & 1
         \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -898,6 +915,7 @@ class CRz(TwoQubitGate):
         0 & 0 & e^{-i\\theta/2} & 0 \\\\
         0 & 0 & 0 & e^{i\\theta/2}
         \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -960,6 +978,7 @@ class CRx(TwoQubitGate):
         0 & 0 & \\cos(\\theta/2) & -i\\sin(\\theta/2) \\\\
         0 & 0 & -i\\sin(\\theta/2) & \\cos(\\theta/2)
         \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -1025,6 +1044,7 @@ class CU3(TwoQubitGate):
         0 & 0 & \\cos(\\theta/2) & -e^{i\\lambda}\\sin(\\theta/2) \\\\
         0 & 0 & e^{i\\phi}\\sin(\\theta/2) & e^{i(\\phi+\\lambda)}\\cos(\\theta/2)
         \\end{pmatrix}
+
     """
 
     qubits: tuple[int, int]
@@ -1104,6 +1124,7 @@ class Toffoli(MultiGate):
         0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\\\
         0 & 0 & 0 & 0 & 0 & 0 & 1 & 0
         \\end{pmatrix}
+
     """
 
     qubits: Sequence[int]
@@ -1184,6 +1205,7 @@ class CCZ(MultiGate):
         0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\\\
         0 & 0 & 0 & 0 & 0 & 0 & 0 & -1
         \\end{pmatrix}
+
     """
 
     qubits: Sequence[int]
