@@ -219,7 +219,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
             )
 
             gflow[qindex2front_nodes[qid_ex2in[instruction.qubit]]] = {new_node}
-            qindex2front_nodes[instruction.qubit] = new_node
+            qindex2front_nodes[qid_ex2in[instruction.qubit]] = new_node
 
         elif isinstance(instruction, CZ):
             graph.add_physical_edge(
