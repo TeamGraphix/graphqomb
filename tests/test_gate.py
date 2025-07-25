@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from copy import copy
 
 import numpy as np
 import pytest
@@ -92,8 +91,8 @@ def test_single_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
 
     gate = gate_class(qubits[0], *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
-    result1 = apply_gates(copy(state), [gate], qubits)
-    result2 = apply_gates(copy(state), gate.unit_gates(), qubits)
+    result1 = apply_gates(state.copy(), [gate], qubits)
+    result2 = apply_gates(state.copy(), gate.unit_gates(), qubits)
 
     inner_product = np.vdot(result1.state(), result2.state())
     assert np.isclose(np.abs(inner_product), 1)
@@ -107,8 +106,8 @@ def test_two_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
 
     gate = gate_class(qubits, *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
-    result1 = apply_gates(copy(state), [gate], qubits)
-    result2 = apply_gates(copy(state), gate.unit_gates(), qubits)
+    result1 = apply_gates(state.copy(), [gate], qubits)
+    result2 = apply_gates(state.copy(), gate.unit_gates(), qubits)
 
     inner_product = np.vdot(result1.state(), result2.state())
     assert np.isclose(inner_product, 1)
@@ -122,8 +121,8 @@ def test_multi_qubit_gate(gate_class: type, rng: np.random.Generator) -> None:
 
     gate = gate_class(qubits, *[rng.uniform(0, 2 * np.pi)] * NUM_ANGLES[gate_class])
 
-    result1 = apply_gates(copy(state), [gate], qubits)
-    result2 = apply_gates(copy(state), gate.unit_gates(), qubits)
+    result1 = apply_gates(state.copy(), [gate], qubits)
+    result2 = apply_gates(state.copy(), gate.unit_gates(), qubits)
 
     inner_product = np.vdot(result1.state(), result2.state())
     assert np.isclose(inner_product, 1)
