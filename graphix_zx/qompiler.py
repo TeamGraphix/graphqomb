@@ -17,13 +17,13 @@ from graphix_zx.feedforward import check_flow, dag_from_flow
 from graphix_zx.graphstate import odd_neighbors
 from graphix_zx.pattern import Pattern
 from graphix_zx.pauli_frame import PauliFrame
-from graphix_zx.scheduler import Scheduler
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
+    from graphix_zx.scheduler import Scheduler
 
 
 def qompile(
@@ -119,7 +119,7 @@ def _qompile(
     else:
         prepare_time = scheduler.prepare_time()
         measure_time = scheduler.measure_time()
-        prepared_edges = set()
+        prepared_edges: set[tuple[int, int]] = set()
 
         for time in range(scheduler.num_slices()):
             commands.extend(N(node) for node in prepare_time.get(time, set()))
