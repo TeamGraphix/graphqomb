@@ -44,6 +44,36 @@ class Scheduler:
         """Get the time schedule."""
         return self.__time_schedule
 
+    def prepare_time(self) -> dict[int, set[int]]:
+        r"""Get the preparation time for each node.
+
+        Returns
+        -------
+        `dict`\[`int`, `set`\[`int`\]
+            A mapping from node indices to sets of nodes that are prepared at the same time.
+        """
+        prepare_time: dict[int, set[int]] = {}
+        for node, (start, _) in self.__time_schedule.items():
+            if start not in prepare_time:
+                prepare_time[start] = set()
+            prepare_time[start].add(node)
+        return prepare_time
+
+    def measure_time(self) -> dict[int, set[int]]:
+        r"""Get the measurement time for each node.
+
+        Returns
+        -------
+        `dict`\[`int`, `set`\[`int`\]
+            A mapping from node indices to sets of nodes that are measured at the same time.
+        """
+        measure_time: dict[int, set[int]] = {}
+        for node, (_, end) in self.__time_schedule.items():
+            if end not in measure_time:
+                measure_time[end] = set()
+            measure_time[end].add(node)
+        return measure_time
+
     def on_the_fly_from_grouping(self, grouping: Sequence[set[int]]) -> None:
         r"""Schedule graph preparation and measurements based on a grouping.
 
