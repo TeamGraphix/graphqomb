@@ -33,9 +33,9 @@ from graphix_zx.gates import (
 )
 from graphix_zx.statevec import StateVector
 
-SINGLE_GATES = [J, Identity, X, Y, Z, H, S, T, Tdg, Rx, Ry, Rz, U3]
-TWO_GATES = [CZ, CNOT, SWAP, CRz, CRx, CU3]
-MULTI_GATES = [PhaseGadget, CCZ, Toffoli]
+SINGLE_GATES: list[type[SingleGate]] = [J, Identity, X, Y, Z, H, S, T, Tdg, Rx, Ry, Rz, U3]
+TWO_GATES: list[type[TwoQubitGate]] = [CZ, CNOT, SWAP, CRz, CRx, CU3]
+MULTI_GATES: list[type[MultiGate]] = [PhaseGadget, CCZ, Toffoli]
 
 NUM_ANGLES: dict[type, int] = {
     J: 1,

@@ -162,7 +162,7 @@ class Circuit(BaseCircuit):
         `list`\[`UnitGate`\]
             The list of unit instructions in the circuit.
         """
-        gate_instructions = []
+        gate_instructions: list[UnitGate] = []
         for macro_gate in self.__macro_gate_instructions:
             gate_instructions.extend(macro_gate.unit_gates())
         return gate_instructions
@@ -197,7 +197,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
         If the circuit contains an invalid instruction.
     """
     graph = GraphState()
-    gflow = {}
+    gflow: dict[int, set[int]] = {}
 
     qindex2front_nodes: dict[int, int] = {}
     qid_ex2in: dict[int, int] = {}

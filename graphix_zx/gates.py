@@ -128,7 +128,8 @@ class J(SingleGate):
             Matrix representation of the gate.
         """
         array: NDArray[np.complex128] = np.asarray(
-            [[1, np.exp(1j * self.angle)], [1, -np.exp(1j * self.angle)]]
+            [[1.0 + 0j, np.exp(1j * self.angle)], [1.0 + 0j, -np.exp(1j * self.angle)]],
+            dtype=np.complex128,
         ) / np.sqrt(2)
         return array
 
@@ -221,11 +222,14 @@ class PhaseGadget(MultiGate):
         """
 
         def count_ones_in_binary(array: NDArray[np.uint64]) -> NDArray[np.uint64]:
-            count_ones = np.vectorize(lambda x: bin(x).count("1"))
+            def count_ones_single(x: np.uint64) -> int:
+                return bin(int(x)).count("1")
+
+            count_ones = np.vectorize(count_ones_single)
             binary_array: NDArray[np.uint64] = count_ones(array)
             return binary_array
 
-        index_array = np.arange(2 ** len(self.qubits))
+        index_array: NDArray[np.uint64] = np.arange(2 ** len(self.qubits), dtype=np.uint64)
         z_sign = (-1) ** count_ones_in_binary(index_array)
         return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
@@ -883,7 +887,7 @@ class SWAP(TwoQubitGate):
         """
         control = self.qubits[0]
         target = self.qubits[1]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             CNOT(self.qubits),
             CNOT((target, control)),
             CNOT(self.qubits),
@@ -946,7 +950,7 @@ class CRz(TwoQubitGate):
             List of unit gates that make up the gate.
         """
         target = self.qubits[1]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             Rz(target, self.angle / 2),
             CNOT(self.qubits),
             Rz(target, -self.angle / 2),
@@ -1010,7 +1014,7 @@ class CRx(TwoQubitGate):
             List of unit gates that make up the gate.
         """
         target = self.qubits[1]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             H(target),
             CRz(self.qubits, self.angle),
             H(target),
@@ -1080,7 +1084,7 @@ class CU3(TwoQubitGate):
         """
         control = self.qubits[0]
         target = self.qubits[1]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             Rz(control, self.angle3 / 2 + self.angle2 / 2),
             Rz(target, self.angle3 / 2 - self.angle2 / 2),
             CNOT(self.qubits),
@@ -1159,7 +1163,7 @@ class Toffoli(MultiGate):
         control1 = self.qubits[0]
         control2 = self.qubits[1]
         target = self.qubits[2]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             H(target),
             CNOT((control2, target)),
             Tdg(target),
@@ -1241,7 +1245,7 @@ class CCZ(MultiGate):
         control1 = self.qubits[0]
         control2 = self.qubits[1]
         target = self.qubits[2]
-        macro_gates = [
+        macro_gates: list[Gate] = [
             H(target),
             Toffoli([control1, control2, target]),
             H(target),
