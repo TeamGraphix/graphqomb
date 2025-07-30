@@ -226,8 +226,7 @@ class PhaseGadget(MultiGate):
                 return bin(int(x)).count("1")
 
             count_ones = np.vectorize(count_ones_single)
-            binary_array: NDArray[np.uint64] = count_ones(array)
-            return binary_array
+            return np.asarray(count_ones(array), dtype=np.int64)
 
         index_array: NDArray[np.uint64] = np.arange(2 ** len(self.qubits), dtype=np.uint64)
         z_sign = (-1) ** count_ones_in_binary(index_array)
