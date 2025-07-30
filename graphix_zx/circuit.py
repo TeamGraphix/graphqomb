@@ -11,6 +11,7 @@ This module provides:
 from __future__ import annotations
 
 import copy
+import itertools
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -163,10 +164,7 @@ class Circuit(BaseCircuit):
         `list`\[`UnitGate`\]
             The list of unit instructions in the circuit.
         """
-        gate_instructions: list[UnitGate] = []
-        for macro_gate in self.__macro_gate_instructions:
-            gate_instructions.extend(macro_gate.unit_gates())
-        return gate_instructions
+        return list(itertools.chain(*(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)))
 
     def apply_macro_gate(self, gate: Gate) -> None:
         """Apply a macro gate to the circuit.
