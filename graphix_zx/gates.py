@@ -884,8 +884,7 @@ class SWAP(TwoQubitGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        control = self.qubits[0]
-        target = self.qubits[1]
+        control, target = self.qubits
         macro_gates: list[Gate] = [
             CNOT(self.qubits),
             CNOT((target, control)),
@@ -1081,8 +1080,7 @@ class CU3(TwoQubitGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        control = self.qubits[0]
-        target = self.qubits[1]
+        control, target = self.qubits
         macro_gates: list[Gate] = [
             Rz(control, self.angle3 / 2 + self.angle2 / 2),
             Rz(target, self.angle3 / 2 - self.angle2 / 2),
@@ -1159,9 +1157,7 @@ class Toffoli(MultiGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        control1 = self.qubits[0]
-        control2 = self.qubits[1]
-        target = self.qubits[2]
+        control1, control2, target = self.qubits
         macro_gates: list[Gate] = [
             H(target),
             CNOT((control2, target)),
@@ -1241,9 +1237,7 @@ class CCZ(MultiGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        control1 = self.qubits[0]
-        control2 = self.qubits[1]
-        target = self.qubits[2]
+        control1, control2, target = self.qubits
         macro_gates: list[Gate] = [
             H(target),
             Toffoli([control1, control2, target]),
