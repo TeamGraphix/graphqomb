@@ -221,14 +221,14 @@ class PhaseGadget(MultiGate):
             Matrix representation of the gate.
         """
 
-        def count_ones_in_binary(array: NDArray[np.uint64]) -> NDArray[np.uint64]:
-            def count_ones_single(x: np.uint64) -> int:
+        def count_ones_in_binary(array: NDArray[np.int64]) -> NDArray[np.int64]:
+            def count_ones_single(x: np.int64) -> int:
                 return bin(int(x)).count("1")
 
             count_ones = np.vectorize(count_ones_single)
             return np.asarray(count_ones(array), dtype=np.int64)
 
-        index_array: NDArray[np.uint64] = np.arange(2 ** len(self.qubits), dtype=np.uint64)
+        index_array: NDArray[np.int64] = np.arange(2 ** len(self.qubits), dtype=np.int64)
         z_sign = (-1) ** count_ones_in_binary(index_array)
         return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
