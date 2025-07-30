@@ -10,6 +10,7 @@ This module provides:
 
 from __future__ import annotations
 
+import copy
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -152,7 +153,7 @@ class Circuit(BaseCircuit):
         `list`\[`Gate`\]
             The list of macro gate instructions in the circuit.
         """
-        return list(self.__macro_gate_instructions)
+        return copy.deepcopy(self.__macro_gate_instructions)
 
     def instructions(self) -> list[UnitGate]:
         r"""Get the list of instructions in the circuit.
