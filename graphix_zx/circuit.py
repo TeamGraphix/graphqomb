@@ -235,7 +235,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
 
             gflow[new_node] = {new_node}
         else:
-            msg = f"Invalid instruction {instruction=}"
+            msg = f"Invalid instruction: {instruction}"
             raise TypeError(msg)
 
     for qindex, node in qindex2front_nodes.items():
