@@ -164,7 +164,9 @@ class Circuit(BaseCircuit):
         `list`\[`UnitGate`\]
             The list of unit instructions in the circuit.
         """
-        return list(itertools.chain(*(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)))
+        return list(
+            itertools.chain.from_iterable(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)
+        )
 
     def apply_macro_gate(self, gate: Gate) -> None:
         """Apply a macro gate to the circuit.
