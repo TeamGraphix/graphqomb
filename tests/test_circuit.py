@@ -76,7 +76,7 @@ def test_mbqc_circuit_multiple_gates() -> None:
 
     instructions = circuit.instructions()
     assert len(instructions) == 5
-    assert all(isinstance(inst, UnitGate) for inst in instructions)
+    assert all(isinstance(inst, (J, CZ, PhaseGadget)) for inst in instructions)
 
 
 def test_mbqc_circuit_instructions_returns_copy() -> None:
@@ -163,7 +163,7 @@ def test_circuit_instructions_expansion() -> None:
     assert len(instructions) == expected_count
 
     # Verify all are UnitGate instances
-    assert all(isinstance(inst, UnitGate) for inst in instructions)
+    assert all(isinstance(inst, (J, CZ, PhaseGadget)) for inst in instructions)
 
 
 def test_circuit_instructions_matches_manual_expansion() -> None:
