@@ -5,10 +5,11 @@ Module reference
     :maxdepth: 2
 
     common
+    circuit
     simulator_backend
     statevec
     euler
-    matrix
+    matrix_utility
     graphstate
     random_objects
     feedforward
