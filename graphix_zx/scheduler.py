@@ -32,6 +32,38 @@ class Scheduler:
         self.prepare_time = dict.fromkeys(graph.physical_nodes - set(graph.input_node_indices))
         self.measure_time = dict.fromkeys(graph.physical_nodes - set(graph.output_node_indices))
 
+    def num_slices(self) -> int:
+        r"""Return the number of slices in the schedule.
+
+        Returns
+        -------
+        `int`
+            The number of slices, which is the maximum time across all nodes plus one.
+        """
+        return (
+            max(
+                max((t for t in self.prepare_time.values() if t is not None), default=0),
+                max((t for t in self.measure_time.values() if t is not None), default=0),
+            )
+            + 1
+        )
+
+    def get_schedule(self) -> list[tuple[set[int], set[int]]]:
+        r"""Get the schedule as a list of sets of nodes.
+
+        Returns
+        -------
+        `list`\[`tuple`\[`set`\[`int`\], `set`\[`int`\]\]
+            A list where each element is a tuple containing a set of node indices
+            scheduled for preparation and a set of node indices scheduled for measurement.
+        """
+        schedule = []
+        for time in range(self.num_slices()):
+            prep_nodes = {node for node, t in self.prepare_time.items() if t == time}
+            meas_nodes = {node for node, t in self.measure_time.items() if t == time}
+            schedule.append((prep_nodes, meas_nodes))
+        return schedule
+
     def on_the_fly_from_grouping(self, grouping: Sequence[set[int]]) -> None:
         r"""Schedule graph preparation and measurements based on a grouping.
 
