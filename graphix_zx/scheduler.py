@@ -57,7 +57,7 @@ class Scheduler:
             A list where each element is a tuple containing a set of node indices
             scheduled for preparation and a set of node indices scheduled for measurement.
         """
-        schedule = []
+        schedule: list[tuple[set[int], set[int]]] = []
         for time in range(self.num_slices()):
             prep_nodes = {node for node, t in self.prepare_time.items() if t == time}
             meas_nodes = {node for node, t in self.measure_time.items() if t == time}
