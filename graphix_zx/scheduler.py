@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping
 
     from graphix_zx.graphstate import BaseGraphState
 
@@ -64,17 +64,25 @@ class Scheduler:
             schedule.append((prep_nodes, meas_nodes))
         return schedule
 
-    def on_the_fly_from_grouping(self, grouping: Sequence[set[int]]) -> None:
-        r"""Schedule graph preparation and measurements based on a grouping.
+    def from_manual_design(
+        self,
+        prepare_time: Mapping[int, int],
+        measure_time: Mapping[int, int],
+    ) -> None:
+        r"""Set the schedule manually.
 
         Parameters
         ----------
-        grouping : `collections.abc.Sequence`\[`set`\[`int`\]\]
-            A sequence of sets, where each set contains node indices that can be prepared and measured together.
+        prepare_time : `dict`\[`int`, `int | None`\]
+            A mapping from node indices to their preparation time.
+        measure_time : `dict`\[`int`, `int | None`\]
+            A mapping from node indices to their measurement time.
         """
-        for i, group in enumerate(grouping):
-            for node in group:
-                if node not in self.graph.input_node_indices:
-                    self.prepare_time[node] = i
-                if node not in self.graph.output_node_indices:
-                    self.measure_time[node] = i + 2
+        self.prepare_time = {
+            node: prepare_time.get(node, None)
+            for node in self.graph.physical_nodes - set(self.graph.input_node_indices)
+        }
+        self.measure_time = {
+            node: measure_time.get(node, None)
+            for node in self.graph.physical_nodes - set(self.graph.output_node_indices)
+        }
