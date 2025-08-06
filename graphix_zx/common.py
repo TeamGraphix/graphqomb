@@ -71,6 +71,16 @@ class MeasBasis(ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def flip(self) -> MeasBasis:
+        """Flip the measurement basis."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def conjugate(self) -> MeasBasis:
+        """Return the conjugate of the measurement basis."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def vector(self) -> NDArray[np.complex128]:
         """Return the measurement basis vector."""
         raise NotImplementedError
@@ -108,16 +118,17 @@ class PlannerMeasBasis(MeasBasis):
         return self.__angle
 
     @typing_extensions.override
-    def vector(self) -> NDArray[np.complex128]:
-        r"""Return the measurement basis vector.
+    def flip(self) -> PlannerMeasBasis:
+        """Flip the measurement basis.
 
         Returns
         -------
-        `numpy.typing.NDArray`\[`numpy.complex128`\]
-            measurement basis vector
+        `PlannerMeasBasis`
+            flipped PlannerMeasBasis
         """
-        return meas_basis(self.plane, self.angle)
+        return PlannerMeasBasis(self.plane, self.angle + np.pi)
 
+    @typing_extensions.override
     def conjugate(self) -> PlannerMeasBasis:
         """Return the conjugate of the PlannerMeasBasis object.
 
@@ -141,6 +152,17 @@ class PlannerMeasBasis(MeasBasis):
         if self.plane == Plane.XZ:
             return PlannerMeasBasis(Plane.XZ, self.angle)
         typing_extensions.assert_never(self.plane)
+
+    @typing_extensions.override
+    def vector(self) -> NDArray[np.complex128]:
+        r"""Return the measurement basis vector.
+
+        Returns
+        -------
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
+            measurement basis vector
+        """
+        return meas_basis(self.plane, self.angle)
 
 
 class AxisMeasBasis(MeasBasis):
@@ -211,6 +233,30 @@ class AxisMeasBasis(MeasBasis):
         else:
             angle = 0 if self.sign == Sign.PLUS else np.pi
         return angle
+
+    @typing_extensions.override
+    def flip(self) -> AxisMeasBasis:
+        """Flip the measurement basis.
+
+        Returns
+        -------
+        `AxisMeasBasis`
+            flipped AxisMeasBasis
+        """
+        return AxisMeasBasis(self.axis, Sign.MINUS if self.sign == Sign.PLUS else Sign.PLUS)
+
+    @typing_extensions.override
+    def conjugate(self) -> AxisMeasBasis:
+        """Return the conjugate of the AxisMeasBasis object.
+
+        Returns
+        -------
+        `AxisMeasBasis`
+            conjugate AxisMeasBasis
+        """
+        if self.axis == Axis.Y:
+            return AxisMeasBasis(Axis.Y, Sign.MINUS if self.sign == Sign.PLUS else Sign.PLUS)
+        return AxisMeasBasis(self.axis, self.sign)
 
     @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:

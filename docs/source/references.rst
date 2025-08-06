@@ -5,6 +5,8 @@ Module reference
     :maxdepth: 2
 
     common
+    simulator_backend
+    statevec
     euler
     matrix
     graphstate
