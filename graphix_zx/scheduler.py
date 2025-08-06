@@ -57,12 +57,15 @@ class Scheduler:
             A list where each element is a tuple containing a set of node indices
             scheduled for preparation and a set of node indices scheduled for measurement.
         """
-        schedule: list[tuple[set[int], set[int]]] = []
-        for time in range(self.num_slices()):
-            prep_nodes = {node for node, t in self.prepare_time.items() if t == time}
-            meas_nodes = {node for node, t in self.measure_time.items() if t == time}
-            schedule.append((prep_nodes, meas_nodes))
-        return schedule
+        prep_time: dict[int, set[int]] = {}
+        for node, time in self.prepare_time.items():
+            if time is not None:
+                prep_time.setdefault(time, set()).add(node)
+        meas_time: dict[int, set[int]] = {}
+        for node, time in self.measure_time.items():
+            if time is not None:
+                meas_time.setdefault(time, set()).add(node)
+        return [(prep_time.get(time, set()), meas_time.get(time, set())) for time in range(self.num_slices())]
 
     def from_manual_design(
         self,
