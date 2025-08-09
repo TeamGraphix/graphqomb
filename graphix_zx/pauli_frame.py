@@ -127,8 +127,8 @@ class PauliFrame:
             for target in targets:
                 inv_z_flow[target].add(node)
 
-        x_groups = []
-        z_groups = []
+        x_groups: list[set[int]] = []
+        z_groups: list[set[int]] = []
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
@@ -169,7 +169,7 @@ class PauliFrame:
 def _collect_dependent_chain(inv_flow: dict[int, set[int]], node: int) -> set[int]:
     chain: set[int] = set()
     untracked = {node}
-    tracked = set()
+    tracked: set[int] = set()
     while untracked:
         current = untracked.pop()
         chain ^= {current}

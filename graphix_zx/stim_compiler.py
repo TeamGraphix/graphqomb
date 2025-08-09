@@ -39,7 +39,7 @@ def stim_compile(  # noqa: C901, PLR0912
         The compiled stim string.
     """
     stim_str = ""
-    meas_order = []
+    meas_order: list[int] = []
     pframe = pattern.pauli_frame
     for input_node in pattern.input_node_indices:
         stim_str += f"RX {input_node}\n"
