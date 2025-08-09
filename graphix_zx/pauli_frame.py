@@ -38,16 +38,16 @@ class PauliFrame:
     zflow: dict[int, set[int]]
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
-    x_parity_check_group: list[int | tuple[int, int]]
-    z_parity_check_group: list[int | tuple[int, int]]
+    x_parity_check_group: list[set[int]]
+    z_parity_check_group: list[set[int]]
 
     def __init__(
         self,
         graphstate: BaseGraphState,
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
-        x_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
-        z_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
+        x_parity_check_group: Sequence[AbstractSet[int]] | None = None,
+        z_parity_check_group: Sequence[AbstractSet[int]] | None = None,
     ) -> None:
         if x_parity_check_group is None:
             x_parity_check_group = []
@@ -59,8 +59,12 @@ class PauliFrame:
         self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
         self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
 
-        self.x_parity_check_group = list(x_parity_check_group)
-        self.z_parity_check_group = list(z_parity_check_group)
+        if not x_parity_check_group:
+            x_parity_check_group = []
+        if not z_parity_check_group:
+            z_parity_check_group = []
+        self.x_parity_check_group = [set(item) for item in x_parity_check_group]
+        self.z_parity_check_group = [set(item) for item in z_parity_check_group]
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
@@ -125,18 +129,16 @@ class PauliFrame:
 
         x_groups = []
         z_groups = []
-        for item in self.x_parity_check_group:
-            if isinstance(item, tuple):
-                u, v = item
-                x_groups.append({u, v} | inv_z_flow[v])
-            else:
-                x_groups.append({item})
-        for item in self.z_parity_check_group:
-            if isinstance(item, tuple):
-                u, v = item
-                z_groups.append({u, v} | inv_z_flow[v])
-            else:
-                z_groups.append({item})
+        for syndrome_group in self.x_parity_check_group:
+            mbqc_group: set[int] = set()
+            for node in syndrome_group:
+                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
+            x_groups.append(mbqc_group)
+        for syndrome_group in self.z_parity_check_group:
+            mbqc_group: set[int] = set()
+            for node in syndrome_group:
+                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
+            z_groups.append(mbqc_group)
 
         return x_groups, z_groups
 
@@ -160,15 +162,19 @@ class PauliFrame:
             for target in targets:
                 inv_z_flow[target].add(node)
         for node in target_nodes:
-            untracked = set()
-            tracked = set()
-            group.add(node)
-            untracked.add(node)
-            while untracked:
-                current = untracked.pop()
-                for parent in inv_z_flow[current]:
-                    group.add(parent)
-                    if parent not in tracked:
-                        untracked.add(parent)
-                tracked.add(current)
+            group ^= _collect_dependent_chain(inv_z_flow, node)
         return group
+
+
+def _collect_dependent_chain(inv_flow: dict[int, set[int]], node: int) -> set[int]:
+    chain: set[int] = set()
+    untracked = {node}
+    tracked = set()
+    while untracked:
+        current = untracked.pop()
+        chain ^= {current}
+        for parent in inv_flow.get(current, set()):
+            if parent not in tracked:
+                untracked.add(parent)
+        tracked.add(current)
+    return chain
