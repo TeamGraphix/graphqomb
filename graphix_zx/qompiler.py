@@ -31,8 +31,8 @@ def qompile(  # noqa: PLR0913
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
-    x_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
-    z_parity_check_group: Sequence[int | tuple[int, int]] | None = None,
+    x_parity_check_group: Sequence[AbstractSet[int]] | None = None,
+    z_parity_check_group: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
     correct_output: bool = True,
 ) -> Pattern:
@@ -47,9 +47,9 @@ def qompile(  # noqa: PLR0913
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
         if `None`, it is generated from xflow by odd neighbors
-    x_parity_check_group : `collections.abc.Sequence`\[`int` | `tuple`\[`int`, `int`\]\] | `None`
+    x_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
         x parity check group for FTQC
-    z_parity_check_group : `collections.abc.Sequence`\[`int` | `tuple`\[`int`, `int`\]\] | `None`
+    z_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
         z parity check group for FTQC
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,

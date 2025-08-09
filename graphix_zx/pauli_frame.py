@@ -135,7 +135,7 @@ class PauliFrame:
                 mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
-            mbqc_group: set[int] = set()
+            mbqc_group = set()
             for node in syndrome_group:
                 mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
             z_groups.append(mbqc_group)
@@ -156,7 +156,7 @@ class PauliFrame:
             The logical observables group for the given target nodes.
         """
         # NOTE: This logic assumes that all the measurements are X-based.
-        group = set()
+        group: set[int] = set()
         inv_z_flow: dict[int, set[int]] = {node: set() for node in self.graphstate.physical_nodes}
         for node, targets in self.zflow.items():
             for target in targets:
