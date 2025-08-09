@@ -126,18 +126,19 @@ class PauliFrame:
         for node, targets in self.zflow.items():
             for target in targets:
                 inv_z_flow[target].add(node)
+            inv_z_flow[node] -= {node}
 
         x_groups: list[set[int]] = []
         z_groups: list[set[int]] = []
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
-                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
+                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node)
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
             mbqc_group = set()
             for node in syndrome_group:
-                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node) ^ {node}
+                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node)
             z_groups.append(mbqc_group)
 
         return x_groups, z_groups
@@ -161,6 +162,7 @@ class PauliFrame:
         for node, targets in self.zflow.items():
             for target in targets:
                 inv_z_flow[target].add(node)
+            inv_z_flow[node] -= {node}
         for node in target_nodes:
             group ^= _collect_dependent_chain(inv_z_flow, node)
         return group
