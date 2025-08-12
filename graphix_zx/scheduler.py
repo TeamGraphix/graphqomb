@@ -1,4 +1,9 @@
-"""Graph Scheduler for compiling graph states into patterns."""
+"""Graph scheduler for measurement and preparation timing in MBQC patterns.
+
+This module provides:
+
+- `Scheduler`: Schedule graph node preparation and measurement operations
+"""
 
 from __future__ import annotations
 

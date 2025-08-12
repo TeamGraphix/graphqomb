@@ -1,4 +1,11 @@
-"""Scheduling solver."""
+"""Scheduling solver for optimizing MBQC pattern execution.
+
+This module provides:
+
+- `Strategy`: Enumeration of scheduling optimization strategies
+- `ScheduleConfig`: Configuration for scheduling parameters and constraints
+- `solve_schedule`: Solve scheduling optimization using constraint programming
+"""
 
 from __future__ import annotations
 
