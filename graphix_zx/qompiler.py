@@ -122,13 +122,13 @@ def _qompile(
 
         for time in range(scheduler.num_slices()):
             prepare_nodes, measure_nodes = schedule[time]
-            commands.extend(N(node) for node in prepare_nodes)
             for node in measure_nodes:
                 for neighbor in graph.neighbors(node):
                     if (node, neighbor) not in prepared_edges and (neighbor, node) not in prepared_edges:
                         commands.append(E(nodes=(node, neighbor)))
                         prepared_edges.add((node, neighbor))
             commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
+            commands.extend(N(node) for node in prepare_nodes)
     if correct_output:
         commands.extend(X(node=node) for node in graph.output_node_indices)
         commands.extend(Z(node=node) for node in graph.output_node_indices)
