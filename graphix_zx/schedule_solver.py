@@ -118,7 +118,7 @@ def solve_schedule(  # noqa: C901, PLR0912, PLR0914
 
     status = solver.Solve(m)
 
-    if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
+    if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:  # type: ignore[comparison-overlap]
         prepare_time = {node: solver.Value(var) for node, var in node2prep.items()}
         measure_time = {node: solver.Value(var) for node, var in node2meas.items()}
         return prepare_time, measure_time
