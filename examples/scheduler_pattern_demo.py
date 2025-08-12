@@ -32,7 +32,7 @@ scheduler_space = Scheduler(graph, xflow)
 success_space = scheduler_space.from_solver(Strategy.MINIMIZE_SPACE, timeout=10)
 pattern_space = None
 
-if success_space:
+if success_space & scheduler_space.validate_schedule():
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_space.num_slices()}")
 
@@ -64,7 +64,7 @@ scheduler_time = Scheduler(graph, xflow)
 success_time = scheduler_time.from_solver(Strategy.MINIMIZE_TIME, timeout=10)
 pattern_time = None
 
-if success_time:
+if success_time & scheduler_time.validate_schedule():
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_time.num_slices()}")
 
