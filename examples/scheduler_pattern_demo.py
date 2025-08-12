@@ -7,7 +7,6 @@ measurement patterns from graph states using different scheduling strategies.
 """
 
 # %%
-from graphix_zx.feedforward import dag_from_flow
 from graphix_zx.pattern import print_pattern
 from graphix_zx.qompiler import qompile
 from graphix_zx.random_objects import generate_random_flow_graph
@@ -25,18 +24,12 @@ print(f"   Output nodes: {list(graph.output_node_indices.keys())}")
 print(f"   Edges: {len(graph.physical_edges)}")
 
 # %%
-# Create dependency DAG from flow
-print("\n2. Creating dependency DAG...")
-dag = dag_from_flow(graph, xflow)
-print(f"   DAG: {dag}")
-
-# %%
 # Demonstrate space-optimized scheduling
-print("\n3. Space-optimized Scheduling:")
+print("\n2. Space-optimized Scheduling:")
 print("=" * 40)
 
-scheduler_space = Scheduler(graph)
-success_space = scheduler_space.from_solver(dag, Strategy.MINIMIZE_SPACE, timeout=10)
+scheduler_space = Scheduler(graph, xflow)
+success_space = scheduler_space.from_solver(Strategy.MINIMIZE_SPACE, timeout=10)
 pattern_space = None
 
 if success_space:
@@ -67,8 +60,8 @@ else:
 print("\n3. Time-optimized Scheduling:")
 print("=" * 40)
 
-scheduler_time = Scheduler(graph)
-success_time = scheduler_time.from_solver(dag, Strategy.MINIMIZE_TIME, timeout=10)
+scheduler_time = Scheduler(graph, xflow)
+success_time = scheduler_time.from_solver(Strategy.MINIMIZE_TIME, timeout=10)
 pattern_time = None
 
 if success_time:

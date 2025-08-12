@@ -17,13 +17,11 @@ def test_simple_graph_scheduling() -> None:
     qindex = graph.register_input(node0)
     graph.register_output(node2, qindex)
 
-    scheduler = Scheduler(graph)
-
-    # chain DAG
-    dag = {node0: {node1}, node1: {node2}}
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
 
     # Test solver-based scheduling
-    success = scheduler.from_solver(dag, Strategy.MINIMIZE_TIME)
+    success = scheduler.from_solver(Strategy.MINIMIZE_TIME)
     assert success
 
     # Check that times were assigned
@@ -49,15 +47,16 @@ def test_manual_vs_solver_scheduling() -> None:
     qindex = graph.register_input(node0)
     graph.register_output(node3, qindex)
 
-    scheduler = Scheduler(graph)
+    flow = {node1: {node0}, node2: {node1}, node3: {node2}}
+
+    scheduler = Scheduler(graph, flow)
 
     # Test manual scheduling
     scheduler.from_manual_design(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
     manual_schedule = scheduler.get_schedule()
 
     # Test solver-based scheduling
-    dag = {node1: {node0}, node2: {node1}, node3: {node2}}
-    success = scheduler.from_solver(dag, Strategy.MINIMIZE_TIME)
+    success = scheduler.from_solver(Strategy.MINIMIZE_TIME)
     assert success
     solver_schedule = scheduler.get_schedule()
 
@@ -75,13 +74,12 @@ def test_solver_failure_handling() -> None:
     qindex = graph.register_input(node0)
     graph.register_output(node1, qindex)
 
-    scheduler = Scheduler(graph)
+    flow = {node0: {node1}, node1: {node0}}  # This should be impossible to satisfy
 
-    # Create an impossible DAG (circular dependency)
-    dag = {node0: {node1}, node1: {node0}}  # This should be impossible to satisfy
+    scheduler = Scheduler(graph, flow)
 
     # Solver should return False for unsolvable problems
-    success = scheduler.from_solver(dag, Strategy.MINIMIZE_TIME, timeout=1)
+    success = scheduler.from_solver(Strategy.MINIMIZE_TIME, timeout=1)
     # Note: This might still succeed depending on the specific constraints
     # The test mainly checks that the method doesn't crash
     assert isinstance(success, bool)

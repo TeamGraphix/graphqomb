@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from graphix_zx.feedforward import dag_from_flow
 from graphix_zx.schedule_solver import Strategy, solve_schedule
 
 if TYPE_CHECKING:
@@ -20,6 +21,8 @@ class Scheduler:
     ----------
     graph : `BaseGraphState`
         The graph state to be scheduled.
+    dag : `dict`\[`int`, `set`\[`int`\]\]
+        The directed acyclic graph representing dependencies.
     prepare_time : `dict`\[`int`, `int` | `None`\]
         A mapping from node indices to their preparation time.
     measure_time : `dict`\[`int`, `int` | `None`\]
@@ -27,11 +30,18 @@ class Scheduler:
     """
 
     graph: BaseGraphState
+    dag: dict[int, set[int]]
     prepare_time: dict[int, int | None]
     measure_time: dict[int, int | None]
 
-    def __init__(self, graph: BaseGraphState) -> None:
+    def __init__(
+        self,
+        graph: BaseGraphState,
+        xflow: Mapping[int, AbstractSet[int]],
+        zflow: Mapping[int, AbstractSet[int]] | None = None,
+    ) -> None:
         self.graph = graph
+        self.dag = dag_from_flow(graph, xflow, zflow)
         self.prepare_time = dict.fromkeys(graph.physical_nodes - set(graph.input_node_indices))
         self.measure_time = dict.fromkeys(graph.physical_nodes - set(graph.output_node_indices))
 
@@ -95,7 +105,6 @@ class Scheduler:
 
     def from_solver(
         self,
-        dag: Mapping[int, AbstractSet[int]],
         strategy: Strategy | None = None,
         timeout: int = 60,
     ) -> bool:
@@ -103,8 +112,6 @@ class Scheduler:
 
         Parameters
         ----------
-        dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]
-            The directed acyclic graph representing dependencies between nodes.
         strategy : `Strategy`, optional
             The optimization strategy to use. If None, defaults to MINIMIZE_SPACE.
         timeout : `int`, optional
@@ -118,7 +125,7 @@ class Scheduler:
         if strategy is None:
             strategy = Strategy.MINIMIZE_SPACE
 
-        result = solve_schedule(self.graph, dag, strategy, timeout)
+        result = solve_schedule(self.graph, self.dag, strategy, timeout)
         if result is None:
             return False
 
