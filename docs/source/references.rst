@@ -17,3 +17,4 @@ Module reference
     pattern
     pauli_frame
     qompiler
+    scheduler

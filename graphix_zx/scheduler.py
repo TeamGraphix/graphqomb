@@ -19,9 +19,9 @@ class Scheduler:
     ----------
     graph : `BaseGraphState`
         The graph state to be scheduled.
-    prepare_time : `dict`\[`int`, `int | None`\]
+    prepare_time : `dict`\[`int`, `int` | `None`\]
         A mapping from node indices to their preparation time.
-    measure_time : `dict`\[`int`, `int | None`\]
+    measure_time : `dict`\[`int`, `int` | `None`\]
         A mapping from node indices to their measurement time.
     """
 
@@ -78,9 +78,9 @@ class Scheduler:
 
         Parameters
         ----------
-        prepare_time : `dict`\[`int`, `int | None`\]
+        prepare_time : `dict`\[`int`, `int` | `None`\]
             A mapping from node indices to their preparation time.
-        measure_time : `dict`\[`int`, `int | None`\]
+        measure_time : `dict`\[`int`, `int` | `None`\]
             A mapping from node indices to their measurement time.
         """
         self.prepare_time = {

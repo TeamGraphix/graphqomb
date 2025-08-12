@@ -19,19 +19,19 @@ class Strategy(Enum):
     MINIMIZE_TIME = enum.auto()
 
 
-def solve_schedule(  # noqa: C901, PLR0912
+def solve_schedule(  # noqa: C901, PLR0912, PLR0914
     graph: BaseGraphState,
     dag: dict[int, set[int]],
     strategy: Strategy = Strategy.MINIMIZE_SPACE,
     timeout: int = 60,
 ) -> tuple[dict[int, int], dict[int, int]] | None:
-    """Solve the scheduling problem for the given graph.
+    r"""Solve the scheduling problem for the given graph.
 
     Parameters
     ----------
     graph : `BaseGraphState`
         The graph state to optimize.
-    dag : `dict`[`int`, `set`[`int`]]
+    dag : `dict`\[`int`, `set`\[`int`\]
         The directed acyclic graph representing dependencies.
     strategy : `Strategy`, optional
         The optimization strategy to use, by default Strategy.MINIMIZE_SPACE
@@ -40,7 +40,7 @@ def solve_schedule(  # noqa: C901, PLR0912
 
     Returns
     -------
-    `tuple`[`dict`[`int`, `int`], `dict`[`int`, `int`]] | `None`
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\] | `None`
         A tuple of (prepare_time, measure_time) dictionaries if solved,
         None if no solution found.
     """

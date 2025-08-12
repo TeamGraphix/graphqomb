@@ -1,6 +1,6 @@
 """
 Scheduler-based Pattern Generation Demo
-======================================
+=======================================
 
 This example demonstrates how to use the scheduler to generate optimized
 measurement patterns from graph states using different scheduling strategies.
