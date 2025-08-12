@@ -19,27 +19,32 @@ class Strategy(Enum):
     MINIMIZE_TIME = enum.auto()
 
 
-def construct_model(  # noqa: C901, PLR0912
+def solve_schedule(  # noqa: C901, PLR0912
     graph: BaseGraphState,
     dag: dict[int, set[int]],
     strategy: Strategy = Strategy.MINIMIZE_SPACE,
-) -> cp_model.CpModel:
-    r"""Construct a scheduling model for the given graph and strategy.
+    timeout: int = 60,
+) -> tuple[dict[int, int], dict[int, int]] | None:
+    """Solve the scheduling problem for the given graph.
 
     Parameters
     ----------
     graph : `BaseGraphState`
         The graph state to optimize.
-    dag : `dict`\[`int`, `set`\[`int`\]\]
-        The directed acyclic graph (DAG) representing the dependencies of the nodes.
+    dag : `dict`[`int`, `set`[`int`]]
+        The directed acyclic graph representing dependencies.
     strategy : `Strategy`, optional
         The optimization strategy to use, by default Strategy.MINIMIZE_SPACE
+    timeout : `int`, optional
+        Maximum solve time in seconds, by default 60
 
     Returns
     -------
-    `ortools.python.cp_model.CpModel`
-        The constructed CP model.
+    `tuple`[`dict`[`int`, `int`], `dict`[`int`, `int`]] | `None`
+        A tuple of (prepare_time, measure_time) dictionaries if solved,
+        None if no solution found.
     """
+    # Construct model
     m = cp_model.CpModel()
 
     # variables
@@ -54,11 +59,12 @@ def construct_model(  # noqa: C901, PLR0912
             node2meas[node] = m.NewIntVar(0, max_time, f"meas_{node}")
 
     # constraints
-
     # measurement order
     for node, children in dag.items():
         for child in children:
-            m.Add(node2meas[node] < node2meas[child])
+            # Skip if either node is not in measurement variables (input/output nodes)
+            if node in node2meas and child in node2meas:
+                m.Add(node2meas[node] < node2meas[child])
 
     # edge constraints
     for node in graph.physical_nodes - set(graph.output_node_indices):
@@ -70,7 +76,6 @@ def construct_model(  # noqa: C901, PLR0912
     # objectives
     if strategy == Strategy.MINIMIZE_SPACE:
         max_space = m.NewIntVar(0, len(graph.physical_nodes), "max_space")
-
         for t in range(max_time):
             alive_at_t: list[cp_model.IntVar] = []
             for node in graph.physical_nodes:
@@ -98,12 +103,21 @@ def construct_model(  # noqa: C901, PLR0912
 
             m.Add(max_space >= sum(alive_at_t))
         m.Minimize(max_space)
-
     elif strategy == Strategy.MINIMIZE_TIME:
-        # minimize the maximum time of all measurements
         meas_vars = list(node2meas.values())
         makespan = m.NewIntVar(0, max_time, "makespan")
         m.AddMaxEquality(makespan, meas_vars)
         m.Minimize(makespan)
 
-    return m
+    # solve
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = timeout
+
+    status = solver.Solve(m)
+
+    if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
+        prepare_time = {node: solver.Value(var) for node, var in node2prep.items()}
+        measure_time = {node: solver.Value(var) for node, var in node2meas.items()}
+        return prepare_time, measure_time
+
+    return None

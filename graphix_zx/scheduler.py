@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from graphix_zx.schedule_solver import Strategy, solve_schedule
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -89,3 +91,43 @@ class Scheduler:
             node: measure_time.get(node, None)
             for node in self.graph.physical_nodes - set(self.graph.output_node_indices)
         }
+
+    def from_solver(
+        self,
+        dag: dict[int, set[int]],
+        strategy: Strategy | None = None,
+        timeout: int = 60,
+    ) -> bool:
+        r"""Compute the schedule using the constraint programming solver.
+
+        Parameters
+        ----------
+        dag : `dict`\[`int`, `set`\[`int`\]
+            The directed acyclic graph representing dependencies between nodes.
+        strategy : `Strategy`, optional
+            The optimization strategy to use. If None, defaults to MINIMIZE_SPACE.
+        timeout : `int`, optional
+            Maximum solve time in seconds, by default 60
+
+        Returns
+        -------
+        `bool`
+            True if a solution was found and applied, False otherwise.
+        """
+        if strategy is None:
+            strategy = Strategy.MINIMIZE_SPACE
+
+        result = solve_schedule(self.graph, dag, strategy, timeout)
+        if result is None:
+            return False
+
+        prepare_time, measure_time = result
+        self.prepare_time = {
+            node: prepare_time.get(node, None)
+            for node in self.graph.physical_nodes - set(self.graph.input_node_indices)
+        }
+        self.measure_time = {
+            node: measure_time.get(node, None)
+            for node in self.graph.physical_nodes - set(self.graph.output_node_indices)
+        }
+        return True
