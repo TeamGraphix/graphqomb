@@ -7,7 +7,7 @@ measurement patterns from graph states using different scheduling strategies.
 """
 
 # %%
-from graphix_zx.pattern import print_pattern
+from graphix_zx.pattern import Pattern, print_pattern
 from graphix_zx.qompiler import qompile
 from graphix_zx.random_objects import generate_random_flow_graph
 from graphix_zx.schedule_solver import ScheduleConfig, Strategy
@@ -163,7 +163,7 @@ else:
 print("\n6. Strategy Comparison:")
 print("=" * 40)
 
-all_results = []
+all_results: list[tuple[str, Scheduler, Pattern]] = []
 if success_space and pattern_space:
     all_results.append(("Space-optimized", scheduler_space, pattern_space))
 if success_time and pattern_time:
@@ -186,7 +186,7 @@ if len(all_results) >= min_results_needed:
         min_qubits = min(p.max_space for _, _, p in all_results)
 
         for name, scheduler, pattern in all_results:
-            notes = []
+            notes: list[str] = []
             if scheduler.num_slices() == min_slices:
                 notes.append("fastest execution")
             if pattern.max_space == min_qubits:
