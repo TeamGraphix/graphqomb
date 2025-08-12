@@ -153,3 +153,78 @@ def test_space_constrained_scheduling() -> None:
     # This might fail if the constraint is too restrictive,
     # but the method should not crash
     assert isinstance(success, bool)
+
+
+def test_schedule_compression() -> None:
+    """Test that schedule compression reduces unnecessary time gaps."""
+    # Create a graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Test manual scheduling with gaps
+    scheduler.from_manual_design(prepare_time={node1: 5}, measure_time={node1: 10})
+
+    # Before compression, there should be gaps
+    slices_before = scheduler.num_slices()
+
+    # Apply compression
+    scheduler.compress_schedule()
+
+    # After compression, gaps should be removed
+    slices_after = scheduler.num_slices()
+
+    # Compression should reduce the number of slices
+    assert slices_after <= slices_before
+
+    # The compressed schedule should be more compact
+    # All time indices should be consecutive starting from 0
+    prep_times = [t for t in scheduler.prepare_time.values() if t is not None]
+    meas_times = [t for t in scheduler.measure_time.values() if t is not None]
+    all_used_times = sorted(set(prep_times + meas_times))
+
+    # Times should be consecutive from 0
+    expected_times = list(range(len(all_used_times)))
+    assert all_used_times == expected_times
+
+
+def test_solver_with_automatic_compression() -> None:
+    """Test that solver results are automatically compressed."""
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Test with MINIMIZE_SPACE strategy (prone to gaps)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
+    success = scheduler.from_solver(config)
+    assert success
+
+    # Verify that compression was applied automatically
+    prep_times = [t for t in scheduler.prepare_time.values() if t is not None]
+    meas_times = [t for t in scheduler.measure_time.values() if t is not None]
+    all_used_times = sorted(set(prep_times + meas_times))
+
+    # Times should start from 0 and be consecutive (no gaps)
+    if all_used_times:  # Only check if there are any times
+        assert all_used_times[0] == 0  # Should start from 0
+        # Check that times are consecutive (no large gaps)
+        if len(all_used_times) > 1:
+            max_gap = max(all_used_times[i + 1] - all_used_times[i] for i in range(len(all_used_times) - 1))
+            assert max_gap <= 1  # At most gap of 1 (consecutive times)
