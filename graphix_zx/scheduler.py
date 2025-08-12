@@ -8,6 +8,7 @@ from graphix_zx.schedule_solver import Strategy, solve_schedule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
 
@@ -78,9 +79,9 @@ class Scheduler:
 
         Parameters
         ----------
-        prepare_time : `dict`\[`int`, `int` | `None`\]
+        prepare_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
             A mapping from node indices to their preparation time.
-        measure_time : `dict`\[`int`, `int` | `None`\]
+        measure_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
             A mapping from node indices to their measurement time.
         """
         self.prepare_time = {
@@ -94,7 +95,7 @@ class Scheduler:
 
     def from_solver(
         self,
-        dag: dict[int, set[int]],
+        dag: Mapping[int, AbstractSet[int]],
         strategy: Strategy | None = None,
         timeout: int = 60,
     ) -> bool:
@@ -102,7 +103,7 @@ class Scheduler:
 
         Parameters
         ----------
-        dag : `dict`\[`int`, `set`\[`int`\]
+        dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]
             The directed acyclic graph representing dependencies between nodes.
         strategy : `Strategy`, optional
             The optimization strategy to use. If None, defaults to MINIMIZE_SPACE.

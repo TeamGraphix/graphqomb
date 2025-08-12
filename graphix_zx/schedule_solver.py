@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 from ortools.sat.python import cp_model
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
+
     from graphix_zx.graphstate import BaseGraphState
 
 
@@ -21,7 +24,7 @@ class Strategy(Enum):
 
 def solve_schedule(  # noqa: C901, PLR0912, PLR0914
     graph: BaseGraphState,
-    dag: dict[int, set[int]],
+    dag: Mapping[int, AbstractSet[int]],
     strategy: Strategy = Strategy.MINIMIZE_SPACE,
     timeout: int = 60,
 ) -> tuple[dict[int, int], dict[int, int]] | None:
@@ -31,7 +34,7 @@ def solve_schedule(  # noqa: C901, PLR0912, PLR0914
     ----------
     graph : `BaseGraphState`
         The graph state to optimize.
-    dag : `dict`\[`int`, `set`\[`int`\]
+    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]
         The directed acyclic graph representing dependencies.
     strategy : `Strategy`, optional
         The optimization strategy to use, by default Strategy.MINIMIZE_SPACE
