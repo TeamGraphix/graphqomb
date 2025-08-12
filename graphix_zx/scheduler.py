@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.feedforward import dag_from_flow
-from graphix_zx.schedule_solver import Strategy, solve_schedule
+from graphix_zx.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -221,15 +221,15 @@ class Scheduler:
 
     def from_solver(
         self,
-        strategy: Strategy | None = None,
+        config: ScheduleConfig | None = None,
         timeout: int = 60,
     ) -> bool:
         r"""Compute the schedule using the constraint programming solver.
 
         Parameters
         ----------
-        strategy : `Strategy`, optional
-            The optimization strategy to use. If None, defaults to MINIMIZE_SPACE.
+        config : `ScheduleConfig` | `None`, optional
+            The scheduling configuration. If None, defaults to MINIMIZE_SPACE strategy.
         timeout : `int`, optional
             Maximum solve time in seconds, by default 60
 
@@ -238,10 +238,10 @@ class Scheduler:
         `bool`
             True if a solution was found and applied, False otherwise.
         """
-        if strategy is None:
-            strategy = Strategy.MINIMIZE_SPACE
+        if config is None:
+            config = ScheduleConfig(Strategy.MINIMIZE_SPACE)
 
-        result = solve_schedule(self.graph, self.dag, strategy, timeout)
+        result = solve_schedule(self.graph, self.dag, config, timeout)
         if result is None:
             return False
 
