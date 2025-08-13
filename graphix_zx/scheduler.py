@@ -87,8 +87,8 @@ class Scheduler:
 
     def from_manual_design(
         self,
-        prepare_time: Mapping[int, int],
-        measure_time: Mapping[int, int],
+        prepare_time: Mapping[int, int | None],
+        measure_time: Mapping[int, int | None],
     ) -> None:
         r"""Set the schedule manually.
 
