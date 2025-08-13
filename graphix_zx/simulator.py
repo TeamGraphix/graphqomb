@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphix_zx.command import E, M, N, X, Z
+from graphix_zx.common import MeasBasis, Plane
 from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.pattern import is_runnable
 from graphix_zx.statevec import StateVector
@@ -333,12 +334,21 @@ class PatternSimulator(BasePatternSimulator):
         rng = np.random.default_rng()
         result = rng.uniform() < 1 / 2
 
-        # Note: s_domain and t_domain are not available in current command structure
-        # Using angle directly from measurement basis
+        if cmd.meas_basis.plane == Plane.XY:
+            if self.__pattern.pauli_frame.z_pauli[cmd.node]:
+                basis: MeasBasis = cmd.meas_basis.flip()
+            else:
+                basis = cmd.meas_basis
+        elif cmd.meas_basis.plane == Plane.YZ:
+            basis = cmd.meas_basis.flip() if self.__pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
+        elif self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
+            basis = cmd.meas_basis.flip()
+        else:
+            basis = cmd.meas_basis
 
         node_id = self.__node_indices.index(cmd.node)
         # Note: measure method requires MeasBasis and result as int
-        self.__state.measure(node_id, cmd.meas_basis, int(result))
+        self.__state.measure(node_id, basis, int(result))
         self.__results[cmd.node] = result
         self.__node_indices.remove(cmd.node)
 
@@ -346,16 +356,12 @@ class PatternSimulator(BasePatternSimulator):
 
     def _apply_x(self, cmd: X) -> None:
         node_id = self.__node_indices.index(cmd.node)
-        # Note: domain attribute not available in current X command structure
-        # Applying X correction directly without domain dependency
-        if True:  # Always apply for now
+        if self.__pattern.pauli_frame.x_pauli[cmd.node]:
             self.__state.evolve(np.asarray([[0, 1], [1, 0]]), [node_id])
 
     def _apply_z(self, cmd: Z) -> None:
         node_id = self.__node_indices.index(cmd.node)
-        # Note: domain attribute not available in current Z command structure
-        # Applying Z correction directly without domain dependency
-        if True:  # Always apply for now
+        if self.__pattern.pauli_frame.z_pauli[cmd.node]:
             self.__state.evolve(np.asarray([[1, 0], [0, -1]]), [node_id])
 
 
