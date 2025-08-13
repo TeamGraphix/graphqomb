@@ -33,7 +33,7 @@ space_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
 success_space = scheduler_space.from_solver(space_config, timeout=10)
 pattern_space = None
 
-if success_space & scheduler_space.validate_schedule():
+if success_space and scheduler_space.validate_schedule():
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_space.num_slices()}")
 
