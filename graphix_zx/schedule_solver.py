@@ -199,7 +199,7 @@ def solve_schedule(
     ----------
     graph : `BaseGraphState`
         The graph state to optimize.
-    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]
+    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The directed acyclic graph representing dependencies.
     config : `ScheduleConfig`
         The scheduling configuration including strategy and constraints.
