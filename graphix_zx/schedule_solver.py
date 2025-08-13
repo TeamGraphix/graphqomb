@@ -95,6 +95,46 @@ def _set_objective(
         _set_minimize_time_with_space_constraint_objective(ctx, node2prep, node2meas, max_time, config.max_qubit_count)
 
 
+def _compute_alive_nodes_at_time(
+    ctx: _ModelContext,
+    node2prep: dict[int, cp_model.IntVar],
+    node2meas: dict[int, cp_model.IntVar],
+    t: int,
+) -> list[cp_model.IntVar]:
+    """Compute the list of alive nodes at time t.
+
+    Returns
+    -------
+    list[cp_model.IntVar]
+        Boolean variables indicating whether each node is alive at time t.
+    """
+    alive_at_t: list[cp_model.IntVar] = []
+    for node in ctx.graph.physical_nodes:
+        a_pre = ctx.model.NewBoolVar(f"alive_pre_{node}_{t}")
+        if node in ctx.graph.input_node_indices:
+            ctx.model.Add(a_pre == 1)
+        else:
+            p = node2prep[node]
+            ctx.model.Add(p <= t).OnlyEnforceIf(a_pre)
+            ctx.model.Add(p > t).OnlyEnforceIf(a_pre.Not())
+
+        a_meas = ctx.model.NewBoolVar(f"alive_meas_{node}_{t}")
+        if node in ctx.graph.output_node_indices:
+            ctx.model.Add(a_meas == 0)
+        else:
+            q = node2meas[node]
+            ctx.model.Add(q <= t).OnlyEnforceIf(a_meas)
+            ctx.model.Add(q > t).OnlyEnforceIf(a_meas.Not())
+
+        alive = ctx.model.NewBoolVar(f"alive_{node}_{t}")
+        ctx.model.AddImplication(alive, a_pre)
+        ctx.model.AddImplication(alive, a_meas.Not())
+        ctx.model.Add(a_pre - a_meas <= alive)
+        alive_at_t.append(alive)
+
+    return alive_at_t
+
+
 def _set_minimize_space_objective(
     ctx: _ModelContext,
     node2prep: dict[int, cp_model.IntVar],
@@ -104,30 +144,7 @@ def _set_minimize_space_objective(
     """Set objective to minimize the maximum number of qubits used at any time."""
     max_space = ctx.model.NewIntVar(0, len(ctx.graph.physical_nodes), "max_space")
     for t in range(max_time):
-        alive_at_t: list[cp_model.IntVar] = []
-        for node in ctx.graph.physical_nodes:
-            a_pre = ctx.model.NewBoolVar(f"alive_pre_{node}_{t}")
-            if node in ctx.graph.input_node_indices:
-                ctx.model.Add(a_pre == 1)
-            else:
-                p = node2prep[node]
-                ctx.model.Add(p <= t).OnlyEnforceIf(a_pre)
-                ctx.model.Add(p > t).OnlyEnforceIf(a_pre.Not())
-
-            a_meas = ctx.model.NewBoolVar(f"alive_meas_{node}_{t}")
-            if node in ctx.graph.output_node_indices:
-                ctx.model.Add(a_meas == 0)
-            else:
-                q = node2meas[node]
-                ctx.model.Add(q <= t).OnlyEnforceIf(a_meas)
-                ctx.model.Add(q > t).OnlyEnforceIf(a_meas.Not())
-
-            alive = ctx.model.NewBoolVar(f"alive_{node}_{t}")
-            ctx.model.AddImplication(alive, a_pre)
-            ctx.model.AddImplication(alive, a_meas.Not())
-            ctx.model.Add(a_pre - a_meas <= alive)
-            alive_at_t.append(alive)
-
+        alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
         ctx.model.Add(max_space >= sum(alive_at_t))
     ctx.model.Minimize(max_space)
 
@@ -154,30 +171,7 @@ def _set_minimize_time_with_space_constraint_objective(
     """Set objective to minimize time while constraining the maximum number of qubits."""
     # Space constraint: ensure we never use more than max_qubit_count qubits
     for t in range(max_time):
-        alive_at_t: list[cp_model.IntVar] = []
-        for node in ctx.graph.physical_nodes:
-            a_pre = ctx.model.NewBoolVar(f"alive_pre_{node}_{t}")
-            if node in ctx.graph.input_node_indices:
-                ctx.model.Add(a_pre == 1)
-            else:
-                p = node2prep[node]
-                ctx.model.Add(p <= t).OnlyEnforceIf(a_pre)
-                ctx.model.Add(p > t).OnlyEnforceIf(a_pre.Not())
-
-            a_meas = ctx.model.NewBoolVar(f"alive_meas_{node}_{t}")
-            if node in ctx.graph.output_node_indices:
-                ctx.model.Add(a_meas == 0)
-            else:
-                q = node2meas[node]
-                ctx.model.Add(q <= t).OnlyEnforceIf(a_meas)
-                ctx.model.Add(q > t).OnlyEnforceIf(a_meas.Not())
-
-            alive = ctx.model.NewBoolVar(f"alive_{node}_{t}")
-            ctx.model.AddImplication(alive, a_pre)
-            ctx.model.AddImplication(alive, a_meas.Not())
-            ctx.model.Add(a_pre - a_meas <= alive)
-            alive_at_t.append(alive)
-
+        alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
         ctx.model.Add(sum(alive_at_t) <= max_qubit_count)
 
     # Time objective: minimize makespan
