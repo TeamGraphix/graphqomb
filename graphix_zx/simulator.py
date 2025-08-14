@@ -2,7 +2,6 @@
 
 This module provides:
 
-- `BaseCircuitSimulator` : Base class for circuit simulators.
 - `SimulatorBackend` : Enum class for circuit simulator backends.
 - `MBQCCircuitSimulator` : Class for simulating MBQC circuits.
 - `BasePatternSimulator` : Base class for pattern simulators.
@@ -31,7 +30,6 @@ if TYPE_CHECKING:
     from graphix_zx.command import Command
     from graphix_zx.pattern import Pattern
     from graphix_zx.simulator_backend import BaseSimulatorBackend
-    from graphix_zx.statevec import StateVector as BaseStateVector
 
 
 class SimulatorBackend(Enum):
