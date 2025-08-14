@@ -1,12 +1,13 @@
 """Module for simulating circuits and Measurement Patterns.
 
 This module provides:
-- BaseCircuitSimulator: Base class for circuit simulators.
-- SimulatorBackend: Enum class for circuit
-- MBQCCircuitSimulator: Class for simulating MBQC circuits.
-- BasePatternSimulator: Base class for pattern simulators.
-- PatternSimulator: Class for simulating Measurement Pattern.
-- parse_q_indices: Parse qubit indices and return permutation to sort the logical qubit indices.
+
+- `BaseCircuitSimulator` : Base class for circuit simulators.
+- `SimulatorBackend` : Enum class for circuit simulator backends.
+- `MBQCCircuitSimulator` : Class for simulating MBQC circuits.
+- `BasePatternSimulator` : Base class for pattern simulators.
+- `PatternSimulator` : Class for simulating Measurement Patterns.
+- `parse_q_indices` : Parse qubit indices and return permutation to sort the logical qubit indices.
 """
 
 from __future__ import annotations
@@ -26,46 +27,11 @@ from graphix_zx.statevec import StateVector
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from graphix_zx.circuit import MBQCCircuit
+    from graphix_zx.circuit import BaseCircuit
     from graphix_zx.command import Command
     from graphix_zx.pattern import Pattern
     from graphix_zx.simulator_backend import BaseSimulatorBackend
     from graphix_zx.statevec import StateVector as BaseStateVector
-
-
-class BaseCircuitSimulator(ABC):
-    """Base class for circuit simulators."""
-
-    @abstractmethod
-    def __init__(self) -> None:
-        pass
-
-    @abstractmethod
-    def apply_gate(self, gate: Gate) -> None:
-        """Apply a gate to the circuit.
-
-        Parameters
-        ----------
-        gate : Gate
-            The gate to apply.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def simulate(self) -> None:
-        """Simulate the circuit."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_state(self) -> BaseStateVector:
-        """Get the quantum state as a state vector.
-
-        Returns
-        -------
-        BaseStateVector
-            The quantum state as a state vector.
-        """
-        raise NotImplementedError
 
 
 class SimulatorBackend(Enum):
@@ -80,19 +46,10 @@ class SimulatorBackend(Enum):
     DensityMatrix = auto()
 
 
-# NOTE: Currently, only XY plane is supported
-class MBQCCircuitSimulator(BaseCircuitSimulator):
-    """Class for simulating MBQC circuits.
+class MBQCCircuitSimulator:
+    """Class for simulating MBQC circuits."""
 
-    Attributes
-    ----------
-    __state : BaseStateVector
-        The quantum state.
-    __gate_instructions : list[UnitGate]
-        The list of gate instructions in the circuit.
-    """
-
-    def __init__(self, mbqc_circuit: MBQCCircuit, backend: SimulatorBackend) -> None:
+    def __init__(self, mbqc_circuit: BaseCircuit, backend: SimulatorBackend) -> None:
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector(mbqc_circuit.num_qubits)
         elif backend == SimulatorBackend.DensityMatrix:
