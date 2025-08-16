@@ -49,7 +49,7 @@ class MBQCCircuitSimulator:
 
     def __init__(self, mbqc_circuit: BaseCircuit, backend: SimulatorBackend) -> None:
         if backend == SimulatorBackend.StateVector:
-            self.__state = StateVector(mbqc_circuit.num_qubits)
+            self.__state = StateVector.from_num_qubits(mbqc_circuit.num_qubits)
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
@@ -97,71 +97,8 @@ class MBQCCircuitSimulator:
         return self.__state
 
 
-class BasePatternSimulator(ABC):
-    """Base class for pattern simulators."""
-
-    @abstractmethod
-    def __init__(self) -> None:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def results(self) -> dict[int, bool]:
-        """Get the map from node index to measurement result.
-
-        Returns
-        -------
-        dict[int, bool]
-            Map from node index to measurement result.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def apply_cmd(self, cmd: Command) -> None:
-        """Apply a command to the pattern.
-
-        Parameters
-        ----------
-        cmd : Command
-            The command to apply.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def simulate(self) -> None:
-        """Simulate the pattern."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_state(
-        self,
-    ) -> BaseSimulatorBackend:
-        """Get the quantum state in a specified backend.
-
-        Returns
-        -------
-        BaseSimulatorBackend
-            The quantum state in a specified backend.
-        """
-        raise NotImplementedError
-
-
-class PatternSimulator(BasePatternSimulator):
-    """Class for simulating Measurement Pattern.
-
-    Attributes
-    ----------
-    __pattern : Pattern
-        The measurement pattern to simulate.
-    __state : SimulatorBackend
-        The simulator backend.
-    __node_indices : list[int]
-        Mapping from qubit index of the state to node index of the pattern.
-    __results : dict[int, bool]
-        The map from node index to measurement result.
-    __calc_prob : bool
-        Flag to calculate probability.
-    """
+class PatternSimulator:
+    """Class for simulating Measurement Patterns."""
 
     def __init__(
         self,
@@ -177,11 +114,7 @@ class PatternSimulator(BasePatternSimulator):
         self.__pattern = pattern
 
         # Pattern runnability check is done via is_runnable function
-        try:
-            is_runnable(self.__pattern)
-        except Exception as e:
-            msg = f"Pattern is not runnable: {e}"
-            raise ValueError(msg) from e
+        is_runnable(self.__pattern)
 
         if backend == SimulatorBackend.StateVector:
             # Note: deterministic check skipped for now
