@@ -45,13 +45,24 @@ class BaseCircuit(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            List of gate instructions in the circuit.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            List of unit instructions in the circuit.
+            List of unit gate instructions in the circuit.
         """
         raise NotImplementedError
 
@@ -77,13 +88,24 @@ class MBQCCircuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            List of gate instructions in the circuit.
+        """
+        # For MBQCCircuit, Gate and UnitGate are the same
+        return list(self.__gate_instructions)
+
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            List of unit instructions in the circuit.
+            List of unit gate instructions in the circuit.
         """
         return list(self.__gate_instructions)
 
@@ -156,13 +178,23 @@ class Circuit(BaseCircuit):
         """
         return copy.deepcopy(self.__macro_gate_instructions)
 
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            List of gate instructions in the circuit.
+        """
+        return copy.deepcopy(self.__macro_gate_instructions)
+
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            The list of unit instructions in the circuit.
+            The list of unit gate instructions in the circuit.
         """
         return list(
             itertools.chain.from_iterable(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)
@@ -210,7 +242,7 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
         qindex2front_nodes[qindex] = node
         qid_ex2in[i] = qindex
 
-    for instruction in circuit.instructions():
+    for instruction in circuit.unit_instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
             graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)

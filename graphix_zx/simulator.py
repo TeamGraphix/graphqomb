@@ -4,22 +4,19 @@ This module provides:
 
 - `SimulatorBackend` : Enum class for circuit simulator backends.
 - `MBQCCircuitSimulator` : Class for simulating MBQC circuits.
-- `BasePatternSimulator` : Base class for pattern simulators.
 - `PatternSimulator` : Class for simulating Measurement Patterns.
 - `parse_q_indices` : Parse qubit indices and return permutation to sort the logical qubit indices.
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import MeasBasis, Plane
-from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.pattern import is_runnable
 from graphix_zx.statevec import StateVector
 
@@ -28,6 +25,7 @@ if TYPE_CHECKING:
 
     from graphix_zx.circuit import BaseCircuit
     from graphix_zx.command import Command
+    from graphix_zx.gates import Gate
     from graphix_zx.pattern import Pattern
     from graphix_zx.simulator_backend import BaseSimulatorBackend
 
@@ -56,7 +54,7 @@ class MBQCCircuitSimulator:
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
 
-        self.__gate_instructions: list[UnitGate] = mbqc_circuit.instructions()
+        self.__gate_instructions: list[Gate] = mbqc_circuit.instructions()
 
     def apply_gate(self, gate: Gate) -> None:
         """Apply a gate to the circuit.
@@ -69,17 +67,22 @@ class MBQCCircuitSimulator:
         Raises
         ------
         TypeError
-            If the gate is not a valid gate.
+            If the gate type is not supported.
         """
         operator = gate.matrix()
-        # may be refactored
-        if isinstance(gate, J):
-            self.__state.evolve(operator, [gate.qubit])
-        elif isinstance(gate, (CZ, PhaseGadget)):
-            self.__state.evolve(operator, gate.qubits)
+
+        # Get qubits that the gate acts on
+        if hasattr(gate, "qubit"):
+            # Single qubit gate
+            qubits = [cast("int", gate.qubit)]
+        elif hasattr(gate, "qubits"):
+            # Multi-qubit gate
+            qubits = list(cast("Any", gate.qubits))
         else:
-            msg = f"Invalid gate: {gate}"
+            msg = f"Cannot determine qubits for gate: {gate}"
             raise TypeError(msg)
+
+        self.__state.evolve(operator, qubits)
 
     def simulate(self) -> None:
         """Simulate the circuit."""

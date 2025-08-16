@@ -12,6 +12,7 @@ from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.gates import (
     CNOT,
     CZ,
+    Gate,
     H,
     J,
     PhaseGadget,
@@ -145,7 +146,7 @@ def test_circuit_two_qubit_gates() -> None:
 
 
 def test_circuit_instructions_expansion() -> None:
-    """Test that instructions() correctly expands macro gates."""
+    """Test that unit_instructions() correctly expands macro gates."""
     circuit = Circuit(num_qubits=3)
 
     # Add various macro gates
@@ -156,7 +157,7 @@ def test_circuit_instructions_expansion() -> None:
     circuit.apply_macro_gate(Z(qubit=0))  # 2 unit gates
 
     # Get expanded instructions
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
 
     # Calculate expected total
     expected_count = 1 + 3 + 2 + 4 + 2
@@ -164,6 +165,11 @@ def test_circuit_instructions_expansion() -> None:
 
     # Verify all are UnitGate instances
     assert all(isinstance(inst, (J, CZ, PhaseGadget)) for inst in instructions)
+
+    # Test that instructions() returns macro gates
+    macro_instructions = circuit.instructions()
+    assert len(macro_instructions) == 5  # 5 macro gates
+    assert all(isinstance(inst, Gate) for inst in macro_instructions)
 
 
 def test_circuit_instructions_matches_manual_expansion() -> None:
@@ -176,8 +182,8 @@ def test_circuit_instructions_matches_manual_expansion() -> None:
     circuit.apply_macro_gate(CNOT(qubits=(0, 1)))
     circuit.apply_macro_gate(S(qubit=1))
 
-    # Get instructions from method
-    instructions = circuit.instructions()
+    # Get unit instructions from method
+    instructions = circuit.unit_instructions()
 
     # Manual expansion
     macro_gates = circuit.macro_gate_instructions
@@ -192,6 +198,11 @@ def test_circuit_instructions_matches_manual_expansion() -> None:
             assert inst.angle == expected.angle
         elif isinstance(inst, CZ) and isinstance(expected, CZ):
             assert inst.qubits == expected.qubits
+
+    # Test that instructions() returns macro gates
+    macro_instructions = circuit.instructions()
+    assert len(macro_instructions) == 4  # 4 macro gates
+    assert macro_instructions == circuit.macro_gate_instructions
 
 
 def test_circuit_empty_circuit_instructions() -> None:
@@ -290,7 +301,10 @@ def test_circuit2graph_invalid_instruction() -> None:
         def num_qubits(self) -> int:
             return 1
 
-        def instructions(self) -> list[UnitGate]:  # noqa: PLR6301
+        def instructions(self) -> list[Gate]:  # noqa: PLR6301
+            return [X(qubit=0)]
+
+        def unit_instructions(self) -> list[UnitGate]:  # noqa: PLR6301
             # Return a non-UnitGate object to trigger error
             return [X(qubit=0)]  # type: ignore[list-item]
 
