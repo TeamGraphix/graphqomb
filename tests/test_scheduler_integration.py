@@ -226,3 +226,136 @@ def test_solver_with_automatic_compression() -> None:
         if len(all_used_times) > 1:
             max_gap = max(all_used_times[i + 1] - all_used_times[i] for i in range(len(all_used_times) - 1))
             assert max_gap <= 1  # At most gap of 1 (consecutive times)
+
+
+def test_validate_schedule_valid() -> None:
+    """Test that validate_schedule correctly identifies valid schedules."""
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Test that a solver-generated schedule is valid
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    success = scheduler.solve(config)
+    assert success
+    assert scheduler.validate_schedule()
+
+    # Test a valid manual schedule
+    scheduler2 = Scheduler(graph, flow)
+    # node0 is input (not in prepare_time), node2 is output (not in measure_time)
+    scheduler2.set_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    assert scheduler2.validate_schedule()
+
+
+def test_validate_schedule_invalid_node_sets() -> None:
+    """Test that validate_schedule rejects schedules with wrong node sets."""
+    # Create a graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Manually set invalid schedule (trying to prepare input node)
+    scheduler.prepare_time = {node0: 0, node1: 1}  # node0 is input, shouldn't be prepared
+    scheduler.measure_time = {node0: 1, node1: 2}
+    assert not scheduler.validate_schedule()
+
+    # Reset and test measuring output node
+    scheduler2 = Scheduler(graph, flow)
+    scheduler2.prepare_time = {node1: 0}
+    scheduler2.measure_time = {node0: 1, node1: 1, node2: 2}  # node2 is output, shouldn't be measured
+    assert not scheduler2.validate_schedule()
+
+
+def test_validate_schedule_missing_times() -> None:
+    """Test that validate_schedule rejects schedules with missing times."""
+    # Create a graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set schedule with None values (unscheduled nodes)
+    scheduler.prepare_time = {node1: None}  # node1 not scheduled for preparation
+    scheduler.measure_time = {node0: 0, node1: 1}
+    assert not scheduler.validate_schedule()
+
+    # Reset and test missing measurement time
+    scheduler2 = Scheduler(graph, flow)
+    scheduler2.prepare_time = {node1: 0}
+    scheduler2.measure_time = {node0: 0, node1: None}  # node1 not scheduled for measurement
+    assert not scheduler2.validate_schedule()
+
+
+def test_validate_schedule_dag_violations() -> None:
+    """Test that validate_schedule rejects schedules violating DAG constraints."""
+    # Create a graph with flow dependencies
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    node3 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    graph.add_physical_edge(node2, node3)
+    qindex = graph.register_input(node0)
+    graph.register_output(node3, qindex)
+
+    # Flow creates DAG: node0 -> node1 -> node2
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set schedule that violates DAG (node1 measured after node2)
+    scheduler.prepare_time = {node1: 0, node2: 0}
+    scheduler.measure_time = {node0: 0, node1: 2, node2: 1}  # Violates DAG: node1 should be measured before node2
+    assert not scheduler.validate_schedule()
+
+    # Test equal times (also violates DAG)
+    scheduler2 = Scheduler(graph, flow)
+    scheduler2.prepare_time = {node1: 0, node2: 0}
+    scheduler2.measure_time = {node0: 0, node1: 1, node2: 1}  # Same measurement time violates DAG
+    assert not scheduler2.validate_schedule()
+
+
+def test_validate_schedule_same_time_prep_meas() -> None:
+    """Test that validate_schedule rejects schedules with nodes prepared and measured at same time."""
+    # Create a graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = graph.register_input(node0)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set schedule where node1 is both prepared and measured at time 1
+    scheduler.prepare_time = {node1: 1}
+    scheduler.measure_time = {node0: 0, node1: 1}  # node1 prepared and measured at time 1
+    assert not scheduler.validate_schedule()
