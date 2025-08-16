@@ -2,7 +2,7 @@
 
 This module provides:
 
-- `compress_time`: Compress preparation and measurement times by removing gaps.
+- `compress_schedule`: Compress preparation and measurement times by removing gaps.
 - `Scheduler`: Schedule graph node preparation and measurement operations
 """
 
