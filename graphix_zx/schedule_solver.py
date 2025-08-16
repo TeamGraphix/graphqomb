@@ -28,7 +28,6 @@ class Strategy(Enum):
 
     MINIMIZE_SPACE = enum.auto()
     MINIMIZE_TIME = enum.auto()
-    MINIMIZE_TIME_WITH_SPACE_CONSTRAINT = enum.auto()
 
 
 @dataclass
@@ -77,22 +76,11 @@ def _set_objective(
     config: ScheduleConfig,
     max_time: int,
 ) -> None:
-    """Set the objective function for the scheduling model.
-
-    Raises
-    ------
-    ValueError
-        If max_qubit_count is required but not provided for the strategy.
-    """
+    """Set the objective function for the scheduling model."""
     if config.strategy == Strategy.MINIMIZE_SPACE:
         _set_minimize_space_objective(ctx, node2prep, node2meas, max_time)
     elif config.strategy == Strategy.MINIMIZE_TIME:
-        _set_minimize_time_objective(ctx.model, node2meas, max_time)
-    elif config.strategy == Strategy.MINIMIZE_TIME_WITH_SPACE_CONSTRAINT:
-        if config.max_qubit_count is None:
-            msg = "max_qubit_count must be provided for MINIMIZE_TIME_WITH_SPACE_CONSTRAINT"
-            raise ValueError(msg)
-        _set_minimize_time_with_space_constraint_objective(ctx, node2prep, node2meas, max_time, config.max_qubit_count)
+        _set_minimize_time_objective(ctx, node2prep, node2meas, max_time, config.max_qubit_count)
 
 
 def _compute_alive_nodes_at_time(
@@ -150,29 +138,18 @@ def _set_minimize_space_objective(
 
 
 def _set_minimize_time_objective(
-    model: cp_model.CpModel,
-    node2meas: dict[int, cp_model.IntVar],
-    max_time: int,
-) -> None:
-    """Set objective to minimize the total execution time."""
-    meas_vars = list(node2meas.values())
-    makespan = model.NewIntVar(0, max_time, "makespan")
-    model.AddMaxEquality(makespan, meas_vars)
-    model.Minimize(makespan)
-
-
-def _set_minimize_time_with_space_constraint_objective(
     ctx: _ModelContext,
     node2prep: dict[int, cp_model.IntVar],
     node2meas: dict[int, cp_model.IntVar],
     max_time: int,
-    max_qubit_count: int,
+    max_qubit_count: int | None = None,
 ) -> None:
-    """Set objective to minimize time while constraining the maximum number of qubits."""
-    # Space constraint: ensure we never use more than max_qubit_count qubits
-    for t in range(max_time):
-        alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-        ctx.model.Add(sum(alive_at_t) <= max_qubit_count)
+    """Set objective to minimize the total execution time."""
+    # Add space constraint if max_qubit_count is specified
+    if max_qubit_count is not None:
+        for t in range(max_time):
+            alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
+            ctx.model.Add(sum(alive_at_t) <= max_qubit_count)
 
     # Time objective: minimize makespan
     meas_vars = list(node2meas.values())
