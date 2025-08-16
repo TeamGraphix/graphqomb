@@ -123,11 +123,11 @@ class Scheduler:
         physical_nodes = self.graph.physical_nodes
 
         # Input nodes should not be in prepare_time
-        if input_nodes & self.prepare_time.keys():
+        if not input_nodes.isdisjoint(self.prepare_time.keys()):
             return False
 
         # Output nodes should not be in measure_time
-        if output_nodes & self.measure_time.keys():
+        if not output_nodes.isdisjoint(self.measure_time.keys()):
             return False
 
         # Check expected node sets
@@ -195,7 +195,7 @@ class Scheduler:
         for time in all_times:
             prep_nodes = time_to_prep_nodes[time]
             meas_nodes = time_to_meas_nodes[time]
-            if prep_nodes & meas_nodes:
+            if not prep_nodes.isdisjoint(meas_nodes):
                 return False
 
         return True
