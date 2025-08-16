@@ -30,7 +30,7 @@ print("=" * 40)
 
 scheduler_space = Scheduler(graph, xflow)
 space_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-success_space = scheduler_space.from_solver(space_config, timeout=10)
+success_space = scheduler_space.solve(space_config, timeout=10)
 pattern_space = None
 
 if success_space and scheduler_space.validate_schedule():
@@ -63,7 +63,7 @@ print("=" * 40)
 
 scheduler_time = Scheduler(graph, xflow)
 time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-success_time = scheduler_time.from_solver(time_config, timeout=10)
+success_time = scheduler_time.solve(time_config, timeout=10)
 pattern_time = None
 
 if success_time and scheduler_time.validate_schedule():
@@ -103,7 +103,7 @@ constrained_config = ScheduleConfig(
 )
 
 scheduler_constrained = Scheduler(graph, xflow)
-success_constrained = scheduler_constrained.from_solver(constrained_config, timeout=15)
+success_constrained = scheduler_constrained.solve(constrained_config, timeout=15)
 pattern_constrained = None
 
 if success_constrained and scheduler_constrained.validate_schedule():
@@ -146,7 +146,7 @@ custom_time_config = ScheduleConfig(
 )
 
 scheduler_custom = Scheduler(graph, xflow)
-success_custom = scheduler_custom.from_solver(custom_time_config, timeout=10)
+success_custom = scheduler_custom.solve(custom_time_config, timeout=10)
 
 if success_custom and scheduler_custom.validate_schedule():
     print("   Scheduling with custom max_time successful!")

@@ -22,7 +22,7 @@ def test_simple_graph_scheduling() -> None:
 
     # Test solver-based scheduling
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.from_solver(config)
+    success = scheduler.solve(config)
     assert success
 
     # Check that times were assigned
@@ -53,12 +53,12 @@ def test_manual_vs_solver_scheduling() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test manual scheduling
-    scheduler.from_manual_design(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
+    scheduler.set_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
     manual_schedule = scheduler.schedule
 
     # Test solver-based scheduling
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.from_solver(config)
+    success = scheduler.solve(config)
     assert success
     solver_schedule = scheduler.schedule
 
@@ -82,7 +82,7 @@ def test_solver_failure_handling() -> None:
 
     # Solver should return False for unsolvable problems
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.from_solver(config, timeout=1)
+    success = scheduler.solve(config, timeout=1)
     # Note: This might still succeed depending on the specific constraints
     # The test mainly checks that the method doesn't crash
     assert isinstance(success, bool)
@@ -105,19 +105,19 @@ def test_schedule_config_options() -> None:
 
     # Test space optimization
     space_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-    success = scheduler.from_solver(space_config)
+    success = scheduler.solve(space_config)
     assert success
     space_slices = scheduler.num_slices()
 
     # Test time optimization
     time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.from_solver(time_config)
+    success = scheduler.solve(time_config)
     assert success
     time_slices = scheduler.num_slices()
 
     # Test custom max_time
     custom_time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE, max_time=10)
-    success = scheduler.from_solver(custom_time_config)
+    success = scheduler.solve(custom_time_config)
     assert success
 
     # Time optimization should generally use fewer slices than space optimization
@@ -146,7 +146,7 @@ def test_space_constrained_scheduling() -> None:
     max_qubits = 3
     constrained_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, max_qubit_count=max_qubits)
 
-    success = scheduler.from_solver(constrained_config, timeout=30)
+    success = scheduler.solve(constrained_config, timeout=30)
 
     # This might fail if the constraint is too restrictive,
     # but the method should not crash
@@ -169,7 +169,7 @@ def test_schedule_compression() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test manual scheduling with gaps
-    scheduler.from_manual_design(prepare_time={node1: 5}, measure_time={node1: 10})
+    scheduler.set_schedule(prepare_time={node1: 5}, measure_time={node1: 10})
 
     # Before compression, there should be gaps
     slices_before = scheduler.num_slices()
@@ -211,7 +211,7 @@ def test_solver_with_automatic_compression() -> None:
 
     # Test with MINIMIZE_SPACE strategy (prone to gaps)
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-    success = scheduler.from_solver(config)
+    success = scheduler.solve(config)
     assert success
 
     # Verify that compression was applied automatically
