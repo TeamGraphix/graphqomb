@@ -144,9 +144,7 @@ def test_space_constrained_scheduling() -> None:
 
     # Test constrained optimization
     max_qubits = 3
-    constrained_config = ScheduleConfig(
-        strategy=Strategy.MINIMIZE_TIME, max_qubit_count=max_qubits
-    )
+    constrained_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, max_qubit_count=max_qubits)
 
     success = scheduler.from_solver(constrained_config, timeout=30)
 
