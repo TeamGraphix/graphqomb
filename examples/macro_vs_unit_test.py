@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 from graphix_zx.circuit import Circuit
-from graphix_zx.gates import H, Rz, S, T, X
+from graphix_zx.gates import H, MultiGate, Rz, S, SingleGate, T, TwoQubitGate, X
 from graphix_zx.simulator import MBQCCircuitSimulator, SimulatorBackend
 from graphix_zx.statevec import StateVector
 
@@ -59,9 +59,9 @@ def test_correctness() -> bool:
     state_manual = StateVector.from_num_qubits(1)
     for gate in macro_gates:
         # Get qubits that the gate acts on
-        if hasattr(gate, "qubit"):
+        if isinstance(gate, SingleGate):
             qubits = [gate.qubit]
-        elif hasattr(gate, "qubits"):
+        elif isinstance(gate, (TwoQubitGate, MultiGate)):
             qubits = list(gate.qubits)
         else:
             msg = f"Cannot determine qubits for gate: {gate}"

@@ -11,12 +11,13 @@ This module provides:
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import MeasBasis, Plane
+from graphix_zx.gates import MultiGate, SingleGate, TwoQubitGate
 from graphix_zx.pattern import is_runnable
 from graphix_zx.statevec import StateVector
 
@@ -72,12 +73,12 @@ class MBQCCircuitSimulator:
         operator = gate.matrix()
 
         # Get qubits that the gate acts on
-        if hasattr(gate, "qubit"):
+        if isinstance(gate, SingleGate):
             # Single qubit gate
-            qubits = [cast("int", gate.qubit)]
-        elif hasattr(gate, "qubits"):
-            # Multi-qubit gate
-            qubits = list(cast("Any", gate.qubits))
+            qubits = [gate.qubit]
+        elif isinstance(gate, (TwoQubitGate, MultiGate)):
+            # Multi-qubit gate (both TwoQubitGate and MultiGate have qubits attribute)
+            qubits = list(gate.qubits)
         else:
             msg = f"Cannot determine qubits for gate: {gate}"
             raise TypeError(msg)
