@@ -87,7 +87,7 @@ class Scheduler:
                 meas_time[time].add(node)
         return [(prep_time[time], meas_time[time]) for time in range(self.num_slices())]
 
-    def from_manual_design(
+    def set_schedule(
         self,
         prepare_time: Mapping[int, int | None],
         measure_time: Mapping[int, int | None],
@@ -223,7 +223,7 @@ class Scheduler:
             and self._validate_time_ordering()
         )
 
-    def from_solver(
+    def solve(
         self,
         config: ScheduleConfig | None = None,
         timeout: int = 60,
@@ -268,8 +268,8 @@ class Scheduler:
 
         This method shifts all time indices forward to remove unused time slots,
         reducing the total number of slices without changing the relative ordering.
-        Can be called manually after `from_manual_design` or is automatically
-        called after `from_solver`.
+        Can be called manually after `set_schedule` or is automatically
+        called after `solve`.
         """
         # Collect all used time indices
         all_times: set[int] = set()
