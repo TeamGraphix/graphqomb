@@ -47,8 +47,8 @@ class Scheduler:
     ) -> None:
         self.graph = graph
         self.dag = dag_from_flow(graph, xflow, zflow)
-        self.prepare_time = dict.fromkeys(graph.physical_nodes - set(graph.input_node_indices))
-        self.measure_time = dict.fromkeys(graph.physical_nodes - set(graph.output_node_indices))
+        self.prepare_time = dict.fromkeys(graph.physical_nodes - graph.input_node_indices.keys())
+        self.measure_time = dict.fromkeys(graph.physical_nodes - graph.output_node_indices.keys())
 
     def num_slices(self) -> int:
         r"""Return the number of slices in the schedule.
@@ -101,11 +101,11 @@ class Scheduler:
         """
         self.prepare_time = {
             node: prepare_time.get(node, None)
-            for node in self.graph.physical_nodes - set(self.graph.input_node_indices)
+            for node in self.graph.physical_nodes - self.graph.input_node_indices.keys()
         }
         self.measure_time = {
             node: measure_time.get(node, None)
-            for node in self.graph.physical_nodes - set(self.graph.output_node_indices)
+            for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
 
     def _validate_node_sets(self) -> bool:
@@ -116,26 +116,23 @@ class Scheduler:
         `bool`
             True if input/output nodes are correctly excluded from prepare/measure times.
         """
-        input_nodes = set(self.graph.input_node_indices)
-        output_nodes = set(self.graph.output_node_indices)
+        input_nodes = self.graph.input_node_indices.keys()
+        output_nodes = self.graph.output_node_indices.keys()
         physical_nodes = self.graph.physical_nodes
 
         # Input nodes should not be in prepare_time
-        if input_nodes & set(self.prepare_time.keys()):
+        if input_nodes & self.prepare_time.keys():
             return False
 
         # Output nodes should not be in measure_time
-        if output_nodes & set(self.measure_time.keys()):
+        if output_nodes & self.measure_time.keys():
             return False
 
         # Check expected node sets
         expected_prep_nodes = physical_nodes - input_nodes
         expected_meas_nodes = physical_nodes - output_nodes
 
-        return (
-            set(self.prepare_time.keys()) == expected_prep_nodes
-            and set(self.measure_time.keys()) == expected_meas_nodes
-        )
+        return self.prepare_time.keys() == expected_prep_nodes and self.measure_time.keys() == expected_meas_nodes
 
     def _validate_all_nodes_scheduled(self) -> bool:
         """Validate that all required nodes are scheduled.
@@ -192,7 +189,7 @@ class Scheduler:
                 time_to_meas_nodes.setdefault(time, set()).add(node)
 
         # Check that no node is both prepared and measured at the same time
-        all_times = set(time_to_prep_nodes.keys()) | set(time_to_meas_nodes.keys())
+        all_times = time_to_prep_nodes.keys() | time_to_meas_nodes.keys()
         for time in all_times:
             prep_nodes = time_to_prep_nodes.get(time, set())
             meas_nodes = time_to_meas_nodes.get(time, set())
@@ -253,11 +250,11 @@ class Scheduler:
         prepare_time, measure_time = result
         self.prepare_time = {
             node: prepare_time.get(node, None)
-            for node in self.graph.physical_nodes - set(self.graph.input_node_indices)
+            for node in self.graph.physical_nodes - self.graph.input_node_indices.keys()
         }
         self.measure_time = {
             node: measure_time.get(node, None)
-            for node in self.graph.physical_nodes - set(self.graph.output_node_indices)
+            for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
 
         # Compress the schedule to minimize time indices
