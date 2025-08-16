@@ -7,6 +7,7 @@ This module provides:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from graphix_zx.feedforward import dag_from_flow
@@ -75,15 +76,15 @@ class Scheduler:
             A list where each element is a tuple containing a set of node indices
             scheduled for preparation and a set of node indices scheduled for measurement.
         """
-        prep_time: dict[int, set[int]] = {}
+        prep_time: defaultdict[int, set[int]] = defaultdict(set)
         for node, time in self.prepare_time.items():
             if time is not None:
-                prep_time.setdefault(time, set()).add(node)
-        meas_time: dict[int, set[int]] = {}
+                prep_time[time].add(node)
+        meas_time: defaultdict[int, set[int]] = defaultdict(set)
         for node, time in self.measure_time.items():
             if time is not None:
-                meas_time.setdefault(time, set()).add(node)
-        return [(prep_time.get(time, set()), meas_time.get(time, set())) for time in range(self.num_slices())]
+                meas_time[time].add(node)
+        return [(prep_time[time], meas_time[time]) for time in range(self.num_slices())]
 
     def from_manual_design(
         self,
@@ -177,22 +178,22 @@ class Scheduler:
         """
         # Within each time slice, all measurements should happen before all preparations
         # Group nodes by time
-        time_to_prep_nodes: dict[int, set[int]] = {}
-        time_to_meas_nodes: dict[int, set[int]] = {}
+        time_to_prep_nodes: defaultdict[int, set[int]] = defaultdict(set)
+        time_to_meas_nodes: defaultdict[int, set[int]] = defaultdict(set)
 
         for node, time in self.prepare_time.items():
             if time is not None:
-                time_to_prep_nodes.setdefault(time, set()).add(node)
+                time_to_prep_nodes[time].add(node)
 
         for node, time in self.measure_time.items():
             if time is not None:
-                time_to_meas_nodes.setdefault(time, set()).add(node)
+                time_to_meas_nodes[time].add(node)
 
         # Check that no node is both prepared and measured at the same time
         all_times = time_to_prep_nodes.keys() | time_to_meas_nodes.keys()
         for time in all_times:
-            prep_nodes = time_to_prep_nodes.get(time, set())
-            meas_nodes = time_to_meas_nodes.get(time, set())
+            prep_nodes = time_to_prep_nodes[time]
+            meas_nodes = time_to_meas_nodes[time]
             if prep_nodes & meas_nodes:
                 return False
 
