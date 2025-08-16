@@ -51,8 +51,8 @@ def _add_constraints(
     model: cp_model.CpModel,
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
-    node2prep: dict[int, cp_model.IntVar],
-    node2meas: dict[int, cp_model.IntVar],
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
 ) -> None:
     """Add constraints to the scheduling model."""
     # Measurement order constraints
@@ -71,8 +71,8 @@ def _add_constraints(
 
 def _set_objective(
     ctx: _ModelContext,
-    node2prep: dict[int, cp_model.IntVar],
-    node2meas: dict[int, cp_model.IntVar],
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
     config: ScheduleConfig,
     max_time: int,
 ) -> None:
@@ -94,8 +94,8 @@ def _set_objective(
 
 def _compute_alive_nodes_at_time(
     ctx: _ModelContext,
-    node2prep: dict[int, cp_model.IntVar],
-    node2meas: dict[int, cp_model.IntVar],
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
     t: int,
 ) -> list[cp_model.IntVar]:
     """Compute the list of alive nodes at time t.
@@ -134,8 +134,8 @@ def _compute_alive_nodes_at_time(
 
 def _set_minimize_space_objective(
     ctx: _ModelContext,
-    node2prep: dict[int, cp_model.IntVar],
-    node2meas: dict[int, cp_model.IntVar],
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
     max_time: int,
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
@@ -148,8 +148,8 @@ def _set_minimize_space_objective(
 
 def _set_minimize_time_objective(
     ctx: _ModelContext,
-    node2prep: dict[int, cp_model.IntVar],
-    node2meas: dict[int, cp_model.IntVar],
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
     max_time: int,
     max_qubit_count: int | None = None,
 ) -> None:
