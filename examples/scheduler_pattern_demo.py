@@ -97,7 +97,7 @@ print("=" * 60)
 # Use ScheduleConfig for more detailed control
 max_qubits = 5
 constrained_config = ScheduleConfig(
-    strategy=Strategy.MINIMIZE_TIME_WITH_SPACE_CONSTRAINT,
+    strategy=Strategy.MINIMIZE_TIME,
     max_qubit_count=max_qubits,
     max_time=20,  # Custom time limit
 )
