@@ -30,7 +30,7 @@ def test_simple_graph_scheduling() -> None:
     assert scheduler.measure_time[node1] is not None
 
     # Check schedule structure
-    schedule = scheduler.get_schedule()
+    schedule = scheduler.schedule
     assert len(schedule) > 0
 
 
@@ -54,13 +54,13 @@ def test_manual_vs_solver_scheduling() -> None:
 
     # Test manual scheduling
     scheduler.from_manual_design(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
-    manual_schedule = scheduler.get_schedule()
+    manual_schedule = scheduler.schedule
 
     # Test solver-based scheduling
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
     success = scheduler.from_solver(config)
     assert success
-    solver_schedule = scheduler.get_schedule()
+    solver_schedule = scheduler.schedule
 
     # Both should produce valid schedules
     assert len(manual_schedule) > 0

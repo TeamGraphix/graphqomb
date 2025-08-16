@@ -67,7 +67,8 @@ class Scheduler:
             + 1
         )
 
-    def get_schedule(self) -> list[tuple[set[int], set[int]]]:
+    @property
+    def schedule(self) -> list[tuple[set[int], set[int]]]:
         r"""Get the schedule as a list of sets of nodes.
 
         Returns

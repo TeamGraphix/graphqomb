@@ -117,7 +117,7 @@ def _qompile(
         commands.extend(E(nodes=edge) for edge in graph.physical_edges)
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
     else:
-        schedule = scheduler.get_schedule()
+        schedule = scheduler.schedule
         prepared_edges: set[frozenset[int]] = set()
 
         for time in range(scheduler.num_slices()):
