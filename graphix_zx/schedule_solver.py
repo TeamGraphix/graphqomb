@@ -76,11 +76,20 @@ def _set_objective(
     config: ScheduleConfig,
     max_time: int,
 ) -> None:
-    """Set the objective function for the scheduling model."""
+    """Set the objective function for the scheduling model.
+
+    Raises
+    ------
+    ValueError
+        If the scheduling strategy is unknown.
+    """
     if config.strategy == Strategy.MINIMIZE_SPACE:
         _set_minimize_space_objective(ctx, node2prep, node2meas, max_time)
     elif config.strategy == Strategy.MINIMIZE_TIME:
         _set_minimize_time_objective(ctx, node2prep, node2meas, max_time, config.max_qubit_count)
+    else:
+        msg = f"Unknown scheduling strategy: {config.strategy}"
+        raise ValueError(msg)
 
 
 def _compute_alive_nodes_at_time(
