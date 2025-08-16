@@ -2,7 +2,7 @@
 
 from graphix_zx.graphstate import GraphState
 from graphix_zx.schedule_solver import ScheduleConfig, Strategy
-from graphix_zx.scheduler import Scheduler
+from graphix_zx.scheduler import Scheduler, compress_schedule
 
 
 def test_simple_graph_scheduling() -> None:
@@ -175,7 +175,9 @@ def test_schedule_compression() -> None:
     slices_before = scheduler.num_slices()
 
     # Apply compression
-    scheduler.compress_schedule()
+    compressed_prep_time, compressed_meas_time = compress_schedule(scheduler.prepare_time, scheduler.measure_time)
+    scheduler.prepare_time = compressed_prep_time
+    scheduler.measure_time = compressed_meas_time
 
     # After compression, gaps should be removed
     slices_after = scheduler.num_slices()

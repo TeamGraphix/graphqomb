@@ -2,6 +2,7 @@
 
 This module provides:
 
+- `compress_time`: Compress preparation and measurement times by removing gaps.
 - `Scheduler`: Schedule graph node preparation and measurement operations
 """
 
@@ -18,6 +19,64 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
+
+
+def compress_schedule(
+    prepare_time: Mapping[int, int | None],
+    measure_time: Mapping[int, int | None],
+) -> tuple[dict[int, int | None], dict[int, int | None]]:
+    r"""Compress a schedule by removing gaps in time indices.
+
+    This function shifts all time indices forward to remove unused time slots,
+    reducing the total number of slices without changing the relative ordering.
+
+    Parameters
+    ----------
+    prepare_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
+        A mapping from node indices to their preparation time.
+    measure_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
+        A mapping from node indices to their measurement time.
+
+    Returns
+    -------
+    `tuple`\[`dict`\[`int`, `int` | `None`\], `dict`\[`int`, `int` | `None`\]\]
+        A tuple containing the compressed prepare_time and measure_time dictionaries.
+    """
+    # Collect all used time indices
+    all_times: set[int] = set()
+
+    for time in prepare_time.values():
+        if time is not None:
+            all_times.add(time)
+
+    for time in measure_time.values():
+        if time is not None:
+            all_times.add(time)
+
+    if not all_times:
+        return dict(prepare_time), dict(measure_time)
+
+    # Create mapping from old time to new compressed time
+    sorted_times = sorted(all_times)
+    time_mapping = {old_time: new_time for new_time, old_time in enumerate(sorted_times)}
+
+    # Apply compression to preparation times
+    compressed_prepare_time: dict[int, int | None] = {}
+    for node, old_time in prepare_time.items():
+        if old_time is not None:
+            compressed_prepare_time[node] = time_mapping[old_time]
+        else:
+            compressed_prepare_time[node] = None
+
+    # Apply compression to measurement times
+    compressed_measure_time: dict[int, int | None] = {}
+    for node, old_time in measure_time.items():
+        if old_time is not None:
+            compressed_measure_time[node] = time_mapping[old_time]
+        else:
+            compressed_measure_time[node] = None
+
+    return compressed_prepare_time, compressed_measure_time
 
 
 class Scheduler:
@@ -250,53 +309,15 @@ class Scheduler:
             return False
 
         prepare_time, measure_time = result
-        self.prepare_time = {
+        prep_time = {
             node: prepare_time.get(node, None)
             for node in self.graph.physical_nodes - self.graph.input_node_indices.keys()
         }
-        self.measure_time = {
+        meas_time = {
             node: measure_time.get(node, None)
             for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
 
         # Compress the schedule to minimize time indices
-        self.compress_schedule()
+        self.prepare_time, self.measure_time = compress_schedule(prep_time, meas_time)
         return True
-
-    def compress_schedule(self) -> None:
-        r"""Compress the schedule by removing gaps in time indices.
-
-        This method shifts all time indices forward to remove unused time slots,
-        reducing the total number of slices without changing the relative ordering.
-        Can be called manually after `set_schedule` or is automatically
-        called after `solve`.
-        """
-        # Collect all used time indices
-        all_times: set[int] = set()
-
-        for time in self.prepare_time.values():
-            if time is not None:
-                all_times.add(time)
-
-        for time in self.measure_time.values():
-            if time is not None:
-                all_times.add(time)
-
-        if not all_times:
-            return
-
-        # Create mapping from old time to new compressed time
-        sorted_times = sorted(all_times)
-        time_mapping = {old_time: new_time for new_time, old_time in enumerate(sorted_times)}
-
-        # Apply compression to preparation times
-        for node in self.prepare_time:
-            old_time = self.prepare_time[node]
-            if old_time is not None:
-                self.prepare_time[node] = time_mapping[old_time]
-
-        # Apply compression to measurement times
-        for node in self.measure_time:
-            old_time = self.measure_time[node]
-            if old_time is not None:
-                self.measure_time[node] = time_mapping[old_time]
