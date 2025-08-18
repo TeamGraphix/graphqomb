@@ -15,6 +15,8 @@ import itertools
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import typing_extensions
+
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
@@ -78,6 +80,7 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions = []
 
     @property
+    @typing_extensions.override
     def num_qubits(self) -> int:
         """Get the number of qubits in the circuit.
 
@@ -88,6 +91,7 @@ class MBQCCircuit(BaseCircuit):
         """
         return self.__num_qubits
 
+    @typing_extensions.override
     def instructions(self) -> list[Gate]:
         r"""Get the list of gate instructions in the circuit.
 
@@ -99,6 +103,7 @@ class MBQCCircuit(BaseCircuit):
         # For MBQCCircuit, Gate and UnitGate are the same
         return list(self.__gate_instructions)
 
+    @typing_extensions.override
     def unit_instructions(self) -> list[UnitGate]:
         r"""Get the list of unit gate instructions in the circuit.
 
@@ -157,6 +162,7 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions = []
 
     @property
+    @typing_extensions.override
     def num_qubits(self) -> int:
         """Get the number of qubits in the circuit.
 
@@ -167,17 +173,7 @@ class Circuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    @property
-    def macro_gate_instructions(self) -> list[Gate]:
-        r"""Get the list of macro gate instructions in the circuit.
-
-        Returns
-        -------
-        `list`\[`Gate`\]
-            The list of macro gate instructions in the circuit.
-        """
-        return copy.deepcopy(self.__macro_gate_instructions)
-
+    @typing_extensions.override
     def instructions(self) -> list[Gate]:
         r"""Get the list of gate instructions in the circuit.
 
@@ -188,6 +184,7 @@ class Circuit(BaseCircuit):
         """
         return copy.deepcopy(self.__macro_gate_instructions)
 
+    @typing_extensions.override
     def unit_instructions(self) -> list[UnitGate]:
         r"""Get the list of unit gate instructions in the circuit.
 
