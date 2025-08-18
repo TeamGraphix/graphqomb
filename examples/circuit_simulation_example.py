@@ -114,13 +114,13 @@ def simulate_macro_circuit_example() -> bool:
     circuit = create_macro_circuit()
 
     print(f"Circuit has {circuit.num_qubits} qubits")
-    macro_instructions = circuit.macro_gate_instructions
+    macro_instructions = circuit.instructions()
     print(f"Circuit has {len(macro_instructions)} macro instructions:")
     for i, instr in enumerate(macro_instructions):
         print(f"  {i}: {instr}")
 
     # Convert to unit gates for simulation
-    unit_instructions = circuit.instructions()
+    unit_instructions = circuit.unit_instructions()
     print(f"Expanded to {len(unit_instructions)} unit instructions:")
     for i, instr in enumerate(unit_instructions):
         print(f"  {i}: {instr}")
