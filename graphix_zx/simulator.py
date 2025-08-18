@@ -46,6 +46,9 @@ class SimulatorBackend(Enum):
 class MBQCCircuitSimulator:
     """Class for simulating MBQC circuits."""
 
+    __state: BaseSimulatorBackend
+    __gate_instructions: list[Gate]
+
     def __init__(self, mbqc_circuit: BaseCircuit, backend: SimulatorBackend) -> None:
         if backend == SimulatorBackend.StateVector:
             self.__state = StateVector.from_num_qubits(mbqc_circuit.num_qubits)
@@ -55,14 +58,25 @@ class MBQCCircuitSimulator:
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
 
-        self.__gate_instructions: list[Gate] = mbqc_circuit.instructions()
+        self.__gate_instructions = mbqc_circuit.instructions()
+
+    @property
+    def state(self) -> BaseSimulatorBackend:
+        """Get the quantum state as a state vector.
+
+        Returns
+        -------
+        `BaseSimulatorBackend`
+            The quantum state.
+        """
+        return self.__state
 
     def apply_gate(self, gate: Gate) -> None:
         """Apply a gate to the circuit.
 
         Parameters
         ----------
-        gate : Gate
+        gate : `Gate`
             The gate to apply.
 
         Raises
@@ -90,19 +104,15 @@ class MBQCCircuitSimulator:
         for gate in self.__gate_instructions:
             self.apply_gate(gate)
 
-    def get_state(self) -> StateVector:
-        """Get the quantum state as a state vector.
-
-        Returns
-        -------
-        StateVector
-            The quantum state as a state vector.
-        """
-        return self.__state
-
 
 class PatternSimulator:
     """Class for simulating Measurement Patterns."""
+
+    __state: BaseSimulatorBackend
+    __node_indices: list[int]
+    __results: dict[int, bool]
+    __calc_prob: bool
+    __pattern: Pattern
 
     def __init__(
         self,
@@ -111,10 +121,10 @@ class PatternSimulator:
         *,
         calc_prob: bool = False,
     ) -> None:
-        self.__node_indices: list[int] = list(pattern.input_node_indices.keys())
-        self.__results: dict[int, bool] = {}
+        self.__node_indices = list(pattern.input_node_indices.keys())
+        self.__results = {}
 
-        self.__calc_prob: bool = calc_prob
+        self.__calc_prob = calc_prob
         self.__pattern = pattern
 
         # Pattern runnability check is done via is_runnable function
@@ -131,22 +141,22 @@ class PatternSimulator:
 
     @property
     def node_indices(self) -> list[int]:
-        """Get the mapping from qubit index of the state to node index of the pattern.
+        r"""Get the mapping from qubit index of the state to node index of the pattern.
 
         Returns
         -------
-        list[int]
+        `list`\[`int`\]
             The mapping from qubit index of the state to node index of the pattern
         """
         return self.__node_indices
 
     @property
     def results(self) -> dict[int, bool]:
-        """Get the map from node index to measurement result.
+        r"""Get the map from node index to measurement result.
 
         Returns
         -------
-        dict[int, bool]
+        `dict`\[`int`, `bool`\]
             The map from node index to measurement result.
         """
         return self.__results
@@ -156,7 +166,7 @@ class PatternSimulator:
 
         Parameters
         ----------
-        cmd : Command
+        cmd : `Command`
             The command to apply.
 
         Raises
@@ -174,7 +184,6 @@ class PatternSimulator:
             self._apply_x(cmd)
         elif isinstance(cmd, Z):
             self._apply_z(cmd)
-        # C command is not implemented in current version
         else:
             msg = f"Invalid command: {cmd}"
             raise TypeError(msg)
@@ -185,7 +194,7 @@ class PatternSimulator:
             self.apply_cmd(cmd)
 
         # Create a mapping from current node indices to output node indices
-        output_mapping = {v: k for k, v in self.__pattern.output_node_indices.items()}
+        output_mapping = {qindex: k for k, qindex in self.__pattern.output_node_indices.items()}
         permutation = [output_mapping.get(node, -1) for node in self.__node_indices]
 
         # Handle unmapped nodes (ancillas)
