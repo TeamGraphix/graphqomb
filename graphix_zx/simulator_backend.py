@@ -4,7 +4,7 @@ This module provides:
 
 - `QubitIndexManager`: Manages the mapping of external qubit indices to internal indices
 - `BaseSimulatorBackend`: Abstract base class for simulator backends.
-
+- `BaseFullStateSimulator`: Abstract base class for full state simulators.
 """
 
 from __future__ import annotations
@@ -201,5 +201,84 @@ class BaseSimulatorBackend(ABC):
             The measurement basis to use.
         result : `int`
             The measurement result.
+        """
+        raise NotImplementedError
+
+
+class BaseFullStateSimulator(BaseSimulatorBackend):
+    """Base class for full state simulators."""
+
+    @abc.abstractmethod
+    def state(self) -> NDArray[np.complex128]:
+        r"""Get the current state vector.
+
+        Returns
+        -------
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The current state vector.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def norm(self) -> float:
+        r"""Get the current state vector norm.
+
+        Returns
+        -------
+        `float`
+            The current state vector norm.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def add_node(self, num_qubits: int) -> None:
+        r"""Add a node to the state.
+
+        Parameters
+        ----------
+        num_qubits : `int`
+            The number of qubits in the new node.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def entangle(self, qubit1: int, qubit2: int) -> None:
+        r"""Entangle two qubits in the state.
+
+        Parameters
+        ----------
+        qubit1 : `int`
+            The first qubit to entangle.
+        qubit2 : `int`
+            The second qubit to entangle.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def reorder(self, permutation: list[int]) -> None:
+        r"""Reorder the qubits in the state.
+
+        Parameters
+        ----------
+        permutation : `list`\[`int`\]
+            The permutation to apply.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def expectation(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> float:
+        r"""Calculate the expectation value of an operator.
+
+        Parameters
+        ----------
+        operator : `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The operator to calculate the expectation value for.
+        qubits : `int` | `collections.abc.Sequence`\[`int`\]
+            The qubits to apply the operator to.
+
+        Returns
+        -------
+        `float`
+            The expectation value of the operator.
         """
         raise NotImplementedError
