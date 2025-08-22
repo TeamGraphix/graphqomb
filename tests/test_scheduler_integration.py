@@ -1,4 +1,4 @@
-"""Integration tests for scheduler and schedule_solver."""
+"""Integration tests for scheduler and schedule_solve_scheduler."""
 
 from graphix_zx.graphstate import GraphState
 from graphix_zx.schedule_solver import ScheduleConfig, Strategy
@@ -6,7 +6,7 @@ from graphix_zx.scheduler import Scheduler, compress_schedule
 
 
 def test_simple_graph_scheduling() -> None:
-    """Test scheduling a simple graph with solver."""
+    """Test scheduling a simple graph with solve_scheduler."""
     # Create a simple 3-node graph
     graph = GraphState()
     node0 = graph.add_physical_node()
@@ -20,9 +20,9 @@ def test_simple_graph_scheduling() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Test solver-based scheduling
+    # Test solve_scheduler-based scheduling
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve(config)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Check that times were assigned
@@ -30,12 +30,12 @@ def test_simple_graph_scheduling() -> None:
     assert scheduler.measure_time[node1] is not None
 
     # Check schedule structure
-    schedule = scheduler.schedule
-    assert len(schedule) > 0
+    timeline = scheduler.timeline
+    assert len(timeline) > 0
 
 
-def test_manual_vs_solver_scheduling() -> None:
-    """Test that manual and solver scheduling both work."""
+def test_manual_vs_solve_scheduler_scheduling() -> None:
+    """Test that manual and solve_scheduler scheduling both work."""
     # Create a graph
     graph = GraphState()
     node0 = graph.add_physical_node()
@@ -53,22 +53,22 @@ def test_manual_vs_solver_scheduling() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test manual scheduling
-    scheduler.set_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
-    manual_schedule = scheduler.schedule
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node1: 1, node2: 2})
+    manual_schedule = scheduler.timeline
 
-    # Test solver-based scheduling
+    # Test solve_scheduler-based scheduling
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve(config)
+    success = scheduler.solve_schedule(config)
     assert success
-    solver_schedule = scheduler.schedule
+    solve_scheduler_schedule = scheduler.timeline
 
     # Both should produce valid schedules
     assert len(manual_schedule) > 0
-    assert len(solver_schedule) > 0
+    assert len(solve_scheduler_schedule) > 0
 
 
-def test_solver_failure_handling() -> None:
-    """Test handling of solver failures."""
+def test_solve_scheduler_failure_handling() -> None:
+    """Test handling of solve_scheduler failures."""
     graph = GraphState()
     node0 = graph.add_physical_node()
     node1 = graph.add_physical_node()
@@ -82,7 +82,7 @@ def test_solver_failure_handling() -> None:
 
     # Solver should return False for unsolvable problems
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve(config, timeout=1)
+    success = scheduler.solve_schedule(config, timeout=1)
     # Note: This might still succeed depending on the specific constraints
     # The test mainly checks that the method doesn't crash
     assert isinstance(success, bool)
@@ -105,19 +105,19 @@ def test_schedule_config_options() -> None:
 
     # Test space optimization
     space_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-    success = scheduler.solve(space_config)
+    success = scheduler.solve_schedule(space_config)
     assert success
     space_slices = scheduler.num_slices()
 
     # Test time optimization
     time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve(time_config)
+    success = scheduler.solve_schedule(time_config)
     assert success
     time_slices = scheduler.num_slices()
 
     # Test custom max_time
     custom_time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE, max_time=10)
-    success = scheduler.solve(custom_time_config)
+    success = scheduler.solve_schedule(custom_time_config)
     assert success
 
     # Time optimization should generally use fewer slices than space optimization
@@ -146,7 +146,7 @@ def test_space_constrained_scheduling() -> None:
     max_qubits = 3
     constrained_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, max_qubit_count=max_qubits)
 
-    success = scheduler.solve(constrained_config, timeout=30)
+    success = scheduler.solve_schedule(constrained_config, timeout=30)
 
     # This might fail if the constraint is too restrictive,
     # but the method should not crash
@@ -169,7 +169,7 @@ def test_schedule_compression() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test manual scheduling with gaps
-    scheduler.set_schedule(prepare_time={node1: 5}, measure_time={node1: 10})
+    scheduler.manual_schedule(prepare_time={node1: 5}, measure_time={node1: 10})
 
     # Before compression, there should be gaps
     slices_before = scheduler.num_slices()
@@ -196,8 +196,8 @@ def test_schedule_compression() -> None:
     assert all_used_times == expected_times
 
 
-def test_solver_with_automatic_compression() -> None:
-    """Test that solver results are automatically compressed."""
+def test_solve_scheduler_with_automatic_compression() -> None:
+    """Test that solve_scheduler results are automatically compressed."""
     # Create a simple graph
     graph = GraphState()
     node0 = graph.add_physical_node()
@@ -213,7 +213,7 @@ def test_solver_with_automatic_compression() -> None:
 
     # Test with MINIMIZE_SPACE strategy (prone to gaps)
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-    success = scheduler.solve(config)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Verify that compression was applied automatically
@@ -245,16 +245,16 @@ def test_validate_schedule_valid() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Test that a solver-generated schedule is valid
+    # Test that a solve_scheduler-generated schedule is valid
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve(config)
+    success = scheduler.solve_schedule(config)
     assert success
     assert scheduler.validate_schedule()
 
     # Test a valid manual schedule
     scheduler2 = Scheduler(graph, flow)
     # node0 is input (not in prepare_time), node2 is output (not in measure_time)
-    scheduler2.set_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    scheduler2.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
     assert scheduler2.validate_schedule()
 
 
