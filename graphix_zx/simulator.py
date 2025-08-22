@@ -199,16 +199,6 @@ class PatternSimulator:
         self.node_indices = new_indices
         self.state.reorder(permutation)
 
-    def get_state(self) -> BaseFullStateSimulator:
-        """Get the quantum state in a specified backend.
-
-        Returns
-        -------
-        `BaseFullStateSimulator`
-            The quantum state in a specified backend.
-        """
-        return self.state
-
     def _apply_n(self, cmd: N) -> None:
         self.state.add_node(1)
         self.node_indices.append(cmd.node)
