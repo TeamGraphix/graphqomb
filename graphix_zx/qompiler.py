@@ -117,11 +117,11 @@ def _qompile(
         commands.extend(E(nodes=edge) for edge in graph.physical_edges)
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
     else:
-        schedule = scheduler.schedule
+        timeline = scheduler.timeline
         prepared_edges: set[frozenset[int]] = set()
 
         for time in range(scheduler.num_slices()):
-            prepare_nodes, measure_nodes = schedule[time]
+            prepare_nodes, measure_nodes = timeline[time]
             for node in measure_nodes:
                 for neighbor in graph.neighbors(node):
                     edge = frozenset({node, neighbor})
