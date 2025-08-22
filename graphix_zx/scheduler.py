@@ -127,8 +127,8 @@ class Scheduler:
         )
 
     @property
-    def schedule(self) -> list[tuple[set[int], set[int]]]:
-        r"""Get the schedule as a list of sets of nodes.
+    def timeline(self) -> list[tuple[set[int], set[int]]]:
+        r"""Get the timeline as a list of sets of nodes.
 
         Returns
         -------
@@ -146,7 +146,7 @@ class Scheduler:
                 meas_time[time].add(node)
         return [(prep_time[time], meas_time[time]) for time in range(self.num_slices())]
 
-    def set_schedule(
+    def manual_schedule(
         self,
         prepare_time: Mapping[int, int | None],
         measure_time: Mapping[int, int | None],
@@ -282,7 +282,7 @@ class Scheduler:
             and self._validate_time_ordering()
         )
 
-    def solve(
+    def solve_schedule(
         self,
         config: ScheduleConfig | None = None,
         timeout: int = 60,
