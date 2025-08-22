@@ -274,7 +274,7 @@ def parse_q_indices(node_indices: Sequence[int], q_indices: Mapping[int, int]) -
     ValueError
         If the qubit index is invalid
     """
-    ancilla = set()
+    ancilla: set[int] = set()
     permutation = [-1 for _ in range(len(node_indices))]
     # check
     for node in node_indices:
