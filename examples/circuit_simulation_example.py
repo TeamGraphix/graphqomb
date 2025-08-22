@@ -13,7 +13,7 @@ import numpy as np
 
 from graphix_zx.circuit import Circuit, MBQCCircuit
 from graphix_zx.gates import CNOT, CZ, H, Rz, X
-from graphix_zx.simulator import MBQCCircuitSimulator, SimulatorBackend
+from graphix_zx.simulator import CircuitSimulator, SimulatorBackend
 
 # %%
 # Simple MBQC Circuit Example
@@ -36,11 +36,11 @@ for i, instr in enumerate(instructions):
 
 # %%
 # Simulate the MBQC circuit
-simulator = MBQCCircuitSimulator(mbqc_circuit=circuit, backend=SimulatorBackend.StateVector)
+simulator = CircuitSimulator(mbqc_circuit=circuit, backend=SimulatorBackend.StateVector)
 simulator.simulate()
 
 # Get final state
-final_state = simulator.get_state()
+final_state = simulator.state
 print(f"Final state shape: {final_state.state().shape}")
 print(f"Final state norm: {final_state.norm():.6f}")
 
@@ -82,11 +82,11 @@ for i, instr in enumerate(unit_instructions):
 
 # %%
 # Simulate the macro circuit
-simulator = MBQCCircuitSimulator(mbqc_circuit=macro_circuit, backend=SimulatorBackend.StateVector)
+simulator = CircuitSimulator(mbqc_circuit=macro_circuit, backend=SimulatorBackend.StateVector)
 simulator.simulate()
 
 # Get final state
-final_state = simulator.get_state()
+final_state = simulator.state
 print(f"Final state shape: {final_state.state().shape}")
 print(f"Final state norm: {final_state.norm():.6f}")
 
@@ -123,11 +123,11 @@ for i, instr in enumerate(instructions):
 
 # %%
 # Simulate the phase gadget circuit
-simulator = MBQCCircuitSimulator(mbqc_circuit=circuit, backend=SimulatorBackend.StateVector)
+simulator = CircuitSimulator(mbqc_circuit=circuit, backend=SimulatorBackend.StateVector)
 simulator.simulate()
 
 # Get final state
-final_state = simulator.get_state()
+final_state = simulator.state
 print(f"Final state shape: {final_state.state().shape}")
 print(f"Final state norm: {final_state.norm():.6f}")
 
