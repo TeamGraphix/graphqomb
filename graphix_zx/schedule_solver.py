@@ -219,6 +219,9 @@ def solve_schedule(
     solver.parameters.max_time_in_seconds = timeout
     status = solver.Solve(model)
 
+    # Note: type: ignore is needed due to a bug in or-tools type annotations
+    # The actual runtime type of status is cp_model_pb2.ValueType, but it's incorrectly
+    # annotated as CpSolverStatus, causing mypy to report a false positive comparison-overlap error
     if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:  # type: ignore[comparison-overlap]
         prepare_time = {node: solver.Value(var) for node, var in node2prep.items()}
         measure_time = {node: solver.Value(var) for node, var in node2meas.items()}
