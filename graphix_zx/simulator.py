@@ -3,7 +3,7 @@
 This module provides:
 
 - `SimulatorBackend` : Enum class for circuit simulator backends.
-- `MBQCCircuitSimulator` : Class for simulating MBQC circuits.
+- `CircuitSimulator` : Class for simulating circuits.
 - `PatternSimulator` : Class for simulating Measurement Patterns.
 - `parse_q_indices` : Parse qubit indices and return permutation to sort the logical qubit indices.
 """
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from graphix_zx.command import Command
     from graphix_zx.gates import Gate
     from graphix_zx.pattern import Pattern
-    from graphix_zx.simulator_backend import BaseSimulatorBackend
+    from graphix_zx.simulator_backend import BaseFullStateSimulator
 
 
 class SimulatorBackend(Enum):
@@ -43,33 +43,30 @@ class SimulatorBackend(Enum):
     DensityMatrix = auto()
 
 
-class MBQCCircuitSimulator:
-    """Class for simulating MBQC circuits."""
+class CircuitSimulator:
+    r"""Class for simulating circuits.
 
-    __state: BaseSimulatorBackend
-    __gate_instructions: list[Gate]
+    Attributes
+    ----------
+    state : `BaseFullStateSimulator`
+        The quantum state of the simulator.
+    gate_instructions : `list`\[`Gate`\]
+        The list of gate instructions to be applied.
+    """
+
+    state: BaseFullStateSimulator
+    gate_instructions: list[Gate]
 
     def __init__(self, mbqc_circuit: BaseCircuit, backend: SimulatorBackend) -> None:
         if backend == SimulatorBackend.StateVector:
-            self.__state = StateVector.from_num_qubits(mbqc_circuit.num_qubits)
+            self.state = StateVector.from_num_qubits(mbqc_circuit.num_qubits)
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
 
-        self.__gate_instructions = mbqc_circuit.instructions()
-
-    @property
-    def state(self) -> BaseSimulatorBackend:
-        """Get the quantum state as a state vector.
-
-        Returns
-        -------
-        `BaseSimulatorBackend`
-            The quantum state.
-        """
-        return self.__state
+        self.gate_instructions = mbqc_circuit.instructions()
 
     def apply_gate(self, gate: Gate) -> None:
         """Apply a gate to the circuit.
@@ -97,22 +94,36 @@ class MBQCCircuitSimulator:
             msg = f"Cannot determine qubits for gate: {gate}"
             raise TypeError(msg)
 
-        self.__state.evolve(operator, qubits)
+        self.state.evolve(operator, qubits)
 
     def simulate(self) -> None:
         """Simulate the circuit."""
-        for gate in self.__gate_instructions:
+        for gate in self.gate_instructions:
             self.apply_gate(gate)
 
 
 class PatternSimulator:
-    """Class for simulating Measurement Patterns."""
+    r"""Class for simulating Measurement Patterns.
 
-    __state: BaseSimulatorBackend
-    __node_indices: list[int]
-    __results: dict[int, bool]
-    __calc_prob: bool
-    __pattern: Pattern
+    Attributes
+    ----------
+    state : `BaseFullStateSimulator`
+        The quantum state of the simulator.
+    node_indices : `list`\[`int`\]
+        The list of node indices in the pattern.
+    results : `dict`\[`int`, `bool`\]
+        The measurement results for each node.
+    calc_prob : `bool`
+        Whether to calculate probabilities.
+    pattern : `Pattern`
+        The measurement pattern being simulated.
+    """
+
+    state: BaseFullStateSimulator
+    node_indices: list[int]
+    results: dict[int, bool]
+    calc_prob: bool
+    pattern: Pattern
 
     def __init__(
         self,
@@ -121,45 +132,23 @@ class PatternSimulator:
         *,
         calc_prob: bool = False,
     ) -> None:
-        self.__node_indices = list(pattern.input_node_indices.keys())
-        self.__results = {}
+        self.node_indices = list(pattern.input_node_indices.keys())
+        self.results = {}
 
-        self.__calc_prob = calc_prob
-        self.__pattern = pattern
+        self.calc_prob = calc_prob
+        self.pattern = pattern
 
         # Pattern runnability check is done via is_runnable function
-        is_runnable(self.__pattern)
+        is_runnable(self.pattern)
 
         if backend == SimulatorBackend.StateVector:
             # Note: deterministic check skipped for now
-            self.__state = StateVector.from_num_qubits(len(self.__pattern.input_node_indices))
+            self.state = StateVector.from_num_qubits(len(self.pattern.input_node_indices))
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
-
-    @property
-    def node_indices(self) -> list[int]:
-        r"""Get the mapping from qubit index of the state to node index of the pattern.
-
-        Returns
-        -------
-        `list`\[`int`\]
-            The mapping from qubit index of the state to node index of the pattern
-        """
-        return self.__node_indices
-
-    @property
-    def results(self) -> dict[int, bool]:
-        r"""Get the map from node index to measurement result.
-
-        Returns
-        -------
-        `dict`\[`int`, `bool`\]
-            The map from node index to measurement result.
-        """
-        return self.__results
 
     def apply_cmd(self, cmd: Command) -> None:
         """Apply a command to the state.
@@ -190,15 +179,15 @@ class PatternSimulator:
 
     def simulate(self) -> None:
         """Simulate the pattern."""
-        for cmd in self.__pattern.commands:
+        for cmd in self.pattern.commands:
             self.apply_cmd(cmd)
 
         # Create a mapping from current node indices to output node indices
-        output_mapping = {qindex: k for k, qindex in self.__pattern.output_node_indices.items()}
-        permutation = [output_mapping.get(node, -1) for node in self.__node_indices]
+        output_mapping = {qindex: k for k, qindex in self.pattern.output_node_indices.items()}
+        permutation = [output_mapping.get(node, -1) for node in self.node_indices]
 
         # Handle unmapped nodes (ancillas)
-        max_output = max(self.__pattern.output_node_indices.values()) if self.__pattern.output_node_indices else -1
+        max_output = max(self.pattern.output_node_indices.values()) if self.pattern.output_node_indices else -1
         next_ancilla = max_output + 1
         for i, p in enumerate(permutation):
             if p == -1:
@@ -206,80 +195,78 @@ class PatternSimulator:
                 next_ancilla += 1
         new_indices = [-1 for _ in range(len(permutation))]
         for i in range(len(permutation)):
-            new_indices[permutation[i]] = self.__node_indices[i]
-        self.__node_indices = new_indices
-        self.__state.reorder(permutation)
+            new_indices[permutation[i]] = self.node_indices[i]
+        self.node_indices = new_indices
+        self.state.reorder(permutation)
 
-    def get_state(self) -> BaseSimulatorBackend:
+    def get_state(self) -> BaseFullStateSimulator:
         """Get the quantum state in a specified backend.
 
         Returns
         -------
-        BaseSimulatorBackend
+        `BaseFullStateSimulator`
             The quantum state in a specified backend.
         """
-        return self.__state
+        return self.state
 
     def _apply_n(self, cmd: N) -> None:
-        self.__state.add_node(1)
-        self.__node_indices.append(cmd.node)
+        self.state.add_node(1)
+        self.node_indices.append(cmd.node)
 
     def _apply_e(self, cmd: E) -> None:
-        node_id1 = self.__node_indices.index(cmd.nodes[0])
-        node_id2 = self.__node_indices.index(cmd.nodes[1])
-        self.__state.entangle(node_id1, node_id2)
+        node_id1 = self.node_indices.index(cmd.nodes[0])
+        node_id2 = self.node_indices.index(cmd.nodes[1])
+        self.state.entangle(node_id1, node_id2)
 
     def _apply_m(self, cmd: M) -> None:
-        if self.__calc_prob:
+        if self.calc_prob:
             raise NotImplementedError
         rng = np.random.default_rng()
         result = rng.uniform() < 1 / 2
 
         if cmd.meas_basis.plane == Plane.XY:
-            if self.__pattern.pauli_frame.z_pauli[cmd.node]:
+            if self.pattern.pauli_frame.z_pauli[cmd.node]:
                 basis: MeasBasis = cmd.meas_basis.flip()
             else:
                 basis = cmd.meas_basis
         elif cmd.meas_basis.plane == Plane.YZ:
-            basis = cmd.meas_basis.flip() if self.__pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
-        elif self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
+            basis = cmd.meas_basis.flip() if self.pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
+        elif self.pattern.pauli_frame.x_pauli[cmd.node] ^ self.pattern.pauli_frame.z_pauli[cmd.node]:
             basis = cmd.meas_basis.flip()
         else:
             basis = cmd.meas_basis
 
-        node_id = self.__node_indices.index(cmd.node)
+        node_id = self.node_indices.index(cmd.node)
         # Note: measure method requires MeasBasis and result as int
-        self.__state.measure(node_id, basis, int(result))
-        self.__results[cmd.node] = result
-        self.__node_indices.remove(cmd.node)
-
-        self.__state.normalize()
+        self.state.measure(node_id, basis, int(result))
+        self.results[cmd.node] = result
+        self.node_indices.remove(cmd.node)
 
     def _apply_x(self, cmd: X) -> None:
-        node_id = self.__node_indices.index(cmd.node)
-        if self.__pattern.pauli_frame.x_pauli[cmd.node]:
-            self.__state.evolve(np.asarray([[0, 1], [1, 0]]), [node_id])
+        node_id = self.node_indices.index(cmd.node)
+        if self.pattern.pauli_frame.x_pauli[cmd.node]:
+            self.state.evolve(np.asarray([[0, 1], [1, 0]]), [node_id])
 
     def _apply_z(self, cmd: Z) -> None:
-        node_id = self.__node_indices.index(cmd.node)
-        if self.__pattern.pauli_frame.z_pauli[cmd.node]:
-            self.__state.evolve(np.asarray([[1, 0], [0, -1]]), [node_id])
+        node_id = self.node_indices.index(cmd.node)
+        if self.pattern.pauli_frame.z_pauli[cmd.node]:
+            self.state.evolve(np.asarray([[1, 0], [0, -1]]), [node_id])
 
 
 # return permutation
 def parse_q_indices(node_indices: Sequence[int], q_indices: Mapping[int, int]) -> list[int]:
-    """Parse qubit indices and return permutation to sort the logical qubit indices.
+    r"""Parse qubit indices and return permutation to sort the logical qubit indices.
 
     Parameters
     ----------
-    node_indices : Sequence[int]
+    node_indices : `collections.abc.Sequence`\[`int`\]
         mapping from qubit index of the state to node index of the pattern
-    q_indices : Mapping[int, int]
+    q_indices : `collections.abc.Mapping`\[`int`, `int`\]
         mapping from node index of the pattern to logical qubit index
 
     Returns
     -------
-    list[int]
+    `list`\[`int`\]
         The permutation to sort the logical qubit indices
 
     Raises
