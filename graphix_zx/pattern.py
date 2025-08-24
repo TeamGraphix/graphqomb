@@ -121,7 +121,7 @@ def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
-            children_nodes = pattern.pauli_frame.children(cmd.node)
+            children_nodes = pattern.pauli_frame.parents(cmd.node)
             acausal_children = children_nodes - measured
             if acausal_children:
                 msg = f"These nodes depend on a unmeasured output: {sorted(acausal_children)}"
