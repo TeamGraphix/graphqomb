@@ -21,7 +21,6 @@ from graphix_zx.pattern import is_runnable
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
-
     from graphix_zx.circuit import BaseCircuit
     from graphix_zx.command import Command
     from graphix_zx.gates import Gate
@@ -181,8 +180,7 @@ class PatternSimulator:
             self.apply_cmd(cmd)
 
         # Create a mapping from current node indices to output node indices
-        output_mapping = {qindex: k for k, qindex in self.pattern.output_node_indices.items()}
-        permutation = [output_mapping[node] for node in self.node_indices]
+        permutation = [self.pattern.output_node_indices[node] for node in self.node_indices]
 
         self.state.reorder(permutation)
 
