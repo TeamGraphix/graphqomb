@@ -203,8 +203,8 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
         If a measurement targets an output qubit, or if some non-output qubits are never measured.
     """
     output_nodes = set(pattern.output_node_indices)
-    non_output_nodes = {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(
-        pattern.input_node_indices
+    non_output_nodes = (
+        {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(pattern.input_node_indices)
     ) - output_nodes
     measured: set[int] = set()
     for cmd in pattern:
