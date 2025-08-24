@@ -216,6 +216,9 @@ class PatternSimulator:
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 
+        if result:
+            self.pattern.pauli_frame.meas_flip(cmd.node)
+
     def _apply_x(self, cmd: X) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.pattern.pauli_frame.x_pauli[cmd.node]:
