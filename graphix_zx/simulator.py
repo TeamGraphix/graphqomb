@@ -5,7 +5,6 @@ This module provides:
 - `SimulatorBackend` : Enum class for circuit simulator backends.
 - `CircuitSimulator` : Class for simulating circuits.
 - `PatternSimulator` : Class for simulating Measurement Patterns.
-- `parse_q_indices` : Parse qubit indices and return permutation to sort the logical qubit indices.
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ from graphix_zx.pattern import is_runnable
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
 
     from graphix_zx.circuit import BaseCircuit
     from graphix_zx.command import Command
@@ -184,19 +182,8 @@ class PatternSimulator:
 
         # Create a mapping from current node indices to output node indices
         output_mapping = {qindex: k for k, qindex in self.pattern.output_node_indices.items()}
-        permutation = [output_mapping.get(node, -1) for node in self.node_indices]
+        permutation = [output_mapping[node] for node in self.node_indices]
 
-        # Handle unmapped nodes (ancillas)
-        max_output = max(self.pattern.output_node_indices.values()) if self.pattern.output_node_indices else -1
-        next_ancilla = max_output + 1
-        for i, p in enumerate(permutation):
-            if p == -1:
-                permutation[i] = next_ancilla
-                next_ancilla += 1
-        new_indices = [-1 for _ in range(len(permutation))]
-        for i in range(len(permutation)):
-            new_indices[permutation[i]] = self.node_indices[i]
-        self.node_indices = new_indices
         self.state.reorder(permutation)
 
     def _apply_n(self, cmd: N) -> None:
@@ -227,59 +214,16 @@ class PatternSimulator:
             basis = cmd.meas_basis
 
         node_id = self.node_indices.index(cmd.node)
-        # Note: measure method requires MeasBasis and result as int
-        self.state.measure(node_id, basis, int(result))
+        self.state.measure(node_id, basis, result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 
     def _apply_x(self, cmd: X) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.pattern.pauli_frame.x_pauli[cmd.node]:
-            self.state.evolve(np.asarray([[0, 1], [1, 0]]), [node_id])
+            self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
 
     def _apply_z(self, cmd: Z) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.pattern.pauli_frame.z_pauli[cmd.node]:
-            self.state.evolve(np.asarray([[1, 0], [0, -1]]), [node_id])
-
-
-# return permutation
-def parse_q_indices(node_indices: Sequence[int], q_indices: Mapping[int, int]) -> list[int]:
-    r"""Parse qubit indices and return permutation to sort the logical qubit indices.
-
-    Parameters
-    ----------
-    node_indices : `collections.abc.Sequence`\[`int`\]
-        mapping from qubit index of the state to node index of the pattern
-    q_indices : `collections.abc.Mapping`\[`int`, `int`\]
-        mapping from node index of the pattern to logical qubit index
-
-    Returns
-    -------
-    `list`\[`int`\]
-        The permutation to sort the logical qubit indices
-
-    Raises
-    ------
-    ValueError
-        If the qubit index is invalid
-    """
-    ancilla: set[int] = set()
-    permutation = [-1 for _ in range(len(node_indices))]
-    # check
-    for node in node_indices:
-        if q_indices[node] == -1:
-            ancilla |= {node}
-        elif q_indices[node] < 0 or q_indices[node] >= len(node_indices):
-            msg = f"Invalid qubit index {q_indices[node]}"
-            raise ValueError(msg)
-        else:
-            permutation[node_indices.index(node)] = q_indices[node]
-
-    # fill ancilla
-    ancilla_pos = len(node_indices) - len(ancilla)
-    for node in ancilla:
-        permutation[node_indices.index(node)] = ancilla_pos
-        ancilla_pos += 1
-
-    return permutation
+            self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
