@@ -687,18 +687,18 @@ def compose_sequentially(  # noqa: C901
         2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
     if not graph1.is_canonical_form():
-        msg = "graph1 must be in canonical form."
-        raise ValueError(msg)
+        raise ValueError("graph1 must be in canonical form.")
     if not graph2.is_canonical_form():
-        msg = "graph2 must be in canonical form."
-        raise ValueError(msg)
+        raise ValueError("graph2 must be in canonical form.")
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
-        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
-        raise ValueError(msg)
+        raise ValueError(
+            "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
+        )
     node_map1: dict[int, int] = {}
     node_map2: dict[int, int] = {}
     composed_graph = GraphState()
 
+    # graph1: copy all NON-output nodes
     for node in graph1.physical_nodes - graph1.output_node_indices.keys():
         node_index = composed_graph.add_physical_node()
         meas_basis = graph1.meas_bases.get(node, None)
@@ -706,6 +706,7 @@ def compose_sequentially(  # noqa: C901
             composed_graph.assign_meas_basis(node_index, meas_basis)
         node_map1[node] = node_index
 
+    # graph2: copy ALL nodes
     for node in graph2.physical_nodes:
         node_index = composed_graph.add_physical_node()
         meas_basis = graph2.meas_bases.get(node, None)
@@ -713,23 +714,37 @@ def compose_sequentially(  # noqa: C901
             composed_graph.assign_meas_basis(node_index, meas_basis)
         node_map2[node] = node_index
 
+    # map graph1's outputs onto graph2's inputs
+    q_index2output_node_index1 = {
+        q_index: output_node_index1
+        for output_node_index1, q_index in graph1.output_node_indices.items()
+    }
+    for input_node_index2, q_index in graph2.input_node_indices.items():
+        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+
+    #　register inputs/outputs
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         composed_graph.register_input(node_map1[input_node])
 
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
-
-    # overlapping node process
-    q_index2output_node_index1 = {
-        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
-    }
-    for input_node_index2, q_index in graph2.input_node_indices.items():
-        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+        
+    # add edges (skip duplicates safely)
+    def _add_edge_safe(g: BaseGraphState, a: int, b: int) -> None:
+        if a == b:
+            return
+        try:
+            g.add_physical_edge(a, b)
+        except ValueError as e:
+            # Ignore exact-duplicate edges introduced by the overlap
+            if "Edge already exists" in str(e):
+                return
+            raise
 
     for u, v in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
+        _add_edge_safe(composed_graph, node_map1[u], node_map1[v])
     for u, v in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
+        _add_edge_safe(composed_graph, node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
 
