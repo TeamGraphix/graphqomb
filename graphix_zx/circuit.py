@@ -101,7 +101,7 @@ class MBQCCircuit(BaseCircuit):
             List of gate instructions in the circuit.
         """
         # For MBQCCircuit, Gate and UnitGate are the same
-        return copy.deepcopy(self.__gate_instructions)
+        return copy.deepcopy(list[Gate](self.__gate_instructions))
 
     @typing_extensions.override
     def unit_instructions(self) -> list[UnitGate]:
