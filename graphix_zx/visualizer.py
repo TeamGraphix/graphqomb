@@ -54,11 +54,11 @@ def visualize(
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         GraphState to visualize.
-    save : bool, optional
+    save : `bool`, optional
         To save as a file or not, by default False
-    filename : str | None, optional
+    filename : `str` | None, optional
         filename of the image, by default None
     """
     node_pos = _get_node_positions(graph)
@@ -90,11 +90,16 @@ def visualize(
 
 
 def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
-    """Calculate node positions for visualization with input/output nodes arranged vertically.
+    r"""Calculate node positions for visualization with input/output nodes arranged vertically.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        GraphState to visualize.
 
     Returns
     -------
-    dict[int, tuple[float, float]]
+    `dict`\[`int`, `tuple`\[`float`, `float`\]\]
         Dictionary mapping node indices to (x, y) positions.
     """
     input_nodes = set(graph.input_node_indices.keys())
