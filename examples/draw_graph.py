@@ -70,5 +70,60 @@ print("Internal nodes with measurement bases:")
 for node, basis in demo_graph.meas_bases.items():
     print(f"  Node {node}: {basis.plane.name} plane, angle={basis.angle:.3f}")
 
-# Visualize the demo graph
-visualize(demo_graph, save=False, filename="demo_graph.png")
+# Visualize the demo graph with labels
+visualize(demo_graph, save=False, filename="demo_graph.png", show_node_labels=True)
+
+# Visualize without labels to see just the colored patterns
+print("\n--- Same graph without node labels ---")
+visualize(demo_graph, save=False, filename="demo_graph_no_labels.png", show_node_labels=False)
+
+# %%
+# Create another demo graph with Pauli measurements (θ=0, π)
+pauli_demo_graph = GraphState()
+
+# Add nodes for Pauli measurements
+pauli_input = pauli_demo_graph.add_physical_node()
+pauli_demo_graph.register_input(pauli_input)
+
+# Create internal nodes with Pauli measurements
+x_measurement_node = pauli_demo_graph.add_physical_node()  # X measurement: XY plane, θ=0
+y_measurement_node = pauli_demo_graph.add_physical_node()  # Y measurement: YZ plane, θ=π/2
+z_measurement_node = pauli_demo_graph.add_physical_node()  # Z measurement: XZ plane, θ=π
+
+# Set Pauli measurement bases
+pauli_demo_graph.assign_meas_basis(pauli_input, PlannerMeasBasis(Plane.XY, 0.0))
+pauli_demo_graph.assign_meas_basis(x_measurement_node, PlannerMeasBasis(Plane.XY, 0.0))  # X+
+pauli_demo_graph.assign_meas_basis(y_measurement_node, PlannerMeasBasis(Plane.YZ, np.pi / 2))  # Y+
+pauli_demo_graph.assign_meas_basis(z_measurement_node, PlannerMeasBasis(Plane.XZ, np.pi))  # Z-
+
+# Add output node
+pauli_output = pauli_demo_graph.add_physical_node()
+pauli_demo_graph.register_output(pauli_output, 0)
+
+# Connect nodes
+pauli_demo_graph.add_physical_edge(pauli_input, x_measurement_node)
+pauli_demo_graph.add_physical_edge(x_measurement_node, y_measurement_node)
+pauli_demo_graph.add_physical_edge(y_measurement_node, z_measurement_node)
+pauli_demo_graph.add_physical_edge(z_measurement_node, pauli_output)
+
+print("\\nPauli measurement demo graph:")
+print(f"Input nodes: {list(pauli_demo_graph.input_node_indices.keys())}")
+print(f"Output nodes: {list(pauli_demo_graph.output_node_indices.keys())}")
+print("Pauli measurement nodes (will show bordered patterns):")
+print("  - X measurement (θ=0°): Green center + Blue border (XY+XZ planes)")
+print("  - Y measurement (θ=90°): Red center + Green border (YZ+XY planes)")
+print("  - Z measurement (θ=180°): Blue center + Red border (XZ+YZ planes)")
+print("Individual nodes:")
+for node, basis in pauli_demo_graph.meas_bases.items():
+    plane_name = basis.plane.name
+    angle_deg = basis.angle * 180 / np.pi
+    print(f"  Node {node}: {plane_name} plane, angle={basis.angle:.3f} ({angle_deg:.1f}°)")
+
+# Visualize the Pauli demo graph (using bordered-node visualization)
+visualize(pauli_demo_graph, save=False, filename="pauli_demo_graph.png", show_node_labels=True)
+
+# Demo with larger nodes and no labels
+print("\n--- Larger nodes without labels ---")
+visualize(pauli_demo_graph, save=False, filename="pauli_demo_large.png", show_node_labels=False, node_size=500)
+
+# %%
