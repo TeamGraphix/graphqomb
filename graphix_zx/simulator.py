@@ -9,6 +9,7 @@ This module provides:
 
 from __future__ import annotations
 
+import functools
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
@@ -122,6 +123,8 @@ class PatternSimulator:
     calc_prob: bool
     pattern: Pattern
 
+    _rng: np.random.Generator | None
+
     def __init__(
         self,
         pattern: Pattern,
@@ -134,6 +137,7 @@ class PatternSimulator:
 
         self.calc_prob = calc_prob
         self.pattern = pattern
+        self._rng = None
 
         # Pattern runnability check is done via is_runnable function
         is_runnable(self.pattern)
@@ -147,6 +151,7 @@ class PatternSimulator:
             msg = f"Invalid backend: {backend}"
             raise ValueError(msg)
 
+    @functools.singledispatchmethod
     def apply_cmd(self, cmd: Command) -> None:
         """Apply a command to the state.
 
@@ -154,50 +159,25 @@ class PatternSimulator:
         ----------
         cmd : `Command`
             The command to apply.
-
-        Raises
-        ------
-        TypeError
-            If the command is invalid
         """
-        if isinstance(cmd, N):
-            self._apply_n(cmd)
-        elif isinstance(cmd, E):
-            self._apply_e(cmd)
-        elif isinstance(cmd, M):
-            self._apply_m(cmd)
-        elif isinstance(cmd, X):
-            self._apply_x(cmd)
-        elif isinstance(cmd, Z):
-            self._apply_z(cmd)
-        else:
-            msg = f"Invalid command: {cmd}"
-            raise TypeError(msg)
+        self.apply_cmd(cmd)
 
-    def simulate(self) -> None:
-        """Simulate the pattern."""
-        for cmd in self.pattern.commands:
-            self.apply_cmd(cmd)
-
-        # Create a mapping from current node indices to output node indices
-        permutation = [self.pattern.output_node_indices[node] for node in self.node_indices]
-
-        self.state.reorder(permutation)
-
-    def _apply_n(self, cmd: N) -> None:
+    @apply_cmd.register
+    def _(self, cmd: N) -> None:
         self.state.add_node(1)
         self.node_indices.append(cmd.node)
 
-    def _apply_e(self, cmd: E) -> None:
+    @apply_cmd.register
+    def _(self, cmd: E) -> None:
         node_id1 = self.node_indices.index(cmd.nodes[0])
         node_id2 = self.node_indices.index(cmd.nodes[1])
         self.state.entangle(node_id1, node_id2)
 
-    def _apply_m(self, cmd: M) -> None:
+    @apply_cmd.register
+    def _(self, cmd: M) -> None:
         if self.calc_prob:
             raise NotImplementedError
-        rng = np.random.default_rng()
-        result = rng.uniform() < 1 / 2
+        result = self._rng.uniform() < 1 / 2
 
         if cmd.meas_basis.plane == Plane.XY:
             if self.pattern.pauli_frame.z_pauli[cmd.node]:
@@ -219,12 +199,27 @@ class PatternSimulator:
         if result:
             self.pattern.pauli_frame.meas_flip(cmd.node)
 
-    def _apply_x(self, cmd: X) -> None:
+    @apply_cmd.register
+    def _(self, cmd: X) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.pattern.pauli_frame.x_pauli[cmd.node]:
             self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
 
-    def _apply_z(self, cmd: Z) -> None:
+    @apply_cmd.register
+    def _(self, cmd: Z) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.pattern.pauli_frame.z_pauli[cmd.node]:
             self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
+
+    def simulate(self, rng: np.random.Generator | None = None) -> None:
+        """Simulate the pattern."""
+        if rng is None:
+            rng = np.random.default_rng()
+        self._rng = rng
+        for cmd in self.pattern.commands:
+            self.apply_cmd(cmd)
+
+        # Create a mapping from current node indices to output node indices
+        permutation = [self.pattern.output_node_indices[node] for node in self.node_indices]
+
+        self.state.reorder(permutation)
