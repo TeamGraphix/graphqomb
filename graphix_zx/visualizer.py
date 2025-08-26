@@ -152,12 +152,22 @@ def visualize(
 
     # Draw node labels if requested
     if show_node_labels:
-        # Calculate font size based on adjusted node size for readability
-        font_size = _calculate_font_size(adjusted_node_size)
+        pauli_nodes = _get_pauli_nodes(graph)
 
         # Draw labels manually for better center alignment
         for node in graph.physical_nodes:
             x, y = node_pos[node]
+
+            # Adjust font size based on node type
+            if node in pauli_nodes:
+                # For Pauli nodes, use smaller font to fit within inner circle
+                # Inner radius is 0.7 * node_radius, so effective area is smaller
+                effective_size = adjusted_node_size * 0.5  # Account for inner circle size
+                font_size = _calculate_font_size(effective_size)
+            else:
+                # For regular nodes, use normal calculation
+                font_size = _calculate_font_size(adjusted_node_size)
+
             plt.text(  # pyright: ignore[reportUnknownMemberType]
                 x,
                 y,
@@ -320,8 +330,8 @@ def _calculate_font_size(node_size: float) -> int:
         Font size for node labels
     """
     # Scale font size with node size, ensuring minimum readability
-    base_size = math.sqrt(node_size) * 0.7
-    return max(8, min(16, int(base_size)))
+    base_size = math.sqrt(node_size) * 0.6  # Balanced scaling factor
+    return max(6, min(14, int(base_size)))  # Reasonable range for various node sizes
 
 
 def _draw_pauli_node(pos: tuple[float, float], pauli_axis: str, node_radius: float) -> None:
