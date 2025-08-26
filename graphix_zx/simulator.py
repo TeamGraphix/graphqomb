@@ -123,7 +123,7 @@ class PatternSimulator:
     calc_prob: bool
     pattern: Pattern
 
-    _rng: np.random.Generator | None
+    _rng: np.random.Generator
 
     def __init__(
         self,
@@ -137,7 +137,7 @@ class PatternSimulator:
 
         self.calc_prob = calc_prob
         self.pattern = pattern
-        self._rng = None
+        self._rng = np.random.default_rng()
 
         # Pattern runnability check is done via is_runnable function
         is_runnable(self.pattern)
@@ -213,9 +213,8 @@ class PatternSimulator:
 
     def simulate(self, rng: np.random.Generator | None = None) -> None:
         """Simulate the pattern."""
-        if rng is None:
-            rng = np.random.default_rng()
-        self._rng = rng
+        if rng:
+            self._rng = rng
         for cmd in self.pattern.commands:
             self.apply_cmd(cmd)
 
