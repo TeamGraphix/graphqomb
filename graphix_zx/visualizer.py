@@ -8,7 +8,7 @@ This module provides:
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -65,28 +65,28 @@ def visualize(
 
     node_colors = _get_node_colors(graph)
 
-    plt.figure()
+    plt.figure()  # pyright: ignore[reportUnknownMemberType]
     for node in graph.physical_nodes:
-        plt.scatter(*node_pos[node], color=node_colors[node], s=350, zorder=2)
+        plt.scatter(*node_pos[node], color=node_colors[node], s=350, zorder=2)  # pyright: ignore[reportUnknownMemberType]
 
     for edge in graph.physical_edges:
-        plt.plot(
+        plt.plot(  # pyright: ignore[reportUnknownMemberType]
             [node_pos[edge[0]][0], node_pos[edge[1]][0]],
             [node_pos[edge[0]][1], node_pos[edge[1]][1]],
             color="black",
             zorder=1,
         )
 
-    nx_graph: nx.Graph = nx.Graph()
-    nx_graph.add_nodes_from(graph.physical_nodes)
-    nx_graph.add_edges_from(graph.physical_edges)
-    nx.draw_networkx_labels(nx_graph, pos=node_pos, font_size=12)
+    nx_graph: nx.Graph[int] = nx.Graph()
+    nx_graph.add_nodes_from(graph.physical_nodes)  # pyright: ignore[reportUnknownMemberType]
+    nx_graph.add_edges_from(graph.physical_edges)  # pyright: ignore[reportUnknownMemberType]
+    nx.draw_networkx_labels(nx_graph, pos=node_pos, font_size=12)  # pyright: ignore[reportUnknownMemberType]
 
     if save:
         if filename is None:
             filename = "graph.png"
-        plt.savefig(filename)
-    plt.show()
+        plt.savefig(filename)  # pyright: ignore[reportUnknownMemberType]
+    plt.show()  # pyright: ignore[reportUnknownMemberType]
 
 
 def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
@@ -126,10 +126,10 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
 
         if internal_edges:
             # Use spring layout for internal nodes
-            nx_graph = nx.Graph()
-            nx_graph.add_nodes_from(internal_nodes)
-            nx_graph.add_edges_from(internal_edges)
-            internal_pos = nx.spring_layout(nx_graph, k=1, iterations=50)
+            nx_graph: nx.Graph[int] = nx.Graph()
+            nx_graph.add_nodes_from(internal_nodes)  # pyright: ignore[reportUnknownMemberType]
+            nx_graph.add_edges_from(internal_edges)  # pyright: ignore[reportUnknownMemberType]
+            internal_pos: dict[int, Any] = nx.spring_layout(nx_graph, k=1, iterations=50)  # pyright: ignore[reportUnknownMemberType]
 
             # Scale and position internal nodes in the middle
             for node, (x, y) in internal_pos.items():
@@ -143,7 +143,7 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
 
 
 def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
-    node_colors = {}
+    node_colors: dict[int, ColorMap] = {}
     for node, meas_bases in graph.meas_bases.items():
         if meas_bases.plane == Plane.XY:
             node_colors[node] = ColorMap.XY
