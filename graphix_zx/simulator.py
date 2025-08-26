@@ -113,15 +113,13 @@ class PatternSimulator:
         The measurement results for each node.
     calc_prob : `bool`
         Whether to calculate probabilities.
-    pattern : `Pattern`
-        The measurement pattern being simulated.
     """
 
     state: BaseFullStateSimulator
     node_indices: list[int]
     results: dict[int, bool]
     calc_prob: bool
-    pattern: Pattern
+    __pattern: Pattern
 
     _rng: np.random.Generator
 
@@ -136,15 +134,15 @@ class PatternSimulator:
         self.results = {}
 
         self.calc_prob = calc_prob
-        self.pattern = pattern
+        self.__pattern = pattern
         self._rng = np.random.default_rng()
 
         # Pattern runnability check is done via is_runnable function
-        is_runnable(self.pattern)
+        is_runnable(self.__pattern)
 
         if backend == SimulatorBackend.StateVector:
             # Note: deterministic check skipped for now
-            self.state = StateVector.from_num_qubits(len(self.pattern.input_node_indices))
+            self.state = StateVector.from_num_qubits(len(self.__pattern.input_node_indices))
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
@@ -180,13 +178,13 @@ class PatternSimulator:
         result = self._rng.uniform() < 1 / 2
 
         if cmd.meas_basis.plane == Plane.XY:
-            if self.pattern.pauli_frame.z_pauli[cmd.node]:
+            if self.__pattern.pauli_frame.z_pauli[cmd.node]:
                 basis: MeasBasis = cmd.meas_basis.flip()
             else:
                 basis = cmd.meas_basis
         elif cmd.meas_basis.plane == Plane.YZ:
-            basis = cmd.meas_basis.flip() if self.pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
-        elif self.pattern.pauli_frame.x_pauli[cmd.node] ^ self.pattern.pauli_frame.z_pauli[cmd.node]:
+            basis = cmd.meas_basis.flip() if self.__pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
+        elif self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
             basis = cmd.meas_basis.flip()
         else:
             basis = cmd.meas_basis
@@ -197,28 +195,28 @@ class PatternSimulator:
         self.node_indices.remove(cmd.node)
 
         if result:
-            self.pattern.pauli_frame.meas_flip(cmd.node)
+            self.__pattern.pauli_frame.meas_flip(cmd.node)
 
     @apply_cmd.register
     def _(self, cmd: X) -> None:
         node_id = self.node_indices.index(cmd.node)
-        if self.pattern.pauli_frame.x_pauli[cmd.node]:
+        if self.__pattern.pauli_frame.x_pauli[cmd.node]:
             self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
 
     @apply_cmd.register
     def _(self, cmd: Z) -> None:
         node_id = self.node_indices.index(cmd.node)
-        if self.pattern.pauli_frame.z_pauli[cmd.node]:
+        if self.__pattern.pauli_frame.z_pauli[cmd.node]:
             self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
 
     def simulate(self, rng: np.random.Generator | None = None) -> None:
         """Simulate the pattern."""
         if rng:
             self._rng = rng
-        for cmd in self.pattern.commands:
+        for cmd in self.__pattern.commands:
             self.apply_cmd(cmd)
 
         # Create a mapping from current node indices to output node indices
-        permutation = [self.pattern.output_node_indices[node] for node in self.node_indices]
+        permutation = [self.__pattern.output_node_indices[node] for node in self.node_indices]
 
         self.state.reorder(permutation)
