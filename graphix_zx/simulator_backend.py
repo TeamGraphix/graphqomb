@@ -174,7 +174,6 @@ class BaseSimulatorBackend(ABC):
         `int`
             The number of qubits in the state.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def evolve(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> None:
@@ -187,7 +186,6 @@ class BaseSimulatorBackend(ABC):
         qubits : `int` | `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -202,7 +200,6 @@ class BaseSimulatorBackend(ABC):
         result : `int`
             The measurement result.
         """
-        raise NotImplementedError
 
 
 class BaseFullStateSimulator(BaseSimulatorBackend):
@@ -217,7 +214,6 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             The current state vector.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def norm(self) -> float:
@@ -228,7 +224,6 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         `float`
             The current state vector norm.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def add_node(self, num_qubits: int) -> None:
@@ -239,7 +234,6 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         num_qubits : `int`
             The number of qubits in the new node.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def entangle(self, qubit1: int, qubit2: int) -> None:
@@ -252,7 +246,6 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         qubit2 : `int`
             The second qubit to entangle.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def reorder(self, permutation: list[int]) -> None:
@@ -263,7 +256,6 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         permutation : `list`\[`int`\]
             The permutation to apply.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def expectation(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> float:
@@ -281,4 +273,3 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         `float`
             The expectation value of the operator.
         """
-        raise NotImplementedError
