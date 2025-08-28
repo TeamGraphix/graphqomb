@@ -701,7 +701,7 @@ def compose_sequentially(
     node_map1 = _copy_nodes(
         src=graph1,
         dst=composed_graph,
-        exclude_nodes=graph1.output_node_indices,
+        exclude_nodes=graph1.output_node_indices.keys(),
     )
     node_map2 = _copy_nodes(
         src=graph2,
