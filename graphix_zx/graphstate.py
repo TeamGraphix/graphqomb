@@ -663,7 +663,7 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose_sequentially(  # noqa: C901
+def compose_sequentially(
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
@@ -701,7 +701,7 @@ def compose_sequentially(  # noqa: C901
     node_map1 = _copy_nodes(
         src=graph1,
         dst=composed_graph,
-        exclude_nodes=set(graph1.output_node_indices.keys()),
+        exclude_nodes=graph1.output_node_indices,
     )
     node_map2 = _copy_nodes(
         src=graph2,
@@ -722,11 +722,9 @@ def compose_sequentially(  # noqa: C901
         composed_graph.register_output(node_map2[output_node], q_index)
 
     for u, v in graph1.physical_edges:
-        if node_map1[u] not in composed_graph.neighbors(node_map1[v]):
-            composed_graph.add_physical_edge(node_map1[u], node_map1[v])
+        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
     for u, v in graph2.physical_edges:
-        if node_map2[u] not in composed_graph.neighbors(node_map2[v]):
-            composed_graph.add_physical_edge(node_map2[u], node_map2[v])
+        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
 
@@ -734,7 +732,7 @@ def compose_sequentially(  # noqa: C901
 def _copy_nodes(
     src: BaseGraphState,
     dst: BaseGraphState,
-    exclude_nodes: set[int],
+    exclude_nodes: AbstractSet[int],
 ) -> dict[int, int]:
     r"""Copy nodes from src to dst, excluding specified nodes.
 
@@ -744,7 +742,7 @@ def _copy_nodes(
         source graph state
     dst : `BaseGraphState`
         destination graph state
-    exclude_nodes : `set`\[`int`\]
+    exclude_nodes : `collections.abc.Set`\[`int`\]
         set of nodes to exclude from copying
 
     Returns
