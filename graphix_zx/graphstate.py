@@ -728,18 +728,13 @@ def compose_sequentially(  # noqa: C901
 
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
-        
+
     # add edges (skip duplicates safely)
     def _add_edge_safe(g: BaseGraphState, a: int, b: int) -> None:
         if a == b:
             return
-        try:
+        if not a in g.neighbors(b):
             g.add_physical_edge(a, b)
-        except ValueError as e:
-            # Ignore exact-duplicate edges introduced by the overlap
-            if "Edge already exists" in str(e):
-                return
-            raise
 
     for u, v in graph1.physical_edges:
         _add_edge_safe(composed_graph, node_map1[u], node_map1[v])
