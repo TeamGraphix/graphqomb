@@ -5,17 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import E, M, N
+from graphix_zx.common import Axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from collections.abc import Set as AbstractSet
 
     from graphix_zx.pattern import Pattern
 
 
 def stim_compile(  # noqa: C901, PLR0912
     pattern: Pattern,
-    logical_observables: Mapping[int, AbstractSet[int]] | None = None,
+    logical_observables: Mapping[int, Mapping[int, Axis]] | None = None,
     *,
     after_clifford_depolarization: float = 0.0,
     before_measure_flip_probability: float = 0.0,
@@ -26,8 +26,8 @@ def stim_compile(  # noqa: C901, PLR0912
     ----------
     pattern : `Pattern`
         The pattern to compile.
-    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`=\]\], optional
-        A mapping from logical observable index to a set of output qubit indices that
+    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Mapping`\[`int`, `Axis`\]\]`, optional
+        A mapping from logical observable index to a mapping of q_index to measurement axis, by default None.
     after_clifford_depolarization : `float`, optional
         The probability of depolarization after a Clifford gate, by default 0.0.
     before_measure_flip_probability : `float`, optional
@@ -64,11 +64,30 @@ def stim_compile(  # noqa: C901, PLR0912
             meas_order.append(cmd.node)
 
     # measure output qubits
-    for output_node in pattern.output_node_indices:
-        if before_measure_flip_probability > 0.0:
-            stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
-        stim_str += f"MX {output_node}\n"
-        meas_order.append(output_node)
+    for output_node, q_index in pattern.output_node_indices.items():
+        axis: Axis | None = None
+        if logical_observables is not None:
+            for obs_map in logical_observables.values():
+                if q_index in obs_map:
+                    axis = obs_map[q_index]
+                    break
+
+        if axis is None or axis == Axis.X:
+            if before_measure_flip_probability > 0.0:
+                stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
+            stim_str += f"MX {output_node}\n"
+            meas_order.append(output_node)
+        elif axis == Axis.Y:
+            if before_measure_flip_probability > 0.0:
+                stim_str += f"X_ERROR({before_measure_flip_probability}) {output_node}\n"
+                stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
+            stim_str += f"MY {output_node}\n"
+            meas_order.append(output_node)
+        elif axis == Axis.Z:
+            if before_measure_flip_probability > 0.0:
+                stim_str += f"X_ERROR({before_measure_flip_probability}) {output_node}\n"
+            stim_str += f"MZ {output_node}\n"
+            meas_order.append(output_node)
 
     x_check_groups, z_check_groups = pframe.detector_groups()
     for x_checks in x_check_groups:
