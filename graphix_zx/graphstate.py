@@ -738,9 +738,11 @@ def compose_sequentially(  # noqa: C901
             g.add_physical_edge(a, b)
 
     for u, v in graph1.physical_edges:
-        _add_edge_safe(composed_graph, node_map1[u], node_map1[v])
+        if node_map1[u] not in composed_graph.neighbors(node_map1[v]):
+            composed_graph.add_physical_edge(node_map1[u], node_map1[v])
     for u, v in graph2.physical_edges:
-        _add_edge_safe(composed_graph, node_map2[u], node_map2[v])
+        if node_map2[u] not in composed_graph.neighbors(node_map2[v]):
+            composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
 
