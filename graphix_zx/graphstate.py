@@ -663,7 +663,7 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose_sequentially(  # noqa: C901
+def compose_sequentially(
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
@@ -695,23 +695,25 @@ def compose_sequentially(  # noqa: C901
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
         msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
         raise ValueError(msg)
-    node_map1: dict[int, int] = {}
-    node_map2: dict[int, int] = {}
+
     composed_graph = GraphState()
 
-    for node in graph1.physical_nodes - graph1.output_node_indices.keys():
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph1.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map1[node] = node_index
+    node_map1 = _copy_nodes(
+        src=graph1,
+        dst=composed_graph,
+        exclude_nodes=graph1.output_node_indices.keys(),
+    )
+    node_map2 = _copy_nodes(
+        src=graph2,
+        dst=composed_graph,
+        exclude_nodes=set(),
+    )
 
-    for node in graph2.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph2.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map2[node] = node_index
+    q_index2output_node_index1 = {
+        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
+    }
+    for input_node_index2, q_index in graph2.input_node_indices.items():
+        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         composed_graph.register_input(node_map1[input_node])
@@ -719,19 +721,45 @@ def compose_sequentially(  # noqa: C901
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
 
-    # overlapping node process
-    q_index2output_node_index1 = {
-        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
-    }
-    for input_node_index2, q_index in graph2.input_node_indices.items():
-        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
-
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
     for u, v in graph2.physical_edges:
         composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
+
+
+def _copy_nodes(
+    src: BaseGraphState,
+    dst: BaseGraphState,
+    exclude_nodes: AbstractSet[int],
+) -> dict[int, int]:
+    r"""Copy nodes from src to dst, excluding specified nodes.
+
+    Parameters
+    ----------
+    src : `BaseGraphState`
+        source graph state
+    dst : `BaseGraphState`
+        destination graph state
+    exclude_nodes : `collections.abc.Set`\[`int`\]
+        set of nodes to exclude from copying
+
+    Returns
+    -------
+    `dict`\[`int`, `int`\]
+        mapping from src node indices to dst node indices
+    """
+    node_map: dict[int, int] = {}
+    for node in src.physical_nodes:
+        if node in exclude_nodes:
+            continue
+        new_idx = dst.add_physical_node()
+        meas = src.meas_bases.get(node)
+        if meas is not None:
+            dst.assign_meas_basis(new_idx, meas)
+        node_map[node] = new_idx
+    return node_map
 
 
 def compose_in_parallel(  # noqa: C901
