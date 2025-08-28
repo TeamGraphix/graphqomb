@@ -687,13 +687,15 @@ def compose_sequentially(  # noqa: C901
         2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
     """
     if not graph1.is_canonical_form():
-        raise ValueError("graph1 must be in canonical form.")
+        msg = "graph1 must be in canonical form."
+        raise ValueError(msg)
     if not graph2.is_canonical_form():
-        raise ValueError("graph2 must be in canonical form.")
+        msg = "graph2 must be in canonical form."
+        raise ValueError(msg)
     if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
-        raise ValueError(
-            "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
-        )
+        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
+        raise ValueError(msg)
+
     node_map1: dict[int, int] = {}
     node_map2: dict[int, int] = {}
     composed_graph = GraphState()
@@ -722,7 +724,7 @@ def compose_sequentially(  # noqa: C901
     for input_node_index2, q_index in graph2.input_node_indices.items():
         node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
-    #　register inputs/outputs
+    # register inputs/outputs
     for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         composed_graph.register_input(node_map1[input_node])
 
@@ -733,7 +735,7 @@ def compose_sequentially(  # noqa: C901
     def _add_edge_safe(g: BaseGraphState, a: int, b: int) -> None:
         if a == b:
             return
-        if not a in g.neighbors(b):
+        if a not in g.neighbors(b):
             g.add_physical_edge(a, b)
 
     for u, v in graph1.physical_edges:
