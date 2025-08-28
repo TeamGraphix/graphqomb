@@ -718,8 +718,7 @@ def compose_sequentially(  # noqa: C901
 
     # map graph1's outputs onto graph2's inputs
     q_index2output_node_index1 = {
-        q_index: output_node_index1
-        for output_node_index1, q_index in graph1.output_node_indices.items()
+        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
     }
     for input_node_index2, q_index in graph2.input_node_indices.items():
         node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
