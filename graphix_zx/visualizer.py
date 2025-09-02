@@ -141,6 +141,10 @@ def visualize(  # noqa: PLR0913
         plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
         plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
 
+    # Remove tick marks and labels for cleaner appearance
+    ax.set_xticks([])  # pyright: ignore[reportUnknownMemberType]
+    ax.set_yticks([])  # pyright: ignore[reportUnknownMemberType]
+
     # All nodes use the same base size for consistency
 
     # Draw nodes with special handling for Pauli measurements
@@ -342,7 +346,8 @@ def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: fl
     radius_pt = math.sqrt(scatter_size / math.pi)
 
     # Convert points to pixels
-    radius_px = radius_pt * ax.figure.dpi / 72.0
+    dpi = ax.figure.dpi if ax.figure is not None else 100.0  # Default DPI if figure is None
+    radius_px = radius_pt * dpi / 72.0
 
     # Get transformation from data to display coordinates
     trans = ax.transData
