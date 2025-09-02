@@ -459,7 +459,7 @@ def _add_legend(graph: BaseGraphState) -> None:
 
     # Add legend to the plot if there are elements to show
     if legend_elements:
-        plt.legend(handles=legend_elements, loc="center left", bbox_to_anchor=(1.05, 0.5))  # pyright: ignore[reportUnknownMemberType]
+        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)  # pyright: ignore[reportUnknownMemberType]
 
 
 def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[str]]:
