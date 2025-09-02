@@ -124,6 +124,10 @@ visualize(pauli_demo_graph, save=False, filename="pauli_demo_graph.png", show_no
 
 # Demo with larger nodes and no labels
 print("\n--- Larger nodes without labels ---")
-visualize(pauli_demo_graph, save=False, filename="pauli_demo_large.png", show_node_labels=False, node_size=500)
+visualize(pauli_demo_graph, save=False, filename="pauli_demo_large.png", show_node_labels=False)
+
+# Demo without legend to avoid overlap
+print("\n--- Without legend to avoid overlap ---")
+visualize(pauli_demo_graph, save=False, filename="pauli_demo_no_legend.png", show_node_labels=True, show_legend=False)
 
 # %%
