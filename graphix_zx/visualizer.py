@@ -98,7 +98,7 @@ def _setup_figure(node_pos: dict[int, tuple[float, float]]) -> tuple[float, floa
     return x_min, x_max, y_min, y_max, padding
 
 
-def visualize(
+def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
     save: bool = False,
@@ -470,8 +470,8 @@ def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[
     tuple[set[Plane], set[str]]
         Tuple of (planes_present, pauli_measurements)
     """
-    planes_present = set()
-    pauli_measurements = set()
+    planes_present: set[Plane] = set()
+    pauli_measurements: set[str] = set()
 
     for meas_bases in graph.meas_bases.values():
         planes_present.add(meas_bases.plane)
@@ -537,7 +537,7 @@ def _create_legend_elements(
         )
 
     # Add legend entries for Pauli measurements if present
-    pauli_entries = []
+    pauli_entries: list[patches.Circle] = []
     for pauli_axis in sorted(pauli_measurements):
         # Create hatch pattern legend entry using Circle patch with same pattern as nodes
         if pauli_axis == "X":
