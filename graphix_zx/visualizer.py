@@ -19,6 +19,8 @@ from matplotlib.lines import Line2D
 from graphix_zx.common import Plane
 
 if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+
     from graphix_zx.graphstate import BaseGraphState
 
 
@@ -103,6 +105,7 @@ def visualize(
     filename: str | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
+    show_legend: bool = True,
 ) -> None:
     """Visualize the GraphState.
 
@@ -120,6 +123,8 @@ def visualize(
         Whether to show node index labels, by default True
     node_size : `float`, optional
         Size of nodes (scatter size), by default 300
+    show_legend : `bool`, optional
+        Whether to show color legend, by default True
     """
     node_pos = _get_node_positions(graph)
 
@@ -128,20 +133,29 @@ def visualize(
     # Setup figure with proper aspect ratio
     x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
 
-    # Calculate radius from scatter size for consistency across all node types
-    node_radius = _scatter_size_to_radius(node_size)
+    # Get current axes for accurate size conversion
+    ax = plt.gca()
+
+    # Set plot limits before drawing nodes so coordinate transformation works correctly
+    if node_pos:
+        plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
+        plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
+
+    # All nodes use the same base size for consistency
 
     # Draw nodes with special handling for Pauli measurements
     pauli_nodes = _get_pauli_nodes(graph)
-    # Calculate adjusted node size for scatter plots to match visual size of Pauli nodes
-    # Pauli nodes have outer radius = node_radius, so we need scatter size that visually matches
-    adjusted_node_size = node_size * 1.7  # Empirically determined multiplier for visual consistency
 
     for node in graph.physical_nodes:
         if node in pauli_nodes:
-            _draw_pauli_node(node_pos[node], pauli_nodes[node], node_radius)
+            # Calculate accurate patch radius for this specific position
+            x, y = node_pos[node]
+            patch_radius = _scatter_size_to_patch_radius(ax, x, y, node_size)
+            _draw_pauli_node(ax, node_pos[node], pauli_nodes[node], patch_radius)
         else:
-            plt.scatter(*node_pos[node], color=node_colors[node], s=adjusted_node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
+            # Ensure all nodes have a color, fallback to default if missing
+            node_color = node_colors.get(node, ColorMap.OUTPUT)  # Default to output color
+            plt.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
 
     for edge in graph.physical_edges:
         plt.plot(  # pyright: ignore[reportUnknownMemberType]
@@ -159,15 +173,8 @@ def visualize(
         for node in graph.physical_nodes:
             x, y = node_pos[node]
 
-            # Adjust font size based on node type
-            if node in pauli_nodes:
-                # For Pauli nodes, use smaller font to fit within inner circle
-                # Inner radius is 0.7 * node_radius, so effective area is smaller
-                effective_size = adjusted_node_size * 0.5  # Account for inner circle size
-                font_size = _calculate_font_size(effective_size)
-            else:
-                # For regular nodes, use normal calculation
-                font_size = _calculate_font_size(adjusted_node_size)
+            # All nodes now have the same size, so use same font size calculation
+            font_size = _calculate_font_size(node_size)
 
             plt.text(  # pyright: ignore[reportUnknownMemberType]
                 x,
@@ -181,13 +188,10 @@ def visualize(
                 zorder=4,  # Above all node patches
             )
 
-    # Set plot limits with proper padding
-    if node_pos:
-        plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
-        plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
-
-    # Add color legend
-    _add_legend(graph)
+    # Add color legend if requested
+    if show_legend:
+        _add_legend(graph)
+        plt.tight_layout()  # pyright: ignore[reportUnknownMemberType]
 
     if save:
         if filename is None:
@@ -253,6 +257,7 @@ def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
     node_colors: dict[int, ColorMap] = {}
     pauli_nodes = _get_pauli_nodes(graph)
 
+    # Set colors for all nodes with measurement bases
     for node, meas_bases in graph.meas_bases.items():
         # Skip Pauli measurements as they will be handled separately
         if node in pauli_nodes:
@@ -265,9 +270,17 @@ def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
         elif meas_bases.plane == Plane.XZ:
             node_colors[node] = ColorMap.XZ
 
+    # Set colors for output nodes (may override measurement colors)
     output_nodes = set(graph.output_node_indices.keys())
     for output_node in output_nodes:
         node_colors[output_node] = ColorMap.OUTPUT
+
+    # Set colors for input nodes (if not already set by measurement bases)
+    input_nodes = set(graph.input_node_indices.keys())
+    for input_node in input_nodes:
+        if input_node not in node_colors:
+            # If input node has no measurement basis, use XY as default
+            node_colors[input_node] = ColorMap.XY
 
     return node_colors
 
@@ -302,47 +315,81 @@ def _get_pauli_nodes(graph: BaseGraphState) -> dict[int, str]:
     return pauli_nodes
 
 
-def _scatter_size_to_radius(scatter_size: float) -> float:
-    """Convert matplotlib scatter size to radius for consistent patch sizing.
+def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: float) -> float:
+    """Convert scatter size to patch radius for precise size matching.
+
+    This function converts matplotlib scatter size (points²) to the equivalent
+    radius in data coordinates for patches, ensuring patches appear the same
+    size as scatter points regardless of axis scale or DPI.
 
     Parameters
     ----------
+    ax : Axes
+        Matplotlib axes object
+    x : float
+        X position of the node in data coordinates
+    y : float
+        Y position of the node in data coordinates
     scatter_size : float
-        Scatter plot size parameter (area in points^2)
+        Scatter plot size parameter (area in points²)
 
     Returns
     -------
     float
-        Equivalent radius for patches
+        Equivalent radius in data coordinates for patches
     """
-    # Empirically determined conversion factor for visual consistency
-    # This gives the base radius that matches scatter plot visual size
-    return math.sqrt(scatter_size) * 0.008
+    # Convert scatter size (points²) to radius in points
+    radius_pt = math.sqrt(scatter_size / math.pi)
+
+    # Convert points to pixels
+    radius_px = radius_pt * ax.figure.dpi / 72.0
+
+    # Get transformation from data to display coordinates
+    trans = ax.transData
+    inv = trans.inverted()
+
+    # Find display coordinates of the node position
+    x_disp, y_disp = trans.transform((x, y))
+
+    # Calculate data coordinate offset that corresponds to the pixel radius
+    # Use x-direction for radius calculation (assumes roughly circular in display)
+    x_offset_data = inv.transform((x_disp + radius_px, y_disp))[0] - x
+
+    return float(abs(x_offset_data))
 
 
 def _calculate_font_size(node_size: float) -> int:
-    """Calculate appropriate font size based on node size.
+    """Calculate appropriate font size based on node size that fits within the node.
 
     Parameters
     ----------
     node_size : float
-        Node size parameter
+        Node size parameter (scatter size in points^2)
 
     Returns
     -------
     int
-        Font size for node labels
+        Font size for node labels that fit within the node
     """
-    # Scale font size with node size, ensuring minimum readability
-    base_size = math.sqrt(node_size) * 0.6  # Balanced scaling factor
-    return max(6, min(14, int(base_size)))  # Reasonable range for various node sizes
+    # Calculate the diameter of the node in points
+    # scatter size is area in points^2, so diameter = 2 * sqrt(area / π)
+    node_diameter_points = 2 * math.sqrt(node_size / math.pi)
+
+    # Font size should be roughly 60% of the node diameter to fit comfortably
+    # Empirically determined factor for good readability within circular nodes
+    font_size = node_diameter_points * 0.4
+
+    # Clamp to reasonable range (minimum for readability, maximum to avoid overflow)
+    return max(6, min(16, int(font_size)))
 
 
-def _draw_pauli_node(pos: tuple[float, float], pauli_axis: str, node_radius: float) -> None:
-    """Draw a Pauli measurement node with better visibility.
+def _draw_pauli_node(ax: Axes, pos: tuple[float, float], pauli_axis: str, node_radius: float) -> None:
+    """Draw a Pauli measurement node with hatch patterns.
 
     Parameters
     ----------
+    ax : Axes
+        Matplotlib axes object
     pos : tuple[float, float]
         Node position (x, y)
     pauli_axis : str
@@ -352,57 +399,40 @@ def _draw_pauli_node(pos: tuple[float, float], pauli_axis: str, node_radius: flo
     """
     x, y = pos
 
-    # Define colors based on Pauli axis
+    # Use unified design for all Pauli measurements
+    # Base color depends on the measurement plane, stripe color is contrasting
     if pauli_axis == "X":
-        # X measurement: XY (green) main with XZ (blue) border
-        main_color, border_color = ColorMap.XY, ColorMap.XZ
+        # X measurement: XY plane
+        face_color = ColorMap.XY
+        edge_color = ColorMap.XZ  # Contrasting color
     elif pauli_axis == "Y":
-        # Y measurement: YZ (red) main with XY (green) border
-        main_color, border_color = ColorMap.YZ, ColorMap.XY
+        # Y measurement: YZ plane
+        face_color = ColorMap.YZ
+        edge_color = ColorMap.XY  # Contrasting color
     elif pauli_axis == "Z":
-        # Z measurement: XZ (blue) main with YZ (red) border
-        main_color, border_color = ColorMap.XZ, ColorMap.YZ
+        # Z measurement: XZ plane
+        face_color = ColorMap.XZ
+        edge_color = ColorMap.YZ  # Contrasting color
     else:
-        # Fallback to solid color (use calculated scatter size)
-        scatter_size = (node_radius / 0.008) ** 2  # Reverse conversion
-        plt.scatter(x, y, color="black", s=scatter_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
+        # Fallback to solid color
+        circle = patches.Circle((x, y), node_radius, facecolor="black", edgecolor="none", linewidth=0, zorder=2)
+        ax.add_patch(circle)
         return
 
-    # Use bordered node approach (default - most readable)
-    _draw_bordered_node(x, y, main_color, border_color, node_radius)
+    # Unified hatch pattern for all Pauli measurements
+    hatch_pattern = "////////"  # Diagonal stripes for all Pauli nodes
 
-    # Alternative approaches (uncomment one to try):
-    # _draw_shaped_node(x, y, pauli_axis, node_radius)  # Different shapes for X, Y, Z
-    # _draw_double_circle_node(x, y, main_color, border_color, node_radius)  # Concentric circles
-
-
-def _draw_bordered_node(x: float, y: float, main_color: str, border_color: str, node_radius: float) -> None:
-    """Draw a node with thick colored border.
-
-    Parameters
-    ----------
-    x, y : float
-        Node center position
-    main_color : str
-        Main node color
-    border_color : str
-        Border color
-    node_radius : float
-        Base radius for the node (should match scatter plot visual size)
-    """
-    # Use the base radius as the outer radius to match scatter plot size
-    outer_radius = node_radius  # Same size as scatter plot
-    inner_radius = node_radius * 0.7  # Smaller inner for border effect
-
-    # Draw larger outer circle for border
-    outer_circle = patches.Circle(
-        (x, y), outer_radius, facecolor=border_color, edgecolor="black", linewidth=1.5, zorder=2
+    # Create circle patch with hatch pattern - same size as regular scatter nodes
+    circle = patches.Circle(
+        (x, y),
+        node_radius,
+        facecolor=face_color,
+        edgecolor=edge_color,
+        linewidth=0,  # No boundary, only hatch pattern
+        hatch=hatch_pattern,
+        zorder=2,
     )
-    plt.gca().add_patch(outer_circle)  # pyright: ignore[reportUnknownMemberType]
-
-    # Draw smaller inner circle for main color
-    inner_circle = patches.Circle((x, y), inner_radius, facecolor=main_color, edgecolor="black", linewidth=1, zorder=3)
-    plt.gca().add_patch(inner_circle)  # pyright: ignore[reportUnknownMemberType]
+    ax.add_patch(circle)
 
 
 def _add_legend(graph: BaseGraphState) -> None:
@@ -418,7 +448,7 @@ def _add_legend(graph: BaseGraphState) -> None:
 
     # Add legend to the plot if there are elements to show
     if legend_elements:
-        plt.legend(handles=legend_elements, loc="upper right", bbox_to_anchor=(1.0, 1.0))  # pyright: ignore[reportUnknownMemberType]
+        plt.legend(handles=legend_elements, loc="center left", bbox_to_anchor=(1.05, 0.5))  # pyright: ignore[reportUnknownMemberType]
 
 
 def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[str]]:
@@ -459,7 +489,7 @@ def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[
 
 def _create_legend_elements(
     graph: BaseGraphState, planes_present: set[Plane], pauli_measurements: set[str]
-) -> list[Line2D]:
+) -> list[Line2D | patches.Circle]:
     """Create legend elements for the plot.
 
     Parameters
@@ -473,10 +503,10 @@ def _create_legend_elements(
 
     Returns
     -------
-    list[Line2D]
-        List of matplotlib legend elements
+    list[Line2D | patches.Circle]
+        List of matplotlib legend elements (Line2D and Circle patches)
     """
-    legend_elements = []
+    legend_elements: list[Line2D | patches.Circle] = []
 
     # Add legend entries for measurement planes
     if Plane.XY in planes_present:
@@ -501,19 +531,36 @@ def _create_legend_elements(
         )
 
     # Add legend entries for Pauli measurements if present
-    pauli_entries = [
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor="white",
-            markeredgecolor="black",
-            markersize=8,
+    pauli_entries = []
+    for pauli_axis in sorted(pauli_measurements):
+        # Create hatch pattern legend entry using Circle patch with same pattern as nodes
+        if pauli_axis == "X":
+            face_color = ColorMap.XY
+            edge_color = ColorMap.XZ
+            hatch_pattern = "////////"  # Dense stripes for 50/50 coverage
+        elif pauli_axis == "Y":
+            face_color = ColorMap.YZ
+            edge_color = ColorMap.XY
+            hatch_pattern = "////////"  # Dense stripes for 50/50 coverage
+        elif pauli_axis == "Z":
+            face_color = ColorMap.XZ
+            edge_color = ColorMap.YZ
+            hatch_pattern = "////////"  # Dense stripes for 50/50 coverage
+        else:
+            continue
+
+        # Create a circle patch for the legend with same pattern as actual nodes
+        circle_patch = patches.Circle(
+            (0, 0),
+            0.15,  # Small radius for legend
+            facecolor=face_color,
+            edgecolor=edge_color,
+            linewidth=0,  # No boundary, only hatch pattern
+            hatch=hatch_pattern,
             label=f"Pauli {pauli_axis}",
         )
-        for pauli_axis in sorted(pauli_measurements)
-    ]
+        pauli_entries.append(circle_patch)
+
     legend_elements.extend(pauli_entries)
 
     return legend_elements
