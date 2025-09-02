@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib import patches
+from matplotlib.lines import Line2D
 
 from graphix_zx.common import Plane
 
@@ -184,6 +185,9 @@ def visualize(
     if node_pos:
         plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
         plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
+
+    # Add color legend
+    _add_legend(graph)
 
     if save:
         if filename is None:
@@ -399,3 +403,117 @@ def _draw_bordered_node(x: float, y: float, main_color: str, border_color: str, 
     # Draw smaller inner circle for main color
     inner_circle = patches.Circle((x, y), inner_radius, facecolor=main_color, edgecolor="black", linewidth=1, zorder=3)
     plt.gca().add_patch(inner_circle)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _add_legend(graph: BaseGraphState) -> None:
+    """Add color legend to the plot.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        GraphState to analyze for legend items
+    """
+    planes_present, pauli_measurements = _analyze_graph_measurements(graph)
+    legend_elements = _create_legend_elements(graph, planes_present, pauli_measurements)
+
+    # Add legend to the plot if there are elements to show
+    if legend_elements:
+        plt.legend(handles=legend_elements, loc="upper right", bbox_to_anchor=(1.0, 1.0))  # pyright: ignore[reportUnknownMemberType]
+
+
+def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[str]]:
+    """Analyze graph measurements to determine legend content.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        GraphState to analyze
+
+    Returns
+    -------
+    tuple[set[Plane], set[str]]
+        Tuple of (planes_present, pauli_measurements)
+    """
+    planes_present = set()
+    pauli_measurements = set()
+
+    for meas_bases in graph.meas_bases.values():
+        planes_present.add(meas_bases.plane)
+
+        # Check for Pauli measurements
+        angle = meas_bases.angle
+        tolerance = 1e-10
+
+        if abs(angle) < tolerance or abs(angle - math.pi) < tolerance:
+            if meas_bases.plane == Plane.XY:
+                pauli_measurements.add("X")
+            elif meas_bases.plane == Plane.XZ:
+                pauli_measurements.add("Z")
+        elif (
+            abs(angle - math.pi / 2) < tolerance or abs(angle - 3 * math.pi / 2) < tolerance
+        ) and meas_bases.plane == Plane.YZ:
+            pauli_measurements.add("Y")
+
+    return planes_present, pauli_measurements
+
+
+def _create_legend_elements(
+    graph: BaseGraphState, planes_present: set[Plane], pauli_measurements: set[str]
+) -> list[Line2D]:
+    """Create legend elements for the plot.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        GraphState object
+    planes_present : set[Plane]
+        Set of measurement planes present in graph
+    pauli_measurements : set[str]
+        Set of Pauli measurement axes present in graph
+
+    Returns
+    -------
+    list[Line2D]
+        List of matplotlib legend elements
+    """
+    legend_elements = []
+
+    # Add legend entries for measurement planes
+    if Plane.XY in planes_present:
+        legend_elements.append(
+            Line2D([0], [0], marker="o", color="w", markerfacecolor=ColorMap.XY, markersize=8, label="XY measurement")
+        )
+
+    if Plane.YZ in planes_present:
+        legend_elements.append(
+            Line2D([0], [0], marker="o", color="w", markerfacecolor=ColorMap.YZ, markersize=8, label="YZ measurement")
+        )
+
+    if Plane.XZ in planes_present:
+        legend_elements.append(
+            Line2D([0], [0], marker="o", color="w", markerfacecolor=ColorMap.XZ, markersize=8, label="XZ measurement")
+        )
+
+    # Add legend entry for output nodes if present
+    if graph.output_node_indices:
+        legend_elements.append(
+            Line2D([0], [0], marker="o", color="w", markerfacecolor=ColorMap.OUTPUT, markersize=8, label="Output node")
+        )
+
+    # Add legend entries for Pauli measurements if present
+    pauli_entries = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor="white",
+            markeredgecolor="black",
+            markersize=8,
+            label=f"Pauli {pauli_axis}",
+        )
+        for pauli_axis in sorted(pauli_measurements)
+    ]
+    legend_elements.extend(pauli_entries)
+
+    return legend_elements
