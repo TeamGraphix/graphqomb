@@ -316,11 +316,11 @@ def _get_pauli_nodes(graph: BaseGraphState) -> dict[int, str]:
 
 
 def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: float) -> float:
-    """Convert scatter size to patch radius for precise size matching.
+    """Convert scatter size to patch radius for equal display area.
 
     This function converts matplotlib scatter size (points²) to the equivalent
-    radius in data coordinates for patches, ensuring patches appear the same
-    size as scatter points regardless of axis scale or DPI.
+    radius in data coordinates for patches, ensuring patches have the same
+    display area as scatter points with equal aspect ratio.
 
     Parameters
     ----------
@@ -351,11 +351,17 @@ def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: fl
     # Find display coordinates of the node position
     x_disp, y_disp = trans.transform((x, y))
 
-    # Calculate data coordinate offset that corresponds to the pixel radius
-    # Use x-direction for radius calculation (assumes roughly circular in display)
+    # Calculate data coordinate offsets in both X and Y directions
     x_offset_data = inv.transform((x_disp + radius_px, y_disp))[0] - x
+    y_offset_data = inv.transform((x_disp, y_disp + radius_px))[1] - y
 
-    return float(abs(x_offset_data))
+    # For equal aspect ratio, we want equal display area
+    # Area = π * rx * ry where rx and ry are the semi-axes in data coordinates
+    # For a circle with equal display area: π * r² = π * rx * ry
+    # So r = sqrt(rx * ry) to maintain equal display area
+    radius_data = math.sqrt(abs(x_offset_data) * abs(y_offset_data))
+
+    return float(radius_data)
 
 
 def _calculate_font_size(node_size: float) -> int:
