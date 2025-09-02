@@ -27,10 +27,10 @@ if sys.version_info >= (3, 11):
     class ColorMap(StrEnum):
         """Color map for the nodes."""
 
-        XY = "tab:green"
-        YZ = "tab:red"
-        XZ = "tab:blue"
-        OUTPUT = "tab:grey"
+        XY = "#2ECC71"  # Emerald green
+        YZ = "#E74C3C"  # Vibrant red
+        XZ = "#3498DB"  # Bright blue
+        OUTPUT = "#95A5A6"  # Cool grey
 
 else:
     from enum import Enum
@@ -38,10 +38,10 @@ else:
     class ColorMap(str, Enum):
         """Color map for the nodes."""
 
-        XY = "tab:green"
-        YZ = "tab:red"
-        XZ = "tab:blue"
-        OUTPUT = "tab:grey"
+        XY = "#2ECC71"  # Emerald green
+        YZ = "#E74C3C"  # Vibrant red
+        XZ = "#3498DB"  # Bright blue
+        OUTPUT = "#95A5A6"  # Cool grey
 
 
 def _setup_figure(node_pos: dict[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
