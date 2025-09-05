@@ -32,7 +32,6 @@ def qompile(
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     scheduler: Scheduler | None = None,
-    correct_output: bool = True,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
 
@@ -49,8 +48,6 @@ def qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
-    correct_output : `bool`, optional
-        whether to correct outputs or not, by default True
 
     Returns
     -------
@@ -64,7 +61,7 @@ def qompile(
 
     pauli_frame = PauliFrame(graph.physical_nodes, xflow, zflow)
 
-    return _qompile(graph, pauli_frame, scheduler=scheduler, correct_output=correct_output)
+    return _qompile(graph, pauli_frame, scheduler=scheduler)
 
 
 def _qompile(
@@ -72,7 +69,6 @@ def _qompile(
     pauli_frame: PauliFrame,
     *,
     scheduler: Scheduler | None = None,
-    correct_output: bool = True,
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
 
@@ -88,8 +84,6 @@ def _qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
-    correct_output : `bool`, optional
-        whether to correct outputs or not, by default True
 
     Returns
     -------
@@ -122,9 +116,9 @@ def _qompile(
                         prepared_edges.add(edge)
             commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
             commands.extend(N(node) for node in prepare_nodes)
-    if correct_output:
-        commands.extend(X(node=node) for node in graph.output_node_indices)
-        commands.extend(Z(node=node) for node in graph.output_node_indices)
+
+    commands.extend(X(node=node) for node in graph.output_node_indices)
+    commands.extend(Z(node=node) for node in graph.output_node_indices)
 
     return Pattern(
         input_node_indices=graph.input_node_indices,
