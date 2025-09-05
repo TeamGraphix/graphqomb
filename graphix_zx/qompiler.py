@@ -117,8 +117,11 @@ def _qompile(
             commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
             commands.extend(N(node) for node in prepare_nodes)
 
-    commands.extend(X(node=node) for node in graph.output_node_indices)
-    commands.extend(Z(node=node) for node in graph.output_node_indices)
+    for node in graph.output_node_indices:
+        if meas_basis := graph.meas_bases.get(node):
+            commands.append(M(node, meas_basis))
+        else:
+            commands.extend((X(node=node), Z(node=node)))
 
     return Pattern(
         input_node_indices=graph.input_node_indices,
