@@ -8,7 +8,7 @@ Simple example to draw a GraphState in graphix-zx.
 # %%
 import numpy as np
 
-from graphix_zx.common import Plane, PlannerMeasBasis
+from graphix_zx.common import Plane, PlannerMeasBasis, Axis, AxisMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 from graphix_zx.random_objects import generate_random_flow_graph
 from graphix_zx.visualizer import visualize
@@ -32,7 +32,7 @@ q_index1 = demo_graph.register_input(input_node1)
 q_index2 = demo_graph.register_input(input_node2)
 
 # Set measurement bases for input nodes (XY plane with different angles)
-demo_graph.assign_meas_basis(input_node1, PlannerMeasBasis(Plane.XY, 0.0))
+demo_graph.assign_meas_basis(input_node1, AxisMeasBasis(Axis.X, Sign.PLUS))
 demo_graph.assign_meas_basis(input_node2, PlannerMeasBasis(Plane.XY, np.pi / 6))
 
 # Add internal nodes with different measurement planes
@@ -91,10 +91,10 @@ y_measurement_node = pauli_demo_graph.add_physical_node()  # Y measurement: YZ p
 z_measurement_node = pauli_demo_graph.add_physical_node()  # Z measurement: XZ plane, θ=π
 
 # Set Pauli measurement bases
-pauli_demo_graph.assign_meas_basis(pauli_input, PlannerMeasBasis(Plane.XY, 0.0))
-pauli_demo_graph.assign_meas_basis(x_measurement_node, PlannerMeasBasis(Plane.XY, 0.0))  # X+
-pauli_demo_graph.assign_meas_basis(y_measurement_node, PlannerMeasBasis(Plane.YZ, np.pi / 2))  # Y+
-pauli_demo_graph.assign_meas_basis(z_measurement_node, PlannerMeasBasis(Plane.XZ, np.pi))  # Z-
+pauli_demo_graph.assign_meas_basis(pauli_input, AxisMeasBasis(Axis.X, Sign.PLUS))  # X+
+pauli_demo_graph.assign_meas_basis(x_measurement_node, AxisMeasBasis(Axis.X, Sign.PLUS))  # X+
+pauli_demo_graph.assign_meas_basis(y_measurement_node, AxisMeasBasis(Axis.Y, Sign.PLUS))  # Y+
+pauli_demo_graph.assign_meas_basis(z_measurement_node, AxisMeasBasis(Axis.Z, Sign.MINUS))  # Z-
 
 # Add output node
 pauli_output = pauli_demo_graph.add_physical_node()
