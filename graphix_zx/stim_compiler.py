@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from graphix_zx.pattern import Pattern
 
 
-def stim_compile(  # noqa: C901, PLR0912
+def stim_compile(  # noqa: C901, PLR0912, PLR0915
     pattern: Pattern,
     logical_observables: Mapping[int, Mapping[int, Axis]] | None = None,
     *,
@@ -102,7 +102,6 @@ def stim_compile(  # noqa: C901, PLR0912
 
     # logical observables
     if logical_observables is not None:
-        qindex_to_output = {q: i for i, q in pattern.output_node_indices.items()}
         for log_idx, obs in logical_observables.items():
             logical_observables_group = pframe.logical_observables_group(obs)
             target_str = ""

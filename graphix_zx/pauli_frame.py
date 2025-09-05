@@ -198,7 +198,7 @@ class PauliFrame:
 
         return inv_x_flow, inv_z_flow
 
-    def _collect_dependent_chain(
+    def _collect_dependent_chain(  # noqa: C901
         self,
         inv_x_flow: dict[int, set[int]],
         inv_z_flow: dict[int, set[int]],
