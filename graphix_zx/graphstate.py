@@ -461,16 +461,8 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
-
-        Raises
-        ------
-        ValueError
-            If the node is an output node.
         """
         self._ensure_node_exists(node)
-        if node in self.output_node_indices:
-            msg = "Cannot set measurement basis for output node."
-            raise ValueError(msg)
         self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
