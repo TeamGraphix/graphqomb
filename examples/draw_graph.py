@@ -8,7 +8,7 @@ Simple example to draw a GraphState in graphix-zx.
 # %%
 import numpy as np
 
-from graphix_zx.common import Plane, PlannerMeasBasis, Axis, AxisMeasBasis, Sign
+from graphix_zx.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 from graphix_zx.random_objects import generate_random_flow_graph
 from graphix_zx.visualizer import visualize
