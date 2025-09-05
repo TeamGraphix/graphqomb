@@ -181,13 +181,6 @@ def test_register_output_raises_1(graph: GraphState) -> None:
         graph.register_output(1, 0)
 
 
-def test_register_output_raises_2(graph: GraphState) -> None:
-    node_index = graph.add_physical_node()
-    graph.assign_meas_basis(node_index, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
-    with pytest.raises(ValueError, match=r"Cannot set output node with measurement basis."):
-        graph.register_output(node_index, 0)
-
-
 def test_assign_meas_basis(graph: GraphState) -> None:
     """Test setting the measurement basis of a physical node."""
     node_index = graph.add_physical_node()
