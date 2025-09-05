@@ -159,16 +159,14 @@ class PauliFrame:
 
         group: set[int] = set()
         for node, axis in target_nodes_with_axes.items():
-            if axis == axis.X:
+            if axis is None or axis == Axis.X:
                 out_basis = "X"
-            elif axis == axis.Z:
+            elif axis == Axis.Z:
                 out_basis = "Z"
-            elif axis == axis.Y:
+            elif axis == Axis.Y:
                 out_basis = "Y"
-            else:
-                out_basis = "X"
 
-            group ^= self._collect_dependent_chain_general(
+            group ^= self._collect_dependent_chain(
                 inv_x_flow=inv_x_flow,
                 inv_z_flow=inv_z_flow,
                 node=node,
@@ -200,7 +198,7 @@ class PauliFrame:
 
         return inv_x_flow, inv_z_flow
 
-    def _collect_dependent_chain_general(
+    def _collect_dependent_chain(
         self,
         inv_x_flow: dict[int, set[int]],
         inv_z_flow: dict[int, set[int]],
@@ -242,8 +240,7 @@ class PauliFrame:
                     parents = inv_x_flow.get(current, set())
                 elif output_basis == "Y":
                     parents = inv_x_flow.get(current, set()) | inv_z_flow.get(current, set())
-                else:
-                    parents = inv_z_flow.get(current, set())
+
             else:
                 plane = self.graphstate.meas_bases[current].plane
                 if plane == Plane.XY:
@@ -252,8 +249,6 @@ class PauliFrame:
                     parents = inv_x_flow.get(current, set())
                 elif plane == Plane.YZ:
                     parents = inv_x_flow.get(current, set()) | inv_z_flow.get(current, set())
-                else:
-                    parents = set()
 
             for p in parents:
                 if p not in tracked:

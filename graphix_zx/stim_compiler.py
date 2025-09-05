@@ -104,8 +104,7 @@ def stim_compile(  # noqa: C901, PLR0912
     if logical_observables is not None:
         qindex_to_output = {q: i for i, q in pattern.output_node_indices.items()}
         for log_idx, obs in logical_observables.items():
-            target_nodes = {qindex_to_output[q_index] for q_index in obs}
-            logical_observables_group = pframe.logical_observables_group(target_nodes)
+            logical_observables_group = pframe.logical_observables_group(obs)
             target_str = ""
             for node in logical_observables_group:
                 target_str += f"rec[{meas_order.index(node) - len(meas_order)}] "
