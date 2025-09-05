@@ -432,16 +432,12 @@ class GraphState(BaseGraphState):
         ------
         ValueError
             1. If the node is already registered as an output node.
-            2. If the node has a measurement basis.
-            3. If the invalid q_index specified.
-            4. If the q_index already exists in output qubit indices.
+            2. If the invalid q_index specified.
+            3. If the q_index already exists in output qubit indices.
         """
         self._ensure_node_exists(node)
         if node in self.__output_node_indices:
             msg = "The node is already registered as an output node."
-            raise ValueError(msg)
-        if self.meas_bases.get(node) is not None:
-            msg = "Cannot set output node with measurement basis."
             raise ValueError(msg)
         if q_index >= len(self.input_node_indices):
             msg = "The q_index does not exist in input qubit indices"
