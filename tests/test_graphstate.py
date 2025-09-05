@@ -197,45 +197,48 @@ def test_assign_meas_basis(graph: GraphState) -> None:
     assert graph.meas_bases[node_index].angle == 0.5 * np.pi
 
 
-def test_is_canonical_form_true(canonical_graph: GraphState) -> None:
+def test_check_canonical_form_true(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form."""
-    assert canonical_graph.is_canonical_form()
+    canonical_graph.check_canonical_form()
 
 
-def test_is_canonical_form_input_output_mismatch(canonical_graph: GraphState) -> None:
+def test_check_canonical_form_input_output_mismatch(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form with input-output mismatch."""
     node_index = canonical_graph.add_physical_node()
     canonical_graph.register_input(node_index)
-    assert not canonical_graph.is_canonical_form()
+    with pytest.raises(ValueError, match="The number of input nodes must be equal to the number of output nodes"):
+        canonical_graph.check_canonical_form()
 
 
-def test_is_canonical_form_with_local_clifford_false(canonical_graph: GraphState) -> None:
+def test_check_canonical_form_with_local_clifford_false(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form with local Clifford operator."""
     local_clifford = LocalClifford()
     in_node = next(iter(canonical_graph.input_node_indices))
     canonical_graph.apply_local_clifford(in_node, local_clifford)
-    assert not canonical_graph.is_canonical_form()
+    with pytest.raises(ValueError, match="Clifford operators are applied"):
+        canonical_graph.check_canonical_form()
 
 
-def test_is_canonical_form_with_local_clifford_expansion_true(canonical_graph: GraphState) -> None:
+def test_check_canonical_form_with_local_clifford_expansion_true(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form with local Clifford operator expansion."""
     local_clifford = LocalClifford()
     in_node = next(iter(canonical_graph.input_node_indices))
     canonical_graph.apply_local_clifford(in_node, local_clifford)
     canonical_graph.expand_local_cliffords()
-    assert canonical_graph.is_canonical_form()
+    canonical_graph.check_canonical_form()  # Should not raise an exception
 
 
-def test_is_canonical_form_missing_meas_basis_false(canonical_graph: GraphState) -> None:
+def test_check_canonical_form_missing_meas_basis_false(canonical_graph: GraphState) -> None:
     """Test if the graph is in canonical form with missing measurement basis."""
     _ = canonical_graph.add_physical_node()
-    assert not canonical_graph.is_canonical_form()
+    with pytest.raises(ValueError, match="All non-output nodes must have measurement basis"):
+        canonical_graph.check_canonical_form()
 
 
-def test_is_canonical_form_empty_graph_is_true() -> None:
+def test_check_canonical_form_empty_graph_is_true() -> None:
     """Test if an empty graph is in canonical form."""
     graph = GraphState()
-    assert graph.is_canonical_form()
+    graph.check_canonical_form()  # Should not raise an exception
 
 
 def test_check_meas_raises_value_error(graph: GraphState) -> None:

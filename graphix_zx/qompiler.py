@@ -56,16 +56,8 @@ def qompile(
     -------
     `Pattern`
         compiled pattern
-
-    Raises
-    ------
-    ValueError
-        1. If the graph state is not in canonical form
-        2. If the x flow or z flow is invalid with respect to the graph state
     """
-    if not graph.is_canonical_form():
-        msg = "Graph state must be in canonical form."
-        raise ValueError(msg)
+    graph.check_canonical_form()
     if zflow is None:
         zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
