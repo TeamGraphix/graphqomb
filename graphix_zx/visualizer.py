@@ -224,12 +224,12 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
 
     # Arrange input nodes vertically on the left
     for node in graph.input_node_indices:
-        pos[node] = (0.0, float(-graph.input_node_indices[node]))
+        pos[node] = (0.0, -graph.input_node_indices[node])
 
     # Arrange output nodes vertically on the right
     max_x = 2.0
     for node in graph.output_node_indices:
-        pos[node] = (max_x, float(-graph.output_node_indices[node]))
+        pos[node] = (max_x, -graph.output_node_indices[node])
 
     # For internal nodes, use networkx layout to minimize crossings
     if internal_nodes:
