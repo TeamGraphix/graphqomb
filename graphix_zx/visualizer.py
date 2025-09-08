@@ -47,7 +47,6 @@ class ColorMap(_ColorMap):
     YZ = "#E74C3C"  # Vibrant red
     XZ = "#3498DB"  # Bright blue
     OUTPUT = "#95A5A6"  # Cool grey
-        OUTPUT = "#95A5A6"  # Cool grey
 
 
 def visualize(  # noqa: PLR0913
