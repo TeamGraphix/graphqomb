@@ -121,8 +121,6 @@ class PatternSimulator:
     calc_prob: bool
     __pattern: Pattern
 
-    _rng: np.random.Generator
-
     def __init__(
         self,
         pattern: Pattern,
@@ -135,7 +133,6 @@ class PatternSimulator:
 
         self.calc_prob = calc_prob
         self.__pattern = pattern
-        self._rng = np.random.default_rng()
 
         # Pattern runnability check is done via is_runnable function
         is_runnable(self.__pattern)
@@ -150,32 +147,34 @@ class PatternSimulator:
             raise ValueError(msg)
 
     @functools.singledispatchmethod
-    def apply_cmd(self, cmd: Command) -> None:
+    def apply_cmd(self, cmd: Command, *, rng: np.random.Generator) -> None:
         """Apply a command to the state.
 
         Parameters
         ----------
         cmd : `Command`
             The command to apply.
+        rng : `numpy.random.Generator`
+            Random number generator to use.
         """
-        self.apply_cmd(cmd)
+        self.apply_cmd(cmd, rng=rng)
 
     @apply_cmd.register
-    def _(self, cmd: N) -> None:
+    def _(self, cmd: N, *, _rng: np.random.Generator) -> None:
         self.state.add_node(1)
         self.node_indices.append(cmd.node)
 
     @apply_cmd.register
-    def _(self, cmd: E) -> None:
+    def _(self, cmd: E, *, _rng: np.random.Generator) -> None:
         node_id1 = self.node_indices.index(cmd.nodes[0])
         node_id2 = self.node_indices.index(cmd.nodes[1])
         self.state.entangle(node_id1, node_id2)
 
     @apply_cmd.register
-    def _(self, cmd: M) -> None:
+    def _(self, cmd: M, *, rng: np.random.Generator) -> None:
         if self.calc_prob:
             raise NotImplementedError
-        result = self._rng.uniform() < 1 / 2
+        result = rng.uniform() < 1 / 2
 
         if cmd.meas_basis.plane == Plane.XY:
             if self.__pattern.pauli_frame.z_pauli[cmd.node]:
@@ -198,23 +197,30 @@ class PatternSimulator:
             self.__pattern.pauli_frame.meas_flip(cmd.node)
 
     @apply_cmd.register
-    def _(self, cmd: X) -> None:
+    def _(self, cmd: X, *, _rng: np.random.Generator) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.__pattern.pauli_frame.x_pauli[cmd.node]:
             self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
 
     @apply_cmd.register
-    def _(self, cmd: Z) -> None:
+    def _(self, cmd: Z, *, _rng: np.random.Generator) -> None:
         node_id = self.node_indices.index(cmd.node)
         if self.__pattern.pauli_frame.z_pauli[cmd.node]:
             self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
 
     def simulate(self, rng: np.random.Generator | None = None) -> None:
-        """Simulate the pattern."""
-        if rng:
-            self._rng = rng
+        """
+        Simulate the pattern.
+
+        Parameters
+        ----------
+        rng : `numpy.random.Generator` | None, optional
+            Random number generator to use. If None, generates a new rng for this simulation.
+
+        """
+        tmp_rng = rng if rng is not None else np.random.default_rng()
         for cmd in self.__pattern.commands:
-            self.apply_cmd(cmd)
+            self.apply_cmd(cmd, rng=tmp_rng)
 
         # Create a mapping from current node indices to output node indices
         permutation = [self.__pattern.output_node_indices[node] for node in self.node_indices]
