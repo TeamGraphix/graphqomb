@@ -314,7 +314,7 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     """
     angle_preprocessed = angle % (2 * np.pi)
     return any(
-        is_close_angle(angle_preprocessed, target, atol=atol) for target in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]
+        is_close_angle(angle_preprocessed, target, atol=atol) for target in (0.0, np.pi / 2, np.pi, 3 * np.pi / 2)
     )
 
 
