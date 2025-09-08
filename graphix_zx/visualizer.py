@@ -30,23 +30,23 @@ if TYPE_CHECKING:
 if sys.version_info >= (3, 11):
     from enum import StrEnum
 
-    class ColorMap(StrEnum):
-        """Color map for the nodes."""
-
-        XY = "#2ECC71"  # Emerald green
-        YZ = "#E74C3C"  # Vibrant red
-        XZ = "#3498DB"  # Bright blue
-        OUTPUT = "#95A5A6"  # Cool grey
+    class _ColorMap(StrEnum):
+        pass
 
 else:
     from enum import Enum
 
-    class ColorMap(str, Enum):
-        """Color map for the nodes."""
+    class _ColorMap(str, Enum):
+        pass
 
-        XY = "#2ECC71"  # Emerald green
-        YZ = "#E74C3C"  # Vibrant red
-        XZ = "#3498DB"  # Bright blue
+
+class ColorMap(_ColorMap):
+    """Color map for the nodes."""
+
+    XY = "#2ECC71"  # Emerald green
+    YZ = "#E74C3C"  # Vibrant red
+    XZ = "#3498DB"  # Bright blue
+    OUTPUT = "#95A5A6"  # Cool grey
         OUTPUT = "#95A5A6"  # Cool grey
 
 
