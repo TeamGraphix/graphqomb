@@ -160,12 +160,12 @@ class PatternSimulator:
         self.apply_cmd(cmd, rng=rng)
 
     @apply_cmd.register
-    def _(self, cmd: N, *, _rng: np.random.Generator) -> None:
+    def _(self, cmd: N, *, rng: np.random.Generator) -> None:  # noqa: ARG002
         self.state.add_node(1)
         self.node_indices.append(cmd.node)
 
     @apply_cmd.register
-    def _(self, cmd: E, *, _rng: np.random.Generator) -> None:
+    def _(self, cmd: E, *, rng: np.random.Generator) -> None:  # noqa: ARG002
         node_id1 = self.node_indices.index(cmd.nodes[0])
         node_id2 = self.node_indices.index(cmd.nodes[1])
         self.state.entangle(node_id1, node_id2)
@@ -197,13 +197,13 @@ class PatternSimulator:
             self.__pattern.pauli_frame.meas_flip(cmd.node)
 
     @apply_cmd.register
-    def _(self, cmd: X, *, _rng: np.random.Generator) -> None:
+    def _(self, cmd: X, *, rng: np.random.Generator) -> None:  # noqa: ARG002
         node_id = self.node_indices.index(cmd.node)
         if self.__pattern.pauli_frame.x_pauli[cmd.node]:
             self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
 
     @apply_cmd.register
-    def _(self, cmd: Z, *, _rng: np.random.Generator) -> None:
+    def _(self, cmd: Z, *, rng: np.random.Generator) -> None:  # noqa: ARG002
         node_id = self.node_indices.index(cmd.node)
         if self.__pattern.pauli_frame.z_pauli[cmd.node]:
             self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
