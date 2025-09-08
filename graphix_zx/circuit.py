@@ -101,7 +101,7 @@ class MBQCCircuit(BaseCircuit):
             List of gate instructions in the circuit.
         """
         # For MBQCCircuit, Gate and UnitGate are the same
-        return copy.deepcopy(list[Gate](self.__gate_instructions))
+        return [copy.deepcopy(gate) for gate in self.__gate_instructions]
 
     @typing_extensions.override
     def unit_instructions(self) -> list[UnitGate]:
@@ -112,7 +112,7 @@ class MBQCCircuit(BaseCircuit):
         `list`\[`UnitGate`\]
             List of unit gate instructions in the circuit.
         """
-        return copy.deepcopy(self.__gate_instructions)
+        return [copy.deepcopy(gate) for gate in self.__gate_instructions]
 
     def j(self, qubit: int, angle: float) -> None:
         """Add a J gate to the circuit.
@@ -182,7 +182,7 @@ class Circuit(BaseCircuit):
         `list`\[`Gate`\]
             List of gate instructions in the circuit.
         """
-        return copy.deepcopy(self.__macro_gate_instructions)
+        return [copy.deepcopy(gate) for gate in self.__macro_gate_instructions]
 
     @typing_extensions.override
     def unit_instructions(self) -> list[UnitGate]:
