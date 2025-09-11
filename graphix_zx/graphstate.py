@@ -6,6 +6,8 @@ This module provides:
 - `GraphState`: Minimal implementation of Graph State.
 - `LocalCliffordExpansion`: Local Clifford expansion.
 - `ExpansionMaps`: Expansion maps for local clifford operators.
+- `InputGraphState`: Graph state representing input qubits for MBQC patterns.
+- `OutputGraphState`: Graph state representing output qubits for MBQC.
 - `compose_sequentially`: Function to compose two graph states sequentially.
 - `compose_in_parallel`: Function to compose two graph states in parallel.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.

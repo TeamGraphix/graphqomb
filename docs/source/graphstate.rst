@@ -18,6 +18,14 @@ Graph State Classes
     :show-inheritance:
     :member-order: bysource
 
+.. autoclass:: graphix_zx.graphstate.InputGraphState
+    :members:
+    :member-order: bysource
+
+.. autoclass:: graphix_zx.graphstate.OutputGraphState
+    :members:
+    :member-order: bysource
+
 Functions
 ---------
 
