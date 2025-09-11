@@ -647,6 +647,78 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
+class InputGraphState:
+    __meas_bases: dict[int, MeasBasis]
+    __node_counter: int
+
+    def __init__(self) -> None:
+        self.__meas_bases = {}
+        self.__node_counter = 0
+
+    @property
+    def input_node_indices(self) -> dict[int, int]:
+        return {}
+
+    @property
+    def output_node_indices(self) -> dict[int, int]:
+        return {node: idx for idx, node in enumerate(range(self.__node_counter))}
+
+    @property
+    def physical_nodes(self) -> set[int]:
+        return set(range(self.__node_counter))
+
+    @property
+    def physical_edges(self) -> set[tuple[int, int]]:
+        return set()
+
+    @property
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        return self.__meas_bases.copy()
+
+    def register_output(self) -> int:
+        q_index = self.__node_counter
+        self.__node_counter += 1
+        return q_index
+
+    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        if node >= self.__node_counter:
+            msg = "Node does not exist."
+            raise ValueError(msg)
+        self.__meas_bases[node] = meas_basis
+
+
+class OutputGraphState:
+    __node_counter: int
+
+    def __init__(self) -> None:
+        self.__node_counter = 0
+
+    @property
+    def input_node_indices(self) -> dict[int, int]:
+        return {node: idx for idx, node in enumerate(range(self.__node_counter))}
+
+    @property
+    def output_node_indices(self) -> dict[int, int]:
+        return {}
+
+    @property
+    def physical_nodes(self) -> set[int]:
+        return set(range(self.__node_counter))
+
+    @property
+    def physical_edges(self) -> set[tuple[int, int]]:
+        return set()
+
+    @property
+    def meas_bases(self) -> dict[int, MeasBasis]:
+        return {}
+
+    def register_input(self) -> int:
+        q_index = self.__node_counter
+        self.__node_counter += 1
+        return q_index
+
+
 def compose_sequentially(
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
