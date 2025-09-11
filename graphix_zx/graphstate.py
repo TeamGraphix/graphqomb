@@ -851,9 +851,6 @@ def compose_sequentially(
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
 
-    NOTE: If the output nodes of graph1 have measurement bases assigned,
-    the measurement bases will be overwritten by the input nodes of graph2.
-
     Parameters
     ----------
     graph1 : `BaseGraphState`
