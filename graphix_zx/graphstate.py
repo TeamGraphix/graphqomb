@@ -22,6 +22,7 @@ import functools
 import itertools
 import operator
 from abc import ABC
+import typing
 from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
@@ -846,9 +847,27 @@ class OutputGraphState:
         return q_index
 
 
+@typing.overload
 def compose_sequentially(
     graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
+) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]: ...
+
+
+@typing.overload
+def compose_sequentially(
+    graph1: InputGraphState, graph2: BaseGraphState
+) -> tuple[InputGraphState, dict[int, int], dict[int, int]]: ...
+
+
+@typing.overload
+def compose_sequentially(
+    graph1: BaseGraphState, graph2: OutputGraphState
+) -> tuple[OutputGraphState, dict[int, int], dict[int, int]]: ...
+
+
+def compose_sequentially(
+    graph1: InputGraphState | BaseGraphState, graph2: OutputGraphState | BaseGraphState
+) -> tuple[InputGraphState | OutputGraphState | BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
 
     Parameters
