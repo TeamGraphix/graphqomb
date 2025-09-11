@@ -459,7 +459,16 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
+
+        Raises
+        ------
+        ValueError
+            1. If the node is an output node.
+            2. If the node does not exist.
         """
+        if node in self.output_node_indices:
+            msg = "The output node cannot have a measurement basis."
+            raise ValueError(msg)
         self._ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
 
@@ -510,7 +519,7 @@ class GraphState(BaseGraphState):
         The definition of canonical form is:
         1. Graph state has equal number of input and output nodes.
         2. No Clifford operators applied.
-        3. All non-output nodes have measurement basis (output nodes can have measurement basis as well).
+        3. All non-output nodes have measurement basis
 
         Raises
         ------
