@@ -31,10 +31,14 @@ def qompile(  # noqa: PLR0913
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
+<<<<<<< HEAD
     x_parity_check_group: Sequence[AbstractSet[int]] | None = None,
     z_parity_check_group: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
     correct_output: bool = True,
+=======
+    scheduler: Scheduler | None = None,
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
 
@@ -47,31 +51,29 @@ def qompile(  # noqa: PLR0913
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
         if `None`, it is generated from xflow by odd neighbors
+<<<<<<< HEAD
     x_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
         x parity check group for FTQC
     z_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
         z parity check group for FTQC
+=======
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
+<<<<<<< HEAD
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
+=======
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 
     Returns
     -------
     `Pattern`
         compiled pattern
-
-    Raises
-    ------
-    ValueError
-        1. If the graph state is not in canonical form
-        2. If the x flow or z flow is invalid with respect to the graph state
     """
-    if not graph.is_canonical_form():
-        msg = "Graph state must be in canonical form."
-        raise ValueError(msg)
+    graph.check_canonical_form()
     if zflow is None:
         zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
@@ -80,7 +82,11 @@ def qompile(  # noqa: PLR0913
         graph, xflow, zflow, x_parity_check_group=x_parity_check_group, z_parity_check_group=z_parity_check_group
     )
 
+<<<<<<< HEAD
     return _qompile(graph, pauli_frame, scheduler=scheduler, correct_output=correct_output)
+=======
+    return _qompile(graph, pauli_frame, scheduler=scheduler)
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 
 
 def _qompile(
@@ -88,7 +94,10 @@ def _qompile(
     pauli_frame: PauliFrame,
     *,
     scheduler: Scheduler | None = None,
+<<<<<<< HEAD
     correct_output: bool = True,
+=======
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
 
@@ -104,8 +113,11 @@ def _qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
+<<<<<<< HEAD
     correct_output : `bool`, optional
         whether to correct outputs or not, by default True
+=======
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 
     Returns
     -------
@@ -125,6 +137,7 @@ def _qompile(
         commands.extend(E(nodes=edge) for edge in graph.physical_edges)
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
     else:
+<<<<<<< HEAD
         schedule = scheduler.get_schedule()
         prepared_edges: set[tuple[int, int]] = set()
 
@@ -140,6 +153,27 @@ def _qompile(
     if correct_output:
         commands.extend(X(node=node) for node in graph.output_node_indices)
         commands.extend(Z(node=node) for node in graph.output_node_indices)
+=======
+        timeline = scheduler.timeline
+        prepared_edges: set[frozenset[int]] = set()
+
+        for time in range(scheduler.num_slices()):
+            prepare_nodes, measure_nodes = timeline[time]
+            for node in measure_nodes:
+                for neighbor in graph.neighbors(node):
+                    edge = frozenset({node, neighbor})
+                    if edge not in prepared_edges:
+                        commands.append(E(nodes=(node, neighbor)))
+                        prepared_edges.add(edge)
+            commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
+            commands.extend(N(node) for node in prepare_nodes)
+
+    for node in graph.output_node_indices:
+        if meas_basis := graph.meas_bases.get(node):
+            commands.append(M(node, meas_basis))
+        else:
+            commands.extend((X(node=node), Z(node=node)))
+>>>>>>> 88-dedicated-class-for-output-qubits-measurement
 
     return Pattern(
         input_node_indices=graph.input_node_indices,
