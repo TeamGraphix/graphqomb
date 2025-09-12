@@ -54,11 +54,11 @@ def generate_random_flow_graph(
         rng = np.random.default_rng()
 
     # input nodes
-    for _ in range(width):
+    for i in range(width):
         node_index = graph.add_physical_node()
-        q_index = graph.register_input(node_index)
+        graph.register_input(node_index, i)
         graph.assign_meas_basis(node_index, default_meas_basis())
-        q_indices.append(q_index)
+        q_indices.append(i)
 
     # internal nodes
     for _ in range(depth - 2):

@@ -206,9 +206,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     # input nodes
     for i in range(circuit.num_qubits):
         node = graph.add_physical_node()
-        qindex = graph.register_input(node)
-        qindex2front_nodes[qindex] = node
-        qid_ex2in[i] = qindex
+        graph.register_input(node, i)
+        qindex2front_nodes[i] = node
+        qid_ex2in[i] = i
 
     for instruction in circuit.instructions():
         if isinstance(instruction, J):
