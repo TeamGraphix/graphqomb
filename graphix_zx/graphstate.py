@@ -27,8 +27,8 @@ from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
-    from collections.abc import Set as AbstractSet
     from collections.abc import Mapping
+    from collections.abc import Set as AbstractSet
 
     from graphix_zx.euler import LocalClifford
 
