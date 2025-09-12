@@ -550,15 +550,15 @@ class GraphState(BaseGraphState):
             A dictionary mapping input node indices to the new node indices created.
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_input_indices: list[int] = []
-        for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
+        new_input_indices: dict[int, int] = {}
+        for input_node, q_index in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(input_node)
             if lc is None:
-                new_input_indices.append(input_node)
+                new_input_indices[input_node] = q_index
                 continue
 
             new_node_index0 = self.add_physical_node()
-            new_input_indices.append(new_node_index0)
+            new_input_indices[new_node_index0] = q_index
             new_node_index1 = self.add_physical_node()
             new_node_index2 = self.add_physical_node()
 
@@ -575,8 +575,8 @@ class GraphState(BaseGraphState):
             )
 
         self.__input_node_indices = {}
-        for new_input_index in new_input_indices:
-            self.register_input(new_input_index)
+        for new_input_index, q_index in new_input_indices.items():
+            self.register_input(new_input_index, q_index)
 
         return node_index_addition_map
 
