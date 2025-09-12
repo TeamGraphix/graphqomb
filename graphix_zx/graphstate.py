@@ -114,17 +114,14 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
         """
 
@@ -391,17 +388,14 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     @typing_extensions.override
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
 
         Raises
@@ -413,9 +407,10 @@ class GraphState(BaseGraphState):
         if node in self.__input_node_indices:
             msg = "The node is already registered as an input node."
             raise ValueError(msg)
-        q_index = len(self.__input_node_indices)
+        if q_index in self.input_node_indices.values():
+            msg = "The q_index already exists in input qubit indices"
+            raise ValueError(msg)
         self.__input_node_indices[node] = q_index
-        return q_index
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
@@ -438,9 +433,6 @@ class GraphState(BaseGraphState):
         self._ensure_node_exists(node)
         if node in self.__output_node_indices:
             msg = "The node is already registered as an output node."
-            raise ValueError(msg)
-        if q_index >= len(self.input_node_indices):
-            msg = "The q_index does not exist in input qubit indices"
             raise ValueError(msg)
         if q_index in self.output_node_indices.values():
             msg = "The q_index already exists in output qubit indices"
