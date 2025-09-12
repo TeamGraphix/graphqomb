@@ -6,8 +6,7 @@ This module provides:
 - `GraphState`: Minimal implementation of Graph State.
 - `LocalCliffordExpansion`: Local Clifford expansion.
 - `ExpansionMaps`: Expansion maps for local clifford operators.
-- `compose_sequentially`: Function to compose two graph states sequentially.
-- `compose_in_parallel`: Function to compose two graph states in parallel.
+- `compose`: Function to compose two graph states sequentially.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 - `odd_neighbors`: Function to get odd neighbors of a node.
 
@@ -29,6 +28,7 @@ from graphix_zx.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
+    from collections.abc import Mapping
 
     from graphix_zx.euler import LocalClifford
 
@@ -635,7 +635,7 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose_sequentially(
+def compose(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState, target_q_indices: AbstractSet[int] | None = None
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
@@ -657,13 +657,29 @@ def compose_sequentially(
     Raises
     ------
     ValueError
-        If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        1. If the graph states are not in canonical form.
+        2. If the target qubit indices are not a subset of output qubit indices in graph1.
+        3. If the target qubit indices are not a subset of input qubit indices in graph2.
     """
     graph1.check_canonical_form()
     graph2.check_canonical_form()
-    if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
-        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
+    target_q_indices = set(graph1.output_node_indices.values()) if not target_q_indices else set(target_q_indices)
+
+    if not target_q_indices.issubset(set(graph1.output_node_indices.values())):
+        msg = "Target qubit indices must be a subset of output qubit indices in graph1."
         raise ValueError(msg)
+    if not target_q_indices.issubset(set(graph2.input_node_indices.values())):
+        msg = "Target qubit indices must be a subset of input qubit indices in graph2."
+        raise ValueError(msg)
+
+    # remap qindex to avoid conflict
+    input_node_indices1, input_node_indices2 = _remap_qindex(
+        graph1.input_node_indices, graph2.input_node_indices, target_q_indices
+    )
+
+    output_node_indices1, output_node_indices2 = _remap_qindex(
+        graph1.output_node_indices, graph2.output_node_indices, target_q_indices
+    )
 
     composed_graph = GraphState()
 
@@ -679,15 +695,21 @@ def compose_sequentially(
     )
 
     q_index2output_node_index1 = {
-        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
+        q_index: output_node_index1 for output_node_index1, q_index in output_node_indices1.items()
     }
-    for input_node_index2, q_index in graph2.input_node_indices.items():
+    for input_node_index2, q_index in input_node_indices2.items():
         node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
-    for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        composed_graph.register_input(node_map1[input_node])
+    for input_node, q_index in sorted(input_node_indices1.items(), key=operator.itemgetter(1)):
+        composed_graph.register_input(node_map1[input_node], q_index)
+    for input_node, q_index in sorted(input_node_indices2.items(), key=operator.itemgetter(1)):
+        if q_index not in target_q_indices:
+            composed_graph.register_input(node_map2[input_node], q_index)
 
-    for output_node, q_index in graph2.output_node_indices.items():
+    for output_node, q_index in output_node_indices1.items():
+        if q_index not in target_q_indices:
+            composed_graph.register_output(node_map1[output_node], q_index)
+    for output_node, q_index in output_node_indices2.items():
         composed_graph.register_output(node_map2[output_node], q_index)
 
     for u, v in graph1.physical_edges:
@@ -696,6 +718,45 @@ def compose_sequentially(
         composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
+
+
+def _remap_qindex(
+    map1: Mapping[int, int], map2: Mapping[int, int], target_q_indices: AbstractSet[int]
+) -> tuple[dict[int, int], dict[int, int]]:
+    r"""Remap qindex to avoid conflict.
+
+    Parameters
+    ----------
+    map1 : `collections.abc.Mapping`\[`int`, `int`\]
+        qubit indices map of graph1
+    map2 : `collections.abc.Mapping`\[`int`, `int`\]
+        qubit indices map of graph2
+    target_q_indices : `collections.abc.Set`\[`int`\]
+        set of logical qubit indices to be connected
+
+    Returns
+    -------
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+        remapped qubit indices map of graph1 and graph2
+    """
+    max_q_index = max(itertools.chain(map1.values(), map2.values()), default=-1)
+    offset = max_q_index + 1
+
+    new_map1: dict[int, int] = {}
+    for node, q_index in map1.items():
+        if q_index in target_q_indices:
+            new_map1[node] = q_index
+        else:
+            new_map1[node] = q_index + offset
+
+    new_map2: dict[int, int] = {}
+    for node, q_index in map2.items():
+        if q_index in target_q_indices:
+            new_map2[node] = q_index
+        else:
+            new_map2[node] = q_index + offset
+
+    return new_map1, new_map2
 
 
 def _copy_nodes(
@@ -729,67 +790,6 @@ def _copy_nodes(
             dst.assign_meas_basis(new_idx, meas)
         node_map[node] = new_idx
     return node_map
-
-
-def compose_in_parallel(  # noqa: C901
-    graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    r"""Compose two graph states in parallel.
-
-    Parameters
-    ----------
-    graph1 : `BaseGraphState`
-        first graph state
-    graph2 : `BaseGraphState`
-        second graph state
-
-    Returns
-    -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
-        composed graph state, node map for graph1, node map for graph2
-    """
-    graph1.check_canonical_form()
-    graph2.check_canonical_form()
-    node_map1: dict[int, int] = {}
-    node_map2: dict[int, int] = {}
-    composed_graph = GraphState()
-
-    for node in graph1.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph1.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map1[node] = node_index
-
-    for node in graph2.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph2.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map2[node] = node_index
-
-    q_index_map1: dict[int, int] = {}
-    q_index_map2: dict[int, int] = {}
-    for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map1[input_node])
-        q_index_map1[old_q_index] = new_q_index
-
-    for input_node, old_q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map2[input_node])
-        q_index_map2[old_q_index] = new_q_index
-
-    for output_node, q_index in graph1.output_node_indices.items():
-        composed_graph.register_output(node_map1[output_node], q_index_map1[q_index])
-
-    for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.register_output(node_map2[output_node], q_index_map2[q_index])
-
-    for u, v in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
-    for u, v in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
-
-    return composed_graph, node_map1, node_map2
 
 
 def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) -> set[tuple[int, int]]:

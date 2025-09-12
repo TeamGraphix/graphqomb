@@ -21,8 +21,7 @@ Graph State Classes
 Functions
 ---------
 
-.. autofunction:: graphix_zx.graphstate.compose_sequentially
-.. autofunction:: graphix_zx.graphstate.compose_in_parallel
+.. autofunction:: graphix_zx.graphstate.compose
 .. autofunction:: graphix_zx.graphstate.bipartite_edges
 .. autofunction:: graphix_zx.graphstate.odd_neighbors
 
