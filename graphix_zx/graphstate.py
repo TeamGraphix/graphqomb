@@ -449,16 +449,7 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
-
-        Raises
-        ------
-        ValueError
-            1. If the node is an output node.
-            2. If the node does not exist.
         """
-        if node in self.output_node_indices:
-            msg = "The output node cannot have a measurement basis."
-            raise ValueError(msg)
         self._ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
 
@@ -507,18 +498,14 @@ class GraphState(BaseGraphState):
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. Graph state has equal number of input and output nodes.
-        2. No Clifford operators applied.
-        3. All non-output nodes have measurement basis
+        1. No Clifford operators applied.
+        2. All non-output nodes have measurement basis
 
         Raises
         ------
         ValueError
             If the graph state is not in canonical form.
         """
-        if len(self.input_node_indices) != len(self.output_node_indices):
-            msg = "The number of input nodes must be equal to the number of output nodes."
-            raise ValueError(msg)
         if self.__local_cliffords:
             msg = "Clifford operators are applied."
             raise ValueError(msg)
@@ -649,7 +636,7 @@ class ExpansionMaps(NamedTuple):
 
 
 def compose_sequentially(
-    graph1: BaseGraphState, graph2: BaseGraphState
+    graph1: BaseGraphState, graph2: BaseGraphState, target_q_indices: AbstractSet[int] | None = None
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
 
@@ -659,6 +646,8 @@ def compose_sequentially(
         first graph state
     graph2 : `BaseGraphState`
         second graph state
+    target_q_indices : `collections.abc.Set`\[`int`\] | `None`
+        set of logical qubit indices to be connected. If None, all qubits are connected
 
     Returns
     -------
