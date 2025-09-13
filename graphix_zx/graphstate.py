@@ -686,7 +686,7 @@ def compose(  # noqa: C901
     node_map1 = _copy_nodes(
         src=graph1,
         dst=composed_graph,
-        exclude_nodes=graph1.output_node_indices.keys(),
+        exclude_nodes={node for node, q_index in graph1.output_node_indices.items() if q_index in target_q_indices},
     )
     node_map2 = _copy_nodes(
         src=graph2,
@@ -698,19 +698,27 @@ def compose(  # noqa: C901
         q_index: output_node_index1 for output_node_index1, q_index in output_node_indices1.items()
     }
     for input_node_index2, q_index in input_node_indices2.items():
-        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+        if q_index in target_q_indices:
+            node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
     for input_node, q_index in sorted(input_node_indices1.items(), key=operator.itemgetter(1)):
         composed_graph.register_input(node_map1[input_node], q_index)
+    # calculate the max qubit index in graph1
+    max_qindex = max(input_node_indices1.values(), default=-1)
+    updated_qindex: dict[int, int] = {}
     for input_node, q_index in sorted(input_node_indices2.items(), key=operator.itemgetter(1)):
         if q_index not in target_q_indices:
-            composed_graph.register_input(node_map2[input_node], q_index)
+            new_q_index = q_index + max_qindex + 1
+            composed_graph.register_input(node_map2[input_node], new_q_index)
+            updated_qindex[q_index] = new_q_index
+            max_qindex = new_q_index
 
     for output_node, q_index in output_node_indices1.items():
         if q_index not in target_q_indices:
             composed_graph.register_output(node_map1[output_node], q_index)
     for output_node, q_index in output_node_indices2.items():
-        composed_graph.register_output(node_map2[output_node], q_index)
+        new_q_index = updated_qindex.get(q_index, q_index)
+        composed_graph.register_output(node_map2[output_node], new_q_index)
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
