@@ -663,7 +663,7 @@ def compose(  # noqa: C901
     """
     graph1.check_canonical_form()
     graph2.check_canonical_form()
-    target_q_indices = set(graph1.output_node_indices.values()) if not target_q_indices else set(target_q_indices)
+    target_q_indices = set(graph1.output_node_indices.values()) if target_q_indices is None else set(target_q_indices)
 
     if not target_q_indices.issubset(set(graph1.output_node_indices.values())):
         msg = "Target qubit indices must be a subset of output qubit indices in graph1."
