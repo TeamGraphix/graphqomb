@@ -174,7 +174,10 @@ class PauliFrame:
 
         Returns
         -------
-        `tuple`\[`collections.abc.Mapping`\[`int`, `set`\[`int`\]\], `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]\]
+        `tuple`\[
+            `collections.abc.Mapping`\[`int`, `set`\[`int`\]\],
+            `collections.abc.Mapping`\[`int`, `set`\[`int`\]
+        \]
             The inverse x and z flows.
         """
         inv_x_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
@@ -192,7 +195,7 @@ class PauliFrame:
 
         return inv_x_flow, inv_z_flow
 
-    def _collect_dependent_chain(  # noqa: C901
+    def _collect_dependent_chain(
         self,
         inv_x_flow: Mapping[int, set[int]],
         inv_z_flow: Mapping[int, set[int]],
@@ -216,6 +219,11 @@ class PauliFrame:
         -------
         `set`\[`int`\]
             The set of dependent nodes in the chain.
+
+        Raises
+        ------
+        ValueError
+            If an unexpected output basis or measurement plane is encountered.
         """
         chain: set[int] = set()
         untracked = {node}
@@ -227,22 +235,32 @@ class PauliFrame:
             current = untracked.pop()
             chain ^= {current}
 
-            if current in outputs:
-                if output_basis == Axis.X or output_basis is None:
-                    parents = inv_z_flow.get(current, set())
-                elif output_basis == Axis.Z:
-                    parents = inv_x_flow.get(current, set())
-                elif output_basis == Axis.Y:
-                    parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
+            parents: set[int] = set()
 
+            if current in outputs:
+                basis = output_basis or Axis.X
+                basis_lookup = {
+                    Axis.X: inv_z_flow.get(current, set()),
+                    Axis.Z: inv_x_flow.get(current, set()),
+                    Axis.Y: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
+                }
+                try:
+                    parents = basis_lookup[basis]
+                except KeyError as err:
+                    msg = f"Unexpected output_basis: {basis}"
+                    raise ValueError(msg) from err
             else:
                 plane = self.graphstate.meas_bases[current].plane
-                if plane == Plane.XY:
-                    parents = inv_z_flow.get(current, set())
-                elif plane == Plane.YZ:
-                    parents = inv_x_flow.get(current, set())
-                elif plane == Plane.XZ:
-                    parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
+                plane_lookup = {
+                    Plane.XY: inv_z_flow.get(current, set()),
+                    Plane.YZ: inv_x_flow.get(current, set()),
+                    Plane.XZ: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
+                }
+                try:
+                    parents = plane_lookup[plane]
+                except KeyError as err:
+                    msg = f"Unexpected plane: {plane}"
+                    raise ValueError(msg) from err
 
             for p in parents:
                 if p not in tracked:
