@@ -147,7 +147,7 @@ class PauliFrame:
 
         Parameters
         ----------
-        target_nodes : `Mapping`\[`int`, `Axis`\]
+        target_nodes : `collections.abc.Mapping`\[`int`, `Axis`\]
             The target nodes to get the logical observables group for, with their corresponding measurement axes.
 
         Returns
@@ -174,7 +174,7 @@ class PauliFrame:
 
         Returns
         -------
-        `tuple`\[`Mapping`\[`int`, `set`\[`int`\]\], `Mapping`\[`int`, `set`\[`int`\]\]\]
+        `tuple`\[`collections.abc.Mapping`\[`int`, `set`\[`int`\]\], `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]\]
             The inverse x and z flows.
         """
         inv_x_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
@@ -203,9 +203,9 @@ class PauliFrame:
 
         Parameters
         ----------
-        inv_x_flow : `Mapping`\[`int`, `set`\[`int`\]\]
+        inv_x_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
             Inverse X flow mapping.
-        inv_z_flow : `Mapping`\[`int`, `set`\[`int`\]\]
+        inv_z_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
             Inverse Z flow mapping.
         node : `int`
             The starting node.
