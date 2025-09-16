@@ -159,7 +159,6 @@ class PauliFrame:
 
         group: set[int] = set()
         for node, axis in target_nodes_with_axes.items():
-
             group ^= self._collect_dependent_chain(
                 inv_x_flow=inv_x_flow,
                 inv_z_flow=inv_z_flow,
