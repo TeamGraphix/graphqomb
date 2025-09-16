@@ -63,13 +63,6 @@ def stim_compile(  # noqa: C901, PLR0912
             stim_str += f"MX {cmd.node}\n"
             meas_order.append(cmd.node)
 
-    # measure output qubits
-    for output_node in pattern.output_node_indices:
-        if before_measure_flip_probability > 0.0:
-            stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
-        stim_str += f"MX {output_node}\n"
-        meas_order.append(output_node)
-
     x_check_groups, z_check_groups = pframe.detector_groups()
     for x_checks in x_check_groups:
         target_str = ""
