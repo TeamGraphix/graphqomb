@@ -79,7 +79,8 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
             meas_order.append(output_node)
         elif axis == Axis.Y:
             if before_measure_flip_probability > 0.0:
-                stim_str += f"Y_ERROR({before_measure_flip_probability}) {output_node}\n"
+                stim_str += f"X_ERROR({before_measure_flip_probability}) {output_node}\n"
+                stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
             stim_str += f"MY {output_node}\n"
             meas_order.append(output_node)
         elif axis == Axis.Z:

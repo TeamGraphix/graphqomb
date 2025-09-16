@@ -132,12 +132,12 @@ class PauliFrame:
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis="X")
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.X)
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
             mbqc_group = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis="Z")
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.Z)
             z_groups.append(mbqc_group)
 
         return x_groups, z_groups
@@ -147,8 +147,8 @@ class PauliFrame:
 
         Parameters
         ----------
-        target_nodes : `collections.abc.Set`\[`int`\]
-            The target nodes to get the logical observables group for.
+        target_nodes : `Mapping`\[`int`, `Axis`\]
+            The target nodes to get the logical observables group for, with their corresponding measurement axes.
 
         Returns
         -------
@@ -159,32 +159,26 @@ class PauliFrame:
 
         group: set[int] = set()
         for node, axis in target_nodes_with_axes.items():
-            if axis is None or axis == Axis.X:
-                out_basis = "X"
-            elif axis == Axis.Z:
-                out_basis = "Z"
-            elif axis == Axis.Y:
-                out_basis = "Y"
 
             group ^= self._collect_dependent_chain(
                 inv_x_flow=inv_x_flow,
                 inv_z_flow=inv_z_flow,
                 node=node,
-                output_basis=out_basis,
+                output_basis=axis,
             )
 
         return group
 
-    def _build_inverse_flows(self) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+    def _build_inverse_flows(self) -> tuple[Mapping[int, set[int]], Mapping[int, set[int]]]:
         r"""Build inverse x/z flows (parent sets) for all physical nodes.
 
         Returns
         -------
-        `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]\]
+        `tuple`\[`Mapping`\[`int`, `set`\[`int`\]\], `Mapping`\[`int`, `set`\[`int`\]\]\]
             The inverse x and z flows.
         """
-        inv_x_flow: dict[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
-        inv_z_flow: dict[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
+        inv_x_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
+        inv_z_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
 
         for node, targets in self.xflow.items():
             for t in targets:
@@ -200,18 +194,18 @@ class PauliFrame:
 
     def _collect_dependent_chain(  # noqa: C901
         self,
-        inv_x_flow: dict[int, set[int]],
-        inv_z_flow: dict[int, set[int]],
+        inv_x_flow: Mapping[int, set[int]],
+        inv_z_flow: Mapping[int, set[int]],
         node: int,
-        output_basis: str | None,
+        output_basis: Axis | None,
     ) -> set[int]:
         r"""Generalized dependent-chain collector that respects measurement planes.
 
         Parameters
         ----------
-        inv_x_flow : `dict`\[`int`, `set`\[`int`\]\]
+        inv_x_flow : `Mapping`\[`int`, `set`\[`int`\]\]
             Inverse X flow mapping.
-        inv_z_flow : `dict`\[`int`, `set`\[`int`\]\]
+        inv_z_flow : `Mapping`\[`int`, `set`\[`int`\]\]
             Inverse Z flow mapping.
         node : `int`
             The starting node.
@@ -234,21 +228,21 @@ class PauliFrame:
             chain ^= {current}
 
             if current in outputs:
-                if output_basis == "X":
+                if output_basis == Axis.X or output_basis is None:
                     parents = inv_z_flow.get(current, set())
-                elif output_basis == "Z":
+                elif output_basis == Axis.Z:
                     parents = inv_x_flow.get(current, set())
-                elif output_basis == "Y":
-                    parents = inv_x_flow.get(current, set()) | inv_z_flow.get(current, set())
+                elif output_basis == Axis.Y:
+                    parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
 
             else:
                 plane = self.graphstate.meas_bases[current].plane
                 if plane == Plane.XY:
                     parents = inv_z_flow.get(current, set())
-                elif plane == Plane.XZ:
-                    parents = inv_x_flow.get(current, set())
                 elif plane == Plane.YZ:
-                    parents = inv_x_flow.get(current, set()) | inv_z_flow.get(current, set())
+                    parents = inv_x_flow.get(current, set())
+                elif plane == Plane.XZ:
+                    parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
 
             for p in parents:
                 if p not in tracked:
