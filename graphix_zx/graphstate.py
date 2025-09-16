@@ -6,8 +6,7 @@ This module provides:
 - `GraphState`: Minimal implementation of Graph State.
 - `LocalCliffordExpansion`: Local Clifford expansion.
 - `ExpansionMaps`: Expansion maps for local clifford operators.
-- `compose_sequentially`: Function to compose two graph states sequentially.
-- `compose_in_parallel`: Function to compose two graph states in parallel.
+- `compose`: Function to compose two graph states sequentially.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 - `odd_neighbors`: Function to get odd neighbors of a node.
 
@@ -28,6 +27,7 @@ from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.euler import LocalClifford
@@ -114,17 +114,14 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
         """
 
@@ -168,14 +165,8 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def is_canonical_form(self) -> bool:
-        r"""Check if the graph state is in canonical form.
-
-        Returns
-        -------
-        `bool`
-            `True` if the graph state is in canonical form, `False` otherwise.
-        """
+    def check_canonical_form(self) -> None:
+        r"""Check if the graph state is in canonical form."""
 
 
 class GraphState(BaseGraphState):
@@ -397,17 +388,14 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     @typing_extensions.override
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
 
         Raises
@@ -419,9 +407,10 @@ class GraphState(BaseGraphState):
         if node in self.__input_node_indices:
             msg = "The node is already registered as an input node."
             raise ValueError(msg)
-        q_index = len(self.__input_node_indices)
+        if q_index in self.input_node_indices.values():
+            msg = "The q_index already exists in input qubit indices"
+            raise ValueError(msg)
         self.__input_node_indices[node] = q_index
-        return q_index
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
@@ -438,19 +427,12 @@ class GraphState(BaseGraphState):
         ------
         ValueError
             1. If the node is already registered as an output node.
-            2. If the node has a measurement basis.
-            3. If the invalid q_index specified.
-            4. If the q_index already exists in output qubit indices.
+            2. If the invalid q_index specified.
+            3. If the q_index already exists in output qubit indices.
         """
         self._ensure_node_exists(node)
         if node in self.__output_node_indices:
             msg = "The node is already registered as an output node."
-            raise ValueError(msg)
-        if self.meas_bases.get(node) is not None:
-            msg = "Cannot set output node with measurement basis."
-            raise ValueError(msg)
-        if q_index >= len(self.input_node_indices):
-            msg = "The q_index does not exist in input qubit indices"
             raise ValueError(msg)
         if q_index in self.output_node_indices.values():
             msg = "The q_index already exists in output qubit indices"
@@ -467,16 +449,8 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
-
-        Raises
-        ------
-        ValueError
-            If the node is an output node.
         """
         self._ensure_node_exists(node)
-        if node in self.output_node_indices:
-            msg = "Cannot set measurement basis for output node."
-            raise ValueError(msg)
         self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
@@ -520,27 +494,25 @@ class GraphState(BaseGraphState):
         return self.__physical_edges[node].copy()
 
     @typing_extensions.override
-    def is_canonical_form(self) -> bool:
+    def check_canonical_form(self) -> None:
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. Graph state has the same number of input and output nodes.
-        2. No Clifford operators applied.
-        3. All non-output nodes have measurement basis.
+        1. No Clifford operators applied.
+        2. All non-output nodes have measurement basis
 
-        Returns
-        -------
-        `bool`
-            `True` if the graph state is in canonical form, `False` otherwise.
+        Raises
+        ------
+        ValueError
+            If the graph state is not in canonical form.
         """
-        if len(self.input_node_indices) != len(self.output_node_indices):
-            return False
         if self.__local_cliffords:
-            return False
+            msg = "Clifford operators are applied."
+            raise ValueError(msg)
         for node in self.physical_nodes - set(self.output_node_indices):
             if self.meas_bases.get(node) is None:
-                return False
-        return True
+                msg = "All non-output nodes must have measurement basis."
+                raise ValueError(msg)
 
     def expand_local_cliffords(self) -> ExpansionMaps:
         r"""Expand local Clifford operators applied on the input and output nodes.
@@ -578,15 +550,15 @@ class GraphState(BaseGraphState):
             A dictionary mapping input node indices to the new node indices created.
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_input_indices: list[int] = []
-        for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
+        new_input_indices: dict[int, int] = {}
+        for input_node, q_index in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
             lc = self._pop_local_clifford(input_node)
             if lc is None:
-                new_input_indices.append(input_node)
+                new_input_indices[input_node] = q_index
                 continue
 
             new_node_index0 = self.add_physical_node()
-            new_input_indices.append(new_node_index0)
+            new_input_indices[new_node_index0] = q_index
             new_node_index1 = self.add_physical_node()
             new_node_index2 = self.add_physical_node()
 
@@ -603,8 +575,8 @@ class GraphState(BaseGraphState):
             )
 
         self.__input_node_indices = {}
-        for new_input_index in new_input_indices:
-            self.register_input(new_input_index)
+        for new_input_index, q_index in new_input_indices.items():
+            self.register_input(new_input_index, q_index)
 
         return node_index_addition_map
 
@@ -663,8 +635,8 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose_sequentially(  # noqa: C901
-    graph1: BaseGraphState, graph2: BaseGraphState
+def compose(  # noqa: C901
+    graph1: BaseGraphState, graph2: BaseGraphState, target_q_indices: AbstractSet[int] | None = None
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
 
@@ -674,6 +646,8 @@ def compose_sequentially(  # noqa: C901
         first graph state
     graph2 : `BaseGraphState`
         second graph state
+    target_q_indices : `collections.abc.Set`\[`int`\] | `None`
+        set of logical qubit indices to be connected. If None, all qubits are connected
 
     Returns
     -------
@@ -683,48 +657,68 @@ def compose_sequentially(  # noqa: C901
     Raises
     ------
     ValueError
-        1. If graph1 or graph2 is not in canonical form.
-        2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        1. If the graph states are not in canonical form.
+        2. If the target qubit indices are not a subset of output qubit indices in graph1.
+        3. If the target qubit indices are not a subset of input qubit indices in graph2.
     """
-    if not graph1.is_canonical_form():
-        msg = "graph1 must be in canonical form."
+    graph1.check_canonical_form()
+    graph2.check_canonical_form()
+    target_q_indices = set(graph1.output_node_indices.values()) if target_q_indices is None else set(target_q_indices)
+
+    if not target_q_indices.issubset(set(graph1.output_node_indices.values())):
+        msg = "Target qubit indices must be a subset of output qubit indices in graph1."
         raise ValueError(msg)
-    if not graph2.is_canonical_form():
-        msg = "graph2 must be in canonical form."
+    if not target_q_indices.issubset(set(graph2.input_node_indices.values())):
+        msg = "Target qubit indices must be a subset of input qubit indices in graph2."
         raise ValueError(msg)
-    if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
-        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
-        raise ValueError(msg)
-    node_map1: dict[int, int] = {}
-    node_map2: dict[int, int] = {}
+
+    # remap qindex to avoid conflict
+    input_node_indices1, input_node_indices2 = _remap_qindex(
+        graph1.input_node_indices, graph2.input_node_indices, target_q_indices
+    )
+
+    output_node_indices1, output_node_indices2 = _remap_qindex(
+        graph1.output_node_indices, graph2.output_node_indices, target_q_indices
+    )
+
     composed_graph = GraphState()
 
-    for node in graph1.physical_nodes - graph1.output_node_indices.keys():
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph1.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map1[node] = node_index
+    node_map1 = _copy_nodes(
+        src=graph1,
+        dst=composed_graph,
+        exclude_nodes={node for node, q_index in graph1.output_node_indices.items() if q_index in target_q_indices},
+    )
+    node_map2 = _copy_nodes(
+        src=graph2,
+        dst=composed_graph,
+        exclude_nodes=set(),
+    )
 
-    for node in graph2.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph2.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map2[node] = node_index
-
-    for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        composed_graph.register_input(node_map1[input_node])
-
-    for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.register_output(node_map2[output_node], q_index)
-
-    # overlapping node process
     q_index2output_node_index1 = {
-        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
+        q_index: output_node_index1 for output_node_index1, q_index in output_node_indices1.items()
     }
-    for input_node_index2, q_index in graph2.input_node_indices.items():
-        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+    for input_node_index2, q_index in input_node_indices2.items():
+        if q_index in target_q_indices:
+            node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+
+    for input_node, q_index in sorted(input_node_indices1.items(), key=operator.itemgetter(1)):
+        composed_graph.register_input(node_map1[input_node], q_index)
+    # calculate the max qubit index in graph1
+    max_qindex = max(input_node_indices1.values(), default=-1)
+    updated_qindex: dict[int, int] = {}
+    for input_node, q_index in sorted(input_node_indices2.items(), key=operator.itemgetter(1)):
+        if q_index not in target_q_indices:
+            new_q_index = q_index + max_qindex + 1
+            composed_graph.register_input(node_map2[input_node], new_q_index)
+            updated_qindex[q_index] = new_q_index
+            max_qindex = new_q_index
+
+    for output_node, q_index in output_node_indices1.items():
+        if q_index not in target_q_indices:
+            composed_graph.register_output(node_map1[output_node], q_index)
+    for output_node, q_index in output_node_indices2.items():
+        new_q_index = updated_qindex.get(q_index, q_index)
+        composed_graph.register_output(node_map2[output_node], new_q_index)
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
@@ -734,74 +728,76 @@ def compose_sequentially(  # noqa: C901
     return composed_graph, node_map1, node_map2
 
 
-def compose_in_parallel(  # noqa: C901
-    graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    r"""Compose two graph states in parallel.
+def _remap_qindex(
+    map1: Mapping[int, int], map2: Mapping[int, int], target_q_indices: AbstractSet[int]
+) -> tuple[dict[int, int], dict[int, int]]:
+    r"""Remap qindex to avoid conflict.
 
     Parameters
     ----------
-    graph1 : `BaseGraphState`
-        first graph state
-    graph2 : `BaseGraphState`
-        second graph state
+    map1 : `collections.abc.Mapping`\[`int`, `int`\]
+        qubit indices map of graph1
+    map2 : `collections.abc.Mapping`\[`int`, `int`\]
+        qubit indices map of graph2
+    target_q_indices : `collections.abc.Set`\[`int`\]
+        set of logical qubit indices to be connected
 
     Returns
     -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
-        composed graph state, node map for graph1, node map for graph2
-
-    Raises
-    ------
-    ValueError
-        If graph1 or graph2 is not in canonical form.
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+        remapped qubit indices map of graph1 and graph2
     """
-    if not graph1.is_canonical_form():
-        msg = "graph1 must be in canonical form."
-        raise ValueError(msg)
-    if not graph2.is_canonical_form():
-        msg = "graph2 must be in canonical form."
-        raise ValueError(msg)
-    node_map1: dict[int, int] = {}
-    node_map2: dict[int, int] = {}
-    composed_graph = GraphState()
+    max_q_index = max(itertools.chain(map1.values(), map2.values()), default=-1)
+    offset = max_q_index + 1
 
-    for node in graph1.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph1.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map1[node] = node_index
+    new_map1: dict[int, int] = {}
+    for node, q_index in map1.items():
+        if q_index in target_q_indices:
+            new_map1[node] = q_index
+        else:
+            new_map1[node] = q_index + offset
 
-    for node in graph2.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph2.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map2[node] = node_index
+    new_map2: dict[int, int] = {}
+    for node, q_index in map2.items():
+        if q_index in target_q_indices:
+            new_map2[node] = q_index
+        else:
+            new_map2[node] = q_index + offset
 
-    q_index_map1: dict[int, int] = {}
-    q_index_map2: dict[int, int] = {}
-    for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map1[input_node])
-        q_index_map1[old_q_index] = new_q_index
+    return new_map1, new_map2
 
-    for input_node, old_q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map2[input_node])
-        q_index_map2[old_q_index] = new_q_index
 
-    for output_node, q_index in graph1.output_node_indices.items():
-        composed_graph.register_output(node_map1[output_node], q_index_map1[q_index])
+def _copy_nodes(
+    src: BaseGraphState,
+    dst: BaseGraphState,
+    exclude_nodes: AbstractSet[int],
+) -> dict[int, int]:
+    r"""Copy nodes from src to dst, excluding specified nodes.
 
-    for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.register_output(node_map2[output_node], q_index_map2[q_index])
+    Parameters
+    ----------
+    src : `BaseGraphState`
+        source graph state
+    dst : `BaseGraphState`
+        destination graph state
+    exclude_nodes : `collections.abc.Set`\[`int`\]
+        set of nodes to exclude from copying
 
-    for u, v in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
-    for u, v in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
-
-    return composed_graph, node_map1, node_map2
+    Returns
+    -------
+    `dict`\[`int`, `int`\]
+        mapping from src node indices to dst node indices
+    """
+    node_map: dict[int, int] = {}
+    for node in src.physical_nodes:
+        if node in exclude_nodes:
+            continue
+        new_idx = dst.add_physical_node()
+        meas = src.meas_bases.get(node)
+        if meas is not None:
+            dst.assign_meas_basis(new_idx, meas)
+        node_map[node] = new_idx
+    return node_map
 
 
 def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) -> set[tuple[int, int]]:

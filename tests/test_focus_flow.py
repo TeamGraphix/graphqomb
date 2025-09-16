@@ -24,7 +24,8 @@ def test_is_focused_true_for_focused_flow(graphstate: GraphState) -> None:
     node1 = graphstate.add_physical_node()
     node2 = graphstate.add_physical_node()
     graphstate.add_physical_edge(node1, node2)
-    q_index = graphstate.register_input(node1)
+    q_index = 0
+    graphstate.register_input(node1, q_index)
     graphstate.register_output(node2, q_index)
     graphstate.assign_meas_basis(node1, default_meas_basis())
     flow = {node1: node2}
