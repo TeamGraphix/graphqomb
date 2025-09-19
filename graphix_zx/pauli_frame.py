@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from graphix_zx.common import Axis, Plane
+
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
@@ -122,61 +124,146 @@ class PauliFrame:
         `tuple`\[`list`\[`set`\[`int`\]\], `list`\[`set`\[`int`\]\]\]
             The X and Z parity check groups.
         """
-        inv_z_flow: dict[int, set[int]] = {node: set() for node in self.graphstate.physical_nodes}
-        for node, targets in self.zflow.items():
-            for target in targets:
-                inv_z_flow[target].add(node)
-            inv_z_flow[node] -= {node}
+        inv_x_flow, inv_z_flow = self._build_inverse_flows()
 
         x_groups: list[set[int]] = []
         z_groups: list[set[int]] = []
+
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
-                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node)
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.X)
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
             mbqc_group = set()
             for node in syndrome_group:
-                mbqc_group ^= _collect_dependent_chain(inv_z_flow, node)
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.Z)
             z_groups.append(mbqc_group)
 
         return x_groups, z_groups
 
-    def logical_observables_group(self, target_nodes: AbstractSet[int]) -> set[int]:
+    def logical_observables_group(self, target_nodes_with_axes: Mapping[int, Axis]) -> set[int]:
         r"""Get the logical observables group for the given target nodes.
 
         Parameters
         ----------
-        target_nodes : `collections.abc.Set`\[`int`\]
-            The target nodes to get the logical observables group for.
+        target_nodes : `collections.abc.Mapping`\[`int`, `Axis`\]
+            The target nodes to get the logical observables group for, with their corresponding measurement axes.
 
         Returns
         -------
         `set`\[`int`\]
             The logical observables group for the given target nodes.
         """
-        # NOTE: This logic assumes that all the measurements are X-based.
+        inv_x_flow, inv_z_flow = self._build_inverse_flows()
+
         group: set[int] = set()
-        inv_z_flow: dict[int, set[int]] = {node: set() for node in self.graphstate.physical_nodes}
-        for node, targets in self.zflow.items():
-            for target in targets:
-                inv_z_flow[target].add(node)
-            inv_z_flow[node] -= {node}
-        for node in target_nodes:
-            group ^= _collect_dependent_chain(inv_z_flow, node)
+        for node, axis in target_nodes_with_axes.items():
+            group ^= self._collect_dependent_chain(
+                inv_x_flow=inv_x_flow,
+                inv_z_flow=inv_z_flow,
+                node=node,
+                output_basis=axis,
+            )
+
         return group
 
+    def _build_inverse_flows(self) -> tuple[Mapping[int, set[int]], Mapping[int, set[int]]]:
+        r"""Build inverse x/z flows (parent sets) for all physical nodes.
 
-def _collect_dependent_chain(inv_flow: dict[int, set[int]], node: int) -> set[int]:
-    chain: set[int] = set()
-    untracked = {node}
-    tracked: set[int] = set()
-    while untracked:
-        current = untracked.pop()
-        chain ^= {current}
-        for parent in inv_flow.get(current, set()):
-            if parent not in tracked:
-                untracked.add(parent)
-        tracked.add(current)
-    return chain
+        Returns
+        -------
+        `tuple`\[
+            `collections.abc.Mapping`\[`int`, `set`\[`int`\]\],
+            `collections.abc.Mapping`\[`int`, `set`\[`int`\]
+        \]
+            The inverse x and z flows.
+        """
+        inv_x_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
+        inv_z_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
+
+        for node, targets in self.xflow.items():
+            for t in targets:
+                inv_x_flow[t].add(node)
+            inv_x_flow[node] -= {node}
+
+        for node, targets in self.zflow.items():
+            for t in targets:
+                inv_z_flow[t].add(node)
+            inv_z_flow[node] -= {node}
+
+        return inv_x_flow, inv_z_flow
+
+    def _collect_dependent_chain(
+        self,
+        inv_x_flow: Mapping[int, set[int]],
+        inv_z_flow: Mapping[int, set[int]],
+        node: int,
+        output_basis: Axis | None,
+    ) -> set[int]:
+        r"""Generalized dependent-chain collector that respects measurement planes.
+
+        Parameters
+        ----------
+        inv_x_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
+            Inverse X flow mapping.
+        inv_z_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
+            Inverse Z flow mapping.
+        node : `int`
+            The starting node.
+        output_basis : `str` or `None`
+            The basis of the output node ("X", "Y", "Z", or None). If None, defaults to "X".
+
+        Returns
+        -------
+        `set`\[`int`\]
+            The set of dependent nodes in the chain.
+
+        Raises
+        ------
+        ValueError
+            If an unexpected output basis or measurement plane is encountered.
+        """
+        chain: set[int] = set()
+        untracked = {node}
+        tracked: set[int] = set()
+
+        outputs = set(self.graphstate.output_node_indices)
+
+        while untracked:
+            current = untracked.pop()
+            chain ^= {current}
+
+            parents: set[int] = set()
+
+            if current in outputs:
+                basis = output_basis or Axis.X
+                basis_lookup = {
+                    Axis.X: inv_z_flow.get(current, set()),
+                    Axis.Z: inv_x_flow.get(current, set()),
+                    Axis.Y: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
+                }
+                try:
+                    parents = basis_lookup[basis]
+                except KeyError as err:
+                    msg = f"Unexpected output_basis: {basis}"
+                    raise ValueError(msg) from err
+            else:
+                plane = self.graphstate.meas_bases[current].plane
+                plane_lookup = {
+                    Plane.XY: inv_z_flow.get(current, set()),
+                    Plane.YZ: inv_x_flow.get(current, set()),
+                    Plane.XZ: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
+                }
+                try:
+                    parents = plane_lookup[plane]
+                except KeyError as err:
+                    msg = f"Unexpected plane: {plane}"
+                    raise ValueError(msg) from err
+
+            for p in parents:
+                if p not in tracked:
+                    untracked.add(p)
+            tracked.add(current)
+
+        return chain
