@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Axis, Plane
+from graphix_zx.common import Axis, get_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -230,15 +230,16 @@ class PauliFrame:
 
             parents: set[int] = set()
 
-            plane = self.graphstate.meas_bases[current].plane
-            if plane == Plane.XY:
+            # NOTE: might have to support plane instead of axis
+            axis = get_pauli_axis(self.graphstate.meas_bases[current])
+            if axis == Axis.X:
                 parents = inv_z_flow.get(current, set())
-            elif plane == Plane.YZ:
-                parents = inv_x_flow.get(current, set())
-            elif plane == Plane.XZ:
+            elif axis == Axis.Y:
                 parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
+            elif axis == Axis.Z:
+                parents = inv_x_flow.get(current, set())
             else:
-                msg = f"Unexpected measurement plane: {plane}"
+                msg = f"Unexpected measurement axis: {axis}"
                 raise ValueError(msg)
 
             for p in parents:
