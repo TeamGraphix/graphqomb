@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import E, M, N
-from graphix_zx.common import Axis
+from graphix_zx.common import Axis, get_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -37,6 +37,11 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
     -------
     `str`
         The compiled stim string.
+
+    Raises
+    ------
+    ValueError
+        If an unsupported measurement basis is encountered.
     """
     stim_str = ""
     meas_order: list[int] = []
@@ -57,40 +62,27 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
             if after_clifford_depolarization > 0.0:
                 stim_str += f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n"
         if isinstance(cmd, M):
-            # need X/Z switch
-            if cmd.node in pattern.output_node_indices:
-                # output qubits will be measured later
-                continue
-            if before_measure_flip_probability > 0.0:
-                stim_str += f"Z_ERROR({before_measure_flip_probability}) {cmd.node}\n"
-            stim_str += f"MX {cmd.node}\n"
-            meas_order.append(cmd.node)
+            axis = get_pauli_axis(cmd.meas_basis)
+            if axis is None:
+                msg = f"Unsupported measurement basis: {cmd.meas_basis.plane, cmd.meas_basis.angle}"
+                raise ValueError(msg)
 
-    # measure output qubits
-    for output_node, q_index in pattern.output_node_indices.items():
-        axis: Axis | None = None
-        if logical_observables is not None:
-            for obs_map in logical_observables.values():
-                if q_index in obs_map:
-                    axis = obs_map[q_index]
-                    break
-
-        if axis is None or axis == Axis.X:
-            if before_measure_flip_probability > 0.0:
-                stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
-            stim_str += f"MX {output_node}\n"
-            meas_order.append(output_node)
-        elif axis == Axis.Y:
-            if before_measure_flip_probability > 0.0:
-                stim_str += f"X_ERROR({before_measure_flip_probability}) {output_node}\n"
-                stim_str += f"Z_ERROR({before_measure_flip_probability}) {output_node}\n"
-            stim_str += f"MY {output_node}\n"
-            meas_order.append(output_node)
-        elif axis == Axis.Z:
-            if before_measure_flip_probability > 0.0:
-                stim_str += f"X_ERROR({before_measure_flip_probability}) {output_node}\n"
-            stim_str += f"MZ {output_node}\n"
-            meas_order.append(output_node)
+            if axis == Axis.X:
+                if before_measure_flip_probability > 0.0:
+                    stim_str += f"Z_ERROR({before_measure_flip_probability}) {cmd.node}\n"
+                stim_str += f"MX {cmd.node}\n"
+                meas_order.append(cmd.node)
+            elif axis == Axis.Y:
+                if before_measure_flip_probability > 0.0:
+                    stim_str += f"X_ERROR({before_measure_flip_probability}) {cmd.node}\n"
+                    stim_str += f"Z_ERROR({before_measure_flip_probability}) {cmd.node}\n"
+                stim_str += f"MY {cmd.node}\n"
+                meas_order.append(cmd.node)
+            elif axis == Axis.Z:
+                if before_measure_flip_probability > 0.0:
+                    stim_str += f"X_ERROR({before_measure_flip_probability}) {cmd.node}\n"
+                stim_str += f"MZ {cmd.node}\n"
+                meas_order.append(cmd.node)
 
     x_check_groups, z_check_groups = pframe.detector_groups()
     for x_checks in x_check_groups:
