@@ -58,6 +58,9 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
                 stim_str += f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n"
         if isinstance(cmd, M):
             # need X/Z switch
+            if cmd.node in pattern.output_node_indices:
+                # output qubits will be measured later
+                continue
             if before_measure_flip_probability > 0.0:
                 stim_str += f"Z_ERROR({before_measure_flip_probability}) {cmd.node}\n"
             stim_str += f"MX {cmd.node}\n"
@@ -104,7 +107,11 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
     # logical observables
     if logical_observables is not None:
         for log_idx, obs in logical_observables.items():
-            logical_observables_group = pframe.logical_observables_group(obs)
+            qindex2output = {v: k for k, v in pattern.output_node_indices.items()}
+            target_nodes_with_axes = {
+                qindex2output[q_index]: axis for q_index, axis in obs.items() if q_index in qindex2output
+            }
+            logical_observables_group = pframe.logical_observables_group(target_nodes_with_axes)
             target_str = ""
             for node in logical_observables_group:
                 target_str += f"rec[{meas_order.index(node) - len(meas_order)}] "
