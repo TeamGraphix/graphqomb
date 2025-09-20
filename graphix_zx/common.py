@@ -8,6 +8,9 @@ This module provides:
 - `MeasBasis`: Abstract class to represent a measurement basis.
 - `PlannerMeasBasis`: Class to represent a planner measurement basis.
 - `AxisMeasBasis`: Class to represent an axis measurement basis.
+- `is_close_angle`: Check if an angle is close to a target angle.
+- `is_clifford_angle`: Check if an angle is a Clifford angle.
+- `get_pauli_axis`: Function to determine Pauli axis for a measurement basis.
 - `default_meas_basis`: Function to return the default measurement basis.
 - `meas_basis`: Function to get the measurement basis vector.
 """
@@ -126,7 +129,7 @@ class PlannerMeasBasis(MeasBasis):
         `PlannerMeasBasis`
             flipped PlannerMeasBasis
         """
-        return PlannerMeasBasis(self.plane, self.angle + np.pi)
+        return PlannerMeasBasis(self.plane, self.angle + math.pi)
 
     @typing_extensions.override
     def conjugate(self) -> PlannerMeasBasis:
@@ -229,9 +232,9 @@ class AxisMeasBasis(MeasBasis):
             msg = "The axis must be one of X, Y, Z"
             raise TypeError(msg)
         if self.axis == Axis.Y:
-            angle = np.pi / 2 if self.sign == Sign.PLUS else 3 * np.pi / 2
+            angle = math.pi / 2 if self.sign == Sign.PLUS else 3 * math.pi / 2
         else:
-            angle = 0 if self.sign == Sign.PLUS else np.pi
+            angle = 0 if self.sign == Sign.PLUS else math.pi
         return angle
 
     @typing_extensions.override
@@ -268,6 +271,85 @@ class AxisMeasBasis(MeasBasis):
             measurement basis vector
         """
         return meas_basis(self.plane, self.angle)
+
+
+def is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
+    """Check if an angle is close to a target angle.
+
+    Parameters
+    ----------
+    angle : `float`
+        angle to check
+    target : `float`
+        target angle
+    atol : `float`, optional
+        absolute tolerance, by default 1e-9
+
+    Returns
+    -------
+    `bool`
+        `True` if the angle is close to the target angle
+    """
+    diff_angle = (angle - target) % (2 * np.pi)
+
+    if diff_angle > np.pi:
+        diff_angle = 2 * np.pi - diff_angle
+    return bool(np.isclose(diff_angle, 0, atol=atol))
+
+
+def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
+    """Check if an angle is a Clifford angle.
+
+    Parameters
+    ----------
+    angle : `float`
+        angle to check
+    atol : `float`, optional
+        absolute tolerance, by default 1e-9
+
+    Returns
+    -------
+    `bool`
+        `True` if the angle is a Clifford angle
+    """
+    angle_preprocessed = angle % (2 * np.pi)
+    return any(
+        is_close_angle(angle_preprocessed, target, atol=atol) for target in (0.0, np.pi / 2, np.pi, 3 * np.pi / 2)
+    )
+
+
+def get_pauli_axis(meas_bases: MeasBasis) -> Axis | None:
+    """Determine Pauli axis for a measurement basis if it's a Pauli measurement.
+
+    Parameters
+    ----------
+    meas_bases : `MeasBasis`
+        Measurement basis to check
+
+    Returns
+    -------
+    `Axis` | None
+        Pauli axis if this is a Pauli measurement, None otherwise
+    """
+    angle = meas_bases.angle
+
+    if not is_clifford_angle(angle):
+        return None
+
+    if is_close_angle(angle, 0) or is_close_angle(angle, math.pi):
+        # X measurement (XY plane, θ=0 or π) or Z measurement (XZ plane, θ=0 or π)
+        if meas_bases.plane == Plane.XY:
+            return Axis.X
+        if meas_bases.plane in {Plane.XZ, Plane.YZ}:
+            return Axis.Z
+    elif is_close_angle(angle, math.pi / 2) or is_close_angle(angle, 3 * math.pi / 2):
+        # Y measurement can occur in XY plane (θ=π/2 or 3π/2) or YZ plane (θ=π/2 or 3π/2)
+        if meas_bases.plane in {Plane.XY, Plane.YZ}:
+            return Axis.Y
+        if meas_bases.plane == Plane.XZ:
+            return Axis.X
+
+    return None
 
 
 def default_meas_basis() -> PlannerMeasBasis:
