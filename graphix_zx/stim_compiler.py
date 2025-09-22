@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from graphix_zx.pattern import Pattern
 
 
-def stim_compile(  # noqa: C901, PLR0912, PLR0915
+def stim_compile(  # noqa: C901, PLR0912
     pattern: Pattern,
     logical_observables: Mapping[int, Mapping[int, Axis]] | None = None,
     *,
@@ -27,7 +27,7 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
     pattern : `Pattern`
         The pattern to compile.
     logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Mapping`\[`int`, `Axis`\]\]`, optional
-        A mapping from logical observable index to a mapping of q_index to measurement axis, by default None.
+        A mapping from logical observable index to a mapping of node_index to measurement axis, by default None.
     after_clifford_depolarization : `float`, optional
         The probability of depolarization after a Clifford gate, by default 0.0.
     before_measure_flip_probability : `float`, optional
@@ -99,11 +99,7 @@ def stim_compile(  # noqa: C901, PLR0912, PLR0915
     # logical observables
     if logical_observables is not None:
         for log_idx, obs in logical_observables.items():
-            qindex2output = {v: k for k, v in pattern.output_node_indices.items()}
-            target_nodes_with_axes = {
-                qindex2output[q_index]: axis for q_index, axis in obs.items() if q_index in qindex2output
-            }
-            logical_observables_group = pframe.logical_observables_group(target_nodes_with_axes)
+            logical_observables_group = pframe.logical_observables_group(obs)
             target_str = ""
             for node in logical_observables_group:
                 target_str += f"rec[{meas_order.index(node) - len(meas_order)}] "
