@@ -8,14 +8,14 @@ from graphix_zx.command import E, M, N
 from graphix_zx.common import Axis, get_pauli_axis
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
 
     from graphix_zx.pattern import Pattern
 
 
 def stim_compile(  # noqa: C901, PLR0912
     pattern: Pattern,
-    logical_observables: Mapping[int, Mapping[int, Axis]] | None = None,
+    logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
     after_clifford_depolarization: float = 0.0,
     before_measure_flip_probability: float = 0.0,
@@ -26,8 +26,8 @@ def stim_compile(  # noqa: C901, PLR0912
     ----------
     pattern : `Pattern`
         The pattern to compile.
-    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Mapping`\[`int`, `Axis`\]\]`, optional
-        A mapping from logical observable index to a mapping of node_index to measurement axis, by default None.
+    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
+        A mapping from logical observable index to a collection of node indices, by default None.
     after_clifford_depolarization : `float`, optional
         The probability of depolarization after a Clifford gate, by default 0.0.
     before_measure_flip_probability : `float`, optional

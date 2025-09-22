@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from graphix_zx.common import Axis, get_pauli_axis
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
@@ -142,13 +142,13 @@ class PauliFrame:
 
         return x_groups, z_groups
 
-    def logical_observables_group(self, target_nodes_with_axes: Mapping[int, Axis]) -> set[int]:
+    def logical_observables_group(self, target_nodes: Collection[int]) -> set[int]:
         r"""Get the logical observables group for the given target nodes.
 
         Parameters
         ----------
-        target_nodes : `collections.abc.Mapping`\[`int`, `Axis`\]
-            The target nodes to get the logical observables group for, with their corresponding measurement axes.
+        target_nodes : `collections.abc.Collection`\[`int`\]
+            The target nodes to get the logical observables group for.
 
         Returns
         -------
@@ -158,7 +158,7 @@ class PauliFrame:
         inv_x_flow, inv_z_flow = self._build_inverse_flows()
 
         group: set[int] = set()
-        for node in target_nodes_with_axes:
+        for node in target_nodes:
             group ^= self._collect_dependent_chain(
                 inv_x_flow=inv_x_flow,
                 inv_z_flow=inv_z_flow,
