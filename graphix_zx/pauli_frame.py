@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Axis, Plane
+from graphix_zx.common import Axis, get_pauli_axis
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.graphstate import BaseGraphState
@@ -132,23 +132,23 @@ class PauliFrame:
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.X)
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node)
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
             mbqc_group = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node, output_basis=Axis.Z)
+                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node)
             z_groups.append(mbqc_group)
 
         return x_groups, z_groups
 
-    def logical_observables_group(self, target_nodes_with_axes: Mapping[int, Axis]) -> set[int]:
+    def logical_observables_group(self, target_nodes: Collection[int]) -> set[int]:
         r"""Get the logical observables group for the given target nodes.
 
         Parameters
         ----------
-        target_nodes : `collections.abc.Mapping`\[`int`, `Axis`\]
-            The target nodes to get the logical observables group for, with their corresponding measurement axes.
+        target_nodes : `collections.abc.Collection`\[`int`\]
+            The target nodes to get the logical observables group for.
 
         Returns
         -------
@@ -158,12 +158,11 @@ class PauliFrame:
         inv_x_flow, inv_z_flow = self._build_inverse_flows()
 
         group: set[int] = set()
-        for node, axis in target_nodes_with_axes.items():
+        for node in target_nodes:
             group ^= self._collect_dependent_chain(
                 inv_x_flow=inv_x_flow,
                 inv_z_flow=inv_z_flow,
                 node=node,
-                output_basis=axis,
             )
 
         return group
@@ -199,7 +198,6 @@ class PauliFrame:
         inv_x_flow: Mapping[int, set[int]],
         inv_z_flow: Mapping[int, set[int]],
         node: int,
-        output_basis: Axis | None,
     ) -> set[int]:
         r"""Generalized dependent-chain collector that respects measurement planes.
 
@@ -211,8 +209,6 @@ class PauliFrame:
             Inverse Z flow mapping.
         node : `int`
             The starting node.
-        output_basis : `str` or `None`
-            The basis of the output node ("X", "Y", "Z", or None). If None, defaults to "X".
 
         Returns
         -------
@@ -228,38 +224,23 @@ class PauliFrame:
         untracked = {node}
         tracked: set[int] = set()
 
-        outputs = set(self.graphstate.output_node_indices)
-
         while untracked:
             current = untracked.pop()
             chain ^= {current}
 
             parents: set[int] = set()
 
-            if current in outputs:
-                basis = output_basis or Axis.X
-                basis_lookup = {
-                    Axis.X: inv_z_flow.get(current, set()),
-                    Axis.Z: inv_x_flow.get(current, set()),
-                    Axis.Y: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
-                }
-                try:
-                    parents = basis_lookup[basis]
-                except KeyError as err:
-                    msg = f"Unexpected output_basis: {basis}"
-                    raise ValueError(msg) from err
+            # NOTE: might have to support plane instead of axis
+            axis = get_pauli_axis(self.graphstate.meas_bases[current])
+            if axis == Axis.X:
+                parents = inv_z_flow.get(current, set())
+            elif axis == Axis.Y:
+                parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
+            elif axis == Axis.Z:
+                parents = inv_x_flow.get(current, set())
             else:
-                plane = self.graphstate.meas_bases[current].plane
-                plane_lookup = {
-                    Plane.XY: inv_z_flow.get(current, set()),
-                    Plane.YZ: inv_x_flow.get(current, set()),
-                    Plane.XZ: inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set()),
-                }
-                try:
-                    parents = plane_lookup[plane]
-                except KeyError as err:
-                    msg = f"Unexpected plane: {plane}"
-                    raise ValueError(msg) from err
+                msg = f"Unexpected measurement axis: {axis}"
+                raise ValueError(msg)
 
             for p in parents:
                 if p not in tracked:

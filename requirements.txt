@@ -1,3 +1,5 @@
 numpy>=1.22,<3
+matplotlib
+networkx
 ortools>=9,<10
 typing_extensions

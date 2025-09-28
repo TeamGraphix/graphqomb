@@ -4,8 +4,6 @@ This module provides:
 
 - `euler_decomposition`: Decompose a 2x2 unitary matrix into Euler angles.
 - `bloch_sphere_coordinates`: Get the Bloch sphere coordinates corresponding to a vector.
-- `is_close_angle`: Check if an angle is close to a target angle.
-- `is_clifford_angle`: Check if an angle is a Clifford angle.
 - `LocalUnitary`: Class to represent a local unitary.
 - `LocalClifford`: Class to represent a local Clifford.
 - `meas_basis_info`: Return the measurement plane and angle corresponding to a vector.
@@ -22,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import typing_extensions
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -104,51 +102,6 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
         sin_term = (v1 / cmath.exp(1j * phi)).real
         theta = 2 * cmath.phase(cos_term + 1j * sin_term)
     return theta, phi
-
-
-def is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
-    """Check if an angle is close to a target angle.
-
-    Parameters
-    ----------
-    angle : `float`
-        angle to check
-    target : `float`
-        target angle
-    atol : `float`, optional
-        absolute tolerance, by default 1e-9
-
-    Returns
-    -------
-    `bool`
-        `True` if the angle is close to the target angle
-    """
-    diff_angle = (angle - target) % (2 * np.pi)
-
-    if diff_angle > np.pi:
-        diff_angle = 2 * np.pi - diff_angle
-    return bool(np.isclose(diff_angle, 0, atol=atol))
-
-
-def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
-    """Check if an angle is a Clifford angle.
-
-    Parameters
-    ----------
-    angle : `float`
-        angle to check
-    atol : `float`, optional
-        absolute tolerance, by default 1e-9
-
-    Returns
-    -------
-    `bool`
-        `True` if the angle is a Clifford angle
-    """
-    angle_preprocessed = angle % (2 * np.pi)
-    return any(
-        is_close_angle(angle_preprocessed, target, atol=atol) for target in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]
-    )
 
 
 class LocalUnitary:
