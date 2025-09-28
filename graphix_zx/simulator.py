@@ -19,6 +19,7 @@ from graphix_zx.command import E, M, N, X, Z
 from graphix_zx.common import MeasBasis, Plane
 from graphix_zx.gates import MultiGate, SingleGate, TwoQubitGate
 from graphix_zx.pattern import is_runnable
+from graphix_zx.rng import ensure_rng
 from graphix_zx.statevec import StateVector
 
 if TYPE_CHECKING:
@@ -218,9 +219,9 @@ class PatternSimulator:
             Random number generator to use. If None, generates a new rng for this simulation.
 
         """
-        tmp_rng = rng if rng is not None else np.random.default_rng()
+        rng = ensure_rng(rng)
         for cmd in self.__pattern.commands:
-            self.apply_cmd(cmd, rng=tmp_rng)
+            self.apply_cmd(cmd, rng=rng)
 
         # Create a mapping from current node indices to output node indices
         permutation = [self.__pattern.output_node_indices[node] for node in self.node_indices]
