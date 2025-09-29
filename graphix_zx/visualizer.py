@@ -102,12 +102,12 @@ def visualize(  # noqa: PLR0913
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
-        ax.set_xlim(figure_setup.x_min - figure_setup.padding, figure_setup.x_max + figure_setup.padding)  # pyright: ignore[reportUnknownMemberType]
-        ax.set_ylim(figure_setup.y_min - figure_setup.padding, figure_setup.y_max + figure_setup.padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_xlim(figure_setup.x_min - figure_setup.padding, figure_setup.x_max + figure_setup.padding)
+        ax.set_ylim(figure_setup.y_min - figure_setup.padding, figure_setup.y_max + figure_setup.padding)
 
     # Remove tick marks and labels for cleaner appearance
-    ax.set_xticks([])  # pyright: ignore[reportUnknownMemberType]
-    ax.set_yticks([])  # pyright: ignore[reportUnknownMemberType]
+    ax.set_xticks([])
+    ax.set_yticks([])
 
     # All nodes use the same base size for consistency
 
@@ -123,12 +123,12 @@ def visualize(  # noqa: PLR0913
         else:
             # Ensure all nodes have a color, fallback to default if missing
             node_color = node_colors.get(node, ColorMap.OUTPUT)  # Default to output color
-            ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
+            ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)
 
     for edge in graph.physical_edges:
         x0, y0 = node_pos[edge[0]]
         x1, y1 = node_pos[edge[1]]
-        ax.plot(  # pyright: ignore[reportUnknownMemberType]
+        ax.plot(
             [x0, x1],
             [y0, y1],
             color="black",
@@ -146,7 +146,7 @@ def visualize(  # noqa: PLR0913
             # All nodes now have the same size, so use same font size calculation
             font_size = _calculate_font_size(node_size)
 
-            ax.text(  # pyright: ignore[reportUnknownMemberType]
+            ax.text(
                 x,
                 y,
                 str(node),
@@ -208,10 +208,10 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
         x_min = x_max = y_min = y_max = 0
         padding = 0.5
 
-    plt.figure(figsize=(fig_width, fig_height))  # pyright: ignore[reportUnknownMemberType]
+    plt.figure(figsize=(fig_width, fig_height))
 
     # Set equal aspect ratio to ensure circles appear circular, but let the plot adjust limits
-    plt.gca().set_aspect("equal")  # pyright: ignore[reportUnknownMemberType]
+    plt.gca().set_aspect("equal")
 
     return FigureSetup(
         x_min=x_min,
@@ -258,9 +258,9 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
         if internal_edges:
             # Use spring layout for internal nodes
             nx_graph: nx.Graph[int] = nx.Graph()
-            nx_graph.add_nodes_from(internal_nodes)  # pyright: ignore[reportUnknownMemberType]
-            nx_graph.add_edges_from(internal_edges)  # pyright: ignore[reportUnknownMemberType]
-            internal_pos: dict[int, tuple[float, float]] = nx.spring_layout(nx_graph, k=1, iterations=50)  # pyright: ignore[reportUnknownMemberType]
+            nx_graph.add_nodes_from(internal_nodes)
+            nx_graph.add_edges_from(internal_edges)
+            internal_pos: dict[int, tuple[float, float]] = nx.spring_layout(nx_graph, k=1, iterations=50)
 
             # Scale and position internal nodes in the middle
             for node, (x, y) in internal_pos.items():
@@ -455,7 +455,7 @@ def _add_legend(graph: BaseGraphState) -> None:
 
     # Add legend to the plot if there are elements to show
     if legend_elements:
-        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)  # pyright: ignore[reportUnknownMemberType]
+        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)
 
 
 def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[Axis]]:
