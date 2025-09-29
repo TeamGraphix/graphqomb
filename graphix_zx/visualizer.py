@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -49,6 +49,16 @@ class ColorMap(_ColorMap):
     OUTPUT = "#95A5A6"  # Cool grey
 
 
+class FigureSetup(NamedTuple):
+    """Parameters for setting up the figure."""
+
+    x_min: float
+    x_max: float
+    y_min: float
+    y_max: float
+    padding: float
+
+
 def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
@@ -85,15 +95,15 @@ def visualize(  # noqa: PLR0913
     node_colors = _determine_node_colors(graph)
 
     # Setup figure with proper aspect ratio
-    x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
+    figure_setup = _setup_figure(node_pos)
 
     if ax is None:
         _, ax = plt.subplots()
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
-        ax.set_xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
-        ax.set_ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_xlim(figure_setup.x_min - figure_setup.padding, figure_setup.x_max + figure_setup.padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_ylim(figure_setup.y_min - figure_setup.padding, figure_setup.y_max + figure_setup.padding)  # pyright: ignore[reportUnknownMemberType]
 
     # Remove tick marks and labels for cleaner appearance
     ax.set_xticks([])  # pyright: ignore[reportUnknownMemberType]
@@ -152,7 +162,7 @@ def visualize(  # noqa: PLR0913
     return ax
 
 
-def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
+def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
     """Set up matplotlib figure with proper aspect ratio based on node positions.
 
     Parameters
@@ -162,7 +172,8 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, f
 
     Returns
     -------
-    tuple[float, float, float, float, float]
+    FigureSetup
+        NamedTuple containing
         x_min, x_max, y_min, y_max, padding values for plot limits
     """
     if node_pos:
@@ -200,7 +211,13 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, f
     # Set equal aspect ratio to ensure circles appear circular, but let the plot adjust limits
     plt.gca().set_aspect("equal")  # pyright: ignore[reportUnknownMemberType]
 
-    return x_min, x_max, y_min, y_max, padding
+    return FigureSetup(
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        padding=padding,
+    )
 
 
 def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
