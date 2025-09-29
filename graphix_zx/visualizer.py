@@ -126,9 +126,11 @@ def visualize(  # noqa: PLR0913
             ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
 
     for edge in graph.physical_edges:
+        x0, y0 = node_pos[edge[0]]
+        x1, y1 = node_pos[edge[1]]
         ax.plot(  # pyright: ignore[reportUnknownMemberType]
-            [node_pos[edge[0]][0], node_pos[edge[1]][0]],
-            [node_pos[edge[0]][1], node_pos[edge[1]][1]],
+            [x0, x1],
+            [y0, y1],
             color="black",
             zorder=1,
         )
