@@ -16,7 +16,7 @@ import networkx as nx
 from matplotlib import patches
 from matplotlib.lines import Line2D
 
-from graphix_zx.common import Axis, Plane, get_pauli_axis
+from graphix_zx.common import Axis, Plane, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -309,7 +309,7 @@ def _find_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
     pauli_nodes: dict[int, Axis] = {}
 
     for node, meas_bases in graph.meas_bases.items():
-        pauli_axis = get_pauli_axis(meas_bases)
+        pauli_axis = determine_pauli_axis(meas_bases)
         if pauli_axis:
             pauli_nodes[node] = pauli_axis
 
@@ -479,7 +479,7 @@ def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[
         planes_present.add(meas_bases.plane)
 
         # Check for Pauli measurements using the shared helper function
-        pauli_axis = get_pauli_axis(meas_bases)
+        pauli_axis = determine_pauli_axis(meas_bases)
         if pauli_axis is not None:
             pauli_measurements.add(pauli_axis)
 
