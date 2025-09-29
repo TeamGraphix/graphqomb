@@ -59,7 +59,7 @@ class FigureSetup(NamedTuple):
     padding: float
 
 
-def visualize(  # noqa: PLR0913
+def visualize(
     graph: BaseGraphState,
     *,
     ax: Axes | None = None,
