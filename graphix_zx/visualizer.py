@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from matplotlib.figure import Figure
+    from matplotlib.figure import Figure, SubFigure
     from matplotlib.axes import Axes
 
     from graphix_zx.graphstate import BaseGraphState
@@ -54,12 +54,10 @@ def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
     ax: Axes | None = None,
-    save: bool = False,
-    filename: str | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
-) -> tuple[Figure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     r"""Visualize the GraphState.
 
     Parameters
@@ -81,7 +79,7 @@ def visualize(  # noqa: PLR0913
 
     Returns
     -------
-    tuple\[`matplotlib.figure.Figure`, `matplotlib.axes.Axes`\]
+    tuple\[`matplotlib.figure.Figure` | `matplotlib.figure.SubFigure`, `matplotlib.axes.Axes`\]
     """
     node_pos = _get_node_positions(graph)
 
@@ -97,8 +95,8 @@ def visualize(  # noqa: PLR0913
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
-        plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
-        plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
 
     # Remove tick marks and labels for cleaner appearance
     ax.set_xticks([])  # pyright: ignore[reportUnknownMemberType]
@@ -118,10 +116,10 @@ def visualize(  # noqa: PLR0913
         else:
             # Ensure all nodes have a color, fallback to default if missing
             node_color = node_colors.get(node, ColorMap.OUTPUT)  # Default to output color
-            plt.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
+            ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
 
     for edge in graph.physical_edges:
-        plt.plot(  # pyright: ignore[reportUnknownMemberType]
+        ax.plot(  # pyright: ignore[reportUnknownMemberType]
             [node_pos[edge[0]][0], node_pos[edge[1]][0]],
             [node_pos[edge[0]][1], node_pos[edge[1]][1]],
             color="black",
@@ -139,7 +137,7 @@ def visualize(  # noqa: PLR0913
             # All nodes now have the same size, so use same font size calculation
             font_size = _calculate_font_size(node_size)
 
-            plt.text(  # pyright: ignore[reportUnknownMemberType]
+            ax.text(  # pyright: ignore[reportUnknownMemberType]
                 x,
                 y,
                 str(node),
@@ -154,12 +152,6 @@ def visualize(  # noqa: PLR0913
     # Add color legend if requested
     if show_legend:
         _add_legend(graph)
-        plt.tight_layout()  # pyright: ignore[reportUnknownMemberType]
-
-    if save:
-        if filename is None:
-            filename = "graph.png"
-        plt.savefig(filename)  # pyright: ignore[reportUnknownMemberType]
     return fig, ax
 
 
