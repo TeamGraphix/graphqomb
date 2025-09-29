@@ -150,7 +150,6 @@ def visualize(  # noqa: PLR0913
         if filename is None:
             filename = "graph.png"
         plt.savefig(filename)  # pyright: ignore[reportUnknownMemberType]
-    plt.show()  # pyright: ignore[reportUnknownMemberType]
 
 
 def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
