@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
+    from matplotlib.figure import Figure
     from matplotlib.axes import Axes
 
     from graphix_zx.graphstate import BaseGraphState
@@ -52,18 +53,21 @@ class ColorMap(_ColorMap):
 def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
+    ax: Axes | None = None,
     save: bool = False,
     filename: str | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
-) -> None:
-    """Visualize the GraphState.
+) -> tuple[Figure, Axes]:
+    r"""Visualize the GraphState.
 
     Parameters
     ----------
     graph : `BaseGraphState`
         GraphState to visualize.
+    ax : `matplotlib.axes.Axes` | None, optional
+        Matplotlib Axes to draw on, by default None
     save : `bool`, optional
         To save as a file or not, by default False
     filename : `str` | None, optional
@@ -74,6 +78,10 @@ def visualize(  # noqa: PLR0913
         Size of nodes (scatter size), by default 300
     show_legend : `bool`, optional
         Whether to show color legend, by default True
+
+    Returns
+    -------
+    tuple\[`matplotlib.figure.Figure`, `matplotlib.axes.Axes`\]
     """
     node_pos = _get_node_positions(graph)
 
@@ -82,8 +90,10 @@ def visualize(  # noqa: PLR0913
     # Setup figure with proper aspect ratio
     x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
 
-    # Get current axes for accurate size conversion
-    ax = plt.gca()
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
@@ -150,6 +160,7 @@ def visualize(  # noqa: PLR0913
         if filename is None:
             filename = "graph.png"
         plt.savefig(filename)  # pyright: ignore[reportUnknownMemberType]
+    return fig, ax
 
 
 def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
