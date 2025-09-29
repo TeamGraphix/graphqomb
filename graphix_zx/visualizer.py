@@ -268,7 +268,7 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
         else:
             # If no internal edges, arrange internal nodes in a column
             for i, node in enumerate(sorted(internal_nodes)):
-                pos[node] = (1.0, float(-i))
+                pos[node] = (1.0, -i)
 
     return pos
 
@@ -360,9 +360,7 @@ def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: fl
     # Area = π * rx * ry where rx and ry are the semi-axes in data coordinates
     # For a circle with equal display area: π * r² = π * rx * ry
     # So r = sqrt(rx * ry) to maintain equal display area
-    radius_data = math.sqrt(abs(x_offset_data) * abs(y_offset_data))
-
-    return float(radius_data)
+    return math.sqrt(abs(x_offset_data) * abs(y_offset_data))
 
 
 def _calculate_font_size(node_size: float) -> int:
