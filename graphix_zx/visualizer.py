@@ -87,6 +87,7 @@ def visualize(
     Returns
     -------
     `matplotlib.axes.Axes`
+        The Axes object containing the visualization
     """
     node_pos = _calc_node_positions(graph)
 
