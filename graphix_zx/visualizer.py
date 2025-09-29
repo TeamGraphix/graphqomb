@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from matplotlib.figure import Figure, SubFigure
     from matplotlib.axes import Axes
 
     from graphix_zx.graphstate import BaseGraphState
@@ -81,9 +80,9 @@ def visualize(  # noqa: PLR0913
     -------
     `matplotlib.axes.Axes`
     """
-    node_pos = _get_node_positions(graph)
+    node_pos = _calc_node_positions(graph)
 
-    node_colors = _get_node_colors(graph)
+    node_colors = _determine_node_colors(graph)
 
     # Setup figure with proper aspect ratio
     x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
@@ -103,7 +102,7 @@ def visualize(  # noqa: PLR0913
     # All nodes use the same base size for consistency
 
     # Draw nodes with special handling for Pauli measurements
-    pauli_nodes = _get_pauli_nodes(graph)
+    pauli_nodes = _find_pauli_nodes(graph)
 
     for node in graph.physical_nodes:
         if node in pauli_nodes:
@@ -126,7 +125,7 @@ def visualize(  # noqa: PLR0913
 
     # Draw node labels if requested
     if show_node_labels:
-        pauli_nodes = _get_pauli_nodes(graph)
+        pauli_nodes = _find_pauli_nodes(graph)
 
         # Draw labels manually for better center alignment
         for node in graph.physical_nodes:
@@ -204,7 +203,7 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, f
     return x_min, x_max, y_min, y_max, padding
 
 
-def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
+def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
     """Calculate node positions for visualization with input/output nodes arranged vertically.
 
     Parameters
@@ -255,9 +254,9 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
     return pos
 
 
-def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
+def _determine_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
     node_colors: dict[int, ColorMap] = {}
-    pauli_nodes = _get_pauli_nodes(graph)
+    pauli_nodes = _find_pauli_nodes(graph)
 
     # Set colors for all nodes with measurement bases
     for node, meas_bases in graph.meas_bases.items():
@@ -279,7 +278,7 @@ def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
     return node_colors
 
 
-def _get_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
+def _find_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
     """Identify nodes with Pauli measurements (Clifford angles).
 
     Returns
