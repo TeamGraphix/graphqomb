@@ -57,7 +57,7 @@ def visualize(  # noqa: PLR0913
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
-) -> tuple[Figure | SubFigure, Axes]:
+) -> Axes:
     r"""Visualize the GraphState.
 
     Parameters
@@ -79,7 +79,7 @@ def visualize(  # noqa: PLR0913
 
     Returns
     -------
-    tuple\[`matplotlib.figure.Figure` | `matplotlib.figure.SubFigure`, `matplotlib.axes.Axes`\]
+    `matplotlib.axes.Axes`
     """
     node_pos = _get_node_positions(graph)
 
@@ -89,9 +89,7 @@ def visualize(  # noqa: PLR0913
     x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
 
     if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.figure
+        _, ax = plt.subplots()
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
@@ -152,7 +150,7 @@ def visualize(  # noqa: PLR0913
     # Add color legend if requested
     if show_legend:
         _add_legend(graph)
-    return fig, ax
+    return ax
 
 
 def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
