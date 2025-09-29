@@ -83,7 +83,7 @@ Functions
 
 .. autofunction:: graphix_zx.common.is_clifford_angle
 
-.. autofunction:: graphix_zx.common.get_pauli_axis
+.. autofunction:: graphix_zx.common.determine_pauli_axis
 
 .. autofunction:: graphix_zx.common.default_meas_basis
 
