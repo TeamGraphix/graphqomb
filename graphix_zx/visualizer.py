@@ -11,9 +11,9 @@ import math
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
-import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib import patches
+from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from graphix_zx.common import Axis, Plane, get_pauli_axis
@@ -57,6 +57,8 @@ class FigureSetup(NamedTuple):
     y_min: float
     y_max: float
     padding: float
+    fig_width: float
+    fig_height: float
 
 
 def visualize(
@@ -75,10 +77,6 @@ def visualize(
         GraphState to visualize.
     ax : `matplotlib.axes.Axes` | None, optional
         Matplotlib Axes to draw on, by default None
-    save : `bool`, optional
-        To save as a file or not, by default False
-    filename : `str` | None, optional
-        filename of the image, by default None
     show_node_labels : `bool`, optional
         Whether to show node index labels, by default True
     node_size : `float`, optional
@@ -98,7 +96,9 @@ def visualize(
     figure_setup = _setup_figure(node_pos)
 
     if ax is None:
-        _, ax = plt.subplots()
+        fig = Figure(figsize=(figure_setup.fig_width, figure_setup.fig_height))
+        ax = fig.add_subplot(111)
+        ax.set_aspect("equal")
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
@@ -160,12 +160,12 @@ def visualize(
 
     # Add color legend if requested
     if show_legend:
-        _add_legend(graph)
+        _add_legend(ax, graph)
     return ax
 
 
 def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
-    """Set up matplotlib figure with proper aspect ratio based on node positions.
+    """Calculate figure dimensions and plot limits based on node positions.
 
     Parameters
     ----------
@@ -176,7 +176,7 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
     -------
     FigureSetup
         NamedTuple containing
-        x_min, x_max, y_min, y_max, padding values for plot limits
+        x_min, x_max, y_min, y_max, padding, fig_width, fig_height values
     """
     if node_pos:
         x_coords = [pos[0] for pos in node_pos.values()]
@@ -208,17 +208,14 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
         x_min = x_max = y_min = y_max = 0
         padding = 0.5
 
-    plt.figure(figsize=(fig_width, fig_height))
-
-    # Set equal aspect ratio to ensure circles appear circular, but let the plot adjust limits
-    plt.gca().set_aspect("equal")
-
     return FigureSetup(
         x_min=x_min,
         x_max=x_max,
         y_min=y_min,
         y_max=y_max,
         padding=padding,
+        fig_width=fig_width,
+        fig_height=fig_height,
     )
 
 
@@ -440,11 +437,13 @@ def _draw_pauli_node(ax: Axes, pos: tuple[float, float], pauli_axis: Axis, node_
     ax.add_patch(circle)
 
 
-def _add_legend(graph: BaseGraphState) -> None:
+def _add_legend(ax: Axes, graph: BaseGraphState) -> None:
     """Add color legend to the plot.
 
     Parameters
     ----------
+    ax : Axes
+        Matplotlib axes object to add legend to
     graph : BaseGraphState
         GraphState to analyze for legend items
     """
@@ -453,7 +452,7 @@ def _add_legend(graph: BaseGraphState) -> None:
 
     # Add legend to the plot if there are elements to show
     if legend_elements:
-        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)
+        ax.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)
 
 
 def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[Axis]]:
