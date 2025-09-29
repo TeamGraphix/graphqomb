@@ -11,9 +11,9 @@ import math
 import sys
 from typing import TYPE_CHECKING, NamedTuple
 
+import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib import patches
-from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from graphix_zx.common import Axis, Plane, get_pauli_axis
@@ -97,9 +97,11 @@ def visualize(
     figure_setup = _setup_figure(node_pos)
 
     if ax is None:
-        fig = Figure(figsize=(figure_setup.fig_width, figure_setup.fig_height))
-        ax = fig.add_subplot(111)
-        ax.set_aspect("equal")
+        # Create figure with proper aspect ratio using plt
+        _, ax = plt.subplots(figsize=(figure_setup.fig_width, figure_setup.fig_height))
+
+    # Always set equal aspect ratio to ensure circles appear circular
+    ax.set_aspect("equal")
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
@@ -190,19 +192,20 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
         x_range = max(x_max - x_min, 0.5) + 2 * padding  # Minimum range to avoid too narrow plots
         y_range = max(y_max - y_min, 0.5) + 2 * padding
 
-        # Calculate figure size to maintain reasonable aspect ratio
-        # Base size of 8 inches, adjust based on content ratio
+        # Calculate figure size to maintain equal aspect ratio
+        # This ensures circles appear as circles, not ellipses
         base_size = 8.0
-        if x_range > y_range:
-            fig_width = base_size
-            fig_height = base_size * (y_range / x_range)
-        else:
-            fig_width = base_size * (x_range / y_range)
-            fig_height = base_size
+        # Use the same dimension for both to maintain 1:1 aspect ratio visually
+        max_range = max(x_range, y_range)
+        fig_width = base_size * (x_range / max_range)
+        fig_height = base_size * (y_range / max_range)
 
         # Ensure minimum figure size for readability
-        fig_width = max(fig_width, 4.0)
-        fig_height = max(fig_height, 4.0)
+        min_size = 4.0
+        if fig_width < min_size or fig_height < min_size:
+            scale = min_size / min(fig_width, fig_height)
+            fig_width *= scale
+            fig_height *= scale
     else:
         # Default size if no nodes
         fig_width = fig_height = 8.0
