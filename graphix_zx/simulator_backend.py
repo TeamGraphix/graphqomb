@@ -4,7 +4,7 @@ This module provides:
 
 - `QubitIndexManager`: Manages the mapping of external qubit indices to internal indices
 - `BaseSimulatorBackend`: Abstract base class for simulator backends.
-
+- `BaseFullStateSimulator`: Abstract base class for full state simulators.
 """
 
 from __future__ import annotations
@@ -174,7 +174,6 @@ class BaseSimulatorBackend(ABC):
         `int`
             The number of qubits in the state.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def evolve(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> None:
@@ -187,7 +186,6 @@ class BaseSimulatorBackend(ABC):
         qubits : `int` | `collections.abc.Sequence`\[`int`\]
             The qubits to apply the operator to.
         """
-        raise NotImplementedError
 
     @abc.abstractmethod
     def measure(self, qubit: int, meas_basis: MeasBasis, result: int) -> None:
@@ -202,4 +200,76 @@ class BaseSimulatorBackend(ABC):
         result : `int`
             The measurement result.
         """
-        raise NotImplementedError
+
+
+class BaseFullStateSimulator(BaseSimulatorBackend):
+    """Base class for full state simulators."""
+
+    @abc.abstractmethod
+    def state(self) -> NDArray[np.complex128]:
+        r"""Get the current state vector.
+
+        Returns
+        -------
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The current state vector.
+        """
+
+    @abc.abstractmethod
+    def norm(self) -> float:
+        r"""Get the current state vector norm.
+
+        Returns
+        -------
+        `float`
+            The current state vector norm.
+        """
+
+    @abc.abstractmethod
+    def add_node(self, num_qubits: int) -> None:
+        r"""Add a node to the state.
+
+        Parameters
+        ----------
+        num_qubits : `int`
+            The number of qubits in the new node.
+        """
+
+    @abc.abstractmethod
+    def entangle(self, qubit1: int, qubit2: int) -> None:
+        r"""Entangle two qubits in the state.
+
+        Parameters
+        ----------
+        qubit1 : `int`
+            The first qubit to entangle.
+        qubit2 : `int`
+            The second qubit to entangle.
+        """
+
+    @abc.abstractmethod
+    def reorder(self, permutation: list[int]) -> None:
+        r"""Reorder the qubits in the state.
+
+        Parameters
+        ----------
+        permutation : `list`\[`int`\]
+            The permutation to apply.
+        """
+
+    @abc.abstractmethod
+    def expectation(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> float:
+        r"""Calculate the expectation value of an operator.
+
+        Parameters
+        ----------
+        operator : `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The operator to calculate the expectation value for.
+        qubits : `int` | `collections.abc.Sequence`\[`int`\]
+            The qubits to apply the operator to.
+
+        Returns
+        -------
+        `float`
+            The expectation value of the operator.
+        """
