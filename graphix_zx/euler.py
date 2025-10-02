@@ -54,7 +54,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
         alpha = 0.0
     elif np.isclose(u11, 0):
         gamma = 2 * cmath.phase(u01 / (-1j))
-        beta = np.pi
+        beta = math.pi
         alpha = 0.0
     else:
         gamma_p_alpha = cmath.phase(u11 / u00)
@@ -91,7 +91,7 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
     v0 = complex(vector[0])
     v1 = complex(vector[1])
     if np.isclose(v0, 0):
-        theta = np.pi
+        theta = math.pi
         phi = cmath.phase(v1)
     else:
         global_phase = cmath.phase(v0)
@@ -235,16 +235,16 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     if is_clifford_angle(phi):
         # YZ or XZ plane
         if is_clifford_angle(phi / 2):  # 0 or pi
-            if is_close_angle(phi, np.pi):
+            if is_close_angle(phi, math.pi):
                 theta = -theta
             return Plane.XZ, theta
-        if is_close_angle(phi, 3 * np.pi / 2):
+        if is_close_angle(phi, 3 * math.pi / 2):
             theta = -theta
         return Plane.YZ, theta
     if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
         # XY plane
-        if is_close_angle(theta, 3 * np.pi / 2):
-            phi += np.pi
+        if is_close_angle(theta, 3 * math.pi / 2):
+            phi += math.pi
         return Plane.XY, phi
     msg = "The vector does not lie on any of 3 planes"
     raise ValueError(msg)
