@@ -150,7 +150,7 @@ class LocalUnitary:
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             2x2 unitary matrix
         """
-        return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
+        return np.asarray(_rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha), dtype=np.complex128)
 
 
 class LocalClifford(LocalUnitary):
@@ -269,7 +269,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     matrix1 = lc1.matrix()
     matrix2 = lc2.matrix()
 
-    matrix = matrix1 @ matrix2
+    matrix = np.asarray(matrix1 @ matrix2, dtype=np.complex128)
     alpha, beta, gamma = euler_decomposition(matrix)
     return LocalClifford(alpha, beta, gamma)
 
@@ -293,8 +293,8 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     matrix = lc.matrix()
     vector = basis.vector()
 
-    vector = matrix @ vector
-    plane, angle = meas_basis_info(vector)
+    updated_vector = np.asarray(matrix @ vector, dtype=np.complex128)
+    plane, angle = meas_basis_info(updated_vector)
     return PlannerMeasBasis(plane, angle)
 
 
