@@ -30,6 +30,7 @@ This module provides:
 
 from __future__ import annotations
 
+import math
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -316,7 +317,7 @@ class X(SingleGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, 0), J(self.qubit, np.pi)]
+        return [J(self.qubit, 0), J(self.qubit, math.pi)]
 
     def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         r"""Get the `matrix` representation of the gate.
@@ -358,9 +359,9 @@ class Y(SingleGate):
             List of unit gates that make up the gate.
         """
         return [
-            J(self.qubit, np.pi / 2),
-            J(self.qubit, np.pi),
-            J(self.qubit, -np.pi / 2),
+            J(self.qubit, math.pi / 2),
+            J(self.qubit, math.pi),
+            J(self.qubit, -math.pi / 2),
             J(self.qubit, 0),
         ]
 
@@ -403,7 +404,7 @@ class Z(SingleGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, np.pi), J(self.qubit, 0)]
+        return [J(self.qubit, math.pi), J(self.qubit, 0)]
 
     def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         r"""Get the `matrix` representation of the gate.
@@ -486,7 +487,7 @@ class S(SingleGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, np.pi / 2), J(self.qubit, 0)]
+        return [J(self.qubit, math.pi / 2), J(self.qubit, 0)]
 
     def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         r"""Get the `matrix` representation of the gate.
@@ -527,7 +528,7 @@ class T(SingleGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, np.pi / 4), J(self.qubit, 0)]
+        return [J(self.qubit, math.pi / 4), J(self.qubit, 0)]
 
     def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         r"""Get the `matrix` representation of the gate.
@@ -537,7 +538,7 @@ class T(SingleGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             T gate matrix.
         """
-        return np.asarray([[1, 0], [0, np.exp(1j * np.pi / 4)]], dtype=np.complex128)
+        return np.asarray([[1, 0], [0, np.exp(1j * math.pi / 4)]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -568,7 +569,7 @@ class Tdg(SingleGate):
         `list`\[`UnitGate`\]
             List of unit gates that make up the gate.
         """
-        return [J(self.qubit, -np.pi / 4), J(self.qubit, 0)]
+        return [J(self.qubit, -math.pi / 4), J(self.qubit, 0)]
 
     def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
         r"""Get the `matrix` representation of the gate.
@@ -578,7 +579,7 @@ class Tdg(SingleGate):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             Tdg gate matrix.
         """
-        return np.asarray([[1, 0], [0, np.exp(-1j * np.pi / 4)]], dtype=np.complex128)
+        return np.asarray([[1, 0], [0, np.exp(-1j * math.pi / 4)]], dtype=np.complex128)
 
 
 @dataclass(frozen=True)
@@ -666,9 +667,9 @@ class Ry(SingleGate):
             List of unit gates that make up the gate.
         """
         return [
-            J(self.qubit, np.pi / 2),
+            J(self.qubit, math.pi / 2),
             J(self.qubit, -self.angle),
-            J(self.qubit, -np.pi / 2),
+            J(self.qubit, -math.pi / 2),
             J(self.qubit, 0),
         ]
 
@@ -774,9 +775,9 @@ class U3(SingleGate):
             List of unit gates that make up the gate.
         """
         return [
-            J(self.qubit, self.angle3 - np.pi / 2),
+            J(self.qubit, self.angle3 - math.pi / 2),
             J(self.qubit, self.angle1),
-            J(self.qubit, self.angle2 + np.pi / 2),
+            J(self.qubit, self.angle2 + math.pi / 2),
             J(self.qubit, 0),
         ]
 

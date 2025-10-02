@@ -201,8 +201,9 @@ class StateVector(BaseFullStateSimulator):
             number of qubits to add
         """
         flat_state: NDArray[np.complex128] = self.__state.ravel()
-        flat_state = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
-        self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
+        repeated_flat = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
+        repeated_state = np.asarray(repeated_flat, dtype=np.complex128)
+        self.__state = repeated_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
         self.__qindex_mng.add_qubits(num_qubits)
 

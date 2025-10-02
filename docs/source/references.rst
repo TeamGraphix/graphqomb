@@ -20,3 +20,4 @@ Module reference
     pauli_frame
     qompiler
     scheduler
+    visualizer

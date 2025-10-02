@@ -4,8 +4,6 @@ This module provides:
 
 - `euler_decomposition`: Decompose a 2x2 unitary matrix into Euler angles.
 - `bloch_sphere_coordinates`: Get the Bloch sphere coordinates corresponding to a vector.
-- `is_close_angle`: Check if an angle is close to a target angle.
-- `is_clifford_angle`: Check if an angle is a Clifford angle.
 - `LocalUnitary`: Class to represent a local unitary.
 - `LocalClifford`: Class to represent a local Clifford.
 - `meas_basis_info`: Return the measurement plane and angle corresponding to a vector.
@@ -22,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import typing_extensions
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
+from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -56,7 +54,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
         alpha = 0.0
     elif np.isclose(u11, 0):
         gamma = 2 * cmath.phase(u01 / (-1j))
-        beta = np.pi
+        beta = math.pi
         alpha = 0.0
     else:
         gamma_p_alpha = cmath.phase(u11 / u00)
@@ -93,7 +91,7 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
     v0 = complex(vector[0])
     v1 = complex(vector[1])
     if np.isclose(v0, 0):
-        theta = np.pi
+        theta = math.pi
         phi = cmath.phase(v1)
     else:
         global_phase = cmath.phase(v0)
@@ -104,51 +102,6 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
         sin_term = (v1 / cmath.exp(1j * phi)).real
         theta = 2 * cmath.phase(cos_term + 1j * sin_term)
     return theta, phi
-
-
-def is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
-    """Check if an angle is close to a target angle.
-
-    Parameters
-    ----------
-    angle : `float`
-        angle to check
-    target : `float`
-        target angle
-    atol : `float`, optional
-        absolute tolerance, by default 1e-9
-
-    Returns
-    -------
-    `bool`
-        `True` if the angle is close to the target angle
-    """
-    diff_angle = (angle - target) % (2 * np.pi)
-
-    if diff_angle > np.pi:
-        diff_angle = 2 * np.pi - diff_angle
-    return bool(np.isclose(diff_angle, 0, atol=atol))
-
-
-def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
-    """Check if an angle is a Clifford angle.
-
-    Parameters
-    ----------
-    angle : `float`
-        angle to check
-    atol : `float`, optional
-        absolute tolerance, by default 1e-9
-
-    Returns
-    -------
-    `bool`
-        `True` if the angle is a Clifford angle
-    """
-    angle_preprocessed = angle % (2 * np.pi)
-    return any(
-        is_close_angle(angle_preprocessed, target, atol=atol) for target in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]
-    )
 
 
 class LocalUnitary:
@@ -197,7 +150,7 @@ class LocalUnitary:
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             2x2 unitary matrix
         """
-        return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
+        return np.asarray(_rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha), dtype=np.complex128)
 
 
 class LocalClifford(LocalUnitary):
@@ -282,16 +235,16 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     if is_clifford_angle(phi):
         # YZ or XZ plane
         if is_clifford_angle(phi / 2):  # 0 or pi
-            if is_close_angle(phi, np.pi):
+            if is_close_angle(phi, math.pi):
                 theta = -theta
             return Plane.XZ, theta
-        if is_close_angle(phi, 3 * np.pi / 2):
+        if is_close_angle(phi, 3 * math.pi / 2):
             theta = -theta
         return Plane.YZ, theta
     if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
         # XY plane
-        if is_close_angle(theta, 3 * np.pi / 2):
-            phi += np.pi
+        if is_close_angle(theta, 3 * math.pi / 2):
+            phi += math.pi
         return Plane.XY, phi
     msg = "The vector does not lie on any of 3 planes"
     raise ValueError(msg)
@@ -316,7 +269,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     matrix1 = lc1.matrix()
     matrix2 = lc2.matrix()
 
-    matrix = matrix1 @ matrix2
+    matrix = np.asarray(matrix1 @ matrix2, dtype=np.complex128)
     alpha, beta, gamma = euler_decomposition(matrix)
     return LocalClifford(alpha, beta, gamma)
 
@@ -340,8 +293,8 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     matrix = lc.matrix()
     vector = basis.vector()
 
-    vector = matrix @ vector
-    plane, angle = meas_basis_info(vector)
+    updated_vector = np.asarray(matrix @ vector, dtype=np.complex128)
+    plane, angle = meas_basis_info(updated_vector)
     return PlannerMeasBasis(plane, angle)
 
 
