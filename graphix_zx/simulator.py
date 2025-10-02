@@ -216,7 +216,8 @@ class PatternSimulator:
         Parameters
         ----------
         rng : `numpy.random.Generator` | None, optional
-            Random number generator to use. If None, generates a new rng for this simulation.
+            Random number generator to use for measurement outcomes.
+            If None, a new generator will be created using the default random source. Default is None.
 
         """
         rng = ensure_rng(rng)
