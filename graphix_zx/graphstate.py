@@ -27,7 +27,6 @@ from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
 from graphix_zx.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from graphix_zx.euler import LocalClifford
@@ -636,9 +635,12 @@ class ExpansionMaps(NamedTuple):
 
 
 def compose(  # noqa: C901
-    graph1: BaseGraphState, graph2: BaseGraphState, target_q_indices: AbstractSet[int] | None = None
+    graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
+
+    Qubits with matching indices are automatically connected. Graph2 is connected after graph1.
+    All other qubit indices are preserved from their original graphs.
 
     Parameters
     ----------
@@ -646,8 +648,6 @@ def compose(  # noqa: C901
         first graph state
     graph2 : `BaseGraphState`
         second graph state
-    target_q_indices : `collections.abc.Set`\[`int`\] | `None`
-        set of logical qubit indices to be connected. If None, all qubits are connected
 
     Returns
     -------
@@ -658,67 +658,67 @@ def compose(  # noqa: C901
     ------
     ValueError
         1. If the graph states are not in canonical form.
-        2. If the target qubit indices are not a subset of output qubit indices in graph1.
-        3. If the target qubit indices are not a subset of input qubit indices in graph2.
+        2. If there are qindex conflicts (same qindex used in both graphs but not for connection).
     """
     graph1.check_canonical_form()
     graph2.check_canonical_form()
-    target_q_indices = set(graph1.output_node_indices.values()) if target_q_indices is None else set(target_q_indices)
 
-    if not target_q_indices.issubset(set(graph1.output_node_indices.values())):
-        msg = "Target qubit indices must be a subset of output qubit indices in graph1."
+    # Automatically detect connection targets: qindices that appear in both graphs
+    output_q_indices1 = set(graph1.output_node_indices.values())
+    input_q_indices2 = set(graph2.input_node_indices.values())
+    target_q_indices = output_q_indices1 & input_q_indices2
+
+    # Check for qindex conflicts: qindices used in both graphs but not for connection
+    all_q_indices1 = set(graph1.input_node_indices.values()) | set(graph1.output_node_indices.values())
+    all_q_indices2 = set(graph2.input_node_indices.values()) | set(graph2.output_node_indices.values())
+    conflicting_q_indices = (all_q_indices1 & all_q_indices2) - target_q_indices
+
+    if conflicting_q_indices:
+        msg = (
+            f"Qindex conflicts detected: {conflicting_q_indices}. "
+            "These indices are used in both graphs but cannot be connected."
+        )
         raise ValueError(msg)
-    if not target_q_indices.issubset(set(graph2.input_node_indices.values())):
-        msg = "Target qubit indices must be a subset of input qubit indices in graph2."
-        raise ValueError(msg)
-
-    # remap qindex to avoid conflict
-    input_node_indices1, input_node_indices2 = _remap_qindex(
-        graph1.input_node_indices, graph2.input_node_indices, target_q_indices
-    )
-
-    output_node_indices1, output_node_indices2 = _remap_qindex(
-        graph1.output_node_indices, graph2.output_node_indices, target_q_indices
-    )
 
     composed_graph = GraphState()
 
+    # Copy nodes from graph1, excluding output nodes that will be connected
     node_map1 = _copy_nodes(
         src=graph1,
         dst=composed_graph,
         exclude_nodes={node for node, q_index in graph1.output_node_indices.items() if q_index in target_q_indices},
     )
+
+    # Copy all nodes from graph2
     node_map2 = _copy_nodes(
         src=graph2,
         dst=composed_graph,
         exclude_nodes=set(),
     )
 
+    # Connect output nodes from graph1 to input nodes from graph2 for target qindices
     q_index2output_node_index1 = {
-        q_index: output_node_index1 for output_node_index1, q_index in output_node_indices1.items()
+        q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
     }
-    for input_node_index2, q_index in input_node_indices2.items():
+    for input_node_index2, q_index in graph2.input_node_indices.items():
         if q_index in target_q_indices:
             node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
-    for input_node, q_index in sorted(input_node_indices1.items(), key=operator.itemgetter(1)):
+    # Register input nodes with preserved qindices
+    for input_node, q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
         composed_graph.register_input(node_map1[input_node], q_index)
-    # calculate the max qubit index in graph1
-    max_qindex = max(input_node_indices1.values(), default=-1)
-    updated_qindex: dict[int, int] = {}
-    for input_node, q_index in sorted(input_node_indices2.items(), key=operator.itemgetter(1)):
-        if q_index not in target_q_indices:
-            new_q_index = q_index + max_qindex + 1
-            composed_graph.register_input(node_map2[input_node], new_q_index)
-            updated_qindex[q_index] = new_q_index
-            max_qindex = new_q_index
 
-    for output_node, q_index in output_node_indices1.items():
+    for input_node, q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
+        if q_index not in target_q_indices:
+            composed_graph.register_input(node_map2[input_node], q_index)
+
+    # Register output nodes with preserved qindices
+    for output_node, q_index in graph1.output_node_indices.items():
         if q_index not in target_q_indices:
             composed_graph.register_output(node_map1[output_node], q_index)
-    for output_node, q_index in output_node_indices2.items():
-        new_q_index = updated_qindex.get(q_index, q_index)
-        composed_graph.register_output(node_map2[output_node], new_q_index)
+
+    for output_node, q_index in graph2.output_node_indices.items():
+        composed_graph.register_output(node_map2[output_node], q_index)
 
     for u, v in graph1.physical_edges:
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
@@ -726,45 +726,6 @@ def compose(  # noqa: C901
         composed_graph.add_physical_edge(node_map2[u], node_map2[v])
 
     return composed_graph, node_map1, node_map2
-
-
-def _remap_qindex(
-    map1: Mapping[int, int], map2: Mapping[int, int], target_q_indices: AbstractSet[int]
-) -> tuple[dict[int, int], dict[int, int]]:
-    r"""Remap qindex to avoid conflict.
-
-    Parameters
-    ----------
-    map1 : `collections.abc.Mapping`\[`int`, `int`\]
-        qubit indices map of graph1
-    map2 : `collections.abc.Mapping`\[`int`, `int`\]
-        qubit indices map of graph2
-    target_q_indices : `collections.abc.Set`\[`int`\]
-        set of logical qubit indices to be connected
-
-    Returns
-    -------
-    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
-        remapped qubit indices map of graph1 and graph2
-    """
-    max_q_index = max(itertools.chain(map1.values(), map2.values()), default=-1)
-    offset = max_q_index + 1
-
-    new_map1: dict[int, int] = {}
-    for node, q_index in map1.items():
-        if q_index in target_q_indices:
-            new_map1[node] = q_index
-        else:
-            new_map1[node] = q_index + offset
-
-    new_map2: dict[int, int] = {}
-    for node, q_index in map2.items():
-        if q_index in target_q_indices:
-            new_map2[node] = q_index
-        else:
-            new_map2[node] = q_index + offset
-
-    return new_map1, new_map2
 
 
 def _copy_nodes(
