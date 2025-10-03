@@ -550,7 +550,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices: dict[int, int] = {}
-        for input_node, q_index in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
+        for input_node, q_index in self.input_node_indices.items():
             lc = self._pop_local_clifford(input_node)
             if lc is None:
                 new_input_indices[input_node] = q_index
@@ -589,7 +589,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_output_index_map: dict[int, int] = {}
-        for output_node, q_index in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
+        for output_node, q_index in self.output_node_indices.items():
             lc = self._pop_local_clifford(output_node)
             if lc is None:
                 new_output_index_map[output_node] = q_index
@@ -705,10 +705,10 @@ def compose(  # noqa: C901
             node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
     # Register input nodes with preserved qindices
-    for input_node, q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
+    for input_node, q_index in graph1.input_node_indices.items():
         composed_graph.register_input(node_map1[input_node], q_index)
 
-    for input_node, q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
+    for input_node, q_index in graph2.input_node_indices.items():
         if q_index not in target_q_indices:
             composed_graph.register_input(node_map2[input_node], q_index)
 
