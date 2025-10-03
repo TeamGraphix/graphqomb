@@ -31,8 +31,8 @@ demo_graph = GraphState()
 # Add input nodes
 input_node1 = demo_graph.add_physical_node()
 input_node2 = demo_graph.add_physical_node()
-q_index1 = demo_graph.register_input(input_node1)
-q_index2 = demo_graph.register_input(input_node2)
+demo_graph.register_input(input_node1, 0)
+demo_graph.register_input(input_node2, 1)
 
 # Set measurement bases for input nodes (XY plane with different angles)
 demo_graph.assign_meas_basis(input_node1, AxisMeasBasis(Axis.X, Sign.PLUS))
@@ -90,7 +90,7 @@ pauli_demo_graph = GraphState()
 
 # Add nodes for Pauli measurements
 pauli_input = pauli_demo_graph.add_physical_node()
-pauli_demo_graph.register_input(pauli_input)
+pauli_demo_graph.register_input(pauli_input, 0)
 
 # Create internal nodes with Pauli measurements
 x_measurement_node = pauli_demo_graph.add_physical_node()  # X measurement: XY plane, θ=0
