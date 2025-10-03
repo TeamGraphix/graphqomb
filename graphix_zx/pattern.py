@@ -121,7 +121,7 @@ def _ensure_no_unmeasured_output_dependencies(pattern: Pattern) -> None:
     for cmd in pattern:
         if isinstance(cmd, M):
             measured.add(cmd.node)
-            children_nodes = pattern.pauli_frame.children(cmd.node)
+            children_nodes = pattern.pauli_frame.parents(cmd.node)
             acausal_children = children_nodes - measured
             if acausal_children:
                 msg = f"These nodes depend on a unmeasured output: {sorted(acausal_children)}"
@@ -203,8 +203,8 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
         If a measurement targets an output qubit, or if some non-output qubits are never measured.
     """
     output_nodes = set(pattern.output_node_indices)
-    non_output_nodes = {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(
-        pattern.input_node_indices
+    non_output_nodes = (
+        {cmd.node for cmd in pattern if isinstance(cmd, N)} | set(pattern.input_node_indices)
     ) - output_nodes
     measured: set[int] = set()
     for cmd in pattern:

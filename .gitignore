@@ -164,3 +164,4 @@ cython_debug/
 # Custom stuff
 docs/source/gallery
 docs/source/sg_execution_times.rst
+*.png

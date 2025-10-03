@@ -6,6 +6,7 @@ Module reference
 
     common
     circuit
+    simulator
     simulator_backend
     statevec
     euler
@@ -19,3 +20,4 @@ Module reference
     pauli_frame
     qompiler
     scheduler
+    visualizer

@@ -12,6 +12,7 @@ from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.gates import (
     CNOT,
     CZ,
+    Gate,
     H,
     J,
     PhaseGadget,
@@ -37,7 +38,7 @@ def test_mbqc_circuit_j_gate() -> None:
     """Test adding J gate."""
     circuit = MBQCCircuit(num_qubits=2)
     circuit.j(qubit=0, angle=0.5)
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
     assert len(instructions) == 1
     assert isinstance(instructions[0], J)
     assert instructions[0].qubit == 0
@@ -48,7 +49,7 @@ def test_mbqc_circuit_cz_gate() -> None:
     """Test adding CZ gate."""
     circuit = MBQCCircuit(num_qubits=3)
     circuit.cz(qubit1=0, qubit2=2)
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
     assert len(instructions) == 1
     assert isinstance(instructions[0], CZ)
     assert instructions[0].qubits == (0, 2)
@@ -58,7 +59,7 @@ def test_mbqc_circuit_phase_gadget() -> None:
     """Test adding phase gadget."""
     circuit = MBQCCircuit(num_qubits=4)
     circuit.phase_gadget(qubits=[0, 1, 3], angle=0.25)
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
     assert len(instructions) == 1
     assert isinstance(instructions[0], PhaseGadget)
     assert instructions[0].qubits == [0, 1, 3]
@@ -74,7 +75,7 @@ def test_mbqc_circuit_multiple_gates() -> None:
     circuit.phase_gadget(qubits=[0, 1, 2], angle=0.25)
     circuit.cz(qubit1=1, qubit2=2)
 
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
     assert len(instructions) == 5
     assert all(isinstance(inst, (J, CZ, PhaseGadget)) for inst in instructions)
 
@@ -85,8 +86,8 @@ def test_mbqc_circuit_instructions_returns_copy() -> None:
     circuit.j(qubit=0, angle=0.5)
     circuit.cz(qubit1=0, qubit2=1)
 
-    instructions1 = circuit.instructions()
-    instructions2 = circuit.instructions()
+    instructions1 = circuit.unit_instructions()
+    instructions2 = circuit.unit_instructions()
 
     # Should be different list objects
     assert instructions1 is not instructions2
@@ -107,8 +108,8 @@ def test_circuit_init() -> None:
     """Test Circuit initialization."""
     circuit = Circuit(num_qubits=3)
     assert circuit.num_qubits == 3
+    assert circuit.unit_instructions() == []
     assert circuit.instructions() == []
-    assert circuit.macro_gate_instructions == []
 
 
 def test_circuit_single_qubit_gates() -> None:
@@ -121,7 +122,7 @@ def test_circuit_single_qubit_gates() -> None:
     circuit.apply_macro_gate(S(qubit=0))
     circuit.apply_macro_gate(T(qubit=1))
 
-    macro_gates = circuit.macro_gate_instructions
+    macro_gates = circuit.instructions()
     assert len(macro_gates) == 6
 
     # Test that each macro gate type is preserved
@@ -139,13 +140,13 @@ def test_circuit_two_qubit_gates() -> None:
     circuit.apply_macro_gate(CNOT(qubits=(0, 1)))
     circuit.apply_macro_gate(CNOT(qubits=(1, 2)))
 
-    macro_gates = circuit.macro_gate_instructions
+    macro_gates = circuit.instructions()
     assert len(macro_gates) == 2
     assert all(isinstance(gate, CNOT) for gate in macro_gates)
 
 
 def test_circuit_instructions_expansion() -> None:
-    """Test that instructions() correctly expands macro gates."""
+    """Test that unit_instructions() correctly expands macro gates."""
     circuit = Circuit(num_qubits=3)
 
     # Add various macro gates
@@ -156,7 +157,7 @@ def test_circuit_instructions_expansion() -> None:
     circuit.apply_macro_gate(Z(qubit=0))  # 2 unit gates
 
     # Get expanded instructions
-    instructions = circuit.instructions()
+    instructions = circuit.unit_instructions()
 
     # Calculate expected total
     expected_count = 1 + 3 + 2 + 4 + 2
@@ -164,6 +165,11 @@ def test_circuit_instructions_expansion() -> None:
 
     # Verify all are UnitGate instances
     assert all(isinstance(inst, (J, CZ, PhaseGadget)) for inst in instructions)
+
+    # Test that instructions() returns macro gates
+    macro_instructions = circuit.instructions()
+    assert len(macro_instructions) == 5  # 5 macro gates
+    assert all(isinstance(inst, Gate) for inst in macro_instructions)
 
 
 def test_circuit_instructions_matches_manual_expansion() -> None:
@@ -176,11 +182,11 @@ def test_circuit_instructions_matches_manual_expansion() -> None:
     circuit.apply_macro_gate(CNOT(qubits=(0, 1)))
     circuit.apply_macro_gate(S(qubit=1))
 
-    # Get instructions from method
-    instructions = circuit.instructions()
+    # Get unit instructions from method
+    instructions = circuit.unit_instructions()
 
     # Manual expansion
-    macro_gates = circuit.macro_gate_instructions
+    macro_gates = circuit.instructions()
     expected_instructions = list(itertools.chain.from_iterable(gate.unit_gates() for gate in macro_gates))
 
     assert len(instructions) == len(expected_instructions)
@@ -193,22 +199,27 @@ def test_circuit_instructions_matches_manual_expansion() -> None:
         elif isinstance(inst, CZ) and isinstance(expected, CZ):
             assert inst.qubits == expected.qubits
 
+    # Test that instructions() returns macro gates
+    macro_instructions = circuit.instructions()
+    assert len(macro_instructions) == 4  # 4 macro gates
+    assert macro_instructions == circuit.instructions()
+
 
 def test_circuit_empty_circuit_instructions() -> None:
     """Test empty circuit returns empty instructions."""
     circuit = Circuit(num_qubits=3)
     assert circuit.instructions() == []
-    assert circuit.macro_gate_instructions == []
+    assert circuit.instructions() == []
 
 
-def test_circuit_macro_gate_instructions_returns_copy() -> None:
-    """Test that macro_gate_instructions returns a copy."""
+def test_circuit_instructions_returns_copy() -> None:
+    """Test that instructions() returns a copy."""
     circuit = Circuit(num_qubits=2)
     circuit.apply_macro_gate(H(qubit=0))
     circuit.apply_macro_gate(X(qubit=1))
 
-    macro1 = circuit.macro_gate_instructions
-    macro2 = circuit.macro_gate_instructions
+    macro1 = circuit.instructions()
+    macro2 = circuit.instructions()
 
     # Should be different list objects
     assert macro1 is not macro2
@@ -290,7 +301,10 @@ def test_circuit2graph_invalid_instruction() -> None:
         def num_qubits(self) -> int:
             return 1
 
-        def instructions(self) -> list[UnitGate]:  # noqa: PLR6301
+        def instructions(self) -> list[Gate]:  # noqa: PLR6301
+            return [X(qubit=0)]
+
+        def unit_instructions(self) -> list[UnitGate]:  # noqa: PLR6301
             # Return a non-UnitGate object to trigger error
             return [X(qubit=0)]  # type: ignore[list-item]
 

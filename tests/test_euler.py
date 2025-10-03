@@ -5,14 +5,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis, meas_basis
+from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle, meas_basis
 from graphix_zx.euler import (
     LocalClifford,
     LocalUnitary,
     bloch_sphere_coordinates,
     euler_decomposition,
-    is_clifford_angle,
-    is_close_angle,
     meas_basis_info,
     update_lc_basis,
     update_lc_lc,
@@ -38,42 +36,6 @@ def random_angles(rng: np.random.Generator) -> tuple[float, float, float]:
 def random_clifford_angles(rng: np.random.Generator) -> tuple[float, float, float]:
     a, b, c = rng.choice([0, np.pi / 2, np.pi, 3 * np.pi / 2], 3)
     return float(a), float(b), float(c)
-
-
-def test_is_clifford_angle() -> None:
-    assert is_clifford_angle(0)
-    assert is_clifford_angle(np.pi / 2)
-    assert is_clifford_angle(np.pi)
-    assert is_clifford_angle(3 * np.pi / 2)
-    assert not is_clifford_angle(np.pi / 3)
-    assert not is_clifford_angle(np.pi / 4)
-    assert not is_clifford_angle(np.pi / 6)
-
-
-def test_is_close_angle() -> None:
-    assert is_close_angle(0, 0)
-    assert is_close_angle(np.pi / 2, np.pi / 2)
-    assert is_close_angle(np.pi, np.pi)
-    assert is_close_angle(3 * np.pi / 2, 3 * np.pi / 2)
-    assert not is_close_angle(0, np.pi / 2)
-    assert not is_close_angle(np.pi / 2, np.pi)
-    assert not is_close_angle(np.pi, 3 * np.pi / 2)
-    assert not is_close_angle(3 * np.pi / 2, 0)
-
-    # add 2 * np.pi to the second angle
-    assert is_close_angle(0, 2 * np.pi)
-    assert is_close_angle(np.pi / 2, 2 * np.pi + np.pi / 2)
-    assert is_close_angle(np.pi, 2 * np.pi + np.pi)
-    assert is_close_angle(3 * np.pi / 2, 2 * np.pi + 3 * np.pi / 2)
-
-    # minus 2 * np.pi to the second angle
-    assert is_close_angle(0, -2 * np.pi)
-    assert is_close_angle(np.pi / 2, -2 * np.pi + np.pi / 2)
-    assert is_close_angle(np.pi, -2 * np.pi + np.pi)
-    assert is_close_angle(3 * np.pi / 2, -2 * np.pi + 3 * np.pi / 2)
-
-    # boundary cases
-    assert is_close_angle(-1e-10, 1e-10)
 
 
 def test_identity() -> None:
