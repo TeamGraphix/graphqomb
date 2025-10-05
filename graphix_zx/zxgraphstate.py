@@ -363,6 +363,48 @@ class ZXGraphState(GraphState):
                     action(clifford_node)
                     self._remove_clifford(clifford_node, atol)
 
+    def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
+        r"""Call inside convert_to_phase_gadget.
+
+        Find a pair of adjacent nodes that are both measured in the YZ-plane.
+
+        Returns
+        -------
+        `tuple`\[`int`, `int`\] | `None`
+            A pair of adjacent nodes that are both measured in the YZ-plane, or None if no such pair exists.
+        """
+        yz_nodes = {node for node, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        for u, v in self.physical_edges:
+            if u in yz_nodes and v in yz_nodes:
+                return (min(u, v), max(u, v))
+        return None
+
+    def _extract_xz_node(self) -> int | None:
+        """Call inside convert_to_phase_gadget.
+
+        Find a node that is measured in the XZ-plane.
+
+        Returns
+        -------
+        `int` | `None`
+            A node that is measured in the XZ-plane, or None if no such node exists.
+        """
+        for node, basis in self.meas_bases.items():
+            if basis.plane == Plane.XZ:
+                return node
+        return None
+
+    def convert_to_phase_gadget(self) -> None:
+        """Convert a ZX-diagram with gflow in MBQC+LC form into its phase-gadget form while preserving gflow."""
+        while True:
+            if pair := self._extract_yz_adjacent_pair():
+                self.pivot(*pair)
+                continue
+            if u := self._extract_xz_node():
+                self.local_complement(u)
+                continue
+            break
+
 
 def to_zx_graphstate(graph: BaseGraphState) -> ZXGraphState:
     r"""Convert input graph to ZXGraphState.

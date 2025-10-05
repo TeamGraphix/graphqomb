@@ -615,5 +615,44 @@ def test_random_graph(zx_graph: ZXGraphState) -> None:
     assert clifford_nodes == []
 
 
+@pytest.mark.parametrize(
+    ("measurements", "exp_measurements", "exp_edges"),
+    [
+        # no pair of adjacent nodes with YZ measurements
+        # and no node with XZ measurement
+        (
+            [
+                (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.55 * np.pi)),
+                (5, PlannerMeasBasis(Plane.XY, 0.66 * np.pi)),
+            ],
+            [
+                (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+                (4, PlannerMeasBasis(Plane.XY, 0.55 * np.pi)),
+                (5, PlannerMeasBasis(Plane.XY, 0.66 * np.pi)),
+            ],
+            {(0, 1), (1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (2, 5)},
+        ),
+    ],
+)
+def test_convert_to_phase_gadget(
+    zx_graph: ZXGraphState,
+    measurements: Measurements,
+    exp_measurements: Measurements,
+    exp_edges: set[tuple[int, int]],
+) -> None:
+    initial_edges = {(0, 1), (1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (2, 5)}
+    _initialize_graph(zx_graph, nodes=range(6), edges=initial_edges)
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.convert_to_phase_gadget()
+    _test(zx_graph, exp_nodes={0, 1, 2, 3, 4, 5}, exp_edges=exp_edges, exp_measurements=exp_measurements)
+
+
 if __name__ == "__main__":
     pytest.main()
