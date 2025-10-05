@@ -405,5 +405,115 @@ def test_pivot_with_minimal_graph(
     assert is_close_angle(zx_graph.meas_bases[3].angle, ref_angle3)
 
 
+def test_remove_clifford_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
+    """Test remove_clifford raises an error if the node does not exist."""
+    with pytest.raises(ValueError, match="Node does not exist node=0"):
+        zx_graph.remove_clifford(0)
+
+
+def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node()
+    zx_graph.register_input(0)
+    with pytest.raises(ValueError, match="Clifford node removal not allowed for input node"):
+        zx_graph.remove_clifford(0)
+
+
+def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> None:
+    """Test remove_clifford fails if the measurement plane is invalid."""
+    zx_graph.add_physical_node()
+    zx_graph.assign_meas_basis(
+        0,
+        PlannerMeasBasis("test_plane", 0.5 * np.pi),  # type: ignore[reportArgumentType, arg-type, unused-ignore]
+    )
+    with pytest.raises(ValueError, match="This node is not a Clifford node"):
+        zx_graph.remove_clifford(0)
+
+
+def test_remove_clifford_fails_for_non_clifford_node(zx_graph: ZXGraphState) -> None:
+    zx_graph.add_physical_node()
+    zx_graph.assign_meas_basis(0, PlannerMeasBasis(Plane.XY, 0.1 * np.pi))
+    with pytest.raises(ValueError, match="This node is not a Clifford node"):
+        zx_graph.remove_clifford(0)
+
+
+def graph_1(zx_graph: ZXGraphState) -> None:
+    # _needs_nop
+    # 3---0---1      3       1
+    #     |      ->
+    #     2              2
+    _initialize_graph(zx_graph, nodes=range(4), edges={(0, 1), (0, 2), (0, 3)})
+
+
+def graph_2(zx_graph: ZXGraphState) -> None:
+    # _needs_lc
+    # 0---1---2  ->  0---2
+    _initialize_graph(zx_graph, nodes=range(3), edges={(0, 1), (1, 2)})
+
+
+def graph_3(zx_graph: ZXGraphState) -> None:
+    # _needs_pivot_1 on (1, 2)
+    #         3(I)                3(I)
+    #         / \                / | \
+    # 0(I) - 1 - 2 - 5  ->  0(I) - 2  5 - 0(I)
+    #         \ /                \ | /
+    #         4(I)                4(I)
+    _initialize_graph(
+        zx_graph, nodes=range(6), edges={(0, 1), (1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (2, 5)}, inputs=(0, 3, 4)
+    )
+
+
+def _test_remove_clifford(
+    zx_graph: ZXGraphState,
+    node: int,
+    measurements: Measurements,
+    exp_graph: tuple[set[int], set[tuple[int, int]]],
+    exp_measurements: Measurements,
+) -> None:
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_clifford(node)
+    exp_nodes = exp_graph[0]
+    exp_edges = exp_graph[1]
+    _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
+
+
+@pytest.mark.parametrize(
+    "planes",
+    list(itertools.product(list(Plane), [Plane.XZ, Plane.YZ], list(Plane))),
+)
+def test_remove_clifford(
+    zx_graph: ZXGraphState,
+    planes: tuple[Plane, Plane, Plane],
+    rng: np.random.Generator,
+) -> None:
+    graph_2(zx_graph)
+    angles = [rng.random() * 2 * np.pi for _ in range(3)]
+    epsilon = 1e-10
+    angles[1] = rng.choice([0.0, np.pi, 2 * np.pi - epsilon])
+    measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(3)]
+    ref_plane0, ref_angle_func0 = MEAS_ACTION_RC[planes[0]]
+    ref_plane2, ref_angle_func2 = MEAS_ACTION_RC[planes[2]]
+    ref_angle0 = ref_angle_func0(angles[1], angles[0])
+    ref_angle2 = ref_angle_func2(angles[1], angles[2])
+    exp_measurements = [
+        (0, PlannerMeasBasis(ref_plane0, ref_angle0)),
+        (2, PlannerMeasBasis(ref_plane2, ref_angle2)),
+    ]
+    _test_remove_clifford(
+        zx_graph, node=1, measurements=measurements, exp_graph=({0, 2}, set()), exp_measurements=exp_measurements
+    )
+
+
+def test_unremovable_clifford_node(zx_graph: ZXGraphState) -> None:
+    _initialize_graph(zx_graph, nodes=range(3), edges={(0, 1), (1, 2)}, inputs=(0, 2))
+    measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (1, PlannerMeasBasis(Plane.XY, np.pi)),
+        (2, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    with pytest.raises(ValueError, match=r"This Clifford node is unremovable."):
+        zx_graph.remove_clifford(1)
+
+
 if __name__ == "__main__":
     pytest.main()
