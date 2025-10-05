@@ -453,6 +453,32 @@ class ZXGraphState(GraphState):
             for v in nodes[1:]:
                 self.remove_physical_node(v)
 
+    def full_reduce(self, atol: float = 1e-9) -> None:
+        """Reduce all Clifford nodes and some non-Clifford nodes.
+
+        Repeat the following steps until there are no non-Clifford nodes:
+            1. remove_cliffords
+            2. convert_to_phase_gadget
+            3. merge_yz_to_xy
+            4. merge_yz_nodes
+            5. if there are some removable Clifford nodes, back to step 1.
+
+        Parameters
+        ----------
+        atol : `float`, optional
+            absolute tolerance, by default 1e-9
+        """
+        while True:
+            self.remove_cliffords(atol)
+            self.convert_to_phase_gadget()
+            self.merge_yz_to_xy()
+            self.merge_yz_nodes()
+            if not any(
+                self.is_removable_clifford(node, atol)
+                for node in self.physical_nodes - set(self.input_node_indices) - set(self.output_node_indices)
+            ):
+                break
+
 
 def to_zx_graphstate(graph: BaseGraphState) -> ZXGraphState:
     r"""Convert input graph to ZXGraphState.

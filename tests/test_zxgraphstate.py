@@ -799,5 +799,80 @@ def test_merge_yz_nodes(
     _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
 
 
+@pytest.mark.parametrize(
+    ("initial_zxgraph", "measurements", "exp_zxgraph"),
+    [
+        # test for a phase gadget: apply merge_yz_to_xy then remove_cliffords
+        (
+            (range(4), {(0, 1), (1, 2), (1, 3)}),
+            [
+                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.3 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+            ],
+            (
+                [
+                    (2, PlannerMeasBasis(Plane.XY, 1.8 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 1.9 * np.pi)),
+                ],
+                {(2, 3)},
+                {2, 3},
+            ),
+        ),
+        # apply convert_to_phase_gadget, merge_yz_to_xy, then remove_cliffords
+        (
+            (range(4), {(0, 1), (1, 2), (1, 3)}),
+            [
+                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XZ, 0.8 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+            ],
+            (
+                [
+                    (2, PlannerMeasBasis(Plane.XY, 0.2 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                ],
+                {(2, 3)},
+                {2, 3},
+            ),
+        ),
+        # apply remove_cliffords, convert_to_phase_gadget, merge_yz_to_xy, then remove_cliffords
+        (
+            (range(6), {(0, 1), (1, 2), (1, 3), (2, 5), (3, 4)}),
+            [
+                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                (2, PlannerMeasBasis(Plane.YZ, 1.2 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 1.4 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 1.0 * np.pi)),
+                (5, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+            ],
+            (
+                [
+                    (2, PlannerMeasBasis(Plane.XY, 1.8 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
+                ],
+                {(2, 3)},
+                {2, 3},
+            ),
+        ),
+    ],
+)
+def test_full_reduce(
+    zx_graph: ZXGraphState,
+    initial_zxgraph: tuple[range, set[tuple[int, int]]],
+    measurements: Measurements,
+    exp_zxgraph: tuple[Measurements, set[tuple[int, int]], set[int]],
+) -> None:
+    nodes, edges = initial_zxgraph
+    _initialize_graph(zx_graph, nodes, edges)
+    exp_measurements, exp_edges, exp_nodes = exp_zxgraph
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.full_reduce()
+    _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
+
+
 if __name__ == "__main__":
     pytest.main()
