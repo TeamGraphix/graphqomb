@@ -10,6 +10,7 @@ This module provides:
 from __future__ import annotations
 
 import operator
+import sys
 from collections import defaultdict
 from itertools import combinations
 from typing import TYPE_CHECKING
@@ -20,10 +21,14 @@ from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_clo
 from graphix_zx.euler import LocalClifford
 from graphix_zx.graphstate import BaseGraphState, GraphState, bipartite_edges
 
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from collections.abc import Set as AbstractSet
-    from typing import TypeAlias
 
     CliffordRule: TypeAlias = tuple[Callable[[int, float], bool], Callable[[int], None]]
 
