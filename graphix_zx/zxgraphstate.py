@@ -20,6 +20,7 @@ from graphix_zx.graphstate import BaseGraphState, GraphState, bipartite_edges
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+    from collections.abc import Set as AbstractSet
     from typing import TypeAlias
 
     CliffordRule: TypeAlias = tuple[Callable[[int, float], bool], Callable[[int], None]]
@@ -71,14 +72,16 @@ class ZXGraphState(GraphState):
             ),
         )
 
-    def _update_connections(self, rmv_edges: Iterable[tuple[int, int]], new_edges: Iterable[tuple[int, int]]) -> None:
+    def _update_connections(
+        self, rmv_edges: AbstractSet[tuple[int, int]], new_edges: AbstractSet[tuple[int, int]]
+    ) -> None:
         r"""Update the physical edges of the graph state.
 
         Parameters
         ----------
-        rmv_edges : `collections.abc.Iterable`\[`tuple`\[`int`, `int`\]\]
+        rmv_edges : `collections.abc.Set`\[`tuple`\[`int`, `int`\]\]
             edges to remove
-        new_edges : `collections.abc.Iterable`\[`tuple`\[`int`, `int`\]\]
+        new_edges : `collections.abc.Set`\[`tuple`\[`int`, `int`\]\]
             edges to add
         """
         for edge in rmv_edges:
@@ -109,7 +112,7 @@ class ZXGraphState(GraphState):
         self._check_meas_basis()
 
         nbrs: set[int] = self.neighbors(node)
-        nbr_pairs = complete_graph_edges(nbrs)
+        nbr_pairs: set[tuple[int, int]] = complete_graph_edges(nbrs)
         new_edges = nbr_pairs - self.physical_edges
         rmv_edges = self.physical_edges & nbr_pairs
 
@@ -177,8 +180,10 @@ class ZXGraphState(GraphState):
             bipartite_edges(nbr_a, nbr_c),
             bipartite_edges(nbr_b, nbr_c),
         ]
-        rmv_edges = set().union(*(p & self.physical_edges for p in nbr_pairs))
-        add_edges = set().union(*(p - self.physical_edges for p in nbr_pairs))
+        rmv_edges: set[tuple[int, int]] = set()
+        rmv_edges.update(*(p & self.physical_edges for p in nbr_pairs))
+        add_edges: set[tuple[int, int]] = set()
+        add_edges.update(*(p - self.physical_edges for p in nbr_pairs))
 
         self._update_connections(rmv_edges, add_edges)
         self._swap(node1, node2)
