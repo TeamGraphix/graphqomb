@@ -1,8 +1,10 @@
 """ZXGraph State classes for Measurement-based Quantum Computing.
 
 This module provides:
-- ZXGraphState: Graph State for the ZX-calculus.
-- bipartite_edges: Return a set of edges for the complete bipartite graph between two sets of nodes.
+
+- `ZXGraphState`: Graph State for the ZX-calculus.
+- `to_zx_graphstate`: Convert input GraphState to ZXGraphState.
+- `complete_graph_edges`: Return a set of edges for the complete graph on the given nodes.
 """
 
 from __future__ import annotations

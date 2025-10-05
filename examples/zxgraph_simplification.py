@@ -2,7 +2,7 @@
 Basic example of simplifying a ZX-diagram.
 ==========================================
 
-By using the `full_reduce` method,
+By using the full_reduce method,
 we can remove all the internal Clifford nodes and some non-Clifford nodes from the graph state,
 which generates a simpler ZX-diagram.
 This example is a simple demonstration of the simplification process.
