@@ -51,7 +51,7 @@ class ZXGraphState(GraphState):
 
     @property
     def _clifford_rules(self) -> tuple[CliffordRule, ...]:
-        r"""List of rules (check_func, action_func) for removing local clifford nodes.
+        r"""Tuple of rules (check_func, action_func) for removing local clifford nodes.
 
         The rules are applied in the order they are defined.
 
