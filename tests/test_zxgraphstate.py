@@ -708,5 +708,96 @@ def test_merge_yz_to_xy(
     _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges=exp_edges, exp_measurements=exp_measurements)
 
 
+@pytest.mark.parametrize(
+    ("initial_edges", "measurements", "exp_zxgraph"),
+    [
+        #         3(YZ)                    3(YZ)
+        #       /       \                /       \
+        # 0(XY) - 1(XY) - 2(XY) -> 0(XY) - 1(XY) - 2(XY)
+        #       \       /
+        #         4(YZ)
+        (
+            {(0, 1), (0, 3), (0, 4), (1, 2), (2, 3), (2, 4)},
+            [
+                (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
+            ],
+            (
+                [
+                    (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                    (3, PlannerMeasBasis(Plane.YZ, 0.99 * np.pi)),
+                ],
+                {(0, 1), (0, 3), (1, 2), (2, 3)},
+                {0, 1, 2, 3},
+            ),
+        ),
+        #         3(YZ)
+        #       /       \
+        # 0(XY) - 1(YZ) - 2(XY) -> 0(XY) - 1(YZ) - 2(XY)
+        #       \       /
+        #         4(YZ)
+        (
+            {(0, 1), (0, 3), (0, 4), (1, 2), (2, 3), (2, 4)},
+            [
+                (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.YZ, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
+            ],
+            (
+                [
+                    (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (1, PlannerMeasBasis(Plane.YZ, 1.21 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                ],
+                {(0, 1), (1, 2)},
+                {0, 1, 2},
+            ),
+        ),
+        #         3(YZ)
+        #       /       \
+        # 0(XY) - 1(YZ) - 2(XY) - 0(XY) -> 0(XY) - 1(YZ) - 2(XY) - 0(XY)
+        #       \       /
+        #         4(YZ)
+        (
+            {(0, 1), (0, 2), (0, 3), (0, 4), (1, 2), (2, 3), (2, 4)},
+            [
+                (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.YZ, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+                (4, PlannerMeasBasis(Plane.YZ, 0.55 * np.pi)),
+            ],
+            (
+                [
+                    (0, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
+                    (1, PlannerMeasBasis(Plane.YZ, 1.21 * np.pi)),
+                    (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                ],
+                {(0, 1), (0, 2), (1, 2)},
+                {0, 1, 2},
+            ),
+        ),
+    ],
+)
+def test_merge_yz_nodes(
+    zx_graph: ZXGraphState,
+    initial_edges: set[tuple[int, int]],
+    measurements: Measurements,
+    exp_zxgraph: tuple[Measurements, set[tuple[int, int]], set[int]],
+) -> None:
+    _initialize_graph(zx_graph, nodes=range(5), edges=initial_edges)
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.merge_yz_nodes()
+    exp_measurements, exp_edges, exp_nodes = exp_zxgraph
+    _test(zx_graph, exp_nodes, exp_edges, exp_measurements)
+
+
 if __name__ == "__main__":
     pytest.main()

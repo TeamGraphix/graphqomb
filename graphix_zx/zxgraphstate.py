@@ -8,12 +8,13 @@ This module provides:
 from __future__ import annotations
 
 import operator
+from collections import defaultdict
 from itertools import combinations
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane, is_clifford_angle, is_close_angle
+from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
 from graphix_zx.euler import LocalClifford
 from graphix_zx.graphstate import BaseGraphState, GraphState, bipartite_edges
 
@@ -428,6 +429,29 @@ class ZXGraphState(GraphState):
             new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
             self.assign_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
             self.remove_physical_node(u)
+
+    def merge_yz_nodes(self) -> None:
+        """Merge isolated YZ-measured nodes into a single node.
+
+        If u, v nodes are measured in the YZ-plane and u, v have the same neighbors,
+        then u, v can be merged into a single node.
+        """
+        min_nodes = 2
+        yz_nodes = {u for u, basis in self.meas_bases.items() if basis.plane == Plane.YZ}
+        if len(yz_nodes) < min_nodes:
+            return
+        neighbor_groups: dict[frozenset[int], list[int]] = defaultdict(list)
+        for u in yz_nodes:
+            neighbors = frozenset(self.neighbors(u))
+            neighbor_groups[neighbors].append(u)
+
+        for neighbors, nodes in neighbor_groups.items():
+            if len(nodes) < min_nodes or len(neighbors) < min_nodes:
+                continue
+            new_angle = sum(self.meas_bases[v].angle for v in nodes) % (2.0 * np.pi)
+            self.assign_meas_basis(nodes[0], PlannerMeasBasis(Plane.YZ, new_angle))
+            for v in nodes[1:]:
+                self.remove_physical_node(v)
 
 
 def to_zx_graphstate(graph: BaseGraphState) -> ZXGraphState:
