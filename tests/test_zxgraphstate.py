@@ -22,7 +22,7 @@ import pytest
 
 from graphix_zx.common import Plane, PlannerMeasBasis, is_close_angle
 from graphix_zx.random_objects import generate_random_flow_graph
-from graphix_zx.zxgraphstate import ZXGraphState
+from graphix_zx.zxgraphstate import ZXGraphState, to_zx_graphstate
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -513,6 +513,106 @@ def test_unremovable_clifford_node(zx_graph: ZXGraphState) -> None:
     _apply_measurements(zx_graph, measurements)
     with pytest.raises(ValueError, match=r"This Clifford node is unremovable."):
         zx_graph.remove_clifford(1)
+
+
+def test_remove_cliffords(zx_graph: ZXGraphState) -> None:
+    """Test removing multiple Clifford nodes."""
+    _initialize_graph(zx_graph, nodes=range(4), edges={(0, 1), (0, 2), (0, 3)})
+    measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (1, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+        (3, PlannerMeasBasis(Plane.XY, 0.5 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_cliffords()
+    _test(zx_graph, {2}, set(), [])
+
+
+def test_remove_cliffords_graph1(zx_graph: ZXGraphState) -> None:
+    """Test removing multiple Clifford nodes."""
+    graph_1(zx_graph)
+    measurements = [
+        (0, PlannerMeasBasis(Plane.YZ, np.pi)),
+        (1, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
+    ]
+    exp_measurements = [
+        (1, PlannerMeasBasis(Plane.XY, 1.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 1.8 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 1.7 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_cliffords()
+    _test(zx_graph, {1, 2, 3}, set(), exp_measurements=exp_measurements)
+
+
+def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
+    graph_2(zx_graph)
+    measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (1, PlannerMeasBasis(Plane.YZ, 1.5 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
+    ]
+    exp_measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.6 * np.pi)),
+        (2, PlannerMeasBasis(Plane.YZ, 0.2 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_cliffords()
+    _test(zx_graph, {0, 2}, {(0, 2)}, exp_measurements=exp_measurements)
+
+
+def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
+    graph_3(zx_graph)
+    measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (1, PlannerMeasBasis(Plane.XZ, 1.5 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 0.2 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
+        (4, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+        (5, PlannerMeasBasis(Plane.XZ, 0.5 * np.pi)),
+    ]
+    exp_measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 0.1 * np.pi)),
+        (2, PlannerMeasBasis(Plane.XZ, 1.7 * np.pi)),
+        (3, PlannerMeasBasis(Plane.YZ, 0.3 * np.pi)),
+        (4, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
+        (5, PlannerMeasBasis(Plane.XZ, 1.5 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.remove_cliffords()
+    _test(
+        zx_graph,
+        {0, 2, 3, 4, 5},
+        {(0, 2), (0, 3), (0, 4), (0, 5), (2, 3), (2, 4), (3, 5), (4, 5)},
+        exp_measurements=exp_measurements,
+    )
+
+
+def test_random_graph(zx_graph: ZXGraphState) -> None:
+    """Test removing multiple Clifford nodes from a random graph."""
+    random_graph, _ = generate_random_flow_graph(5, 5)
+    zx_graph, _ = to_zx_graphstate(random_graph)
+
+    for i in zx_graph.physical_nodes - set(zx_graph.output_node_indices):
+        rng = np.random.default_rng(seed=0)
+        rnd = rng.random()
+        if 0 <= rnd < 0.33:
+            pass
+        elif 0.33 <= rnd < 0.66:
+            angle = zx_graph.meas_bases[i].angle
+            zx_graph.assign_meas_basis(i, PlannerMeasBasis(Plane.XZ, angle))
+        else:
+            angle = zx_graph.meas_bases[i].angle
+            zx_graph.assign_meas_basis(i, PlannerMeasBasis(Plane.YZ, angle))
+
+    zx_graph.remove_cliffords()
+    atol = 1e-9
+    nodes = zx_graph.physical_nodes - set(zx_graph.input_node_indices) - set(zx_graph.output_node_indices)
+    clifford_nodes = [node for node in nodes if zx_graph.is_removable_clifford(node, atol)]
+    assert clifford_nodes == []
 
 
 if __name__ == "__main__":

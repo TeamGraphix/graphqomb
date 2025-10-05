@@ -227,7 +227,7 @@ class ZXGraphState(GraphState):
         )
 
     def _needs_pivot(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the nodes need a pivot operation in order to perform _remove_clifford.
+        """Check if the node needs a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
         For this operation,
@@ -245,7 +245,7 @@ class ZXGraphState(GraphState):
         Returns
         -------
         `bool`
-            True if the nodes need a pivot operation.
+            True if the node needs a pivot operation.
         """
         if not (self.neighbors(node) - set(self.input_node_indices)):
             nbrs = self.neighbors(node)
@@ -340,6 +340,79 @@ class ZXGraphState(GraphState):
                 self._needs_pivot(node, atol),
             ]
         )
+
+    def remove_cliffords(self, atol: float = 1e-9) -> None:
+        """Remove all local clifford nodes which are removable.
+
+        Parameters
+        ----------
+        atol : `float`, optional
+            absolute tolerance, by default 1e-9
+        """
+        self._check_meas_basis()
+        while any(
+            self.is_removable_clifford(n, atol)
+            for n in (self.physical_nodes - set(self.input_node_indices) - set(self.output_node_indices))
+        ):
+            for check, action in self._clifford_rules:
+                while True:
+                    candidates = self.physical_nodes - set(self.input_node_indices) - set(self.output_node_indices)
+                    clifford_node = next((node for node in candidates if check(node, atol)), None)
+                    if clifford_node is None:
+                        break
+                    action(clifford_node)
+                    self._remove_clifford(clifford_node, atol)
+
+
+def to_zx_graphstate(graph: BaseGraphState) -> ZXGraphState:
+    r"""Convert input graph to ZXGraphState.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        The graph state to convert.
+
+    Returns
+    -------
+    `tuple`\[`ZXGraphState`, `dict`\[`int`, `int`\]\]
+        Converted ZXGraphState and node map for old node index to new node index.
+
+    Raises
+    ------
+    ValueError
+        If the input graph is not in canonical form.
+    TypeError
+        If the input graph is not an instance of GraphState.
+    """
+    if not graph.is_canonical_form():
+        msg = "The input graph must be in canonical form."
+        raise ValueError(msg)
+    if not isinstance(graph, GraphState):
+        msg = "The input graph must be an instance of GraphState."
+        raise TypeError(msg)
+
+    node_map: dict[int, int] = {}
+    zx_graph = ZXGraphState()
+
+    for node in graph.physical_nodes:
+        node_index = zx_graph.add_physical_node()
+        node_map[node] = node_index
+        meas_basis = graph.meas_bases.get(node, None)
+        if meas_basis is not None:
+            zx_graph.assign_meas_basis(node_index, meas_basis)
+
+    q_index_map: dict[int, int] = {}
+    for input_node, old_q_index in sorted(graph.input_node_indices.items(), key=operator.itemgetter(1)):
+        new_q_index = zx_graph.register_input(node_map[input_node])
+        q_index_map[old_q_index] = new_q_index
+
+    for output_node, q_index in sorted(graph.output_node_indices.items()):
+        zx_graph.register_output(node_map[output_node], q_index_map[q_index])
+
+    for u, v in graph.physical_edges:
+        zx_graph.add_physical_edge(node_map[u], node_map[v])
+
+    return zx_graph, node_map
 
 
 def complete_graph_edges(nodes: Iterable[int]) -> set[tuple[int, int]]:
