@@ -126,7 +126,7 @@ def random_circ(
                     circ.cz(j, (j + 1) % width)
             num = rng.integers(0, width)
             if num > 0:
-                target = sorted(rng.choice(range(width), num))
+                target = sorted(set(rng.choice(range(width), num)))
                 circ.phase_gadget(target, rng.choice(angle_candidates))
 
     return circ
