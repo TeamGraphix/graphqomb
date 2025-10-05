@@ -636,7 +636,7 @@ class ExpansionMaps(NamedTuple):
 
 def compose(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
+) -> tuple[GraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
 
     Qubits with matching indices are automatically connected. Graph2 is connected after graph1.
@@ -651,7 +651,7 @@ def compose(  # noqa: C901
 
     Returns
     -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+    `tuple`\[`GraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
 
     Raises
