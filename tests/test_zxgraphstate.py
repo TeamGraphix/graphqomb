@@ -654,5 +654,59 @@ def test_convert_to_phase_gadget(
     _test(zx_graph, exp_nodes={0, 1, 2, 3, 4, 5}, exp_edges=exp_edges, exp_measurements=exp_measurements)
 
 
+@pytest.mark.parametrize(
+    ("initial_edges", "measurements", "exp_measurements", "exp_edges"),
+    [
+        #         3(XY)              3(XY)
+        #          |             ->   |
+        # 0(YZ) - 1(XY) - 2(XY)      1(XY) - 2(XY)
+        (
+            {(0, 1), (1, 2), (1, 3)},
+            [
+                (0, PlannerMeasBasis(Plane.YZ, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+            ],
+            [
+                (1, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
+            ],
+            {(1, 2), (1, 3)},
+        ),
+        #         3(YZ)              3(YZ)
+        #          |    \        ->   |    \
+        # 0(YZ) - 1(XY) - 2(XY)      1(XY) - 2(XY)
+        (
+            {(0, 1), (1, 2), (1, 3), (2, 3)},
+            [
+                (0, PlannerMeasBasis(Plane.YZ, 0.11 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.22 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+            ],
+            [
+                (1, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
+            ],
+            {(1, 2), (1, 3), (2, 3)},
+        ),
+    ],
+)
+def test_merge_yz_to_xy(
+    zx_graph: ZXGraphState,
+    initial_edges: set[tuple[int, int]],
+    measurements: Measurements,
+    exp_measurements: Measurements,
+    exp_edges: set[tuple[int, int]],
+) -> None:
+    _initialize_graph(zx_graph, nodes=range(4), edges=initial_edges)
+    _apply_measurements(zx_graph, measurements)
+    zx_graph.merge_yz_to_xy()
+    _test(zx_graph, exp_nodes={1, 2, 3}, exp_edges=exp_edges, exp_measurements=exp_measurements)
+
+
 if __name__ == "__main__":
     pytest.main()
