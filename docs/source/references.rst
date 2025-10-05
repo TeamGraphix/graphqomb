@@ -21,3 +21,4 @@ Module reference
     qompiler
     scheduler
     visualizer
+    zxgraphstate
