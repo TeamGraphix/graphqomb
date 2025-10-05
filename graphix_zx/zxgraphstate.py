@@ -20,6 +20,9 @@ from graphix_zx.graphstate import BaseGraphState, GraphState, bipartite_edges
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+    from typing import TypeAlias
+
+    CliffordRule: TypeAlias = tuple[Callable[[int, float], bool], Callable[[int], None]]
 
 
 class ZXGraphState(GraphState):
@@ -47,10 +50,17 @@ class ZXGraphState(GraphState):
         super().__init__()
 
     @property
-    def _clifford_rules(self) -> tuple[tuple[Callable[[int, float], bool], Callable[[int], None]], ...]:
-        """List of rules (check_func, action_func) for removing local clifford nodes.
+    def _clifford_rules(self) -> tuple[CliffordRule, ...]:
+        r"""List of rules (check_func, action_func) for removing local clifford nodes.
 
         The rules are applied in the order they are defined.
+
+        Returns
+        -------
+        `tuple`\[`CliffordRule`, ...\]
+            Tuple of rules (check_func, action_func) before removing local clifford nodes.
+            If check_func(node) returns True, action_func(node) is executed.
+            Then, the removal of the local clifford node is performed if possible.
         """
         return (
             (self._needs_lc, self.local_complement),
@@ -66,9 +76,9 @@ class ZXGraphState(GraphState):
 
         Parameters
         ----------
-        rmv_edges : `Iterable`\[`tuple`\[`int`, `int`\]\]
+        rmv_edges : `collections.abc.Iterable`\[`tuple`\[`int`, `int`\]\]
             edges to remove
-        new_edges : `Iterable`\[`tuple`\[`int`, `int`\]\]
+        new_edges : `collections.abc.Iterable`\[`tuple`\[`int`, `int`\]\]
             edges to add
         """
         for edge in rmv_edges:
@@ -480,7 +490,7 @@ class ZXGraphState(GraphState):
                 break
 
 
-def to_zx_graphstate(graph: BaseGraphState) -> ZXGraphState:
+def to_zx_graphstate(graph: BaseGraphState) -> tuple[ZXGraphState, dict[int, int]]:
     r"""Convert input graph to ZXGraphState.
 
     Parameters
@@ -544,4 +554,4 @@ def complete_graph_edges(nodes: Iterable[int]) -> set[tuple[int, int]]:
     `set`\[`tuple`\[`int`, `int`\]\]
         edges of the complete graph
     """
-    return {tuple(sorted((u, v))) for u, v in combinations(nodes, 2)}
+    return {(min(u, v), max(u, v)) for u, v in combinations(nodes, 2)}
