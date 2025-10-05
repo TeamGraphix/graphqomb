@@ -322,5 +322,88 @@ def test_local_complement_4_times(
     _test(zx_graph, exp_nodes={0, 1, 2}, exp_edges={(0, 1), (1, 2)}, exp_measurements=exp_measurements)
 
 
+def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
+    """Test pivot fails with nonexistent nodes."""
+    with pytest.raises(ValueError, match="Node does not exist node=0"):
+        zx_graph.pivot(0, 1)
+    zx_graph.add_physical_node()
+    with pytest.raises(ValueError, match="Node does not exist node=1"):
+        zx_graph.pivot(0, 1)
+
+
+def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
+    """Test pivot fails with input node."""
+    zx_graph.add_physical_node()
+    zx_graph.add_physical_node()
+    zx_graph.register_input(0)
+    with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
+        zx_graph.pivot(0, 1)
+
+
+def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
+    """Test pivot with an obvious graph."""
+    # 0---1---2
+    for _ in range(3):
+        zx_graph.add_physical_node()
+
+    for i, j in [(0, 1), (1, 2)]:
+        zx_graph.add_physical_edge(i, j)
+
+    measurements = [
+        (0, PlannerMeasBasis(Plane.XY, 1.1 * np.pi)),
+        (1, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi)),
+        (2, PlannerMeasBasis(Plane.YZ, 1.3 * np.pi)),
+    ]
+    _apply_measurements(zx_graph, measurements)
+
+    original_zx_graph = deepcopy(zx_graph)
+    zx_graph.pivot(1, 2)
+    original_zx_graph.local_complement(1)
+    original_zx_graph.local_complement(2)
+    original_zx_graph.local_complement(1)
+    assert zx_graph.physical_edges == original_zx_graph.physical_edges
+    original_planes = [original_zx_graph.meas_bases[i].plane for i in range(3)]
+    planes = [zx_graph.meas_bases[i].plane for i in range(3)]
+    assert planes == original_planes
+
+
+@pytest.mark.parametrize("planes", plane_combinations(5))
+def test_pivot_with_minimal_graph(
+    zx_graph: ZXGraphState, planes: tuple[Plane, Plane, Plane, Plane, Plane], rng: np.random.Generator
+) -> None:
+    """Test pivot with a minimal graph."""
+    # 0---1---2---4
+    #      \ /
+    #       3
+    for _ in range(5):
+        zx_graph.add_physical_node()
+
+    for i, j in [(0, 1), (1, 2), (1, 3), (2, 3), (2, 4)]:
+        zx_graph.add_physical_edge(i, j)
+
+    angles = [rng.random() * 2 * np.pi for _ in range(5)]
+    measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(5)]
+    _apply_measurements(zx_graph, measurements)
+    zx_graph_cp = deepcopy(zx_graph)
+
+    zx_graph.pivot(1, 2)
+    zx_graph_cp.local_complement(1)
+    zx_graph_cp.local_complement(2)
+    zx_graph_cp.local_complement(1)
+    assert zx_graph.physical_edges == zx_graph_cp.physical_edges
+    assert zx_graph.meas_bases[1].plane == zx_graph_cp.meas_bases[1].plane
+    assert zx_graph.meas_bases[2].plane == zx_graph_cp.meas_bases[2].plane
+
+    _, ref_angle_func1 = MEAS_ACTION_PV_TARGET[planes[1]]
+    _, ref_angle_func2 = MEAS_ACTION_PV_TARGET[planes[2]]
+    _, ref_angle_func3 = MEAS_ACTION_PV_NEIGHBORS[planes[3]]
+    ref_angle1 = ref_angle_func1(angles[1])
+    ref_angle2 = ref_angle_func2(angles[2])
+    ref_angle3 = ref_angle_func3(angles[3])
+    assert is_close_angle(zx_graph.meas_bases[1].angle, ref_angle1)
+    assert is_close_angle(zx_graph.meas_bases[2].angle, ref_angle2)
+    assert is_close_angle(zx_graph.meas_bases[3].angle, ref_angle3)
+
+
 if __name__ == "__main__":
     pytest.main()
