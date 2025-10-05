@@ -144,7 +144,7 @@ def _initialize_graph(
         raise ValueError(msg)
 
     for idx, node in enumerate(outputs):
-        q_index = node2q_index.get(node, idx)
+        q_index = node2q_index.get(node, q_indices[idx])
         zx_graph.register_output(node, q_index)
 
 
