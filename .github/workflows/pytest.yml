@@ -34,9 +34,9 @@ jobs:
           pytest
 
 coverage:
+  name: Coverage
   needs: standard
   runs-on: ubuntu-latest
-  if: github.event_name == 'pull_request' || github.event_name == 'push'
 
   steps:
     - uses: actions/checkout@v5
@@ -46,11 +46,10 @@ coverage:
       with:
         python-version: "3.13"
 
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
-
-    - name: Install graphix-zx with dev deps.
-      run: pip install .[dev]
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev]
 
     - name: Run pytest with coverage
       run: pytest
@@ -59,3 +58,6 @@ coverage:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        fail_ci_if_error: true
+        verbose: true
