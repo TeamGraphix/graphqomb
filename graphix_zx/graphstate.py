@@ -669,8 +669,8 @@ def compose(  # noqa: C901
     target_q_indices = output_q_indices1 & input_q_indices2
 
     # Check for qindex conflicts: qindices used in both graphs but not for connection
-    all_q_indices1 = set(graph1.input_node_indices.values()) | set(graph1.output_node_indices.values())
-    all_q_indices2 = set(graph2.input_node_indices.values()) | set(graph2.output_node_indices.values())
+    all_q_indices1 = set(graph1.input_node_indices.values()) | output_q_indices1
+    all_q_indices2 = input_q_indices2 | set(graph2.output_node_indices.values())
     conflicting_q_indices = (all_q_indices1 & all_q_indices2) - target_q_indices
 
     if conflicting_q_indices:
