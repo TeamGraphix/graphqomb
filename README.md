@@ -14,6 +14,7 @@
 
 - **ZX-Calculus Integration**: Use ZX-diagrams as an abstract expression of measurement pattern
 - **Feedforward Strategy Design**: Our library accepts general feedforward strategy and optimization, eliminating the necessity of measurement calculus
+- **Scheduler**: Scheduling the node preparation and measurement time
 
 ### Compilation
 
@@ -143,7 +144,8 @@ graphix-zx/
 ├── graphix_zx/              # Main source code
 │   ├── circuit.py           # Quantum circuit implementation
 │   ├── graphstate.py        # Graph state manipulation
-│   ├── pattern.py           # MBQC pattern representation
+|   ├── scheduler.py         # Scheduling computaional order
+│   ├── qompiler.py          # Generate MBQC pattern
 │   ├── simulator.py         # Pattern simulation
 │   ├── visualizer.py        # Visualization tools
 │   └── ...
