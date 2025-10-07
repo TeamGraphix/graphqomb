@@ -2,3 +2,4 @@ ruff==0.13.3
 mypy==1.18.2
 pyright==1.1.406
 pytest==8.4.2
+types-networkx
