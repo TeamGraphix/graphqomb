@@ -61,13 +61,14 @@ class FigureSetup(NamedTuple):
     fig_height: float
 
 
-def visualize(
+def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
     ax: Axes | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
+    node_positions: Mapping[int, tuple[float, float]] | None = None,
 ) -> Axes:
     r"""Visualize the GraphState.
 
@@ -83,13 +84,16 @@ def visualize(
         Size of nodes (scatter size), by default 300
     show_legend : `bool`, optional
         Whether to show color legend, by default True
+    node_positions : `collections.abc.Mapping`[`int`, `tuple`[`float`, `float`]] | None, optional
+        Custom positions for nodes as a mapping from node indices to (x, y) coordinates.
+        If None, positions are automatically calculated. By default None
 
     Returns
     -------
     `matplotlib.axes.Axes`
         The Axes object containing the visualization
     """
-    node_pos = _calc_node_positions(graph)
+    node_pos = node_positions if node_positions is not None else _calc_node_positions(graph)
 
     node_colors = _determine_node_colors(graph)
 
