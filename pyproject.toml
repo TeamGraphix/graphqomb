@@ -77,8 +77,9 @@ docstring-code-format = true
   "D400",
 ]
 "examples/*.py" = [
-  "T201", # print
-  "D",
+  "T201",    # print
+  "D",       # docstring
+  "PLR2004", # magic value in examples
 ]
 
 [tool.pytest.ini_options]
