@@ -261,7 +261,10 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
             nx_graph: nx.Graph[int] = nx.Graph()
             nx_graph.add_nodes_from(internal_nodes)
             nx_graph.add_edges_from(internal_edges)
-            internal_pos: dict[int, tuple[float, float]] = nx.spring_layout(nx_graph, k=1, iterations=50)
+            internal_pos_raw = nx.spring_layout(nx_graph, k=1, iterations=50)
+            internal_pos: dict[int, tuple[float, float]] = {
+                node: (float(coord[0]), float(coord[1])) for node, coord in internal_pos_raw.items()
+            }
 
             # Scale and position internal nodes in the middle
             for node, (x, y) in internal_pos.items():
