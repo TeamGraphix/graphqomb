@@ -230,37 +230,35 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     gflow: dict[int, set[int]] = {}
 
     qindex2front_nodes: dict[int, int] = {}
-    qid_ex2in: dict[int, int] = {}
 
     # input nodes
     for i in range(circuit.num_qubits):
         node = graph.add_physical_node()
-        qindex = graph.register_input(node)
-        qindex2front_nodes[qindex] = node
-        qid_ex2in[i] = qindex
+        graph.register_input(node, i)
+        qindex2front_nodes[i] = node
 
     for instruction in circuit.unit_instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
-            graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
+            graph.add_physical_edge(qindex2front_nodes[instruction.qubit], new_node)
             graph.assign_meas_basis(
-                qindex2front_nodes[qid_ex2in[instruction.qubit]],
+                qindex2front_nodes[instruction.qubit],
                 PlannerMeasBasis(Plane.XY, -instruction.angle),
             )
 
-            gflow[qindex2front_nodes[qid_ex2in[instruction.qubit]]] = {new_node}
-            qindex2front_nodes[qid_ex2in[instruction.qubit]] = new_node
+            gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
+            qindex2front_nodes[instruction.qubit] = new_node
 
         elif isinstance(instruction, CZ):
             graph.add_physical_edge(
-                qindex2front_nodes[qid_ex2in[instruction.qubits[0]]],
-                qindex2front_nodes[qid_ex2in[instruction.qubits[1]]],
+                qindex2front_nodes[instruction.qubits[0]],
+                qindex2front_nodes[instruction.qubits[1]],
             )
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
             graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
             for qubit in instruction.qubits:
-                graph.add_physical_edge(qindex2front_nodes[qid_ex2in[qubit]], new_node)
+                graph.add_physical_edge(qindex2front_nodes[qubit], new_node)
 
             gflow[new_node] = {new_node}
         else:
