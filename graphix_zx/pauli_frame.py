@@ -71,11 +71,6 @@ class PauliFrame:
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
         self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
         self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
-
-        if not x_parity_check_group:
-            x_parity_check_group = []
-        if not z_parity_check_group:
-            z_parity_check_group = []
         self.x_parity_check_group = [set(item) for item in x_parity_check_group]
         self.z_parity_check_group = [set(item) for item in z_parity_check_group]
 
