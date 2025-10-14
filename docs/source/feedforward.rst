@@ -1,16 +1,16 @@
 Feedforward
 ===========
 
-:mod:`graphix_zx.feedforward` module
+:mod:`graphqomb.feedforward` module
 ++++++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.feedforward
+.. automodule:: graphqomb.feedforward
 
 Functions
 ---------
 
-.. autofunction:: graphix_zx.feedforward.dag_from_flow
+.. autofunction:: graphqomb.feedforward.dag_from_flow
 
-.. autofunction:: graphix_zx.feedforward.check_dag
+.. autofunction:: graphqomb.feedforward.check_dag
 
-.. autofunction:: graphix_zx.feedforward.check_flow
+.. autofunction:: graphqomb.feedforward.check_flow

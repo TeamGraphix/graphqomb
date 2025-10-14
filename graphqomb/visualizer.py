@@ -16,7 +16,7 @@ import networkx as nx
 from matplotlib import patches
 from matplotlib.lines import Line2D
 
-from graphix_zx.common import Axis, Plane, determine_pauli_axis
+from graphqomb.common import Axis, Plane, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     from matplotlib.axes import Axes
 
-    from graphix_zx.graphstate import BaseGraphState
+    from graphqomb.graphstate import BaseGraphState
 
 
 if sys.version_info >= (3, 11):

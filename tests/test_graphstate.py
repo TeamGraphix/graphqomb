@@ -5,9 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.euler import LocalClifford
-from graphix_zx.graphstate import GraphState, bipartite_edges, odd_neighbors
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.euler import LocalClifford
+from graphqomb.graphstate import GraphState, bipartite_edges, odd_neighbors
 
 
 @pytest.fixture

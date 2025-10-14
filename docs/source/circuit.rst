@@ -5,7 +5,7 @@ Quantum Circuit
 Circuit
 -------
 
-.. automodule:: graphix_zx.circuit
+.. automodule:: graphqomb.circuit
    :members:
    :undoc-members:
    :show-inheritance:
@@ -13,5 +13,5 @@ Circuit
 Gate
 ----
 
-.. automodule:: graphix_zx.gates
+.. automodule:: graphqomb.gates
     :members:

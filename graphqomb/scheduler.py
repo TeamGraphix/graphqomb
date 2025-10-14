@@ -11,14 +11,14 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from graphix_zx.feedforward import dag_from_flow
-from graphix_zx.schedule_solver import ScheduleConfig, Strategy, solve_schedule
+from graphqomb.feedforward import dag_from_flow
+from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
+    from graphqomb.graphstate import BaseGraphState
 
 
 def compress_schedule(

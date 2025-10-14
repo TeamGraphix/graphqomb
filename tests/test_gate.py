@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 import pytest
 
-from graphix_zx.gates import (
+from graphqomb.gates import (
     CCZ,
     CNOT,
     CU3,
@@ -31,7 +31,7 @@ from graphix_zx.gates import (
     Y,
     Z,
 )
-from graphix_zx.statevec import StateVector
+from graphqomb.statevec import StateVector
 
 SINGLE_GATES: list[type[SingleGate]] = [J, Identity, X, Y, Z, H, S, T, Tdg, Rx, Ry, Rz, U3]
 TWO_GATES: list[type[TwoQubitGate]] = [CZ, CNOT, SWAP, CRz, CRx, CU3]

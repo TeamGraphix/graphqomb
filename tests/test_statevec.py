@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.statevec import StateVector
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.statevec import StateVector
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

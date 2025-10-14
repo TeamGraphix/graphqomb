@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING
 
 import typing_extensions
 
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.gates import CZ, Gate, J, PhaseGadget, UnitGate
+from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

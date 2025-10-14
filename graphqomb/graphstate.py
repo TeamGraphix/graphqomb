@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
-from graphix_zx.euler import update_lc_basis, update_lc_lc
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
+from graphqomb.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.euler import LocalClifford
+    from graphqomb.euler import LocalClifford
 
 
 class BaseGraphState(ABC):

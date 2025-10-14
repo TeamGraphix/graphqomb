@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.common import default_meas_basis
-from graphix_zx.focus_flow import _update_gflow, focus_gflow, is_focused
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import default_meas_basis
+from graphqomb.focus_flow import _update_gflow, focus_gflow, is_focused
+from graphqomb.graphstate import GraphState
 
 
 @pytest.fixture

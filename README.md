@@ -1,4 +1,4 @@
-# Graphix-ZX
+# GraphQOMB
 
 ![License](https://img.shields.io/github/license/TeamGraphix/graphix-zx)
 [![doc](https://github.com/TeamGraphix/graphix-zx/actions/workflows/doc.yml/badge.svg)](https://github.com/TeamGraphix/graphix-zx/actions/workflows/doc.yml)
@@ -6,7 +6,7 @@
 [![typecheck](https://github.com/TeamGraphix/graphix-zx/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphix-zx/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**Graphix-ZX** is a comprehensive reimplementation of the [graphix](https://github.com/TeamGraphix/graphix). Our package compile ZX-diagram with optional feedforward strategy into a measurement pattern with pauli frame.
+**GraphQOMB** (Graph-based Quantum Optimization for MBQC) is a comprehensive reimplementation of the [graphix](https://github.com/TeamGraphix/graphix). Our package compiles ZX-diagrams with optional feedforward strategy into measurement patterns with Pauli frame tracking.
 
 ## Features
 
@@ -33,7 +33,7 @@
 
 ## Installation
 
-Install graphix-zx in development mode:
+Install GraphQOMB in development mode:
 
 > NOTE: We will soon release the package on PyPI
 
@@ -59,10 +59,10 @@ pip install -e .[doc]
 ### Prepare Resource State and Feedforward
 
 ```python
-from graphix_zx.circuit import Circuit, circuit2graph
-from graphix_zx.gates import H, CNOT
-from graphix_zx.qompiler import qompile
-from graphix_zx.simulator import PatternSimulator, SimulatorBackend
+from graphqomb.circuit import Circuit, circuit2graph
+from graphqomb.gates import H, CNOT
+from graphqomb.qompiler import qompile
+from graphqomb.simulator import PatternSimulator, SimulatorBackend
 
 # Create a quantum circuit
 circuit = Circuit(2)
@@ -83,8 +83,8 @@ print(simulator.state)
 ### Creating and Visualizing Graph States
 
 ```python
-from graphix_zx.graphstate import GraphState
-from graphix_zx.visualizer import visualize
+from graphqomb.graphstate import GraphState
+from graphqomb.visualizer import visualize
 
 # Create a graph state
 graph = GraphState()
@@ -141,7 +141,7 @@ make html                           # Build HTML documentation
 
 ```
 graphix-zx/
-├── graphix_zx/              # Main source code
+├── graphqomb/               # Main source code
 │   ├── circuit.py           # Quantum circuit implementation
 │   ├── graphstate.py        # Graph state manipulation
 |   ├── scheduler.py         # Scheduling computaional order
@@ -180,11 +180,11 @@ We welcome contributions! Please:
 
 ## Citation
 
-If you use Graphix-ZX in your research, please cite:
+If you use GraphQOMB in your research, please cite:
 
 ```bibtex
-@software{graphix_zx,
-  title = {Graphix-ZX: A Moduler Graph State Qompiler for Measurement-Based Quantum Computation},
+@software{graphqomb,
+  title = {GraphQOMB: A Modular Graph State Qompiler for Measurement-Based Quantum Computation},
   author = {Masato Fukushima, Yuki Watanabe, and Daichi Sasaki},
   year = {2025},
   url = {https://github.com/TeamGraphix/graphix-zx}
