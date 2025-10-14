@@ -140,20 +140,18 @@ class PauliFrame:
         `tuple`\[`list`\[`set`\[`int`\]\], `list`\[`set`\[`int`\]\]\]
             The X and Z parity check groups.
         """
-        inv_x_flow, inv_z_flow = self._build_inverse_flows()
-
         x_groups: list[set[int]] = []
         z_groups: list[set[int]] = []
 
         for syndrome_group in self.x_parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node)
+                mbqc_group ^= self._collect_dependent_chain(node)
             x_groups.append(mbqc_group)
         for syndrome_group in self.z_parity_check_group:
             mbqc_group = set()
             for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(inv_x_flow, inv_z_flow, node)
+                mbqc_group ^= self._collect_dependent_chain(node)
             z_groups.append(mbqc_group)
 
         return x_groups, z_groups
@@ -171,58 +169,17 @@ class PauliFrame:
         `set`\[`int`\]
             The logical observables group for the given target nodes.
         """
-        inv_x_flow, inv_z_flow = self._build_inverse_flows()
-
         group: set[int] = set()
         for node in target_nodes:
-            group ^= self._collect_dependent_chain(
-                inv_x_flow=inv_x_flow,
-                inv_z_flow=inv_z_flow,
-                node=node,
-            )
+            group ^= self._collect_dependent_chain(node=node)
 
         return group
 
-    def _build_inverse_flows(self) -> tuple[Mapping[int, set[int]], Mapping[int, set[int]]]:
-        r"""Build inverse x/z flows (parent sets) for all physical nodes.
-
-        Returns
-        -------
-        `tuple`\[
-            `collections.abc.Mapping`\[`int`, `set`\[`int`\]\],
-            `collections.abc.Mapping`\[`int`, `set`\[`int`\]
-        \]
-            The inverse x and z flows.
-        """
-        inv_x_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
-        inv_z_flow: Mapping[int, set[int]] = {n: set() for n in self.graphstate.physical_nodes}
-
-        for node, targets in self.xflow.items():
-            for t in targets:
-                inv_x_flow[t].add(node)
-            inv_x_flow[node] -= {node}
-
-        for node, targets in self.zflow.items():
-            for t in targets:
-                inv_z_flow[t].add(node)
-            inv_z_flow[node] -= {node}
-
-        return inv_x_flow, inv_z_flow
-
-    def _collect_dependent_chain(
-        self,
-        inv_x_flow: Mapping[int, set[int]],
-        inv_z_flow: Mapping[int, set[int]],
-        node: int,
-    ) -> set[int]:
+    def _collect_dependent_chain(self, node: int) -> set[int]:
         r"""Generalized dependent-chain collector that respects measurement planes.
 
         Parameters
         ----------
-        inv_x_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
-            Inverse X flow mapping.
-        inv_z_flow : `collections.abc.Mapping`\[`int`, `set`\[`int`\]\]
-            Inverse Z flow mapping.
         node : `int`
             The starting node.
 
@@ -249,11 +206,11 @@ class PauliFrame:
             # NOTE: might have to support plane instead of axis
             axis = determine_pauli_axis(self.graphstate.meas_bases[current])
             if axis == Axis.X:
-                parents = inv_z_flow.get(current, set())
+                parents = self.inv_zflow.get(current, set())
             elif axis == Axis.Y:
-                parents = inv_x_flow.get(current, set()) ^ inv_z_flow.get(current, set())
+                parents = self.inv_xflow.get(current, set()) ^ self.inv_zflow.get(current, set())
             elif axis == Axis.Z:
-                parents = inv_x_flow.get(current, set())
+                parents = self.inv_xflow.get(current, set())
             else:
                 msg = f"Unexpected measurement axis: {axis}"
                 raise ValueError(msg)
