@@ -14,7 +14,8 @@ def test_simple_graph_scheduling() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -45,7 +46,8 @@ def test_manual_vs_solve_scheduler_scheduling() -> None:
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
     graph.add_physical_edge(node2, node3)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node3, qindex)
 
     flow = {node1: {node0}, node2: {node1}, node3: {node2}}
@@ -73,7 +75,8 @@ def test_solve_scheduler_failure_handling() -> None:
     node0 = graph.add_physical_node()
     node1 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node1, qindex)
 
     flow = {node0: {node1}, node1: {node0}}  # This should be impossible to satisfy
@@ -97,7 +100,8 @@ def test_schedule_config_options() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -135,7 +139,8 @@ def test_space_constrained_scheduling() -> None:
     for i in range(4):
         graph.add_physical_edge(nodes[i], nodes[i + 1])
 
-    qindex = graph.register_input(nodes[0])
+    qindex = 0
+    graph.register_input(nodes[0], qindex)
     graph.register_output(nodes[4], qindex)
 
     # Simple flow
@@ -162,7 +167,8 @@ def test_schedule_compression() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -205,7 +211,8 @@ def test_solve_scheduler_with_automatic_compression() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -239,7 +246,8 @@ def test_validate_schedule_valid() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -267,7 +275,8 @@ def test_validate_schedule_invalid_node_sets() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -294,7 +303,8 @@ def test_validate_schedule_missing_times() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
@@ -323,7 +333,8 @@ def test_validate_schedule_dag_violations() -> None:
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
     graph.add_physical_edge(node2, node3)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node3, qindex)
 
     # Flow creates DAG: node0 -> node1 -> node2
@@ -351,7 +362,8 @@ def test_validate_schedule_same_time_prep_meas() -> None:
     node2 = graph.add_physical_node()
     graph.add_physical_edge(node0, node1)
     graph.add_physical_edge(node1, node2)
-    qindex = graph.register_input(node0)
+    qindex = 0
+    graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
 
     flow = {node0: {node1}, node1: {node2}}
