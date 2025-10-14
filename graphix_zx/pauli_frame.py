@@ -34,6 +34,10 @@ class PauliFrame:
         Current X Pauli state for each node
     z_pauli : `dict`\[`int`, `bool`\]
         Current Z Pauli state for each node
+    x_parity_check_group : `list`\[`set`\[`int`\]\]
+        X parity check group for FTQC
+    z_parity_check_group : `list`\[`set`\[`int`\]\]
+        Z parity check group for FTQC
     inv_xflow : `dict`\[`int`, `int`\]
         Inverse X correction flow for each measurement flip
     inv_zflow : `dict`\[`int`, `int`\]
