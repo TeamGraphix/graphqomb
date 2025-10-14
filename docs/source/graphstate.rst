@@ -21,8 +21,7 @@ Graph State Classes
 Functions
 ---------
 
-.. autofunction:: graphqomb.graphstate.compose_sequentially
-.. autofunction:: graphqomb.graphstate.compose_in_parallel
+.. autofunction:: graphqomb.graphstate.compose
 .. autofunction:: graphqomb.graphstate.bipartite_edges
 .. autofunction:: graphqomb.graphstate.odd_neighbors
 
