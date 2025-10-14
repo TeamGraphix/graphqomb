@@ -79,9 +79,11 @@ class PauliFrame:
         for node, targets in self.xflow.items():
             for target in targets:
                 self.inv_xflow[target].add(node)
+            self.inv_xflow[node] -= {node}
         for node, targets in self.zflow.items():
             for target in targets:
                 self.inv_zflow[target].add(node)
+            self.inv_zflow[node] -= {node}
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
