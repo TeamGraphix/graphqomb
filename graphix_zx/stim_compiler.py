@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphix_zx.command import E, M, N
-from graphix_zx.common import Axis, get_pauli_axis
+from graphix_zx.common import Axis, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
@@ -62,7 +62,7 @@ def stim_compile(  # noqa: C901, PLR0912
             if after_clifford_depolarization > 0.0:
                 stim_str += f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n"
         if isinstance(cmd, M):
-            axis = get_pauli_axis(cmd.meas_basis)
+            axis = determine_pauli_axis(cmd.meas_basis)
             if axis is None:
                 msg = f"Unsupported measurement basis: {cmd.meas_basis.plane, cmd.meas_basis.angle}"
                 raise ValueError(msg)

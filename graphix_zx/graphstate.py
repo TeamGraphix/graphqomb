@@ -550,7 +550,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices: dict[int, int] = {}
-        for input_node, q_index in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
+        for input_node, q_index in self.input_node_indices.items():
             lc = self._pop_local_clifford(input_node)
             if lc is None:
                 new_input_indices[input_node] = q_index
@@ -589,7 +589,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_output_index_map: dict[int, int] = {}
-        for output_node, q_index in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
+        for output_node, q_index in self.output_node_indices.items():
             lc = self._pop_local_clifford(output_node)
             if lc is None:
                 new_output_index_map[output_node] = q_index
@@ -669,8 +669,8 @@ def compose(  # noqa: C901
     target_q_indices = output_q_indices1 & input_q_indices2
 
     # Check for qindex conflicts: qindices used in both graphs but not for connection
-    all_q_indices1 = set(graph1.input_node_indices.values()) | set(graph1.output_node_indices.values())
-    all_q_indices2 = set(graph2.input_node_indices.values()) | set(graph2.output_node_indices.values())
+    all_q_indices1 = set(graph1.input_node_indices.values()) | output_q_indices1
+    all_q_indices2 = input_q_indices2 | set(graph2.output_node_indices.values())
     conflicting_q_indices = (all_q_indices1 & all_q_indices2) - target_q_indices
 
     if conflicting_q_indices:
@@ -705,10 +705,10 @@ def compose(  # noqa: C901
             node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
     # Register input nodes with preserved qindices
-    for input_node, q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
+    for input_node, q_index in graph1.input_node_indices.items():
         composed_graph.register_input(node_map1[input_node], q_index)
 
-    for input_node, q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
+    for input_node, q_index in graph2.input_node_indices.items():
         if q_index not in target_q_indices:
             composed_graph.register_input(node_map2[input_node], q_index)
 

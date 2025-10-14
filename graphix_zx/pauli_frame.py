@@ -7,9 +7,10 @@ This module provides:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Axis, get_pauli_axis
+from graphix_zx.common import Axis, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
@@ -33,6 +34,10 @@ class PauliFrame:
         Current X Pauli state for each node
     z_pauli : `dict`\[`int`, `bool`\]
         Current Z Pauli state for each node
+    inv_xflow : `dict`\[`int`, `int`\]
+        Inverse X correction flow for each measurement flip
+    inv_zflow : `dict`\[`int`, `int`\]
+        Inverse Z correction flow for each measurement flip
     """
 
     graphstate: BaseGraphState
@@ -42,6 +47,8 @@ class PauliFrame:
     z_pauli: dict[int, bool]
     x_parity_check_group: list[set[int]]
     z_parity_check_group: list[set[int]]
+    inv_xflow: dict[int, set[int]]
+    inv_zflow: dict[int, set[int]]
 
     def __init__(
         self,
@@ -67,6 +74,15 @@ class PauliFrame:
             z_parity_check_group = []
         self.x_parity_check_group = [set(item) for item in x_parity_check_group]
         self.z_parity_check_group = [set(item) for item in z_parity_check_group]
+
+        self.inv_xflow = defaultdict(set)
+        self.inv_zflow = defaultdict(set)
+        for node, targets in self.xflow.items():
+            for target in targets:
+                self.inv_xflow[target].add(node)
+        for node, targets in self.zflow.items():
+            for target in targets:
+                self.inv_zflow[target].add(node)
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
@@ -231,7 +247,7 @@ class PauliFrame:
             parents: set[int] = set()
 
             # NOTE: might have to support plane instead of axis
-            axis = get_pauli_axis(self.graphstate.meas_bases[current])
+            axis = determine_pauli_axis(self.graphstate.meas_bases[current])
             if axis == Axis.X:
                 parents = inv_z_flow.get(current, set())
             elif axis == Axis.Y:
@@ -248,3 +264,18 @@ class PauliFrame:
             tracked.add(current)
 
         return chain
+
+    def parents(self, node: int) -> set[int]:
+        r"""Get the parents of a node in the Pauli frame.
+
+        Parameters
+        ----------
+        node : `int`
+            The node to get parents for.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            The set of parent nodes.
+        """
+        return self.inv_xflow.get(node, set()) | self.inv_zflow.get(node, set())

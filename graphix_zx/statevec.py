@@ -14,7 +14,7 @@ import numpy as np
 import typing_extensions
 
 from graphix_zx.matrix import is_hermitian
-from graphix_zx.simulator_backend import BaseSimulatorBackend, QubitIndexManager
+from graphix_zx.simulator_backend import BaseFullStateSimulator, QubitIndexManager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -33,7 +33,7 @@ CZ_TENSOR = np.asarray(
 )
 
 
-class StateVector(BaseSimulatorBackend):
+class StateVector(BaseFullStateSimulator):
     r"""State vector representation."""
 
     __state: NDArray[np.complex128]
@@ -59,6 +59,7 @@ class StateVector(BaseSimulatorBackend):
         return np.asarray(self.state(), dtype=dtype, copy=copy)
 
     @property
+    @typing_extensions.override
     def num_qubits(self) -> int:
         """Get the number of qubits in the state vector.
 
@@ -69,6 +70,7 @@ class StateVector(BaseSimulatorBackend):
         """
         return self.__state.ndim
 
+    @typing_extensions.override
     def state(self) -> NDArray[np.complex128]:
         r"""Get the state vector in external qubit order.
 
@@ -189,6 +191,7 @@ class StateVector(BaseSimulatorBackend):
 
         self.normalize()
 
+    @typing_extensions.override
     def add_node(self, num_qubits: int) -> None:
         """Add plus state to the end of state vector.
 
@@ -198,11 +201,13 @@ class StateVector(BaseSimulatorBackend):
             number of qubits to add
         """
         flat_state: NDArray[np.complex128] = self.__state.ravel()
-        flat_state = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
-        self.__state = flat_state.reshape((2,) * (self.num_qubits + num_qubits))
+        repeated_flat = np.repeat(flat_state, 1 << num_qubits) / math.sqrt(2**num_qubits)
+        repeated_state = np.asarray(repeated_flat, dtype=np.complex128)
+        self.__state = repeated_state.reshape((2,) * (self.num_qubits + num_qubits))
         # Append new qubits to the end of the qubit order
         self.__qindex_mng.add_qubits(num_qubits)
 
+    @typing_extensions.override
     def entangle(self, qubit1: int, qubit2: int) -> None:
         r"""Entangle two qubits.
 
@@ -219,6 +224,7 @@ class StateVector(BaseSimulatorBackend):
         """Normalize the state."""
         self.__state /= np.linalg.norm(self.__state)
 
+    @typing_extensions.override
     def reorder(self, permutation: Sequence[int]) -> None:
         r"""Permute qubits.
 
@@ -233,6 +239,7 @@ class StateVector(BaseSimulatorBackend):
         # Update the internal qubit order only (no state reordering)
         self.__qindex_mng.reorder(permutation)
 
+    @typing_extensions.override
     def norm(self) -> float:
         """Get norm of state vector.
 
@@ -243,6 +250,7 @@ class StateVector(BaseSimulatorBackend):
         """
         return float(np.linalg.norm(self.__state))
 
+    @typing_extensions.override
     def expectation(self, operator: NDArray[np.complex128], qubits: int | Sequence[int]) -> float:
         r"""Calculate expectation value of operator.
 

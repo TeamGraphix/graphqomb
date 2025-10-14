@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import math
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib import patches
 from matplotlib.lines import Line2D
 
-from graphix_zx.common import Axis, Plane, get_pauli_axis
+from graphix_zx.common import Axis, Plane, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -49,55 +49,73 @@ class ColorMap(_ColorMap):
     OUTPUT = "#95A5A6"  # Cool grey
 
 
-def visualize(  # noqa: PLR0913
+class FigureSetup(NamedTuple):
+    """Parameters for setting up the figure."""
+
+    x_min: float
+    x_max: float
+    y_min: float
+    y_max: float
+    padding: float
+    fig_width: float
+    fig_height: float
+
+
+def visualize(
     graph: BaseGraphState,
     *,
-    save: bool = False,
-    filename: str | None = None,
+    ax: Axes | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
-) -> None:
-    """Visualize the GraphState.
+) -> Axes:
+    r"""Visualize the GraphState.
 
     Parameters
     ----------
     graph : `BaseGraphState`
         GraphState to visualize.
-    save : `bool`, optional
-        To save as a file or not, by default False
-    filename : `str` | None, optional
-        filename of the image, by default None
+    ax : `matplotlib.axes.Axes` | None, optional
+        Matplotlib Axes to draw on, by default None
     show_node_labels : `bool`, optional
         Whether to show node index labels, by default True
     node_size : `float`, optional
         Size of nodes (scatter size), by default 300
     show_legend : `bool`, optional
         Whether to show color legend, by default True
-    """
-    node_pos = _get_node_positions(graph)
 
-    node_colors = _get_node_colors(graph)
+    Returns
+    -------
+    `matplotlib.axes.Axes`
+        The Axes object containing the visualization
+    """
+    node_pos = _calc_node_positions(graph)
+
+    node_colors = _determine_node_colors(graph)
 
     # Setup figure with proper aspect ratio
-    x_min, x_max, y_min, y_max, padding = _setup_figure(node_pos)
+    figure_setup = _setup_figure(node_pos)
 
-    # Get current axes for accurate size conversion
-    ax = plt.gca()
+    if ax is None:
+        # Create figure with proper aspect ratio using plt
+        _, ax = plt.subplots(figsize=(figure_setup.fig_width, figure_setup.fig_height))
+
+    # Always set equal aspect ratio to ensure circles appear circular
+    ax.set_aspect("equal")
 
     # Set plot limits before drawing nodes so coordinate transformation works correctly
     if node_pos:
-        plt.xlim(x_min - padding, x_max + padding)  # pyright: ignore[reportUnknownMemberType]
-        plt.ylim(y_min - padding, y_max + padding)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_xlim(figure_setup.x_min - figure_setup.padding, figure_setup.x_max + figure_setup.padding)
+        ax.set_ylim(figure_setup.y_min - figure_setup.padding, figure_setup.y_max + figure_setup.padding)
 
     # Remove tick marks and labels for cleaner appearance
-    ax.set_xticks([])  # pyright: ignore[reportUnknownMemberType]
-    ax.set_yticks([])  # pyright: ignore[reportUnknownMemberType]
+    ax.set_xticks([])
+    ax.set_yticks([])
 
     # All nodes use the same base size for consistency
 
     # Draw nodes with special handling for Pauli measurements
-    pauli_nodes = _get_pauli_nodes(graph)
+    pauli_nodes = _find_pauli_nodes(graph)
 
     for node in graph.physical_nodes:
         if node in pauli_nodes:
@@ -108,19 +126,21 @@ def visualize(  # noqa: PLR0913
         else:
             # Ensure all nodes have a color, fallback to default if missing
             node_color = node_colors.get(node, ColorMap.OUTPUT)  # Default to output color
-            plt.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)  # pyright: ignore[reportUnknownMemberType]
+            ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)
 
     for edge in graph.physical_edges:
-        plt.plot(  # pyright: ignore[reportUnknownMemberType]
-            [node_pos[edge[0]][0], node_pos[edge[1]][0]],
-            [node_pos[edge[0]][1], node_pos[edge[1]][1]],
+        x0, y0 = node_pos[edge[0]]
+        x1, y1 = node_pos[edge[1]]
+        ax.plot(
+            [x0, x1],
+            [y0, y1],
             color="black",
             zorder=1,
         )
 
     # Draw node labels if requested
     if show_node_labels:
-        pauli_nodes = _get_pauli_nodes(graph)
+        pauli_nodes = _find_pauli_nodes(graph)
 
         # Draw labels manually for better center alignment
         for node in graph.physical_nodes:
@@ -129,7 +149,7 @@ def visualize(  # noqa: PLR0913
             # All nodes now have the same size, so use same font size calculation
             font_size = _calculate_font_size(node_size)
 
-            plt.text(  # pyright: ignore[reportUnknownMemberType]
+            ax.text(
                 x,
                 y,
                 str(node),
@@ -143,18 +163,12 @@ def visualize(  # noqa: PLR0913
 
     # Add color legend if requested
     if show_legend:
-        _add_legend(graph)
-        plt.tight_layout()  # pyright: ignore[reportUnknownMemberType]
-
-    if save:
-        if filename is None:
-            filename = "graph.png"
-        plt.savefig(filename)  # pyright: ignore[reportUnknownMemberType]
-    plt.show()  # pyright: ignore[reportUnknownMemberType]
+        _add_legend(ax, graph)
+    return ax
 
 
-def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, float, float, float, float]:
-    """Set up matplotlib figure with proper aspect ratio based on node positions.
+def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
+    """Calculate figure dimensions and plot limits based on node positions.
 
     Parameters
     ----------
@@ -163,8 +177,9 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, f
 
     Returns
     -------
-    tuple[float, float, float, float, float]
-        x_min, x_max, y_min, y_max, padding values for plot limits
+    FigureSetup
+        NamedTuple containing
+        x_min, x_max, y_min, y_max, padding, fig_width, fig_height values
     """
     if node_pos:
         x_coords = [pos[0] for pos in node_pos.values()]
@@ -177,34 +192,38 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> tuple[float, f
         x_range = max(x_max - x_min, 0.5) + 2 * padding  # Minimum range to avoid too narrow plots
         y_range = max(y_max - y_min, 0.5) + 2 * padding
 
-        # Calculate figure size to maintain reasonable aspect ratio
-        # Base size of 8 inches, adjust based on content ratio
+        # Calculate figure size to maintain equal aspect ratio
+        # This ensures circles appear as circles, not ellipses
         base_size = 8.0
-        if x_range > y_range:
-            fig_width = base_size
-            fig_height = base_size * (y_range / x_range)
-        else:
-            fig_width = base_size * (x_range / y_range)
-            fig_height = base_size
+        # Use the same dimension for both to maintain 1:1 aspect ratio visually
+        max_range = max(x_range, y_range)
+        fig_width = base_size * (x_range / max_range)
+        fig_height = base_size * (y_range / max_range)
 
         # Ensure minimum figure size for readability
-        fig_width = max(fig_width, 4.0)
-        fig_height = max(fig_height, 4.0)
+        min_size = 4.0
+        if fig_width < min_size or fig_height < min_size:
+            scale = min_size / min(fig_width, fig_height)
+            fig_width *= scale
+            fig_height *= scale
     else:
         # Default size if no nodes
         fig_width = fig_height = 8.0
         x_min = x_max = y_min = y_max = 0
         padding = 0.5
 
-    plt.figure(figsize=(fig_width, fig_height))  # pyright: ignore[reportUnknownMemberType]
+    return FigureSetup(
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        padding=padding,
+        fig_width=fig_width,
+        fig_height=fig_height,
+    )
 
-    # Set equal aspect ratio to ensure circles appear circular, but let the plot adjust limits
-    plt.gca().set_aspect("equal")  # pyright: ignore[reportUnknownMemberType]
 
-    return x_min, x_max, y_min, y_max, padding
-
-
-def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
+def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:
     """Calculate node positions for visualization with input/output nodes arranged vertically.
 
     Parameters
@@ -240,9 +259,12 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
         if internal_edges:
             # Use spring layout for internal nodes
             nx_graph: nx.Graph[int] = nx.Graph()
-            nx_graph.add_nodes_from(internal_nodes)  # pyright: ignore[reportUnknownMemberType]
-            nx_graph.add_edges_from(internal_edges)  # pyright: ignore[reportUnknownMemberType]
-            internal_pos: dict[int, tuple[float, float]] = nx.spring_layout(nx_graph, k=1, iterations=50)  # pyright: ignore[reportUnknownMemberType]
+            nx_graph.add_nodes_from(internal_nodes)
+            nx_graph.add_edges_from(internal_edges)
+            internal_pos_raw = nx.spring_layout(nx_graph, k=1, iterations=50)
+            internal_pos: dict[int, tuple[float, float]] = {
+                node: (float(coord[0]), float(coord[1])) for node, coord in internal_pos_raw.items()
+            }
 
             # Scale and position internal nodes in the middle
             for node, (x, y) in internal_pos.items():
@@ -250,14 +272,14 @@ def _get_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]
         else:
             # If no internal edges, arrange internal nodes in a column
             for i, node in enumerate(sorted(internal_nodes)):
-                pos[node] = (1.0, float(-i))
+                pos[node] = (1.0, -i)
 
     return pos
 
 
-def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
+def _determine_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
     node_colors: dict[int, ColorMap] = {}
-    pauli_nodes = _get_pauli_nodes(graph)
+    pauli_nodes = _find_pauli_nodes(graph)
 
     # Set colors for all nodes with measurement bases
     for node, meas_bases in graph.meas_bases.items():
@@ -279,7 +301,7 @@ def _get_node_colors(graph: BaseGraphState) -> dict[int, ColorMap]:
     return node_colors
 
 
-def _get_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
+def _find_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
     """Identify nodes with Pauli measurements (Clifford angles).
 
     Returns
@@ -290,7 +312,7 @@ def _get_pauli_nodes(graph: BaseGraphState) -> dict[int, Axis]:
     pauli_nodes: dict[int, Axis] = {}
 
     for node, meas_bases in graph.meas_bases.items():
-        pauli_axis = get_pauli_axis(meas_bases)
+        pauli_axis = determine_pauli_axis(meas_bases)
         if pauli_axis:
             pauli_nodes[node] = pauli_axis
 
@@ -342,9 +364,7 @@ def _scatter_size_to_patch_radius(ax: Axes, x: float, y: float, scatter_size: fl
     # Area = π * rx * ry where rx and ry are the semi-axes in data coordinates
     # For a circle with equal display area: π * r² = π * rx * ry
     # So r = sqrt(rx * ry) to maintain equal display area
-    radius_data = math.sqrt(abs(x_offset_data) * abs(y_offset_data))
-
-    return float(radius_data)
+    return math.sqrt(abs(x_offset_data) * abs(y_offset_data))
 
 
 def _calculate_font_size(node_size: float) -> int:
@@ -424,11 +444,13 @@ def _draw_pauli_node(ax: Axes, pos: tuple[float, float], pauli_axis: Axis, node_
     ax.add_patch(circle)
 
 
-def _add_legend(graph: BaseGraphState) -> None:
+def _add_legend(ax: Axes, graph: BaseGraphState) -> None:
     """Add color legend to the plot.
 
     Parameters
     ----------
+    ax : Axes
+        Matplotlib axes object to add legend to
     graph : BaseGraphState
         GraphState to analyze for legend items
     """
@@ -437,7 +459,7 @@ def _add_legend(graph: BaseGraphState) -> None:
 
     # Add legend to the plot if there are elements to show
     if legend_elements:
-        plt.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)  # pyright: ignore[reportUnknownMemberType]
+        ax.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=3)
 
 
 def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[Axis]]:
@@ -460,7 +482,7 @@ def _analyze_graph_measurements(graph: BaseGraphState) -> tuple[set[Plane], set[
         planes_present.add(meas_bases.plane)
 
         # Check for Pauli measurements using the shared helper function
-        pauli_axis = get_pauli_axis(meas_bases)
+        pauli_axis = determine_pauli_axis(meas_bases)
         if pauli_axis is not None:
             pauli_measurements.add(pauli_axis)
 

@@ -15,6 +15,8 @@ import itertools
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import typing_extensions
+
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphix_zx.graphstate import GraphState
@@ -45,13 +47,24 @@ class BaseCircuit(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            List of gate instructions in the circuit.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            List of unit instructions in the circuit.
+            List of unit gate instructions in the circuit.
         """
         raise NotImplementedError
 
@@ -67,6 +80,7 @@ class MBQCCircuit(BaseCircuit):
         self.__gate_instructions = []
 
     @property
+    @typing_extensions.override
     def num_qubits(self) -> int:
         """Get the number of qubits in the circuit.
 
@@ -77,15 +91,28 @@ class MBQCCircuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    @typing_extensions.override
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
+
+        Returns
+        -------
+        `list`\[`Gate`\]
+            List of gate instructions in the circuit.
+        """
+        # For MBQCCircuit, Gate and UnitGate are the same
+        return [copy.deepcopy(gate) for gate in self.__gate_instructions]
+
+    @typing_extensions.override
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            List of unit instructions in the circuit.
+            List of unit gate instructions in the circuit.
         """
-        return list(self.__gate_instructions)
+        return [copy.deepcopy(gate) for gate in self.__gate_instructions]
 
     def j(self, qubit: int, angle: float) -> None:
         """Add a J gate to the circuit.
@@ -135,6 +162,7 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions = []
 
     @property
+    @typing_extensions.override
     def num_qubits(self) -> int:
         """Get the number of qubits in the circuit.
 
@@ -145,24 +173,25 @@ class Circuit(BaseCircuit):
         """
         return self.__num_qubits
 
-    @property
-    def macro_gate_instructions(self) -> list[Gate]:
-        r"""Get the list of macro gate instructions in the circuit.
+    @typing_extensions.override
+    def instructions(self) -> list[Gate]:
+        r"""Get the list of gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`Gate`\]
-            The list of macro gate instructions in the circuit.
+            List of gate instructions in the circuit.
         """
-        return copy.deepcopy(self.__macro_gate_instructions)
+        return [copy.deepcopy(gate) for gate in self.__macro_gate_instructions]
 
-    def instructions(self) -> list[UnitGate]:
-        r"""Get the list of instructions in the circuit.
+    @typing_extensions.override
+    def unit_instructions(self) -> list[UnitGate]:
+        r"""Get the list of unit gate instructions in the circuit.
 
         Returns
         -------
         `list`\[`UnitGate`\]
-            The list of unit instructions in the circuit.
+            The list of unit gate instructions in the circuit.
         """
         return list(
             itertools.chain.from_iterable(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)
@@ -201,37 +230,35 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     gflow: dict[int, set[int]] = {}
 
     qindex2front_nodes: dict[int, int] = {}
-    qid_ex2in: dict[int, int] = {}
 
     # input nodes
     for i in range(circuit.num_qubits):
         node = graph.add_physical_node()
         graph.register_input(node, i)
         qindex2front_nodes[i] = node
-        qid_ex2in[i] = i
 
-    for instruction in circuit.instructions():
+    for instruction in circuit.unit_instructions():
         if isinstance(instruction, J):
             new_node = graph.add_physical_node()
-            graph.add_physical_edge(qindex2front_nodes[qid_ex2in[instruction.qubit]], new_node)
+            graph.add_physical_edge(qindex2front_nodes[instruction.qubit], new_node)
             graph.assign_meas_basis(
-                qindex2front_nodes[qid_ex2in[instruction.qubit]],
+                qindex2front_nodes[instruction.qubit],
                 PlannerMeasBasis(Plane.XY, -instruction.angle),
             )
 
-            gflow[qindex2front_nodes[qid_ex2in[instruction.qubit]]] = {new_node}
-            qindex2front_nodes[qid_ex2in[instruction.qubit]] = new_node
+            gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
+            qindex2front_nodes[instruction.qubit] = new_node
 
         elif isinstance(instruction, CZ):
             graph.add_physical_edge(
-                qindex2front_nodes[qid_ex2in[instruction.qubits[0]]],
-                qindex2front_nodes[qid_ex2in[instruction.qubits[1]]],
+                qindex2front_nodes[instruction.qubits[0]],
+                qindex2front_nodes[instruction.qubits[1]],
             )
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
             graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
             for qubit in instruction.qubits:
-                graph.add_physical_edge(qindex2front_nodes[qid_ex2in[qubit]], new_node)
+                graph.add_physical_edge(qindex2front_nodes[qubit], new_node)
 
             gflow[new_node] = {new_node}
         else:

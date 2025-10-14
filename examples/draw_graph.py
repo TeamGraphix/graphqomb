@@ -6,6 +6,7 @@ Simple example to draw a GraphState in graphix-zx.
 """
 
 # %%
+import matplotlib.pyplot as plt
 import numpy as np
 
 from graphix_zx.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
@@ -18,7 +19,9 @@ random_graph, flow = generate_random_flow_graph(5, 5)
 
 
 # Visualize the flow graph
-visualize(random_graph, save=False, filename="flow_graph.png")
+ax = visualize(random_graph)
+plt.show()
+print("Displayed flow graph")
 
 # %%
 # Create a demo graph with different measurement planes and input/output nodes
@@ -71,11 +74,15 @@ for node, basis in demo_graph.meas_bases.items():
     print(f"  Node {node}: {basis.plane.name} plane, angle={basis.angle:.3f}")
 
 # Visualize the demo graph with labels
-visualize(demo_graph, save=False, filename="demo_graph.png", show_node_labels=True)
+ax = visualize(demo_graph, show_node_labels=True)
+plt.show()
+print("Displayed demo graph with labels")
 
 # Visualize without labels to see just the colored patterns
 print("\n--- Same graph without node labels ---")
-visualize(demo_graph, save=False, filename="demo_graph_no_labels.png", show_node_labels=False)
+ax = visualize(demo_graph, show_node_labels=False)
+plt.show()
+print("Displayed demo graph without labels")
 
 # %%
 # Create another demo graph with Pauli measurements (θ=0, π)
@@ -120,14 +127,20 @@ for node, basis in pauli_demo_graph.meas_bases.items():
     print(f"  Node {node}: {plane_name} plane, angle={basis.angle:.3f} ({angle_deg:.1f}°)")
 
 # Visualize the Pauli demo graph (using bordered-node visualization)
-visualize(pauli_demo_graph, save=False, filename="pauli_demo_graph.png", show_node_labels=True)
+ax = visualize(pauli_demo_graph, show_node_labels=True)
+plt.show()
+print("Displayed Pauli demo graph")
 
 # Demo with larger nodes and no labels
 print("\n--- Larger nodes without labels ---")
-visualize(pauli_demo_graph, save=False, filename="pauli_demo_large.png", show_node_labels=False)
+ax = visualize(pauli_demo_graph, show_node_labels=False)
+plt.show()
+print("Displayed Pauli demo graph without labels")
 
 # Demo without legend to avoid overlap
 print("\n--- Without legend to avoid overlap ---")
-visualize(pauli_demo_graph, save=False, filename="pauli_demo_no_legend.png", show_node_labels=True, show_legend=False)
+ax = visualize(pauli_demo_graph, show_node_labels=True, show_legend=False)
+plt.show()
+print("Displayed Pauli demo graph without legend")
 
 # %%

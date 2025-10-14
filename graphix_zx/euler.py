@@ -54,7 +54,7 @@ def euler_decomposition(u: NDArray[np.complex128]) -> tuple[float, float, float]
         alpha = 0.0
     elif np.isclose(u11, 0):
         gamma = 2 * cmath.phase(u01 / (-1j))
-        beta = np.pi
+        beta = math.pi
         alpha = 0.0
     else:
         gamma_p_alpha = cmath.phase(u11 / u00)
@@ -91,7 +91,7 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
     v0 = complex(vector[0])
     v1 = complex(vector[1])
     if np.isclose(v0, 0):
-        theta = np.pi
+        theta = math.pi
         phi = cmath.phase(v1)
     else:
         global_phase = cmath.phase(v0)
@@ -150,7 +150,7 @@ class LocalUnitary:
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             2x2 unitary matrix
         """
-        return _rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha)
+        return np.asarray(_rz(self.gamma) @ _rx(self.beta) @ _rz(self.alpha), dtype=np.complex128)
 
 
 class LocalClifford(LocalUnitary):
@@ -235,16 +235,16 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     if is_clifford_angle(phi):
         # YZ or XZ plane
         if is_clifford_angle(phi / 2):  # 0 or pi
-            if is_close_angle(phi, np.pi):
+            if is_close_angle(phi, math.pi):
                 theta = -theta
             return Plane.XZ, theta
-        if is_close_angle(phi, 3 * np.pi / 2):
+        if is_close_angle(phi, 3 * math.pi / 2):
             theta = -theta
         return Plane.YZ, theta
     if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
         # XY plane
-        if is_close_angle(theta, 3 * np.pi / 2):
-            phi += np.pi
+        if is_close_angle(theta, 3 * math.pi / 2):
+            phi += math.pi
         return Plane.XY, phi
     msg = "The vector does not lie on any of 3 planes"
     raise ValueError(msg)
@@ -269,7 +269,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
     matrix1 = lc1.matrix()
     matrix2 = lc2.matrix()
 
-    matrix = matrix1 @ matrix2
+    matrix = np.asarray(matrix1 @ matrix2, dtype=np.complex128)
     alpha, beta, gamma = euler_decomposition(matrix)
     return LocalClifford(alpha, beta, gamma)
 
@@ -293,8 +293,8 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     matrix = lc.matrix()
     vector = basis.vector()
 
-    vector = matrix @ vector
-    plane, angle = meas_basis_info(vector)
+    updated_vector = np.asarray(matrix @ vector, dtype=np.complex128)
+    plane, angle = meas_basis_info(updated_vector)
     return PlannerMeasBasis(plane, angle)
 
 

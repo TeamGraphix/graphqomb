@@ -1,4 +1,5 @@
-ruff==0.12.11
-mypy==1.17.1
-pyright==1.1.404
-pytest==8.4.1
+ruff==0.14.0
+mypy==1.18.2
+pyright==1.1.406
+pytest==8.4.2
+types-networkx

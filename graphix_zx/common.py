@@ -10,7 +10,7 @@ This module provides:
 - `AxisMeasBasis`: Class to represent an axis measurement basis.
 - `is_close_angle`: Check if an angle is close to a target angle.
 - `is_clifford_angle`: Check if an angle is a Clifford angle.
-- `get_pauli_axis`: Function to determine Pauli axis for a measurement basis.
+- `determine_pauli_axis`: Function to determine Pauli axis for a measurement basis.
 - `default_meas_basis`: Function to return the default measurement basis.
 - `meas_basis`: Function to get the measurement basis vector.
 """
@@ -290,10 +290,10 @@ def is_close_angle(angle: float, target: float, atol: float = 1e-9) -> bool:
     `bool`
         `True` if the angle is close to the target angle
     """
-    diff_angle = (angle - target) % (2 * np.pi)
+    diff_angle = (angle - target) % (2 * math.pi)
 
-    if diff_angle > np.pi:
-        diff_angle = 2 * np.pi - diff_angle
+    if diff_angle > math.pi:
+        diff_angle = 2 * math.pi - diff_angle
     return bool(np.isclose(diff_angle, 0, atol=atol))
 
 
@@ -312,13 +312,13 @@ def is_clifford_angle(angle: float, atol: float = 1e-9) -> bool:
     `bool`
         `True` if the angle is a Clifford angle
     """
-    angle_preprocessed = angle % (2 * np.pi)
+    angle_preprocessed = angle % (2 * math.pi)
     return any(
-        is_close_angle(angle_preprocessed, target, atol=atol) for target in (0.0, np.pi / 2, np.pi, 3 * np.pi / 2)
+        is_close_angle(angle_preprocessed, target, atol=atol) for target in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2)
     )
 
 
-def get_pauli_axis(meas_bases: MeasBasis) -> Axis | None:
+def determine_pauli_axis(meas_bases: MeasBasis) -> Axis | None:
     """Determine Pauli axis for a measurement basis if it's a Pauli measurement.
 
     Parameters
