@@ -136,6 +136,21 @@ class PauliFrame:
         """
         return (self.xflow.get(node, set()) | self.zflow.get(node, set())) - {node}
 
+    def parents(self, node: int) -> set[int]:
+        r"""Get the parents of a node in the Pauli frame.
+
+        Parameters
+        ----------
+        node : `int`
+            The node to get parents for.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            The set of parent nodes.
+        """
+        return self.inv_xflow.get(node, set()) | self.inv_zflow.get(node, set())
+
     def detector_groups(self) -> tuple[list[set[int]], list[set[int]]]:
         r"""Get the X and Z parity check groups.
 
@@ -225,18 +240,3 @@ class PauliFrame:
             tracked.add(current)
 
         return chain
-
-    def parents(self, node: int) -> set[int]:
-        r"""Get the parents of a node in the Pauli frame.
-
-        Parameters
-        ----------
-        node : `int`
-            The node to get parents for.
-
-        Returns
-        -------
-        `set`\[`int`\]
-            The set of parent nodes.
-        """
-        return self.inv_xflow.get(node, set()) | self.inv_zflow.get(node, set())
