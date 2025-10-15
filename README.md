@@ -1,9 +1,9 @@
 # GraphQOMB
 
-![License](https://img.shields.io/github/license/TeamGraphix/graphix-zx)
-[![doc](https://github.com/TeamGraphix/graphix-zx/actions/workflows/doc.yml/badge.svg)](https://github.com/TeamGraphix/graphix-zx/actions/workflows/doc.yml)
-[![pytest](https://github.com/TeamGraphix/graphix-zx/actions/workflows/pytest.yml/badge.svg)](https://github.com/TeamGraphix/graphix-zx/actions/workflows/pytest.yml)
-[![typecheck](https://github.com/TeamGraphix/graphix-zx/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphix-zx/actions/workflows/typecheck.yml)
+![License](https://img.shields.io/github/license/TeamGraphix/graphqomb)
+[![doc](https://github.com/TeamGraphix/graphqomb/actions/workflows/doc.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/doc.yml)
+[![pytest](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml)
+[![typecheck](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 **GraphQOMB** (Qompiler for Measurement-Based Quantum Computing) is a comprehensive reimplementation of the [graphix](https://github.com/TeamGraphix/graphix). Our package compiles ZX-diagrams with optional feedforward strategy into measurement patterns with Pauli frame tracking.
@@ -38,7 +38,7 @@ Install GraphQOMB in development mode:
 > NOTE: We will soon release the package on PyPI
 
 ```bash
-cd graphix-zx/
+cd graphqomb/
 pip install -e .
 ```
 
@@ -140,7 +140,7 @@ make html                           # Build HTML documentation
 ## Project Structure
 
 ```
-graphix-zx/
+graphqomb/
 ├── graphqomb/               # Main source code
 │   ├── circuit.py           # Quantum circuit implementation
 │   ├── graphstate.py        # Graph state manipulation
@@ -187,7 +187,7 @@ If you use GraphQOMB in your research, please cite:
   title = {GraphQOMB: A Modular Graph State Qompiler for Measurement-Based Quantum Computation},
   author = {Masato Fukushima, Yuki Watanabe, and Daichi Sasaki},
   year = {2025},
-  url = {https://github.com/TeamGraphix/graphix-zx}
+  url = {https://github.com/TeamGraphix/graphqomb}
 }
 ```
 
