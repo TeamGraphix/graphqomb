@@ -2,7 +2,7 @@
 Circuit Simulation Examples
 ===========================
 
-This example demonstrates how to create and simulate quantum circuits using graphix-zx,
+This example demonstrates how to create and simulate quantum circuits using graphqomb,
 including basic MBQC circuits, macro gate circuits, and phase gadget circuits.
 """
 

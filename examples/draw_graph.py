@@ -2,7 +2,7 @@
 Graph Visualizer
 ================
 
-Simple example to draw a GraphState in graphix-zx.
+Simple example to draw a GraphState in graphqomb.
 """
 
 # %%

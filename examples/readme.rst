@@ -1,4 +1,4 @@
-Graphix-zx examples
+GraphQOMB examples
 ====================
 
 Here are a few examples.

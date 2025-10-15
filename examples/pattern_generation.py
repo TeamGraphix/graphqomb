@@ -3,7 +3,7 @@ Basic Pattern Generation Example
 ================================
 
 This example demonstrates how to generate a pattern from a graph state
-using the graphix-zx library.
+using the graphqomb library.
 """
 
 # %%
