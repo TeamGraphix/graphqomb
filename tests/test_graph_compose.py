@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.graphstate import BaseGraphState, GraphState, compose
+
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.graphstate import BaseGraphState, GraphState, compose
 
 
 def create_simple_graph(input_qindices: list[int], output_qindices: list[int]) -> GraphState:
