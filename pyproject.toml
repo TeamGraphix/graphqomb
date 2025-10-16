@@ -87,6 +87,24 @@ testpaths = ["tests"]
 filterwarnings = "ignore::DeprecationWarning"
 markers = "slow: mark test as slow"
 
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  'raise NotImplementedError\(.*\)',
+  "return NotImplemented",
+  'typing_extensions.assert_never\(.*\)',
+  "@abc.abstractmethod",
+]
+fail_under = 50
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.mypy]
 strict = true
 ignore_missing_imports = true

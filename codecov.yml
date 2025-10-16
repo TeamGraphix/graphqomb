@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: "50%"
+        threshold: "1%"
+        informational: true
+    patch:
+      default:
+        target: "75%"
+        threshold: "1%"
+        informational: true
+
+comment:
+  layout: "condensed_header, diff"
+  behavior: default
+
+codecov:
+  require_ci_to_pass: true
