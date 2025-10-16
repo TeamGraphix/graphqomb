@@ -1,13 +1,13 @@
 Focus Flow
 ==========
 
-:mod:`graphix_zx.focus_flow` module
+:mod:`graphqomb.focus_flow` module
 +++++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.focus_flow
+.. automodule:: graphqomb.focus_flow
 
 Functions
 ---------
 
-.. autofunction:: graphix_zx.focus_flow.is_focused
-.. autofunction:: graphix_zx.focus_flow.focus_gflow
+.. autofunction:: graphqomb.focus_flow.is_focused
+.. autofunction:: graphqomb.focus_flow.focus_gflow

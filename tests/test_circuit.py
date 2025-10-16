@@ -7,9 +7,9 @@ import itertools
 import numpy as np
 import pytest
 
-from graphix_zx.circuit import BaseCircuit, Circuit, MBQCCircuit, circuit2graph
-from graphix_zx.common import Plane, PlannerMeasBasis
-from graphix_zx.gates import (
+from graphqomb.circuit import BaseCircuit, Circuit, MBQCCircuit, circuit2graph
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.gates import (
     CNOT,
     CZ,
     Gate,

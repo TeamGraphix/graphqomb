@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import default_meas_basis
-from graphix_zx.graphstate import GraphState
+from graphqomb.common import default_meas_basis
+from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
     from numpy.random import Generator

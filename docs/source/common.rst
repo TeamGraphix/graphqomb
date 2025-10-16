@@ -1,15 +1,15 @@
 Common
 ========
 
-:mod:`graphix_zx.common` module
+:mod:`graphqomb.common` module
 ++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.common
+.. automodule:: graphqomb.common
 
 Enums
 -----
 
-.. class:: graphix_zx.common.Plane
+.. class:: graphqomb.common.Plane
 
     Measurement planes for MBQC.
 
@@ -27,7 +27,7 @@ Enums
 
        Arbitrary-angle measurement on the XZ plane.
 
-.. class:: graphix_zx.common.Axis
+.. class:: graphqomb.common.Axis
 
     Measurement axis for Pauli measurement.
 
@@ -43,7 +43,7 @@ Enums
 
         Pauli Z-axis.
 
-.. class:: graphix_zx.common.Sign
+.. class:: graphqomb.common.Sign
 
     Measurement sign for Pauli measurement.
 
@@ -58,7 +58,7 @@ Enums
 Abstract Base Classes
 ---------------------
 
-.. autoclass:: graphix_zx.common.MeasBasis
+.. autoclass:: graphqomb.common.MeasBasis
    :members:
    :undoc-members:
    :show-inheritance:
@@ -66,12 +66,12 @@ Abstract Base Classes
 Measurement Basis Classes
 -------------------------
 
-.. autoclass:: graphix_zx.common.PlannerMeasBasis
+.. autoclass:: graphqomb.common.PlannerMeasBasis
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: graphix_zx.common.AxisMeasBasis
+.. autoclass:: graphqomb.common.AxisMeasBasis
    :members:
    :undoc-members:
    :show-inheritance:
@@ -79,12 +79,12 @@ Measurement Basis Classes
 Functions
 ---------
 
-.. autofunction:: graphix_zx.common.is_close_angle
+.. autofunction:: graphqomb.common.is_close_angle
 
-.. autofunction:: graphix_zx.common.is_clifford_angle
+.. autofunction:: graphqomb.common.is_clifford_angle
 
-.. autofunction:: graphix_zx.common.determine_pauli_axis
+.. autofunction:: graphqomb.common.determine_pauli_axis
 
-.. autofunction:: graphix_zx.common.default_meas_basis
+.. autofunction:: graphqomb.common.default_meas_basis
 
-.. autofunction:: graphix_zx.common.meas_basis
+.. autofunction:: graphqomb.common.meas_basis

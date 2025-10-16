@@ -1,6 +1,6 @@
 Statevector Simulator
 =====================
 
-.. automodule:: graphix_zx.simulator
+.. automodule:: graphqomb.simulator
    :members:
    :show-inheritance:

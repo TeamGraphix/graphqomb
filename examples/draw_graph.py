@@ -2,17 +2,17 @@
 Graph Visualizer
 ================
 
-Simple example to draw a GraphState in graphix-zx.
+Simple example to draw a GraphState in graphqomb.
 """
 
 # %%
 import matplotlib.pyplot as plt
 import numpy as np
 
-from graphix_zx.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
-from graphix_zx.graphstate import GraphState
-from graphix_zx.random_objects import generate_random_flow_graph
-from graphix_zx.visualizer import visualize
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
+from graphqomb.graphstate import GraphState
+from graphqomb.random_objects import generate_random_flow_graph
+from graphqomb.visualizer import visualize
 
 # Create a random flow graph
 random_graph, flow = generate_random_flow_graph(5, 5)

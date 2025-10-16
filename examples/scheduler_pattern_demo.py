@@ -7,11 +7,11 @@ measurement patterns from graph states using different scheduling strategies.
 """
 
 # %%
-from graphix_zx.pattern import Pattern, print_pattern
-from graphix_zx.qompiler import qompile
-from graphix_zx.random_objects import generate_random_flow_graph
-from graphix_zx.schedule_solver import ScheduleConfig, Strategy
-from graphix_zx.scheduler import Scheduler
+from graphqomb.pattern import Pattern, print_pattern
+from graphqomb.qompiler import qompile
+from graphqomb.random_objects import generate_random_flow_graph
+from graphqomb.schedule_solver import ScheduleConfig, Strategy
+from graphqomb.scheduler import Scheduler
 
 # %%
 # Create sample graph state and flow

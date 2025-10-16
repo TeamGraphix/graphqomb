@@ -17,7 +17,7 @@ import sys
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from graphix_zx.common import MeasBasis
+    from graphqomb.common import MeasBasis
 
 
 @dataclasses.dataclass

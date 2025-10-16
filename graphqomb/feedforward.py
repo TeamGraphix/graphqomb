@@ -14,7 +14,7 @@ from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from typing import Any
 
-from graphix_zx.graphstate import BaseGraphState, odd_neighbors
+from graphqomb.graphstate import BaseGraphState, odd_neighbors
 
 if sys.version_info >= (3, 10):
     from typing import TypeGuard

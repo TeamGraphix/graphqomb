@@ -5,13 +5,13 @@ from __future__ import annotations
 from io import StringIO
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import E, M, N
-from graphix_zx.common import Axis, determine_pauli_axis
+from graphqomb.command import E, M, N
+from graphqomb.common import Axis, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping
 
-    from graphix_zx.pattern import Pattern
+    from graphqomb.pattern import Pattern
 
 
 def stim_compile(  # noqa: C901, PLR0912

@@ -13,15 +13,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 import typing_extensions
 
-from graphix_zx.matrix import is_hermitian
-from graphix_zx.simulator_backend import BaseFullStateSimulator, QubitIndexManager
+from graphqomb.matrix import is_hermitian
+from graphqomb.simulator_backend import BaseFullStateSimulator, QubitIndexManager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-    from graphix_zx.common import MeasBasis
+    from graphqomb.common import MeasBasis
 
 CZ_TENSOR = np.asarray(
     [

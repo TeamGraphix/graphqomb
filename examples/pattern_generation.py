@@ -3,13 +3,13 @@ Basic Pattern Generation Example
 ================================
 
 This example demonstrates how to generate a pattern from a graph state
-using the graphix-zx library.
+using the graphqomb library.
 """
 
 # %%
-from graphix_zx.pattern import print_pattern
-from graphix_zx.qompiler import qompile
-from graphix_zx.random_objects import generate_random_flow_graph
+from graphqomb.pattern import print_pattern
+from graphqomb.qompiler import qompile
+from graphqomb.random_objects import generate_random_flow_graph
 
 # %%
 # convert circuit to graph and flow
