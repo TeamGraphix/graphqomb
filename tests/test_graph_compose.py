@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from graphix_zx.common import Plane, PlannerMeasBasis
 from graphix_zx.graphstate import BaseGraphState, GraphState, compose
 

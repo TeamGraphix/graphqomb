@@ -6,7 +6,6 @@ import math
 from typing import TYPE_CHECKING
 
 import pytest
-
 from graphix_zx.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphix_zx.graphstate import GraphState
 from graphix_zx.qompiler import qompile
