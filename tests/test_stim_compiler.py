@@ -6,13 +6,14 @@ import math
 from typing import TYPE_CHECKING
 
 import pytest
-from graphix_zx.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
-from graphix_zx.graphstate import GraphState
-from graphix_zx.qompiler import qompile
-from graphix_zx.stim_compiler import stim_compile
+
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
+from graphqomb.graphstate import GraphState
+from graphqomb.qompiler import qompile
+from graphqomb.stim_compiler import stim_compile
 
 if TYPE_CHECKING:
-    from graphix_zx.pattern import Pattern
+    from graphqomb.pattern import Pattern
 
 
 def create_simple_pattern_x_measurement() -> tuple[Pattern, int, int]:

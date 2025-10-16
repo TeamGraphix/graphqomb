@@ -10,13 +10,13 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Axis, determine_pauli_axis
+from graphqomb.common import Axis, determine_pauli_axis
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
+    from graphqomb.graphstate import BaseGraphState
 
 
 class PauliFrame:
