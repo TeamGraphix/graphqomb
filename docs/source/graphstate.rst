@@ -1,19 +1,19 @@
 GraphState
 ==========
 
-:mod:`graphix_zx.graphstate` module
+:mod:`graphqomb.graphstate` module
 +++++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.graphstate
+.. automodule:: graphqomb.graphstate
 
 Graph State Classes
 -------------------
 
-.. autoclass:: graphix_zx.graphstate.BaseGraphState
+.. autoclass:: graphqomb.graphstate.BaseGraphState
     :members:
     :member-order: bysource
 
-.. autoclass:: graphix_zx.graphstate.GraphState
+.. autoclass:: graphqomb.graphstate.GraphState
     :members:
     :show-inheritance:
     :member-order: bysource
@@ -21,14 +21,14 @@ Graph State Classes
 Functions
 ---------
 
-.. autofunction:: graphix_zx.graphstate.compose
-.. autofunction:: graphix_zx.graphstate.bipartite_edges
-.. autofunction:: graphix_zx.graphstate.odd_neighbors
+.. autofunction:: graphqomb.graphstate.compose
+.. autofunction:: graphqomb.graphstate.bipartite_edges
+.. autofunction:: graphqomb.graphstate.odd_neighbors
 
 Auxiliary Classes
 ------------------
-.. autoclass:: graphix_zx.graphstate.LocalCliffordExpansion
+.. autoclass:: graphqomb.graphstate.LocalCliffordExpansion
     :members:
 
-.. autoclass:: graphix_zx.graphstate.ExpansionMaps
+.. autoclass:: graphqomb.graphstate.ExpansionMaps
     :members:

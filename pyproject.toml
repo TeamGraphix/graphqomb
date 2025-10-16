@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "graphix-zx"
+name = "graphqomb"
 version = "0.1.0"
 requires-python = ">=3.9, <3.14"
 dynamic = ["dependencies", "optional-dependencies"]
@@ -82,7 +82,7 @@ docstring-code-format = true
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["graphix_zx"]
+pythonpath = ["graphqomb"]
 testpaths = ["tests"]
 filterwarnings = "ignore::DeprecationWarning"
 markers = "slow: mark test as slow"
@@ -108,10 +108,10 @@ directory = "htmlcov"
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
-files = ["graphix_zx", "tests", "examples"]
+files = ["graphqomb", "tests", "examples"]
 
 [tool.pyright]
-include = ["graphix_zx", "tests", "examples"]
+include = ["graphqomb", "tests", "examples"]
 reportUnknownArgumentType = "information"
 reportUnknownLambdaType = "information"
 reportUnknownMemberType = "information"

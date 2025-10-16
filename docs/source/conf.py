@@ -1,5 +1,5 @@
 """
-Sphinx documentation configuration file for the graphix-zx project.
+Sphinx documentation configuration file for the GraphQOMB project.
 
 This file configures the behavior of Sphinx, including the theme,
 extensions, and documentation settings.
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path("../../").resolve()))
 
 # -- Project information -----------------------------------------------------
 
-project = "graphix-zx"
+project = "GraphQOMB"
 # copyright = "2025, Team Graphix"
 author = "Masato Fukushima, to be added"
 

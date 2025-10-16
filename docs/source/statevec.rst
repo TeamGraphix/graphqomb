@@ -1,7 +1,7 @@
 State Vector
 ============
 
-.. automodule:: graphix_zx.statevec
+.. automodule:: graphqomb.statevec
    :members:
    :undoc-members:
    :show-inheritance:

@@ -15,13 +15,13 @@ import typing
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import Command, E, M, N, X, Z
+from graphqomb.command import Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Callable
 
-    from graphix_zx.pauli_frame import PauliFrame
+    from graphqomb.pauli_frame import PauliFrame
 
 
 @dataclasses.dataclass(frozen=True)

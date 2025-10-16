@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
+    from graphqomb.graphstate import BaseGraphState
 
 
 class Strategy(Enum):

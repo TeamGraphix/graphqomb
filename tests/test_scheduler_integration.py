@@ -1,8 +1,8 @@
 """Integration tests for scheduler and schedule_solve_scheduler."""
 
-from graphix_zx.graphstate import GraphState
-from graphix_zx.schedule_solver import ScheduleConfig, Strategy
-from graphix_zx.scheduler import Scheduler, compress_schedule
+from graphqomb.graphstate import GraphState
+from graphqomb.schedule_solver import ScheduleConfig, Strategy
+from graphqomb.scheduler import Scheduler, compress_schedule
 
 
 def test_simple_graph_scheduling() -> None:

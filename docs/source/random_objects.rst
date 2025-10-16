@@ -1,12 +1,12 @@
 Random Objects
 ===============
 
-:mod:`graphix_zx.random_objects` module
+:mod:`graphqomb.random_objects` module
 +++++++++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.random_objects
+.. automodule:: graphqomb.random_objects
 
 Functions
 ---------
 
-.. autofunction:: graphix_zx.random_objects.generate_random_flow_graph
+.. autofunction:: graphqomb.random_objects.generate_random_flow_graph

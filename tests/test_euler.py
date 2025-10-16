@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle, meas_basis
-from graphix_zx.euler import (
+from graphqomb.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle, meas_basis
+from graphqomb.euler import (
     LocalClifford,
     LocalUnitary,
     bloch_sphere_coordinates,
@@ -15,7 +15,7 @@ from graphix_zx.euler import (
     update_lc_basis,
     update_lc_lc,
 )
-from graphix_zx.matrix import is_unitary
+from graphqomb.matrix import is_unitary
 
 if TYPE_CHECKING:
     from typing import Callable

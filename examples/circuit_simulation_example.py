@@ -2,7 +2,7 @@
 Circuit Simulation Examples
 ===========================
 
-This example demonstrates how to create and simulate quantum circuits using graphix-zx,
+This example demonstrates how to create and simulate quantum circuits using graphqomb,
 including basic MBQC circuits, macro gate circuits, and phase gadget circuits.
 """
 
@@ -11,9 +11,9 @@ import math
 
 import numpy as np
 
-from graphix_zx.circuit import Circuit, MBQCCircuit
-from graphix_zx.gates import CNOT, CZ, H, Rz, X
-from graphix_zx.simulator import CircuitSimulator, SimulatorBackend
+from graphqomb.circuit import Circuit, MBQCCircuit
+from graphqomb.gates import CNOT, CZ, H, Rz, X
+from graphqomb.simulator import CircuitSimulator, SimulatorBackend
 
 # %%
 # Simple MBQC Circuit Example

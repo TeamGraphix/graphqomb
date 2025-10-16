@@ -1,30 +1,30 @@
 Command
 =======
 
-:mod:`graphix_zx.command` module
+:mod:`graphqomb.command` module
 ++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.command
+.. automodule:: graphqomb.command
 
 Command Classes
 ---------------
 
-.. autoclass:: graphix_zx.command.N
+.. autoclass:: graphqomb.command.N
     :members:
 
-.. autoclass:: graphix_zx.command.E
+.. autoclass:: graphqomb.command.E
     :members:
 
-.. autoclass:: graphix_zx.command.M
+.. autoclass:: graphqomb.command.M
     :members:
 
-.. autoclass:: graphix_zx.command.X
+.. autoclass:: graphqomb.command.X
     :members:
 
-.. autoclass:: graphix_zx.command.Z
+.. autoclass:: graphqomb.command.Z
     :members:
 
 Type Alias
 ----------
 
-.. autoclass:: graphix_zx.command.Command
+.. autoclass:: graphqomb.command.Command

@@ -1,1 +1,1 @@
-"""Sphinx documentation package for graphix-zx."""
+"""Sphinx documentation package for graphqomb."""
