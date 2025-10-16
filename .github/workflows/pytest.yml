@@ -52,7 +52,7 @@ jobs:
           pip install .[dev]
 
       - name: Run pytest with coverage
-        run: pytest --cov=graphix_zx --cov-report=term-missing --cov-report=xml --cov-branch
+        run: pytest --cov=graphqomb --cov-report=term-missing --cov-report=xml --cov-branch
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
