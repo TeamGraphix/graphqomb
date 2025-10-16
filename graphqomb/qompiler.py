@@ -12,18 +12,18 @@ from __future__ import annotations
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphix_zx.command import Command, E, M, N, X, Z
-from graphix_zx.feedforward import check_flow, dag_from_flow
-from graphix_zx.graphstate import odd_neighbors
-from graphix_zx.pattern import Pattern
-from graphix_zx.pauli_frame import PauliFrame
+from graphqomb.command import Command, E, M, N, X, Z
+from graphqomb.feedforward import check_flow, dag_from_flow
+from graphqomb.graphstate import odd_neighbors
+from graphqomb.pattern import Pattern
+from graphqomb.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
-    from graphix_zx.scheduler import Scheduler
+    from graphqomb.graphstate import BaseGraphState
+    from graphqomb.scheduler import Scheduler
 
 
 def qompile(

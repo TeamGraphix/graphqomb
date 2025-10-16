@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import typing_extensions
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

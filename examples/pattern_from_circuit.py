@@ -8,10 +8,10 @@ Basic example of generating a pattern from a circuit and simulating it.
 # %%
 import numpy as np
 
-from graphix_zx.circuit import MBQCCircuit, circuit2graph
-from graphix_zx.pattern import print_pattern
-from graphix_zx.qompiler import qompile
-from graphix_zx.simulator import (
+from graphqomb.circuit import MBQCCircuit, circuit2graph
+from graphqomb.pattern import print_pattern
+from graphqomb.qompiler import qompile
+from graphqomb.simulator import (
     CircuitSimulator,
     PatternSimulator,
     SimulatorBackend,

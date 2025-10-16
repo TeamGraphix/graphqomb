@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
 
-    from graphix_zx.common import MeasBasis
+    from graphqomb.common import MeasBasis
 
 
 class QubitIndexManager:
