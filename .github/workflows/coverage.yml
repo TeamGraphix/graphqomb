@@ -1,6 +1,3 @@
-# Upload coverage reports to Codecov for base branch tracking
-# This workflow runs on push to master to maintain baseline coverage data
-
 name: coverage
 
 on:
