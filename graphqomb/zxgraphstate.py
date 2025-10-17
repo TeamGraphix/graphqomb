@@ -9,7 +9,6 @@ This module provides:
 
 from __future__ import annotations
 
-import operator
 import sys
 from collections import defaultdict
 from itertools import combinations
@@ -517,14 +516,10 @@ def to_zx_graphstate(graph: BaseGraphState) -> tuple[ZXGraphState, dict[int, int
 
     Raises
     ------
-    ValueError
-        If the input graph is not in canonical form.
     TypeError
         If the input graph is not an instance of GraphState.
     """
-    if not graph.is_canonical_form():
-        msg = "The input graph must be in canonical form."
-        raise ValueError(msg)
+    graph.check_canonical_form()
     if not isinstance(graph, GraphState):
         msg = "The input graph must be an instance of GraphState."
         raise TypeError(msg)
@@ -532,6 +527,7 @@ def to_zx_graphstate(graph: BaseGraphState) -> tuple[ZXGraphState, dict[int, int
     node_map: dict[int, int] = {}
     zx_graph = ZXGraphState()
 
+    # Copy all physical nodes and measurement bases
     for node in graph.physical_nodes:
         node_index = zx_graph.add_physical_node()
         node_map[node] = node_index
@@ -539,16 +535,21 @@ def to_zx_graphstate(graph: BaseGraphState) -> tuple[ZXGraphState, dict[int, int
         if meas_basis is not None:
             zx_graph.assign_meas_basis(node_index, meas_basis)
 
-    q_index_map: dict[int, int] = {}
-    for input_node, old_q_index in sorted(graph.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = zx_graph.register_input(node_map[input_node])
-        q_index_map[old_q_index] = new_q_index
+    # Register input nodes
+    for node, q_index in graph.input_node_indices.items():
+        zx_graph.register_input(node_map[node], q_index)
 
-    for output_node, q_index in sorted(graph.output_node_indices.items()):
-        zx_graph.register_output(node_map[output_node], q_index_map[q_index])
+    # Register output nodes
+    for node, q_index in graph.output_node_indices.items():
+        zx_graph.register_output(node_map[node], q_index)
 
+    # Copy all physical edges
     for u, v in graph.physical_edges:
         zx_graph.add_physical_edge(node_map[u], node_map[v])
+
+    # Copy local Clifford operators
+    for node, lc in graph.local_cliffords.items():
+        zx_graph.apply_local_clifford(node_map[node], lc)
 
     return zx_graph, node_map
 
