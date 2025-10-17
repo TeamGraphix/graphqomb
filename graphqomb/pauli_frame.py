@@ -34,10 +34,8 @@ class PauliFrame:
         Current X Pauli state for each node
     z_pauli : `dict`\[`int`, `bool`\]
         Current Z Pauli state for each node
-    x_parity_check_group : `list`\[`set`\[`int`\]\]
-        X parity check group for FTQC
-    z_parity_check_group : `list`\[`set`\[`int`\]\]
-        Z parity check group for FTQC
+    parity_check_group : `list`\[`set`\[`int`\]\]
+        Parity check group for FTQC
     inv_xflow : `dict`\[`int`, `int`\]
         Inverse X correction flow for each measurement flip
     inv_zflow : `dict`\[`int`, `int`\]
@@ -49,8 +47,7 @@ class PauliFrame:
     zflow: dict[int, set[int]]
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
-    x_parity_check_group: list[set[int]]
-    z_parity_check_group: list[set[int]]
+    parity_check_group: list[set[int]]
     inv_xflow: dict[int, set[int]]
     inv_zflow: dict[int, set[int]]
 
@@ -59,20 +56,16 @@ class PauliFrame:
         graphstate: BaseGraphState,
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
-        x_parity_check_group: Sequence[AbstractSet[int]] | None = None,
-        z_parity_check_group: Sequence[AbstractSet[int]] | None = None,
+        parity_check_group: Sequence[AbstractSet[int]] | None = None,
     ) -> None:
-        if x_parity_check_group is None:
-            x_parity_check_group = []
-        if z_parity_check_group is None:
-            z_parity_check_group = []
+        if parity_check_group is None:
+            parity_check_group = []
         self.graphstate = graphstate
         self.xflow = {node: set(targets) for node, targets in xflow.items()}
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
         self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
         self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
-        self.x_parity_check_group = [set(item) for item in x_parity_check_group]
-        self.z_parity_check_group = [set(item) for item in z_parity_check_group]
+        self.parity_check_group = [set(item) for item in parity_check_group]
 
         self.inv_xflow = defaultdict(set)
         self.inv_zflow = defaultdict(set)
@@ -148,29 +141,23 @@ class PauliFrame:
         """
         return self.inv_xflow.get(node, set()) | self.inv_zflow.get(node, set())
 
-    def detector_groups(self) -> tuple[list[set[int]], list[set[int]]]:
-        r"""Get the X and Z parity check groups.
+    def detector_groups(self) -> list[set[int]]:
+        r"""Get the parity check groups.
 
         Returns
         -------
-        `tuple`\[`list`\[`set`\[`int`\]\], `list`\[`set`\[`int`\]\]\]
-            The X and Z parity check groups.
+        `list`\[`set`\[`int`\]\]
+            The parity check groups.
         """
-        x_groups: list[set[int]] = []
-        z_groups: list[set[int]] = []
+        groups: list[set[int]] = []
 
-        for syndrome_group in self.x_parity_check_group:
+        for syndrome_group in self.parity_check_group:
             mbqc_group: set[int] = set()
             for node in syndrome_group:
                 mbqc_group ^= self._collect_dependent_chain(node)
-            x_groups.append(mbqc_group)
-        for syndrome_group in self.z_parity_check_group:
-            mbqc_group = set()
-            for node in syndrome_group:
-                mbqc_group ^= self._collect_dependent_chain(node)
-            z_groups.append(mbqc_group)
+            groups.append(mbqc_group)
 
-        return x_groups, z_groups
+        return groups
 
     def logical_observables_group(self, target_nodes: Collection[int]) -> set[int]:
         r"""Get the logical observables group for the given target nodes.

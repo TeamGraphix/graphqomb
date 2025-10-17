@@ -85,12 +85,9 @@ def stim_compile(  # noqa: C901, PLR0912
                 stim_io.write(f"MZ {cmd.node}\n")
                 meas_order.append(cmd.node)
 
-    x_check_groups, z_check_groups = pframe.detector_groups()
-    for x_checks in x_check_groups:
-        targets = [f"rec[{meas_order.index(x_check) - len(meas_order)}]" for x_check in x_checks]
-        stim_io.write(f"DETECTOR {' '.join(targets)}\n")
-    for z_checks in z_check_groups:
-        targets = [f"rec[{meas_order.index(z_check) - len(meas_order)}]" for z_check in z_checks]
+    check_groups = pframe.detector_groups()
+    for checks in check_groups:
+        targets = [f"rec[{meas_order.index(check) - len(meas_order)}]" for check in checks]
         stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
     # logical observables

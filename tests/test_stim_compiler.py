@@ -225,8 +225,8 @@ def test_stim_compile_with_detectors() -> None:
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     # Add parity check groups
-    x_parity_check_group = [{in_node}]
-    pattern = qompile(graph, xflow, x_parity_check_group=x_parity_check_group)
+    parity_check_group = [{in_node}]
+    pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
 
     stim_str = stim_compile(pattern)
 

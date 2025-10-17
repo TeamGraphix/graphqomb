@@ -26,13 +26,12 @@ if TYPE_CHECKING:
     from graphqomb.scheduler import Scheduler
 
 
-def qompile(  # noqa: PLR0913
+def qompile(
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
-    x_parity_check_group: Sequence[AbstractSet[int]] | None = None,
-    z_parity_check_group: Sequence[AbstractSet[int]] | None = None,
+    parity_check_group: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
@@ -46,10 +45,8 @@ def qompile(  # noqa: PLR0913
     zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         z correction flow
         if `None`, it is generated from xflow by odd neighbors
-    x_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
-        x parity check group for FTQC
-    z_parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
-        z parity check group for FTQC
+    parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
+        parity check group for FTQC
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
@@ -65,9 +62,7 @@ def qompile(  # noqa: PLR0913
         zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
 
-    pauli_frame = PauliFrame(
-        graph, xflow, zflow, x_parity_check_group=x_parity_check_group, z_parity_check_group=z_parity_check_group
-    )
+    pauli_frame = PauliFrame(graph, xflow, zflow, parity_check_group=parity_check_group)
 
     return _qompile(graph, pauli_frame, scheduler=scheduler)
 
