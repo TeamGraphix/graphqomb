@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis, is_close_angle
-from graphix_zx.random_objects import generate_random_flow_graph
-from graphix_zx.zxgraphstate import ZXGraphState, to_zx_graphstate
+from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.random_objects import generate_random_flow_graph
+from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -134,17 +134,17 @@ def _initialize_graph(
     node2q_index: dict[int, int] = {}
     q_indices: list[int] = []
 
-    for node in inputs:
-        q_index = zx_graph.register_input(node)
-        node2q_index[node] = q_index
-        q_indices.append(q_index)
+    for i, node in enumerate(inputs):
+        zx_graph.register_input(node, q_index=i)
+        node2q_index[node] = i
+        q_indices.append(i)
 
     if len(outputs) > len(q_indices):
         msg = "Cannot assign valid q_index to all output nodes."
         raise ValueError(msg)
 
-    for idx, node in enumerate(outputs):
-        q_index = node2q_index.get(node, q_indices[idx])
+    for i, node in enumerate(outputs):
+        q_index = node2q_index.get(node, q_indices[i])
         zx_graph.register_output(node, q_index)
 
 
@@ -176,17 +176,17 @@ def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> N
 
 def test_local_complement_fails_if_not_zx_graph(zx_graph: ZXGraphState) -> None:
     """Test local complement raises an error if the graph is not a ZX-diagram."""
-    zx_graph.add_physical_node()
+    node = zx_graph.add_physical_node()
     with pytest.raises(ValueError, match="Measurement basis not set for node 0"):
-        zx_graph.local_complement(0)
+        zx_graph.local_complement(node)
 
 
 def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     """Test local complement fails with input node."""
-    zx_graph.add_physical_node()
-    zx_graph.register_input(0)
+    node = zx_graph.add_physical_node()
+    zx_graph.register_input(node, q_index=0)
     with pytest.raises(ValueError, match=r"Cannot apply local complement to input node."):
-        zx_graph.local_complement(0)
+        zx_graph.local_complement(node)
 
 
 @pytest.mark.parametrize("plane", list(Plane))
@@ -195,13 +195,13 @@ def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng
     angle = rng.random() * 2 * np.pi
     ref_plane, ref_angle_func = MEAS_ACTION_LC_TARGET[plane]
     ref_angle = ref_angle_func(angle)
-    zx_graph.add_physical_node()
-    zx_graph.assign_meas_basis(0, PlannerMeasBasis(plane, angle))
+    node = zx_graph.add_physical_node()
+    zx_graph.assign_meas_basis(node, PlannerMeasBasis(plane, angle))
 
-    zx_graph.local_complement(0)
+    zx_graph.local_complement(node)
     assert zx_graph.physical_edges == set()
-    assert zx_graph.meas_bases[0].plane == ref_plane
-    assert is_close_angle(zx_graph.meas_bases[0].angle, ref_angle)
+    assert zx_graph.meas_bases[node].plane == ref_plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_angle)
 
 
 @pytest.mark.parametrize("planes", plane_combinations(3))
@@ -333,11 +333,11 @@ def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
 
 def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     """Test pivot fails with input node."""
-    zx_graph.add_physical_node()
-    zx_graph.add_physical_node()
-    zx_graph.register_input(0)
+    node1 = zx_graph.add_physical_node()
+    node2 = zx_graph.add_physical_node()
+    zx_graph.register_input(node1, q_index=0)
     with pytest.raises(ValueError, match="Cannot apply pivot to input node"):
-        zx_graph.pivot(0, 1)
+        zx_graph.pivot(node1, node2)
 
 
 def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
@@ -412,10 +412,10 @@ def test_remove_clifford_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> No
 
 
 def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
-    zx_graph.add_physical_node()
-    zx_graph.register_input(0)
+    node = zx_graph.add_physical_node()
+    zx_graph.register_input(node, q_index=0)
     with pytest.raises(ValueError, match="Clifford node removal not allowed for input node"):
-        zx_graph.remove_clifford(0)
+        zx_graph.remove_clifford(node)
 
 
 def test_remove_clifford_fails_with_invalid_plane(zx_graph: ZXGraphState) -> None:
