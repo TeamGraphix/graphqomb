@@ -15,19 +15,19 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.command import E, M, N, X, Z
-from graphix_zx.common import MeasBasis, Plane
-from graphix_zx.gates import MultiGate, SingleGate, TwoQubitGate
-from graphix_zx.pattern import is_runnable
-from graphix_zx.rng import ensure_rng
-from graphix_zx.statevec import StateVector
+from graphqomb.command import E, M, N, X, Z
+from graphqomb.common import MeasBasis, Plane
+from graphqomb.gates import MultiGate, SingleGate, TwoQubitGate
+from graphqomb.pattern import is_runnable
+from graphqomb.rng import ensure_rng
+from graphqomb.statevec import StateVector
 
 if TYPE_CHECKING:
-    from graphix_zx.circuit import BaseCircuit
-    from graphix_zx.command import Command
-    from graphix_zx.gates import Gate
-    from graphix_zx.pattern import Pattern
-    from graphix_zx.simulator_backend import BaseFullStateSimulator
+    from graphqomb.circuit import BaseCircuit
+    from graphqomb.command import Command
+    from graphqomb.gates import Gate
+    from graphqomb.pattern import Pattern
+    from graphqomb.simulator_backend import BaseFullStateSimulator
 
 
 class SimulatorBackend(Enum):

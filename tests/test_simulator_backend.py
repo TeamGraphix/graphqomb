@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.simulator_backend import QubitIndexManager
+from graphqomb.simulator_backend import QubitIndexManager
 
 
 @pytest.fixture

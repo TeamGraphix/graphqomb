@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
+from graphqomb.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
 
 
 def test_inverse_order_plane() -> None:

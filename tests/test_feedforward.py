@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_dag, check_flow, dag_from_flow
-from graphix_zx.graphstate import GraphState
+from graphqomb.feedforward import _is_flow, _is_gflow, check_dag, check_flow, dag_from_flow
+from graphqomb.graphstate import GraphState
 
 
 def two_node_graph() -> tuple[GraphState, int, int]:

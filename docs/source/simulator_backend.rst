@@ -1,7 +1,7 @@
 Simulator Backend
 =================
 
-.. automodule:: graphix_zx.simulator_backend
+.. automodule:: graphqomb.simulator_backend
    :members:
    :undoc-members:
    :show-inheritance:

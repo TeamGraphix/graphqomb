@@ -1,12 +1,12 @@
 Qompiler
 ========
 
-:mod:`graphix_zx.qompiler` module
+:mod:`graphqomb.qompiler` module
 +++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.qompiler
+.. automodule:: graphqomb.qompiler
 
 Qompile Functions
 -----------------
 
-.. autofunction:: graphix_zx.qompiler.qompile
+.. autofunction:: graphqomb.qompiler.qompile

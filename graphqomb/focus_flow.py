@@ -11,15 +11,15 @@ from __future__ import annotations
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphix_zx.common import Plane
-from graphix_zx.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow
-from graphix_zx.graphstate import odd_neighbors
+from graphqomb.common import Plane
+from graphqomb.feedforward import _is_flow, _is_gflow, check_flow, dag_from_flow
+from graphqomb.graphstate import odd_neighbors
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.graphstate import BaseGraphState
+    from graphqomb.graphstate import BaseGraphState
 
 
 def is_focused(flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], graph: BaseGraphState) -> bool:

@@ -1,5 +1,5 @@
 Visualizer Module
 =================
 
-.. automodule:: graphix_zx.visualizer
+.. automodule:: graphqomb.visualizer
    :members:

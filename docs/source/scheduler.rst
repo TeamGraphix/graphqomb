@@ -5,11 +5,11 @@ Scheduler Module
 Scheduler
 ---------
 
-.. automodule:: graphix_zx.scheduler
+.. automodule:: graphqomb.scheduler
    :members:
 
 Scheduling Solver
 -----------------
 
-.. automodule:: graphix_zx.schedule_solver
+.. automodule:: graphqomb.schedule_solver
     :members:

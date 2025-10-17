@@ -6,8 +6,7 @@ This module provides:
 - `GraphState`: Minimal implementation of Graph State.
 - `LocalCliffordExpansion`: Local Clifford expansion.
 - `ExpansionMaps`: Expansion maps for local clifford operators.
-- `compose_sequentially`: Function to compose two graph states sequentially.
-- `compose_in_parallel`: Function to compose two graph states in parallel.
+- `compose`: Function to compose two graph states sequentially.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 - `odd_neighbors`: Function to get odd neighbors of a node.
 
@@ -24,13 +23,13 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import typing_extensions
 
-from graphix_zx.common import MeasBasis, Plane, PlannerMeasBasis
-from graphix_zx.euler import update_lc_basis, update_lc_lc
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
+from graphqomb.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
-    from graphix_zx.euler import LocalClifford
+    from graphqomb.euler import LocalClifford
 
 
 class BaseGraphState(ABC):
@@ -114,17 +113,14 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
         """
 
@@ -168,14 +164,8 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def is_canonical_form(self) -> bool:
-        r"""Check if the graph state is in canonical form.
-
-        Returns
-        -------
-        `bool`
-            `True` if the graph state is in canonical form, `False` otherwise.
-        """
+    def check_canonical_form(self) -> None:
+        r"""Check if the graph state is in canonical form."""
 
 
 class GraphState(BaseGraphState):
@@ -397,17 +387,14 @@ class GraphState(BaseGraphState):
         self.__physical_edges[node2] -= {node1}
 
     @typing_extensions.override
-    def register_input(self, node: int) -> int:
+    def register_input(self, node: int, q_index: int) -> None:
         """Mark the node as an input node.
 
         Parameters
         ----------
         node : `int`
             node index
-
-        Returns
-        -------
-        `int`
+        q_index : `int`
             logical qubit index
 
         Raises
@@ -419,9 +406,10 @@ class GraphState(BaseGraphState):
         if node in self.__input_node_indices:
             msg = "The node is already registered as an input node."
             raise ValueError(msg)
-        q_index = len(self.__input_node_indices)
+        if q_index in self.input_node_indices.values():
+            msg = "The q_index already exists in input qubit indices"
+            raise ValueError(msg)
         self.__input_node_indices[node] = q_index
-        return q_index
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
@@ -438,19 +426,12 @@ class GraphState(BaseGraphState):
         ------
         ValueError
             1. If the node is already registered as an output node.
-            2. If the node has a measurement basis.
-            3. If the invalid q_index specified.
-            4. If the q_index already exists in output qubit indices.
+            2. If the invalid q_index specified.
+            3. If the q_index already exists in output qubit indices.
         """
         self._ensure_node_exists(node)
         if node in self.__output_node_indices:
             msg = "The node is already registered as an output node."
-            raise ValueError(msg)
-        if self.meas_bases.get(node) is not None:
-            msg = "Cannot set output node with measurement basis."
-            raise ValueError(msg)
-        if q_index >= len(self.input_node_indices):
-            msg = "The q_index does not exist in input qubit indices"
             raise ValueError(msg)
         if q_index in self.output_node_indices.values():
             msg = "The q_index already exists in output qubit indices"
@@ -467,16 +448,8 @@ class GraphState(BaseGraphState):
             node index
         meas_basis : `MeasBasis`
             measurement basis
-
-        Raises
-        ------
-        ValueError
-            If the node is an output node.
         """
         self._ensure_node_exists(node)
-        if node in self.output_node_indices:
-            msg = "Cannot set measurement basis for output node."
-            raise ValueError(msg)
         self.__meas_bases[node] = meas_basis
 
     def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
@@ -520,27 +493,25 @@ class GraphState(BaseGraphState):
         return self.__physical_edges[node].copy()
 
     @typing_extensions.override
-    def is_canonical_form(self) -> bool:
+    def check_canonical_form(self) -> None:
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. Graph state has the same number of input and output nodes.
-        2. No Clifford operators applied.
-        3. All non-output nodes have measurement basis.
+        1. No Clifford operators applied.
+        2. All non-output nodes have measurement basis
 
-        Returns
-        -------
-        `bool`
-            `True` if the graph state is in canonical form, `False` otherwise.
+        Raises
+        ------
+        ValueError
+            If the graph state is not in canonical form.
         """
-        if len(self.input_node_indices) != len(self.output_node_indices):
-            return False
         if self.__local_cliffords:
-            return False
+            msg = "Clifford operators are applied."
+            raise ValueError(msg)
         for node in self.physical_nodes - set(self.output_node_indices):
             if self.meas_bases.get(node) is None:
-                return False
-        return True
+                msg = "All non-output nodes must have measurement basis."
+                raise ValueError(msg)
 
     def expand_local_cliffords(self) -> ExpansionMaps:
         r"""Expand local Clifford operators applied on the input and output nodes.
@@ -578,15 +549,15 @@ class GraphState(BaseGraphState):
             A dictionary mapping input node indices to the new node indices created.
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_input_indices: list[int] = []
-        for input_node, _ in sorted(self.input_node_indices.items(), key=operator.itemgetter(1)):
+        new_input_indices: dict[int, int] = {}
+        for input_node, q_index in self.input_node_indices.items():
             lc = self._pop_local_clifford(input_node)
             if lc is None:
-                new_input_indices.append(input_node)
+                new_input_indices[input_node] = q_index
                 continue
 
             new_node_index0 = self.add_physical_node()
-            new_input_indices.append(new_node_index0)
+            new_input_indices[new_node_index0] = q_index
             new_node_index1 = self.add_physical_node()
             new_node_index2 = self.add_physical_node()
 
@@ -603,8 +574,8 @@ class GraphState(BaseGraphState):
             )
 
         self.__input_node_indices = {}
-        for new_input_index in new_input_indices:
-            self.register_input(new_input_index)
+        for new_input_index, q_index in new_input_indices.items():
+            self.register_input(new_input_index, q_index)
 
         return node_index_addition_map
 
@@ -618,7 +589,7 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_output_index_map: dict[int, int] = {}
-        for output_node, q_index in sorted(self.output_node_indices.items(), key=operator.itemgetter(1)):
+        for output_node, q_index in self.output_node_indices.items():
             lc = self._pop_local_clifford(output_node)
             if lc is None:
                 new_output_index_map[output_node] = q_index
@@ -663,10 +634,13 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose_sequentially(
+def compose(  # noqa: C901
     graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
+) -> tuple[GraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
+
+    Qubits with matching indices are automatically connected. Graph2 is connected after graph1.
+    All other qubit indices are preserved from their original graphs.
 
     Parameters
     ----------
@@ -683,40 +657,65 @@ def compose_sequentially(
     Raises
     ------
     ValueError
-        1. If graph1 or graph2 is not in canonical form.
-        2. If the logical qubit indices of output nodes in graph1 do not match input nodes in graph2.
+        1. If the graph states are not in canonical form.
+        2. If there are qindex conflicts (same qindex used in both graphs but not for connection).
     """
-    if not graph1.is_canonical_form():
-        msg = "graph1 must be in canonical form."
-        raise ValueError(msg)
-    if not graph2.is_canonical_form():
-        msg = "graph2 must be in canonical form."
-        raise ValueError(msg)
-    if set(graph1.output_node_indices.values()) != set(graph2.input_node_indices.values()):
-        msg = "Logical qubit indices of output nodes in graph1 must match input nodes in graph2."
+    graph1.check_canonical_form()
+    graph2.check_canonical_form()
+
+    # Automatically detect connection targets: qindices that appear in both graphs
+    output_q_indices1 = set(graph1.output_node_indices.values())
+    input_q_indices2 = set(graph2.input_node_indices.values())
+    target_q_indices = output_q_indices1 & input_q_indices2
+
+    # Check for qindex conflicts: qindices used in both graphs but not for connection
+    all_q_indices1 = set(graph1.input_node_indices.values()) | output_q_indices1
+    all_q_indices2 = input_q_indices2 | set(graph2.output_node_indices.values())
+    conflicting_q_indices = (all_q_indices1 & all_q_indices2) - target_q_indices
+
+    if conflicting_q_indices:
+        msg = (
+            f"Qindex conflicts detected: {conflicting_q_indices}. "
+            "These indices are used in both graphs but cannot be connected."
+        )
         raise ValueError(msg)
 
     composed_graph = GraphState()
 
+    # Copy nodes from graph1, excluding output nodes that will be connected
     node_map1 = _copy_nodes(
         src=graph1,
         dst=composed_graph,
-        exclude_nodes=graph1.output_node_indices.keys(),
+        exclude_nodes={node for node, q_index in graph1.output_node_indices.items() if q_index in target_q_indices},
     )
+
+    # Copy all nodes from graph2
     node_map2 = _copy_nodes(
         src=graph2,
         dst=composed_graph,
         exclude_nodes=set(),
     )
 
+    # Connect output nodes from graph1 to input nodes from graph2 for target qindices
     q_index2output_node_index1 = {
         q_index: output_node_index1 for output_node_index1, q_index in graph1.output_node_indices.items()
     }
     for input_node_index2, q_index in graph2.input_node_indices.items():
-        node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
+        if q_index in target_q_indices:
+            node_map1[q_index2output_node_index1[q_index]] = node_map2[input_node_index2]
 
-    for input_node, _ in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        composed_graph.register_input(node_map1[input_node])
+    # Register input nodes with preserved qindices
+    for input_node, q_index in graph1.input_node_indices.items():
+        composed_graph.register_input(node_map1[input_node], q_index)
+
+    for input_node, q_index in graph2.input_node_indices.items():
+        if q_index not in target_q_indices:
+            composed_graph.register_input(node_map2[input_node], q_index)
+
+    # Register output nodes with preserved qindices
+    for output_node, q_index in graph1.output_node_indices.items():
+        if q_index not in target_q_indices:
+            composed_graph.register_output(node_map1[output_node], q_index)
 
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
@@ -760,76 +759,6 @@ def _copy_nodes(
             dst.assign_meas_basis(new_idx, meas)
         node_map[node] = new_idx
     return node_map
-
-
-def compose_in_parallel(  # noqa: C901
-    graph1: BaseGraphState, graph2: BaseGraphState
-) -> tuple[BaseGraphState, dict[int, int], dict[int, int]]:
-    r"""Compose two graph states in parallel.
-
-    Parameters
-    ----------
-    graph1 : `BaseGraphState`
-        first graph state
-    graph2 : `BaseGraphState`
-        second graph state
-
-    Returns
-    -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
-        composed graph state, node map for graph1, node map for graph2
-
-    Raises
-    ------
-    ValueError
-        If graph1 or graph2 is not in canonical form.
-    """
-    if not graph1.is_canonical_form():
-        msg = "graph1 must be in canonical form."
-        raise ValueError(msg)
-    if not graph2.is_canonical_form():
-        msg = "graph2 must be in canonical form."
-        raise ValueError(msg)
-    node_map1: dict[int, int] = {}
-    node_map2: dict[int, int] = {}
-    composed_graph = GraphState()
-
-    for node in graph1.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph1.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map1[node] = node_index
-
-    for node in graph2.physical_nodes:
-        node_index = composed_graph.add_physical_node()
-        meas_basis = graph2.meas_bases.get(node, None)
-        if meas_basis is not None:
-            composed_graph.assign_meas_basis(node_index, meas_basis)
-        node_map2[node] = node_index
-
-    q_index_map1: dict[int, int] = {}
-    q_index_map2: dict[int, int] = {}
-    for input_node, old_q_index in sorted(graph1.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map1[input_node])
-        q_index_map1[old_q_index] = new_q_index
-
-    for input_node, old_q_index in sorted(graph2.input_node_indices.items(), key=operator.itemgetter(1)):
-        new_q_index = composed_graph.register_input(node_map2[input_node])
-        q_index_map2[old_q_index] = new_q_index
-
-    for output_node, q_index in graph1.output_node_indices.items():
-        composed_graph.register_output(node_map1[output_node], q_index_map1[q_index])
-
-    for output_node, q_index in graph2.output_node_indices.items():
-        composed_graph.register_output(node_map2[output_node], q_index_map2[q_index])
-
-    for u, v in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
-    for u, v in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
-
-    return composed_graph, node_map1, node_map2
 
 
 def bipartite_edges(node_set1: AbstractSet[int], node_set2: AbstractSet[int]) -> set[tuple[int, int]]:

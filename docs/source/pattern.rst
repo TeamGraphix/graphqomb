@@ -1,21 +1,21 @@
 Pattern
 =======
 
-:mod:`graphix_zx.pattern` module
+:mod:`graphqomb.pattern` module
 ++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.pattern
+.. automodule:: graphqomb.pattern
 
 Pattern Classes
 ---------------
 
-.. autoclass:: graphix_zx.pattern.Pattern
+.. autoclass:: graphqomb.pattern.Pattern
     :members:
     :member-order: bysource
 
 Helper Functions
 ----------------
 
-.. autofunction:: graphix_zx.pattern.is_runnable
+.. autofunction:: graphqomb.pattern.is_runnable
 
-.. autofunction:: graphix_zx.pattern.print_pattern
+.. autofunction:: graphqomb.pattern.print_pattern

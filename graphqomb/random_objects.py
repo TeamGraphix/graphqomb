@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.circuit import MBQCCircuit
-from graphix_zx.common import default_meas_basis
-from graphix_zx.graphstate import GraphState
+from graphqomb.circuit import MBQCCircuit
+from graphqomb.common import default_meas_basis
+from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,17 +51,15 @@ def generate_random_flow_graph(
     """
     graph = GraphState()
     flow: dict[int, set[int]] = {}
-    q_indices: list[int] = []
 
     if rng is None:
         rng = np.random.default_rng()
 
     # input nodes
-    for _ in range(width):
+    for i in range(width):
         node_index = graph.add_physical_node()
-        q_index = graph.register_input(node_index)
+        graph.register_input(node_index, i)
         graph.assign_meas_basis(node_index, default_meas_basis())
-        q_indices.append(q_index)
 
     # internal nodes
     for _ in range(depth - 2):
@@ -78,9 +76,9 @@ def generate_random_flow_graph(
                 graph.add_physical_edge(node_indices_layer[w], node_indices_layer[w + 1])
 
     # output nodes
-    for qi in q_indices:
+    for i in range(width):
         node_index = graph.add_physical_node()
-        graph.register_output(node_index, qi)
+        graph.register_output(node_index, i)
         graph.add_physical_edge(node_index - width, node_index)
         flow[node_index - width] = {node_index}
 

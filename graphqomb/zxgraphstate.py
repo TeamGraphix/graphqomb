@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphix_zx.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
-from graphix_zx.euler import LocalClifford
-from graphix_zx.graphstate import BaseGraphState, GraphState, bipartite_edges
+from graphqomb.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
+from graphqomb.euler import LocalClifford
+from graphqomb.graphstate import BaseGraphState, GraphState, bipartite_edges
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
