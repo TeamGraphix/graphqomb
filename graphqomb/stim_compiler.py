@@ -1,9 +1,16 @@
-"""Pattern to stim compiler."""
+"""Pattern to stim compiler.
+
+This module provides:
+
+- `stim_compile`: Function to compile a pattern into stim format.
+"""
 
 from __future__ import annotations
 
 from io import StringIO
 from typing import TYPE_CHECKING
+
+import typing_extensions
 
 from graphqomb.command import E, M, N
 from graphqomb.common import Axis, determine_pauli_axis
@@ -38,6 +45,12 @@ def stim_compile(  # noqa: C901, PLR0912
     -------
     `str`
         The compiled stim string.
+
+    Notes
+    -----
+    Stim only supports Clifford gates, therefore this compiler only supports
+    Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
+    Non-Pauli measurements will raise a ValueError.
 
     Raises
     ------
@@ -84,6 +97,8 @@ def stim_compile(  # noqa: C901, PLR0912
                     stim_io.write(f"X_ERROR({before_measure_flip_probability}) {cmd.node}\n")
                 stim_io.write(f"MZ {cmd.node}\n")
                 meas_order.append(cmd.node)
+            else:
+                typing_extensions.assert_never(axis)
 
     check_groups = pframe.detector_groups()
     for checks in check_groups:
