@@ -196,12 +196,12 @@ class ZXGraphState(GraphState):
 
         # update node1 and node2 measurement
         lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
-        for a in {node1, node2} - set(self.output_node_indices):
+        for a in {node1, node2}:
             self.apply_local_clifford(a, lc)
 
         # update nodes measurement of nbr_a
         lc = LocalClifford(np.pi, 0, 0)
-        for w in nbr_a - set(self.output_node_indices):
+        for w in nbr_a:
             self.apply_local_clifford(w, lc)
 
     def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
