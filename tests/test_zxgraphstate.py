@@ -437,7 +437,7 @@ def test_remove_clifford_fails_for_non_clifford_node(zx_graph: ZXGraphState) -> 
 
 
 def graph_1(zx_graph: ZXGraphState) -> None:
-    # _needs_nop
+    # _is_trivial_meas
     # 3---0---1      3       1
     #     |      ->
     #     2              2

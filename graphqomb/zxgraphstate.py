@@ -71,7 +71,7 @@ class ZXGraphState(GraphState):
         """
         return (
             (self._needs_lc, self.local_complement),
-            (self._needs_nop, lambda _: None),
+            (self._is_trivial_meas, self.absorb_trivial_meas),
             (
                 self._needs_pivot,
                 lambda node: self.pivot(node, min(self.neighbors(node) - set(self.input_node_indices))),
@@ -204,11 +204,14 @@ class ZXGraphState(GraphState):
         for w in nbr_a:
             self.apply_local_clifford(w, lc)
 
-    def _needs_nop(self, node: int, atol: float = 1e-9) -> bool:
+    def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
 
         For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
         and the measurement plane must be YZ or XZ.
+        If True is returned and the node is output, all neighbors are registered as output nodes.
+
+        ref: Quantum 5, 421 (2021). Lemma 4.7
 
         Parameters
         ----------
@@ -221,6 +224,7 @@ class ZXGraphState(GraphState):
         -------
         `bool`
             True if the node is a removable Clifford node.
+            If True and the node is output, all neighbors are registered as output nodes in absorb_trivial_meas method.
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
         return is_close_angle(2 * alpha, 0, atol) and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
@@ -280,6 +284,25 @@ class ZXGraphState(GraphState):
         # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
         case_b = is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
         return case_a or case_b
+
+    def absorb_trivial_meas(self, node: int) -> None:
+        """Absorb the trivial measurement node.
+
+        For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
+        and the measurement plane must be YZ or XZ.
+        If the node is output, all neighbors are registered as output nodes.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        """
+        nbrs = self.neighbors(node)
+        for v in nbrs:
+            # if the node is output, register neighbors as output nodes
+            if node in self.output_node_indices:
+                max_q_index = max(self.q_indices.values(), default=-1)
+                self.register_output(v, max_q_index + 1)
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
         """Perform the Clifford node removal.
@@ -357,7 +380,7 @@ class ZXGraphState(GraphState):
         """
         return any(
             [
-                self._needs_nop(node, atol),
+                self._is_trivial_meas(node, atol),
                 self._needs_lc(node, atol),
                 self._needs_pivot(node, atol),
             ]
