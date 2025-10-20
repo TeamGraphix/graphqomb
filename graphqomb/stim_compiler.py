@@ -22,34 +22,34 @@ if TYPE_CHECKING:
     from graphqomb.pauli_frame import PauliFrame
 
 
-def _write_input_nodes(
+def _initialize_nodes(
     stim_io: StringIO,
-    input_node_indices: Mapping[int, int],
+    node_indices: Mapping[int, int],
     after_clifford_depolarization: float,
 ) -> None:
-    """Write input node initialization to stim format.
+    """Initialize nodes in the stim circuit.
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
-    input_node_indices : `collections.abc.Mapping`[`int`, `int`]
-        The input node indices mapping to initialize.
+    node_indices : `collections.abc.Mapping`[`int`, `int`]
+        The node indices mapping to initialize.
     after_clifford_depolarization : `float`
         The probability of depolarization after Clifford gates.
     """
-    for input_node in input_node_indices:
-        stim_io.write(f"RX {input_node}\n")
+    for node in node_indices:
+        stim_io.write(f"RX {node}\n")
         if after_clifford_depolarization > 0.0:
-            stim_io.write(f"DEPOLARIZE1({after_clifford_depolarization}) {input_node}\n")
+            stim_io.write(f"DEPOLARIZE1({after_clifford_depolarization}) {node}\n")
 
 
-def _write_node_preparation(
+def _prepare_node(
     stim_io: StringIO,
     node: int,
     after_clifford_depolarization: float,
 ) -> None:
-    """Write node preparation (N command) to stim format.
+    """Prepare a node in |+> state (N command).
 
     Parameters
     ----------
@@ -65,12 +65,12 @@ def _write_node_preparation(
         stim_io.write(f"DEPOLARIZE1({after_clifford_depolarization}) {node}\n")
 
 
-def _write_entanglement(
+def _entangle_nodes(
     stim_io: StringIO,
     nodes: tuple[int, int],
     after_clifford_depolarization: float,
 ) -> None:
-    """Write entanglement operation (E command) to stim format.
+    """Entangle two nodes with CZ gate (E command).
 
     Parameters
     ----------
@@ -87,14 +87,14 @@ def _write_entanglement(
         stim_io.write(f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n")
 
 
-def _write_measurement(
+def _measure_node(
     stim_io: StringIO,
     meas_basis: MeasBasis,
     node: int,
     before_measure_flip_probability: float,
     meas_order: list[int],
 ) -> None:
-    """Write measurement operation (M command) to stim format.
+    """Measure a node in the specified basis (M command).
 
     Parameters
     ----------
@@ -139,12 +139,12 @@ def _write_measurement(
         typing_extensions.assert_never(axis)
 
 
-def _write_detectors(
+def _add_detectors(
     stim_io: StringIO,
     check_groups: Sequence[Collection[int]],
     meas_order: list[int],
 ) -> None:
-    """Write detector declarations to stim format.
+    """Add detector declarations to the circuit.
 
     Parameters
     ----------
@@ -160,13 +160,13 @@ def _write_detectors(
         stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
 
-def _write_observables(
+def _add_observables(
     stim_io: StringIO,
     logical_observables: Mapping[int, Collection[int]],
     pframe: PauliFrame,
     meas_order: list[int],
 ) -> None:
-    """Write logical observable declarations to stim format.
+    """Add logical observable declarations to the circuit.
 
     Parameters
     ----------
@@ -215,34 +215,29 @@ def stim_compile(
     Stim only supports Clifford gates, therefore this compiler only supports
     Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
     Non-Pauli measurements will raise a ValueError.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported measurement basis is encountered.
     """
     stim_io = StringIO()
     meas_order: list[int] = []
     pframe = pattern.pauli_frame
 
     # Initialize input nodes
-    _write_input_nodes(stim_io, pattern.input_node_indices, after_clifford_depolarization)
+    _initialize_nodes(stim_io, pattern.input_node_indices, after_clifford_depolarization)
 
     # Process pattern commands
     for cmd in pattern:
         if isinstance(cmd, N):
-            _write_node_preparation(stim_io, cmd.node, after_clifford_depolarization)
+            _prepare_node(stim_io, cmd.node, after_clifford_depolarization)
         elif isinstance(cmd, E):
-            _write_entanglement(stim_io, cmd.nodes, after_clifford_depolarization)
+            _entangle_nodes(stim_io, cmd.nodes, after_clifford_depolarization)
         elif isinstance(cmd, M):
-            _write_measurement(stim_io, cmd.meas_basis, cmd.node, before_measure_flip_probability, meas_order)
+            _measure_node(stim_io, cmd.meas_basis, cmd.node, before_measure_flip_probability, meas_order)
 
-    # Write detectors
+    # Add detectors
     check_groups = pframe.detector_groups()
-    _write_detectors(stim_io, check_groups, meas_order)
+    _add_detectors(stim_io, check_groups, meas_order)
 
-    # Write logical observables
+    # Add logical observables
     if logical_observables is not None:
-        _write_observables(stim_io, logical_observables, pframe, meas_order)
+        _add_observables(stim_io, logical_observables, pframe, meas_order)
 
     return stim_io.getvalue().strip()
