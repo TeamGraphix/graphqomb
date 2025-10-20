@@ -27,13 +27,13 @@ def _initialize_nodes(
     node_indices: Mapping[int, int],
     after_clifford_depolarization: float,
 ) -> None:
-    """Initialize nodes in the stim circuit.
+    r"""Initialize nodes in the stim circuit.
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
-    node_indices : `collections.abc.Mapping`[`int`, `int`]
+    node_indices : `collections.abc.Mapping`\[`int`, `int`\]
         The node indices mapping to initialize.
     after_clifford_depolarization : `float`
         The probability of depolarization after Clifford gates.
@@ -49,7 +49,7 @@ def _prepare_node(
     node: int,
     after_clifford_depolarization: float,
 ) -> None:
-    """Prepare a node in |+> state (N command).
+    r"""Prepare a node in |+> state (N command).
 
     Parameters
     ----------
@@ -70,13 +70,13 @@ def _entangle_nodes(
     nodes: tuple[int, int],
     after_clifford_depolarization: float,
 ) -> None:
-    """Entangle two nodes with CZ gate (E command).
+    r"""Entangle two nodes with CZ gate (E command).
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
-    nodes : `tuple`[`int`, `int`]
+    nodes : `tuple`\[`int`, `int`\]
         The pair of nodes to entangle.
     after_clifford_depolarization : `float`
         The probability of depolarization after Clifford gates.
@@ -93,8 +93,8 @@ def _measure_node(
     node: int,
     before_measure_flip_probability: float,
     meas_order: list[int],
-) -> None:
-    """Measure a node in the specified basis (M command).
+) -> list[int]:
+    r"""Measure a node in the specified basis (M command).
 
     Parameters
     ----------
@@ -106,8 +106,13 @@ def _measure_node(
         The node to measure.
     before_measure_flip_probability : `float`
         The probability of flipping a measurement result before measurement.
-    meas_order : `list`[`int`]
-        The list tracking measurement order (modified in-place).
+    meas_order : `list`\[`int`\]
+        The list tracking measurement order.
+
+    Returns
+    -------
+    `list`\[`int`\]
+        The updated measurement order list.
 
     Raises
     ------
@@ -138,21 +143,23 @@ def _measure_node(
     else:
         typing_extensions.assert_never(axis)
 
+    return meas_order
+
 
 def _add_detectors(
     stim_io: StringIO,
     check_groups: Sequence[Collection[int]],
-    meas_order: list[int],
+    meas_order: Sequence[int],
 ) -> None:
-    """Add detector declarations to the circuit.
+    r"""Add detector declarations to the circuit.
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
-    check_groups : `collections.abc.Sequence`[`collections.abc.Collection`[`int`]]
+    check_groups : `collections.abc.Sequence`\[`collections.abc.Collection`\[`int`\]\]
         The parity check groups for detectors.
-    meas_order : `list`[`int`]
+    meas_order : `collections.abc.Sequence`\[`int`\]
         The measurement order list.
     """
     for checks in check_groups:
@@ -164,19 +171,19 @@ def _add_observables(
     stim_io: StringIO,
     logical_observables: Mapping[int, Collection[int]],
     pframe: PauliFrame,
-    meas_order: list[int],
+    meas_order: Sequence[int],
 ) -> None:
-    """Add logical observable declarations to the circuit.
+    r"""Add logical observable declarations to the circuit.
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
-    logical_observables : `collections.abc.Mapping`[`int`, `collections.abc.Collection`[`int`]]
+    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\]
         A mapping from logical observable index to a collection of node indices.
     pframe : `PauliFrame`
         The Pauli frame object.
-    meas_order : `list`[`int`]
+    meas_order : `collections.abc.Sequence`\[`int`\]
         The measurement order list.
     """
     for log_idx, obs in logical_observables.items():
@@ -230,7 +237,7 @@ def stim_compile(
         elif isinstance(cmd, E):
             _entangle_nodes(stim_io, cmd.nodes, after_clifford_depolarization)
         elif isinstance(cmd, M):
-            _measure_node(stim_io, cmd.meas_basis, cmd.node, before_measure_flip_probability, meas_order)
+            meas_order = _measure_node(stim_io, cmd.meas_basis, cmd.node, before_measure_flip_probability, meas_order)
 
     # Add detectors
     check_groups = pframe.detector_groups()
