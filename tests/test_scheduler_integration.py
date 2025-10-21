@@ -1,6 +1,9 @@
 """Integration tests for scheduler and schedule_solve_scheduler."""
 
+from graphqomb.command import TICK
+from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
+from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler, compress_schedule
 
@@ -158,7 +161,7 @@ def test_space_constrained_scheduling() -> None:
     assert isinstance(success, bool)
 
 
-def test_schedule_compression() -> None:
+def test_schedule_compression() -> None:  # noqa: PLR0914
     """Test that schedule compression reduces unnecessary time gaps."""
     # Create a graph
     graph = GraphState()
@@ -455,10 +458,6 @@ def test_detailed_timeline() -> None:
 
 def test_qompile_with_tick_commands() -> None:
     """Test that qompile generates TICK commands with scheduler."""
-    from graphqomb.command import TICK
-    from graphqomb.common import Plane, PlannerMeasBasis
-    from graphqomb.qompiler import qompile
-
     # Create a simple graph
     graph = GraphState()
     node0 = graph.add_physical_node()

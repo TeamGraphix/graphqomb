@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def compress_schedule(
+def compress_schedule(  # noqa: C901, PLR0912
     prepare_time: Mapping[int, int | None],
     measure_time: Mapping[int, int | None],
     entangle_time: Mapping[frozenset[int], int | None] | None = None,

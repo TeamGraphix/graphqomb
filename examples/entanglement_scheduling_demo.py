@@ -51,7 +51,7 @@ config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
 success = scheduler.solve_schedule(config)
 
 if success:
-    print(f"   Scheduling successful!")
+    print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler.num_slices()}")
 
     # Show preparation times
@@ -67,11 +67,7 @@ if success:
     scheduler.auto_schedule_entanglement()
 
     # Show entanglement times
-    ent_times = {
-        tuple(sorted(edge)): time
-        for edge, time in scheduler.entangle_time.items()
-        if time is not None
-    }
+    ent_times = {tuple(sorted(edge)): time for edge, time in scheduler.entangle_time.items() if time is not None}
     print(f"   Entanglement times: {ent_times}")
 
     # Show detailed timeline

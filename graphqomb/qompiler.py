@@ -12,7 +12,7 @@ from __future__ import annotations
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphqomb.command import Command, E, M, N, TICK, X, Z
+from graphqomb.command import TICK, Command, E, M, N, X, Z
 from graphqomb.feedforward import check_flow, dag_from_flow
 from graphqomb.graphstate import odd_neighbors
 from graphqomb.pattern import Pattern

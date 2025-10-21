@@ -15,7 +15,7 @@ import typing
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from graphqomb.command import Command, E, M, N, TICK, X, Z
+from graphqomb.command import TICK, Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
