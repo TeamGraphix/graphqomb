@@ -92,8 +92,7 @@ def _measure_node(
     meas_basis: MeasBasis,
     node: int,
     p_before_meas_flip: float,
-    meas_order: list[int],
-) -> list[int]:
+) -> None:
     r"""Measure a node in the specified basis (M command).
 
     Parameters
@@ -106,13 +105,6 @@ def _measure_node(
         The node to measure.
     p_before_meas_flip : `float`
         The probability of flipping a measurement result before measurement.
-    meas_order : `list`\[`int`\]
-        The list tracking measurement order.
-
-    Returns
-    -------
-    `list`\[`int`\]
-        The updated measurement order list.
 
     Raises
     ------
@@ -128,28 +120,24 @@ def _measure_node(
         if p_before_meas_flip > 0.0:
             stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MX {node}\n")
-        meas_order.append(node)
     elif axis == Axis.Y:
         if p_before_meas_flip > 0.0:
             stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
             stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MY {node}\n")
-        meas_order.append(node)
     elif axis == Axis.Z:
         if p_before_meas_flip > 0.0:
             stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MZ {node}\n")
-        meas_order.append(node)
     else:
         typing_extensions.assert_never(axis)
-
-    return meas_order
 
 
 def _add_detectors(
     stim_io: StringIO,
     check_groups: Sequence[Collection[int]],
-    meas_order: Sequence[int],
+    meas_order: Mapping[int, int],
+    total_measurements: int,
 ) -> None:
     r"""Add detector declarations to the circuit.
 
@@ -159,11 +147,13 @@ def _add_detectors(
         The output stream to write to.
     check_groups : `collections.abc.Sequence`\[`collections.abc.Collection`\[`int`\]\]
         The parity check groups for detectors.
-    meas_order : `collections.abc.Sequence`\[`int`\]
-        The measurement order list.
+    meas_order : `collections.abc.Mapping`\[`int`, `int`\]
+        The measurement order lookup dict mapping node to measurement index.
+    total_measurements : `int`
+        The total number of measurements.
     """
     for checks in check_groups:
-        targets = [f"rec[{meas_order.index(check) - len(meas_order)}]" for check in checks]
+        targets = [f"rec[{meas_order[check] - total_measurements}]" for check in checks]
         stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
 
@@ -171,7 +161,8 @@ def _add_observables(
     stim_io: StringIO,
     logical_observables: Mapping[int, Collection[int]],
     pframe: PauliFrame,
-    meas_order: Sequence[int],
+    meas_order: Mapping[int, int],
+    total_measurements: int,
 ) -> None:
     r"""Add logical observable declarations to the circuit.
 
@@ -183,12 +174,14 @@ def _add_observables(
         A mapping from logical observable index to a collection of node indices.
     pframe : `PauliFrame`
         The Pauli frame object.
-    meas_order : `collections.abc.Sequence`\[`int`\]
-        The measurement order list.
+    meas_order : `collections.abc.Mapping`\[`int`, `int`\]
+        The measurement order lookup dict mapping node to measurement index.
+    total_measurements : `int`
+        The total number of measurements.
     """
     for log_idx, obs in logical_observables.items():
         logical_observables_group = pframe.logical_observables_group(obs)
-        targets = [f"rec[{meas_order.index(node) - len(meas_order)}]" for node in logical_observables_group]
+        targets = [f"rec[{meas_order[node] - total_measurements}]" for node in logical_observables_group]
         stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
 
 
@@ -224,8 +217,16 @@ def stim_compile(
     Non-Pauli measurements will raise a ValueError.
     """
     stim_io = StringIO()
-    meas_order: list[int] = []
     pframe = pattern.pauli_frame
+
+    # Build measurement order lookup dict
+    meas_order: dict[int, int] = {}
+    meas_idx = 0
+    for cmd in pattern:
+        if isinstance(cmd, M):
+            meas_order[cmd.node] = meas_idx
+            meas_idx += 1
+    total_measurements = meas_idx
 
     # Initialize input nodes
     _initialize_nodes(stim_io, pattern.input_node_indices, p_depol_after_clifford)
@@ -237,14 +238,14 @@ def stim_compile(
         elif isinstance(cmd, E):
             _entangle_nodes(stim_io, cmd.nodes, p_depol_after_clifford)
         elif isinstance(cmd, M):
-            meas_order = _measure_node(stim_io, cmd.meas_basis, cmd.node, p_before_meas_flip, meas_order)
+            _measure_node(stim_io, cmd.meas_basis, cmd.node, p_before_meas_flip)
 
     # Add detectors
     check_groups = pframe.detector_groups()
-    _add_detectors(stim_io, check_groups, meas_order)
+    _add_detectors(stim_io, check_groups, meas_order, total_measurements)
 
     # Add logical observables
     if logical_observables is not None:
-        _add_observables(stim_io, logical_observables, pframe, meas_order)
+        _add_observables(stim_io, logical_observables, pframe, meas_order, total_measurements)
 
     return stim_io.getvalue().strip()
