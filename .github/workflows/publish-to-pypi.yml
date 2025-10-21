@@ -50,7 +50,7 @@ jobs:
         run: |
           VERSION=${{ steps.get_version.outputs.VERSION }}
           # Extract the section for this version from CHANGELOG.md
-          CONTENT=$(awk "/## \[$VERSION\]/,/^## \[/{if (/^## \[/ && NR!=1) exit; print}" CHANGELOG.md | sed '1d')
+          CONTENT=$(sed -n "/^## \[$VERSION\]/,/^## \[/{/^## \[$VERSION\]/d;/^## \[/q;p}" CHANGELOG.md)
           {
             echo "content<<EOF"
             echo "$CONTENT"
