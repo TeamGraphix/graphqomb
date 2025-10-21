@@ -35,11 +35,16 @@
 
 ## Installation
 
-Install GraphQOMB in development mode:
-
-> NOTE: We will soon release the package on PyPI
+### From PyPI (Recommended)
 
 ```bash
+pip install graphqomb
+```
+
+### From Source (Development)
+
+```bash
+git clone https://github.com/TeamGraphix/graphqomb.git
 cd graphqomb/
 pip install -e .
 ```
