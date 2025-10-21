@@ -12,7 +12,7 @@ from __future__ import annotations
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphqomb.command import Command, E, M, N, X, Z
+from graphqomb.command import Command, E, M, N, TICK, X, Z
 from graphqomb.feedforward import check_flow, dag_from_flow
 from graphqomb.graphstate import odd_neighbors
 from graphqomb.pattern import Pattern
@@ -32,6 +32,7 @@ def qompile(
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     scheduler: Scheduler | None = None,
+    insert_tick: bool = True,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
 
@@ -48,6 +49,9 @@ def qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
+    insert_tick : `bool`, optional
+        whether to insert TICK commands between time slices when using a scheduler,
+        by default `True`
 
     Returns
     -------
@@ -61,7 +65,7 @@ def qompile(
 
     pauli_frame = PauliFrame(graph.physical_nodes, xflow, zflow)
 
-    return _qompile(graph, pauli_frame, scheduler=scheduler)
+    return _qompile(graph, pauli_frame, scheduler=scheduler, insert_tick=insert_tick)
 
 
 def _qompile(
@@ -69,6 +73,7 @@ def _qompile(
     pauli_frame: PauliFrame,
     *,
     scheduler: Scheduler | None = None,
+    insert_tick: bool = True,
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
 
@@ -84,6 +89,9 @@ def _qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
+    insert_tick : `bool`, optional
+        whether to insert TICK commands between time slices when using a scheduler,
+        by default `True`
 
     Returns
     -------
@@ -103,19 +111,23 @@ def _qompile(
         commands.extend(E(nodes=edge) for edge in graph.physical_edges)
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
     else:
-        timeline = scheduler.timeline
-        prepared_edges: set[frozenset[int]] = set()
+        # Auto-schedule entanglement if not already scheduled
+        if all(time is None for time in scheduler.entangle_time.values()):
+            scheduler.auto_schedule_entanglement()
 
-        for time in range(scheduler.num_slices()):
-            prepare_nodes, measure_nodes = timeline[time]
-            for node in measure_nodes:
-                for neighbor in graph.neighbors(node):
-                    edge = frozenset({node, neighbor})
-                    if edge not in prepared_edges:
-                        commands.append(E(nodes=(node, neighbor)))
-                        prepared_edges.add(edge)
-            commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
+        detailed_timeline = scheduler.detailed_timeline
+
+        for time_idx in range(scheduler.num_slices()):
+            prepare_nodes, entangle_edges, measure_nodes = detailed_timeline[time_idx]
+
+            # Order within time slice: N -> E -> M
             commands.extend(N(node) for node in prepare_nodes)
+            commands.extend(E(nodes=tuple(edge)) for edge in entangle_edges)
+            commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
+
+            # Insert TICK between time slices
+            if insert_tick and time_idx < scheduler.num_slices() - 1:
+                commands.append(TICK())
 
     for node in graph.output_node_indices:
         if meas_basis := graph.meas_bases.get(node):

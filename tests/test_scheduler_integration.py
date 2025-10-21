@@ -181,9 +181,12 @@ def test_schedule_compression() -> None:
     slices_before = scheduler.num_slices()
 
     # Apply compression
-    compressed_prep_time, compressed_meas_time = compress_schedule(scheduler.prepare_time, scheduler.measure_time)
+    compressed_prep_time, compressed_meas_time, compressed_ent_time = compress_schedule(
+        scheduler.prepare_time, scheduler.measure_time, scheduler.entangle_time
+    )
     scheduler.prepare_time = compressed_prep_time
     scheduler.measure_time = compressed_meas_time
+    scheduler.entangle_time = compressed_ent_time
 
     # After compression, gaps should be removed
     slices_after = scheduler.num_slices()
@@ -373,3 +376,172 @@ def test_validate_schedule_same_time_prep_meas() -> None:
     scheduler.prepare_time = {node1: 1}
     scheduler.measure_time = {node0: 0, node1: 1}  # node1 prepared and measured at time 1
     assert not scheduler.validate_schedule()
+
+
+def test_entangle_time_scheduling() -> None:
+    """Test that entanglement times can be scheduled."""
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set manual schedule
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+
+    # Auto-schedule entanglement
+    scheduler.auto_schedule_entanglement()
+
+    # Check that entanglement times were set
+    edge01 = frozenset({node0, node1})
+    edge12 = frozenset({node1, node2})
+
+    assert scheduler.entangle_time[edge01] is not None
+    assert scheduler.entangle_time[edge12] is not None
+
+    # Edge (0,1) should be scheduled at time 0 (when node1 is prepared, node0 is input)
+    assert scheduler.entangle_time[edge01] == 0
+
+    # Edge (1,2) should be scheduled at time 1 (when node2 is prepared)
+    assert scheduler.entangle_time[edge12] == 1
+
+
+def test_detailed_timeline() -> None:
+    """Test the detailed_timeline property."""
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set manual schedule
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    scheduler.auto_schedule_entanglement()
+
+    # Get detailed timeline
+    timeline = scheduler.detailed_timeline
+
+    # Check that timeline has the correct structure
+    assert len(timeline) == 2  # 2 time slices
+
+    # Time slice 0: prepare node1, entangle (0,1), measure node0
+    prep_nodes_0, ent_edges_0, meas_nodes_0 = timeline[0]
+    assert node1 in prep_nodes_0
+    assert frozenset({node0, node1}) in ent_edges_0
+    assert node0 in meas_nodes_0
+
+    # Time slice 1: prepare node2, entangle (1,2), measure node1
+    prep_nodes_1, ent_edges_1, meas_nodes_1 = timeline[1]
+    assert node2 in prep_nodes_1
+    assert frozenset({node1, node2}) in ent_edges_1
+    assert node1 in meas_nodes_1
+
+
+def test_qompile_with_tick_commands() -> None:
+    """Test that qompile generates TICK commands with scheduler."""
+    from graphqomb.command import TICK
+    from graphqomb.common import Plane, PlannerMeasBasis
+    from graphqomb.qompiler import qompile
+
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    # Set measurement bases for non-output nodes
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Solve schedule
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    success = scheduler.solve_schedule(config)
+    assert success
+
+    # Compile pattern with TICK commands
+    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+
+    # Check that pattern contains TICK commands
+    tick_commands = [cmd for cmd in pattern if isinstance(cmd, TICK)]
+    assert len(tick_commands) > 0
+
+    # Compile pattern without TICK commands
+    pattern_no_tick = qompile(graph, flow, scheduler=scheduler, insert_tick=False)
+
+    # Check that pattern does not contain TICK commands
+    tick_commands_no_tick = [cmd for cmd in pattern_no_tick if isinstance(cmd, TICK)]
+    assert len(tick_commands_no_tick) == 0
+
+
+def test_validate_entangle_time_constraints() -> None:
+    """Test validation of entanglement time constraints."""
+    # Create a simple graph
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set valid schedule
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    scheduler.auto_schedule_entanglement()
+
+    # Should be valid
+    assert scheduler.validate_schedule()
+
+    # Set invalid entanglement time (before node is prepared)
+    edge12 = frozenset({node1, node2})
+    scheduler.entangle_time[edge12] = 0  # node2 is prepared at time 1, so this is invalid
+
+    # Should be invalid
+    assert not scheduler.validate_schedule()
+
+
+def test_compress_schedule_with_entangle_time() -> None:
+    """Test that compress_schedule handles entangle_time correctly."""
+    # Create schedules with gaps
+    prepare_time = {1: 5, 2: 10}
+    measure_time = {0: 5, 1: 10}
+    entangle_time = {frozenset({0, 1}): 5, frozenset({1, 2}): 10}
+
+    # Compress
+    compressed_prep, compressed_meas, compressed_ent = compress_schedule(prepare_time, measure_time, entangle_time)
+
+    # Check that gaps are removed
+    assert compressed_prep[1] == 0
+    assert compressed_prep[2] == 1
+    assert compressed_meas[0] == 0
+    assert compressed_meas[1] == 1
+    assert compressed_ent[frozenset({0, 1})] == 0
+    assert compressed_ent[frozenset({1, 2})] == 1
