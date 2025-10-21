@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 def _initialize_nodes(
     stim_io: StringIO,
     node_indices: Mapping[int, int],
-    after_clifford_depolarization: float,
+    p_depol_after_clifford: float,
 ) -> None:
     r"""Initialize nodes in the stim circuit.
 
@@ -35,19 +35,19 @@ def _initialize_nodes(
         The output stream to write to.
     node_indices : `collections.abc.Mapping`\[`int`, `int`\]
         The node indices mapping to initialize.
-    after_clifford_depolarization : `float`
+    p_depol_after_clifford : `float`
         The probability of depolarization after Clifford gates.
     """
     for node in node_indices:
         stim_io.write(f"RX {node}\n")
-        if after_clifford_depolarization > 0.0:
-            stim_io.write(f"DEPOLARIZE1({after_clifford_depolarization}) {node}\n")
+        if p_depol_after_clifford > 0.0:
+            stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
 
 
 def _prepare_node(
     stim_io: StringIO,
     node: int,
-    after_clifford_depolarization: float,
+    p_depol_after_clifford: float,
 ) -> None:
     r"""Prepare a node in |+> state (N command).
 
@@ -57,18 +57,18 @@ def _prepare_node(
         The output stream to write to.
     node : `int`
         The node to prepare in |+> state.
-    after_clifford_depolarization : `float`
+    p_depol_after_clifford : `float`
         The probability of depolarization after Clifford gates.
     """
     stim_io.write(f"RX {node}\n")
-    if after_clifford_depolarization > 0.0:
-        stim_io.write(f"DEPOLARIZE1({after_clifford_depolarization}) {node}\n")
+    if p_depol_after_clifford > 0.0:
+        stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
 
 
 def _entangle_nodes(
     stim_io: StringIO,
     nodes: tuple[int, int],
-    after_clifford_depolarization: float,
+    p_depol_after_clifford: float,
 ) -> None:
     r"""Entangle two nodes with CZ gate (E command).
 
@@ -78,20 +78,20 @@ def _entangle_nodes(
         The output stream to write to.
     nodes : `tuple`\[`int`, `int`\]
         The pair of nodes to entangle.
-    after_clifford_depolarization : `float`
+    p_depol_after_clifford : `float`
         The probability of depolarization after Clifford gates.
     """
     q1, q2 = nodes
     stim_io.write(f"CZ {q1} {q2}\n")
-    if after_clifford_depolarization > 0.0:
-        stim_io.write(f"DEPOLARIZE2({after_clifford_depolarization}) {q1} {q2}\n")
+    if p_depol_after_clifford > 0.0:
+        stim_io.write(f"DEPOLARIZE2({p_depol_after_clifford}) {q1} {q2}\n")
 
 
 def _measure_node(
     stim_io: StringIO,
     meas_basis: MeasBasis,
     node: int,
-    before_measure_flip_probability: float,
+    p_before_meas_flip: float,
     meas_order: list[int],
 ) -> list[int]:
     r"""Measure a node in the specified basis (M command).
@@ -104,7 +104,7 @@ def _measure_node(
         The measurement basis.
     node : `int`
         The node to measure.
-    before_measure_flip_probability : `float`
+    p_before_meas_flip : `float`
         The probability of flipping a measurement result before measurement.
     meas_order : `list`\[`int`\]
         The list tracking measurement order.
@@ -125,19 +125,19 @@ def _measure_node(
         raise ValueError(msg)
 
     if axis == Axis.X:
-        if before_measure_flip_probability > 0.0:
-            stim_io.write(f"Z_ERROR({before_measure_flip_probability}) {node}\n")
+        if p_before_meas_flip > 0.0:
+            stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MX {node}\n")
         meas_order.append(node)
     elif axis == Axis.Y:
-        if before_measure_flip_probability > 0.0:
-            stim_io.write(f"X_ERROR({before_measure_flip_probability}) {node}\n")
-            stim_io.write(f"Z_ERROR({before_measure_flip_probability}) {node}\n")
+        if p_before_meas_flip > 0.0:
+            stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
+            stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MY {node}\n")
         meas_order.append(node)
     elif axis == Axis.Z:
-        if before_measure_flip_probability > 0.0:
-            stim_io.write(f"X_ERROR({before_measure_flip_probability}) {node}\n")
+        if p_before_meas_flip > 0.0:
+            stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
         stim_io.write(f"MZ {node}\n")
         meas_order.append(node)
     else:
@@ -196,8 +196,8 @@ def stim_compile(
     pattern: Pattern,
     logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
-    after_clifford_depolarization: float = 0.0,
-    before_measure_flip_probability: float = 0.0,
+    p_depol_after_clifford: float = 0.0,
+    p_before_meas_flip: float = 0.0,
 ) -> str:
     r"""Compile a pattern to stim format.
 
@@ -207,9 +207,9 @@ def stim_compile(
         The pattern to compile.
     logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
         A mapping from logical observable index to a collection of node indices, by default None.
-    after_clifford_depolarization : `float`, optional
+    p_depol_after_clifford : `float`, optional
         The probability of depolarization after a Clifford gate, by default 0.0.
-    before_measure_flip_probability : `float`, optional
+    p_before_meas_flip : `float`, optional
         The probability of flipping a measurement result before measurement, by default 0.0.
 
     Returns
@@ -228,16 +228,16 @@ def stim_compile(
     pframe = pattern.pauli_frame
 
     # Initialize input nodes
-    _initialize_nodes(stim_io, pattern.input_node_indices, after_clifford_depolarization)
+    _initialize_nodes(stim_io, pattern.input_node_indices, p_depol_after_clifford)
 
     # Process pattern commands
     for cmd in pattern:
         if isinstance(cmd, N):
-            _prepare_node(stim_io, cmd.node, after_clifford_depolarization)
+            _prepare_node(stim_io, cmd.node, p_depol_after_clifford)
         elif isinstance(cmd, E):
-            _entangle_nodes(stim_io, cmd.nodes, after_clifford_depolarization)
+            _entangle_nodes(stim_io, cmd.nodes, p_depol_after_clifford)
         elif isinstance(cmd, M):
-            meas_order = _measure_node(stim_io, cmd.meas_basis, cmd.node, before_measure_flip_probability, meas_order)
+            meas_order = _measure_node(stim_io, cmd.meas_basis, cmd.node, p_before_meas_flip, meas_order)
 
     # Add detectors
     check_groups = pframe.detector_groups()

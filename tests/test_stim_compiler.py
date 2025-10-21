@@ -156,7 +156,7 @@ def test_stim_compile_with_depolarization() -> None:
     """Test that depolarization error is correctly inserted."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, after_clifford_depolarization=0.01)
+    stim_str = stim_compile(pattern, p_depol_after_clifford=0.01)
 
     # Check DEPOLARIZE instructions are present
     assert "DEPOLARIZE1(0.01)" in stim_str
@@ -167,7 +167,7 @@ def test_stim_compile_with_measurement_errors_x() -> None:
     """Test that X measurement errors are correctly inserted."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, before_measure_flip_probability=0.01)
+    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
     # For X measurement, Z_ERROR should be inserted before MX
     assert "Z_ERROR(0.01)" in stim_str
@@ -183,7 +183,7 @@ def test_stim_compile_with_measurement_errors_y() -> None:
     """Test that Y measurement errors are correctly inserted."""
     pattern, _, _ = create_simple_pattern_y_measurement()
 
-    stim_str = stim_compile(pattern, before_measure_flip_probability=0.01)
+    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
     # For Y measurement, both X_ERROR and Z_ERROR should be inserted before MY
     assert "X_ERROR(0.01)" in stim_str
@@ -194,7 +194,7 @@ def test_stim_compile_with_measurement_errors_z() -> None:
     """Test that Z measurement errors are correctly inserted."""
     pattern, _, _ = create_simple_pattern_z_measurement()
 
-    stim_str = stim_compile(pattern, before_measure_flip_probability=0.01)
+    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
     # For Z measurement, X_ERROR should be inserted before MZ
     assert "X_ERROR(0.01)" in stim_str
