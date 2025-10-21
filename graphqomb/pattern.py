@@ -15,7 +15,7 @@ import typing
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from graphqomb.command import Command, E, M, N, X, Z
+from graphqomb.command import Command, E, M, N, TICK, X, Z
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -86,6 +86,9 @@ class Pattern(Sequence[Command]):
                 space_list.append(nodes)
             elif isinstance(cmd, M):
                 nodes -= 1
+                space_list.append(nodes)
+            elif isinstance(cmd, TICK):
+                # TICK does not change the number of qubits
                 space_list.append(nodes)
         return space_list
 
@@ -158,6 +161,9 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
             if cmd.node in measured:
                 msg = f"Operation on a measured qubit: {cmd}"
                 raise ValueError(msg)
+        elif isinstance(cmd, TICK):
+            # TICK is a time separator and does not operate on qubits
+            pass
         else:
             msg = f"Unknown command kind: {type(cmd)}"
             raise TypeError(msg)
@@ -187,6 +193,9 @@ def _ensure_no_unprepared_qubit_operations(pattern: Pattern) -> None:
         elif isinstance(cmd, (M, X, Z)) and cmd.node not in prepared:
             msg = f"Operation on a qubit that hasn't been prepared yet: {cmd}"
             raise ValueError(msg)
+        elif isinstance(cmd, TICK):
+            # TICK is a time separator and does not operate on qubits
+            pass
 
 
 def _ensure_measurement_consistency(pattern: Pattern) -> None:
@@ -241,7 +250,7 @@ def print_pattern(
     """
 
     def identity_filter(cmd: Command) -> Command | None:
-        return cmd if isinstance(cmd, (N, E, M, X, Z)) else None
+        return cmd if isinstance(cmd, (N, E, M, X, Z, TICK)) else None
 
     if cmd_filter is None:
         cmd_filter = identity_filter
