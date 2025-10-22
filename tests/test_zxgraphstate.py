@@ -414,7 +414,7 @@ def test_remove_clifford_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> No
 def test_remove_clifford_fails_with_input_node(zx_graph: ZXGraphState) -> None:
     node = zx_graph.add_physical_node()
     zx_graph.register_input(node, q_index=0)
-    with pytest.raises(ValueError, match="Clifford node removal not allowed for input node"):
+    with pytest.raises(ValueError, match="Clifford node removal not allowed for input or output nodes"):
         zx_graph.remove_clifford(node)
 
 
@@ -562,6 +562,54 @@ def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
     _apply_measurements(zx_graph, measurements)
     zx_graph.remove_cliffords()
     _test(zx_graph, {0, 2}, {(0, 2)}, exp_measurements=exp_measurements)
+
+
+@pytest.mark.parametrize(
+    "planes",
+    list(
+        itertools.product(
+            list(Plane),
+            [Plane.XY],
+        )
+    ),
+)
+def test_is_noninput_with_io_nbrs_xy(
+    zx_graph: ZXGraphState,
+    planes: tuple[Plane, Plane],
+    rng: np.random.Generator,
+) -> None:
+    graph_2(zx_graph)
+    zx_graph.register_input(0, q_index=0)
+    zx_graph.register_output(2, q_index=0)
+    angles = [rng.random() * 2 * np.pi for _ in range(2)]
+    angles[1] = rng.choice([0.0, np.pi])
+    measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(2)]
+    _apply_measurements(zx_graph, measurements)
+    assert zx_graph._is_noninput_with_io_nbrs(1, atol=1e-9) is True
+
+
+@pytest.mark.parametrize(
+    "planes",
+    list(
+        itertools.product(
+            list(Plane),
+            [Plane.XZ],
+        )
+    ),
+)
+def test_is_noninput_with_io_nbrs_xz(
+    zx_graph: ZXGraphState,
+    planes: tuple[Plane, Plane],
+    rng: np.random.Generator,
+) -> None:
+    graph_2(zx_graph)
+    zx_graph.register_input(0, q_index=0)
+    zx_graph.register_output(2, q_index=0)
+    angles = [rng.random() * 2 * np.pi for _ in range(2)]
+    angles[1] = rng.choice([0.5 * np.pi, 1.5 * np.pi])
+    measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(2)]
+    _apply_measurements(zx_graph, measurements)
+    assert zx_graph._is_noninput_with_io_nbrs(1, atol=1e-9) is True
 
 
 def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
