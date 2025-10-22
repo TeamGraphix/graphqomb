@@ -207,11 +207,8 @@ class ZXGraphState(GraphState):
     def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
 
-        For this operation, the measurement measurement angle must be 0 or pi (mod 2pi)
-        and the measurement plane must be YZ or XZ.
-        If the node is output, False is returned.
-
-        ref: Quantum 5, 421 (2021). Lemma 4.7
+        For this operation, the following must hold:
+            measurement plane = YZ or XZ and measurement angle = 0 or pi (mod 2pi)
 
         Parameters
         ----------
@@ -224,20 +221,19 @@ class ZXGraphState(GraphState):
         -------
         `bool`
             True if the node is a removable Clifford node.
-            If the node is output, False is returned.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021). Lemma 4.7
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return (
-            is_close_angle(2 * alpha, 0, atol)
-            and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
-            and (node not in self.output_node_indices)
-        )
+        return is_close_angle(2 * alpha, 0, atol) and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
 
-        For this operation, the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi)
-        and the measurement plane must be YZ or XY.
+        For this operation, the following must hold:
+            measurement plane = YZ or XY and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
 
         Parameters
         ----------
@@ -250,6 +246,10 @@ class ZXGraphState(GraphState):
         -------
         `bool`
             True if the node needs a local complementation.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021). Lemma 4.8
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
         return is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and (
@@ -260,10 +260,9 @@ class ZXGraphState(GraphState):
         """Check if the node needs a pivot operation in order to perform _remove_clifford.
 
         The pivot operation is performed on the non-input neighbor of the node.
-        For this operation,
-        (a) the measurement angle must be 0 or pi (mod 2pi) and the measurement plane must be XY,
-        or
-        (b) the measurement angle must be 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane must be XZ.
+        For this operation, one of the following must hold:
+        (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
+        (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
 
         Parameters
         ----------
@@ -276,17 +275,20 @@ class ZXGraphState(GraphState):
         -------
         `bool`
             True if the node needs a pivot operation.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021), Lemma 4.9
         """
-        if not (self.neighbors(node) - set(self.input_node_indices)):
-            nbrs = self.neighbors(node)
-            if not (nbrs.issubset(set(self.output_node_indices)) and nbrs):
-                return False
+        non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
+        if not non_input_nbrs:
+            return False
 
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        # (a) the measurement angle is 0 or pi (mod 2pi) and the measurement plane is XY
-        case_a = is_close_angle(2 * alpha, 0, atol) and self.meas_bases[node].plane == Plane.XY
-        # (b) the measurement angle is 0.5 pi or 1.5 pi (mod 2pi) and the measurement plane is XZ
-        case_b = is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and self.meas_bases[node].plane == Plane.XZ
+        # (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
+        case_a = self.meas_bases[node].plane == Plane.XY and is_close_angle(2 * alpha, 0, atol)
+        # (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
+        case_b = self.meas_bases[node].plane == Plane.XZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
         return case_a or case_b
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
@@ -328,7 +330,7 @@ class ZXGraphState(GraphState):
         """
         self._ensure_node_exists(node)
         if node in self.input_node_indices or node in self.output_node_indices:
-            msg = "Clifford node removal not allowed for input node"
+            msg = "Clifford node removal not allowed for input or output nodes."
             raise ValueError(msg)
 
         if not (
