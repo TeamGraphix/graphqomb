@@ -11,7 +11,7 @@ requires-python = ">=3.9, <3.14"
 license = {text = "MIT"}
 authors = [
     {name = "Masato Fukushima", email = "masa1063fuk@gmail.com"},
-    {name = "Sora Shiratani"}
+    {name = "Sora Shiratani"},
     {name = "Yuki Watanabe"},
     {name = "Daichi Sasaki"},
 ]
