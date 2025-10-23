@@ -1,7 +1,9 @@
 # GraphQOMB
 
 ![License](https://img.shields.io/github/license/TeamGraphix/graphqomb)
-[![doc](https://github.com/TeamGraphix/graphqomb/actions/workflows/doc.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/doc.yml)
+[![PyPI version](https://badge.fury.io/py/graphqomb.svg)](https://badge.fury.io/py/graphqomb)
+[![Python Versions](https://img.shields.io/pypi/pyversions/graphqomb.svg)](https://pypi.org/project/graphqomb/)
+[![Documentation Status](https://readthedocs.org/projects/graphqomb/badge/?version=latest)](https://graphqomb.readthedocs.io/en/latest/?badge=latest)
 [![pytest](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml)
 [![typecheck](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -33,11 +35,16 @@
 
 ## Installation
 
-Install GraphQOMB in development mode:
-
-> NOTE: We will soon release the package on PyPI
+### From PyPI (Recommended)
 
 ```bash
+pip install graphqomb
+```
+
+### From Source (Development)
+
+```bash
+git clone https://github.com/TeamGraphix/graphqomb.git
 cd graphqomb/
 pip install -e .
 ```
@@ -108,8 +115,8 @@ visualize(graph)
 ## Documentation
 
 - **Tutorial**: [WIP] for detailed usage guides
-- **Examples**: See [WIP] for code demonstrations
-- **API Reference**: Full API documentation is available [WIP]
+- **Examples**: See [examples](https://graphqomb.readthedocs.io/en/latest/gallery/index.html) for code demonstrations
+- **API Reference**: Full API documentation is available [here](https://graphqomb.readthedocs.io/en/latest/references.html)
 
 ## Development
 
