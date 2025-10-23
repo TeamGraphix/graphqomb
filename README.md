@@ -192,7 +192,7 @@ If you use GraphQOMB in your research, please cite:
 ```bibtex
 @software{graphqomb,
   title = {GraphQOMB: A Modular Graph State Qompiler for Measurement-Based Quantum Computation},
-  author = {Masato Fukushima, Yuki Watanabe, and Daichi Sasaki},
+  author = {Masato Fukushima, Sora Shiratani, Yuki Watanabe, and Daichi Sasaki},
   year = {2025},
   url = {https://github.com/TeamGraphix/graphqomb}
 }
