@@ -651,7 +651,7 @@ def compose(  # noqa: C901
 
     Returns
     -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+    `tuple`\[`GraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
 
     Raises

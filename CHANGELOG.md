@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Stim Compiler**: Pattern to Stim circuit compiler with detector and observable support for fault-tolerant quantum computing ([#67](https://github.com/TeamGraphix/graphqomb/issues/67))
+  - Compile MBQC patterns into Stim format for error correction analysis
+  - Support for detectors, observables, and error models
+  - Configurable depolarization noise after Clifford gates and measurements
+
+### Changed
+
+- **Pauli Frame**: Extended with detector and syndrome analysis capabilities
+  - Added `detector_groups` for detector grouping
+  - Added `syndrome_parity_group` for syndrome extraction
+  - Added parity check grouping for X and Z corrections
+
+### Fixed
+
+- Fixed inverse flow construction to avoid self-loops
+- Fixed type hints in `graphstate.compose` for better type safety
+
 ## [0.1.0] - 2025-10-22
 
 ### Added
