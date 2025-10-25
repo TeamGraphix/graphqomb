@@ -22,3 +22,4 @@ Module reference
     scheduler
     stim_compiler
     visualizer
+    zxgraphstate
