@@ -788,9 +788,7 @@ class GraphState(BaseGraphState):
         if copy_local_cliffords and isinstance(base, GraphState):
             for node, lc in base.local_cliffords.items():
                 # Access private attribute to copy local cliffords
-                graph_state._GraphState__local_cliffords[  # type: ignore[attr-defined]
-                    node_map[node]
-                ] = lc
+                graph_state.apply_local_clifford(node_map[node], lc)
 
         return graph_state, node_map
 
