@@ -93,20 +93,13 @@ print(simulator.state)
 from graphqomb.graphstate import GraphState
 from graphqomb.visualizer import visualize
 
-# Create a graph state
-graph = GraphState()
-node1 = graph.add_physical_node()
-node2 = graph.add_physical_node()
-node3 = graph.add_physical_node()
-
-# Register input/output nodes
-q_index = 0
-graph.register_input(node1, q_index)
-graph.register_output(node3, q_index)
-
-# Add edges
-graph.add_physical_edge(node1, node2)
-graph.add_physical_edge(node2, node3)
+# Create a graph state using from_graph
+graph, node_map = GraphState.from_graph(
+    nodes=["input", "middle", "output"],
+    edges=[("input", "middle"), ("middle", "output")],
+    inputs=["input"],
+    outputs=["output"]
+)
 
 # Visualize the graph
 visualize(graph)
