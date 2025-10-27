@@ -55,10 +55,10 @@ def test_from_graph_with_inputs_outputs() -> None:
     inputs = ["a"]
     outputs = ["c"]
 
-    gs, _ = GraphState.from_graph(nodes=nodes, edges=edges, inputs=inputs, outputs=outputs)
+    gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges, inputs=inputs, outputs=outputs)
 
-    assert gs.input_node_indices == {0: 0}
-    assert gs.output_node_indices == {2: 0}
+    assert gs.input_node_indices == {node_map[inputs[0]]: 0}
+    assert gs.output_node_indices == {node_map[outputs[0]]: 0}
 
 
 def test_from_graph_with_multiple_inputs_outputs() -> None:
@@ -68,10 +68,10 @@ def test_from_graph_with_multiple_inputs_outputs() -> None:
     inputs = ["a", "b"]
     outputs = ["c", "d"]
 
-    gs, _node_map = GraphState.from_graph(nodes=nodes, edges=edges, inputs=inputs, outputs=outputs)
+    gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges, inputs=inputs, outputs=outputs)
 
-    assert gs.input_node_indices == {0: 0, 1: 1}
-    assert gs.output_node_indices == {2: 0, 3: 1}
+    assert gs.input_node_indices == {node_map[inputs[0]]: 0, node_map[inputs[1]]: 1}
+    assert gs.output_node_indices == {node_map[outputs[0]]: 0, node_map[outputs[1]]: 1}
 
 
 def test_from_graph_with_meas_bases() -> None:
@@ -83,16 +83,16 @@ def test_from_graph_with_meas_bases() -> None:
         "b": PlannerMeasBasis(Plane.XY, 1.5708),
     }
 
-    gs, _node_map = GraphState.from_graph(nodes=nodes, edges=edges, meas_bases=meas_bases)
+    gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges, meas_bases=meas_bases)
 
-    assert 0 in gs.meas_bases
-    assert 1 in gs.meas_bases
-    assert 2 not in gs.meas_bases
+    assert node_map[nodes[0]] in gs.meas_bases
+    assert node_map[nodes[1]] in gs.meas_bases
+    assert node_map[nodes[2]] not in gs.meas_bases
     # Check that the measurement bases have the correct attributes
-    assert gs.meas_bases[0].plane == Plane.XY
-    assert gs.meas_bases[0].angle == 0.0
-    assert gs.meas_bases[1].plane == Plane.XY
-    assert gs.meas_bases[1].angle == 1.5708
+    assert gs.meas_bases[node_map[nodes[0]]].plane == Plane.XY
+    assert gs.meas_bases[node_map[nodes[0]]].angle == 0.0
+    assert gs.meas_bases[node_map[nodes[1]]].plane == Plane.XY
+    assert gs.meas_bases[node_map[nodes[1]]].angle == 1.5708
 
 
 def test_from_graph_with_partial_meas_bases() -> None:
@@ -101,10 +101,10 @@ def test_from_graph_with_partial_meas_bases() -> None:
     edges = [("a", "b")]
     meas_bases = {"a": PlannerMeasBasis(Plane.XY, 0.0)}
 
-    gs, _node_map = GraphState.from_graph(nodes=nodes, edges=edges, meas_bases=meas_bases)
+    gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges, meas_bases=meas_bases)
 
-    assert 0 in gs.meas_bases
-    assert 1 not in gs.meas_bases
+    assert node_map[nodes[0]] in gs.meas_bases
+    assert node_map[nodes[1]] not in gs.meas_bases
 
 
 def test_from_graph_errors_duplicate_nodes() -> None:
