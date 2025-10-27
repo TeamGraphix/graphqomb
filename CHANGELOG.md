@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Performance
+
+- **Pauli Frame**: Optimized `_collect_dependent_chain` method with memoization and caching
+  - Added Pauli axis cache to avoid redundant basis computations
+  - Implemented chain memoization cache to prevent recalculating dependent chains
+  - Optimized set operations for better performance in large graph states
+
 ## [0.1.1] - 2025-10-23
 
 ### Added
