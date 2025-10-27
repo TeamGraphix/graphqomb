@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Performance
+
+- **Pauli Frame**: Optimized `_collect_dependent_chain` method with memoization and caching
+  - Added Pauli axis cache to avoid redundant basis computations
+  - Implemented chain memoization cache to prevent recalculating dependent chains
+  - Optimized set operations for better performance in large graph states
+
+### Tests
+
+- **Pauli Frame**: Added comprehensive test suite for PauliFrame module
+  - Added tests for basic methods (x_flip, z_flip, meas_flip, children, parents)
+  - Added tests for Pauli axis cache initialization and chain cache memoization
+  - Added tests for dependent chain collection across X, Y, Z measurement axes
+  - Added tests for detector groups and logical observables
+  - Improved test coverage from 77.78% to 97% for pauli_frame.py
+
 ## [0.1.1] - 2025-10-23
 
 ### Added

@@ -36,9 +36,9 @@ class PauliFrame:
         Current Z Pauli state for each node
     parity_check_group : `list`\[`set`\[`int`\]\]
         Parity check group for FTQC
-    inv_xflow : `dict`\[`int`, `int`\]
+    inv_xflow : `dict`\[`int`, `set`\[`int`\]\]
         Inverse X correction flow for each measurement flip
-    inv_zflow : `dict`\[`int`, `int`\]
+    inv_zflow : `dict`\[`int`, `set`\[`int`\]\]
         Inverse Z correction flow for each measurement flip
     """
 
@@ -50,6 +50,8 @@ class PauliFrame:
     parity_check_group: list[set[int]]
     inv_xflow: dict[int, set[int]]
     inv_zflow: dict[int, set[int]]
+    _pauli_axis_cache: dict[int, Axis | None]
+    _chain_cache: dict[int, frozenset[int]]
 
     def __init__(
         self,
@@ -77,6 +79,15 @@ class PauliFrame:
             for target in targets:
                 self.inv_zflow[target].add(node)
             self.inv_zflow[node] -= {node}
+
+        # Pre-compute Pauli axes for performance optimization
+        # Only cache nodes that have measurement bases
+        # NOTE: if non-Pauli measurements are involved, the stim_compile func will error out earlier
+        self._pauli_axis_cache = {
+            node: determine_pauli_axis(meas_basis) for node, meas_basis in graphstate.meas_bases.items()
+        }
+        # Cache for memoization of dependent chains
+        self._chain_cache = {}
 
     def x_flip(self, node: int) -> None:
         """Flip the X Pauli mask for the given node.
@@ -196,31 +207,44 @@ class PauliFrame:
         ValueError
             If an unexpected output basis or measurement plane is encountered.
         """
+        # Check memoization cache
+        if node in self._chain_cache:
+            return set(self._chain_cache[node])
+
         chain: set[int] = set()
         untracked = {node}
         tracked: set[int] = set()
 
         while untracked:
             current = untracked.pop()
-            chain ^= {current}
 
-            parents: set[int] = set()
+            # Optimized XOR operation: toggle membership
+            if current in chain:
+                chain.remove(current)
+            else:
+                chain.add(current)
+
+            # Use pre-computed Pauli axis from cache
+            axis = self._pauli_axis_cache[current]
 
             # NOTE: might have to support plane instead of axis
-            axis = determine_pauli_axis(self.graphstate.meas_bases[current])
             if axis == Axis.X:
-                parents = self.inv_zflow.get(current, set())
+                # Use defaultdict direct access (no need for .get with default)
+                parents = self.inv_zflow[current]
             elif axis == Axis.Y:
-                parents = self.inv_xflow.get(current, set()) ^ self.inv_zflow.get(current, set())
+                # Optimized symmetric difference for Y axis
+                parents = self.inv_xflow[current].symmetric_difference(self.inv_zflow[current])
             elif axis == Axis.Z:
-                parents = self.inv_xflow.get(current, set())
+                parents = self.inv_xflow[current]
             else:
                 msg = f"Unexpected measurement axis: {axis}"
                 raise ValueError(msg)
 
-            for p in parents:
-                if p not in tracked:
-                    untracked.add(p)
+            # Add untracked parents in bulk
+            untracked.update(p for p in parents if p not in tracked)
             tracked.add(current)
+
+        # Store result in cache for future calls
+        self._chain_cache[node] = frozenset(chain)
 
         return chain
