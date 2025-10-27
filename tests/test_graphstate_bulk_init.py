@@ -147,7 +147,9 @@ def test_from_graph_errors_invalid_edges() -> None:
 
 def test_from_graph_empty_nodes() -> None:
     """Test from_graph() with empty nodes."""
-    gs, node_map = GraphState.from_graph(nodes=[], edges=[])
+    nodes: list[int] = []
+    edges: list[tuple[int, int]] = []
+    gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges)
 
     assert node_map == {}
     assert gs.physical_nodes == set()
@@ -262,7 +264,7 @@ def test_from_graph_with_complex_structure() -> None:
 def test_from_graph_preserves_node_order() -> None:
     """Test that from_graph() preserves node order for sequential index assignment."""
     nodes = ["z", "a", "m"]  # Out of alphabetical order
-    edges = []
+    edges: list[tuple[str, str]] = []
 
     _gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges)
 

@@ -621,7 +621,7 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
     @classmethod
-    def from_graph(
+    def from_graph(  # noqa: C901, PLR0912
         cls,
         nodes: Iterable[NodeT],
         edges: Iterable[tuple[NodeT, NodeT]],
@@ -637,23 +637,23 @@ class GraphState(BaseGraphState):
 
         Parameters
         ----------
-        nodes : `Iterable`[`NodeT`]
+        nodes : `collections.abc.Iterable`\[`NodeT`\]
             Nodes to add to the graph. Can be any hashable type.
-        edges : `Iterable`[`tuple`[`NodeT`, `NodeT`]]
+        edges : `collections.abc.Iterable`\[`tuple`[`NodeT`, `NodeT`]\]
             Edges as pairs of node identifiers.
-        inputs : `Sequence`[`NodeT`] | `None`, optional
+        inputs : `collections.abc.Sequence`\[`NodeT`\] | `None`, optional
             Input nodes in order. Qubit indices are assigned sequentially (0, 1, 2, ...).
             Default is None (no inputs).
-        outputs : `Sequence`[`NodeT`] | `None`, optional
+        outputs : `collections.abc.Sequence`\[`NodeT`\] | `None`, optional
             Output nodes in order. Qubit indices are assigned sequentially (0, 1, 2, ...).
             Default is None (no outputs).
-        meas_bases : `Mapping`[`NodeT`, `MeasBasis`] | `None`, optional
+        meas_bases : `collections.abc.Mapping`\[`NodeT`, `MeasBasis`\] | `None`, optional
             Measurement bases for nodes. Nodes not specified can be set later.
             Default is None (no bases assigned initially).
 
         Returns
         -------
-        `tuple`[`GraphState`, `dict`[`NodeT`, `int`]]
+        `tuple`[`GraphState`, `dict`\[`NodeT`, `int`\]\]
             - Created GraphState instance
             - Mapping from external node IDs to internal integer indices
 
@@ -755,7 +755,7 @@ class GraphState(BaseGraphState):
 
         Returns
         -------
-        `tuple`[`GraphState`, `dict`[`int`, `int`]]
+        `tuple`\[`GraphState`, `dict`\[`int`, `int`\]\]
             - Created GraphState instance
             - Mapping from source node indices to new node indices
         """
