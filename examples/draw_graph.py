@@ -9,7 +9,7 @@ Simple example to draw a GraphState in graphqomb.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
+from graphqomb.common import Axis, AxisMeasBasis, MeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.visualizer import visualize
@@ -40,7 +40,7 @@ inputs = ["input1", "input2"]
 outputs = ["output1", "output2"]
 
 # Define measurement bases for nodes
-meas_bases = {
+meas_bases: dict[str, MeasBasis] = {
     "input1": AxisMeasBasis(Axis.X, Sign.PLUS),
     "input2": PlannerMeasBasis(Plane.XY, np.pi / 6),
     "internal1": PlannerMeasBasis(Plane.XZ, np.pi / 4),  # XZ plane with angle π/4
