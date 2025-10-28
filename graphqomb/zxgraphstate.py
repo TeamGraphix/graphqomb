@@ -156,6 +156,42 @@ class ZXGraphState(GraphState):
             self.remove_physical_edge(node2, c)
             self.add_physical_edge(node1, c)
 
+    def _pivot(self, node1: int, node2: int) -> None:
+        """Pivot edges around nodes u and v in the graph state.
+
+        Parameters
+        ----------
+        node1 : `int`
+            node index
+        node2 : `int`
+            node index
+        """
+        node1_nbrs = self.neighbors(node1) - {node2}
+        node2_nbrs = self.neighbors(node2) - {node1}
+        nbr_a = node1_nbrs & node2_nbrs
+        nbr_b = node1_nbrs - node2_nbrs
+        nbr_c = node2_nbrs - node1_nbrs
+        nbr_pairs = [
+            bipartite_edges(nbr_a, nbr_b),
+            bipartite_edges(nbr_a, nbr_c),
+            bipartite_edges(nbr_b, nbr_c),
+        ]
+
+        # complement edges between nbr_a, nbr_b, nbr_c
+        rmv_edges: set[tuple[int, int]] = set()
+        rmv_edges.update(*(p & self.physical_edges for p in nbr_pairs))
+        add_edges: set[tuple[int, int]] = set()
+        add_edges.update(*(p - self.physical_edges for p in nbr_pairs))
+        self._update_connections(rmv_edges, add_edges)
+
+        # swap node u and node v
+        for b in nbr_b:
+            self.remove_physical_edge(node1, b)
+            self.add_physical_edge(node2, b)
+        for c in nbr_c:
+            self.remove_physical_edge(node2, c)
+            self.add_physical_edge(node1, c)
+
     def pivot(self, node1: int, node2: int) -> None:
         """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
 
@@ -172,6 +208,10 @@ class ZXGraphState(GraphState):
         ------
         ValueError
             If the nodes are input nodes, or the graph is not a ZX-diagram.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.5 with correction
         """
         self._ensure_node_exists(node1)
         self._ensure_node_exists(node2)
@@ -179,33 +219,16 @@ class ZXGraphState(GraphState):
             msg = "Cannot apply pivot to input node"
             raise ValueError(msg)
         self._check_meas_basis()
-
-        node1_nbrs = self.neighbors(node1) - {node2}
-        node2_nbrs = self.neighbors(node2) - {node1}
-        nbr_a = node1_nbrs & node2_nbrs
-        nbr_b = node1_nbrs - node2_nbrs
-        nbr_c = node2_nbrs - node1_nbrs
-        nbr_pairs = [
-            bipartite_edges(nbr_a, nbr_b),
-            bipartite_edges(nbr_a, nbr_c),
-            bipartite_edges(nbr_b, nbr_c),
-        ]
-        rmv_edges: set[tuple[int, int]] = set()
-        rmv_edges.update(*(p & self.physical_edges for p in nbr_pairs))
-        add_edges: set[tuple[int, int]] = set()
-        add_edges.update(*(p - self.physical_edges for p in nbr_pairs))
-
-        self._update_connections(rmv_edges, add_edges)
-        self._swap(node1, node2)
+        self._pivot(node1, node2)
 
         # update node1 and node2 measurement
-        lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
+        lc = LocalClifford(-np.pi / 2, np.pi / 2, -np.pi / 2)
         for a in {node1, node2}:
             self.apply_local_clifford(a, lc)
 
-        # update nodes measurement of nbr_a
+        # update nodes measurement of neighbors
         lc = LocalClifford(np.pi, 0, 0)
-        for w in nbr_a:
+        for w in self.neighbors(node1) | self.neighbors(node2) - {node1, node2}:
             self.apply_local_clifford(w, lc)
 
     def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
@@ -228,16 +251,16 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021). Lemma 4.7
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.7
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return is_close_angle(2 * alpha, 0, atol) and (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ})
+        return (self.meas_bases[node].plane in {Plane.YZ, Plane.XZ}) and is_close_angle(2 * alpha, 0, atol)
 
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
 
         For this operation, the following must hold:
-            measurement plane = YZ or XY and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
+            measurement plane = YZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
 
         Parameters
         ----------
@@ -253,20 +276,19 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021). Lemma 4.8
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.8 with correction
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return is_close_angle(2 * (alpha - np.pi / 2), 0, atol) and (
-            self.meas_bases[node].plane in {Plane.YZ, Plane.XY}
-        )
+        # measurement plane = YZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
+        return self.meas_bases[node].plane == Plane.YZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
 
     def _needs_pivot(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a pivot operation in order to perform _remove_clifford.
 
-        The pivot operation is performed on the non-input neighbor of the node.
-        For this operation, one of the following must hold:
-        (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
-        (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
+        The pivot operation is performed on the node and its non-input neighbor.
+        For this operation, either of the following must hold:
+            (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
+            (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
 
         Parameters
         ----------
@@ -282,7 +304,7 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021), Lemma 4.9
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.9 with correction
         """
         non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
         if not non_input_nbrs:
@@ -298,7 +320,7 @@ class ZXGraphState(GraphState):
     def _is_noninput_with_io_nbrs(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node is non-input and all neighbors are input or output nodes.
 
-        If True, pivot operation is performed on the non-input neighbor and then the node will be removed.
+        If True, pivot operation is performed on the node and its non-input neighbor, and then the node will be removed.
 
         For this operation, one of the following must hold:
         (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
@@ -323,7 +345,7 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021). Lemma 4.11
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.11
         """
         non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
         # check non_input_nbrs is consisted of only output nodes and is not empty
@@ -346,11 +368,23 @@ class ZXGraphState(GraphState):
             node index
         atol : `float`, optional
             absolute tolerance, by default 1e-9
+
+        Raises
+        ------
+        ValueError
+            If the node is not a Clifford node.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.7
         """
         a_pi = self.meas_bases[node].angle % (2.0 * np.pi)
-        coeff = 0.0 if is_close_angle(a_pi, 0, atol) else 1.0
-        lc = LocalClifford(coeff * np.pi, 0, 0)
-        for v in self.neighbors(node) - set(self.output_node_indices):
+        if not is_close_angle(2 * a_pi, 0, atol):
+            msg = "This node cannot be removed by _remove_clifford."
+            raise ValueError(msg)
+
+        lc = LocalClifford(a_pi, 0, 0)
+        for v in self.neighbors(node):
             self.apply_local_clifford(v, lc)
 
         self.remove_physical_node(node)
@@ -416,6 +450,7 @@ class ZXGraphState(GraphState):
                 self._is_trivial_meas(node, atol),
                 self._needs_lc(node, atol),
                 self._needs_pivot(node, atol),
+                self._is_noninput_with_io_nbrs(node, atol),
             ]
         )
 
