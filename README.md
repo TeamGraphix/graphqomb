@@ -8,7 +8,10 @@
 [![typecheck](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing) is a comprehensive reimplementation of the [graphix](https://github.com/TeamGraphix/graphix). Our package compiles ZX-diagrams with optional feedforward strategy into measurement patterns with Pauli frame tracking.
+**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing) is a modular graph-based compiler for measurement-based quantum computing (MBQC), providing a high-level interface to the [graphix](https://github.com/TeamGraphix/graphix) package for applications such as fault-tolerant MBQC. 
+
+GraphQOMB's philosophy is to use graph-like ZX diagrams as MBQC representation, with feedforward strategy treated independently. 
+This allows, for example, to incorporate Pauli frame tracking for fault-tolerant MBQC to be integrated into basic feedforward strategy of MBQC, allowing streamlined compilation.
 
 ## Features
 
