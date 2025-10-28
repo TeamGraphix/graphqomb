@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "graphqomb"
-version = "0.1.0"
+version = "0.1.1"
 description = "A modular Graph State qompiler for measurement-based quantum computing."
 readme = "README.md"
 requires-python = ">=3.9, <3.14"
 license = {text = "MIT"}
 authors = [
     {name = "Masato Fukushima", email = "masa1063fuk@gmail.com"},
+    {name = "Sora Shiratani"},
     {name = "Yuki Watanabe"},
     {name = "Daichi Sasaki"},
 ]
