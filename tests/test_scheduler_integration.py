@@ -6,6 +6,7 @@ from graphqomb.graphstate import GraphState
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler, compress_schedule
+from graphqomb.simulator import PatternSimulator, SimulatorBackend
 
 
 def test_simple_graph_scheduling() -> None:
@@ -544,3 +545,41 @@ def test_compress_schedule_with_entangle_time() -> None:
     assert compressed_meas[1] == 1
     assert compressed_ent[frozenset({0, 1})] == 0
     assert compressed_ent[frozenset({1, 2})] == 1
+
+
+def test_simulator_with_tick_commands() -> None:
+    """Test that PatternSimulator handles TICK commands correctly."""
+    # Create a simple graph and compile with TICK commands
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    # Assign measurement bases to non-output nodes
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    scheduler.solve_schedule(config)
+    scheduler.auto_schedule_entanglement()
+
+    # Compile with TICK commands
+    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+
+    # Verify TICK commands are present
+    tick_count = sum(1 for cmd in pattern if isinstance(cmd, TICK))
+    assert tick_count > 0, "Pattern should contain TICK commands"
+
+    # Simulate the pattern - should not raise any errors
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+
+    # Check that simulation completed successfully
+    assert len(simulator.results) > 0

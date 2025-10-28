@@ -42,8 +42,12 @@ def compress_schedule(  # noqa: C901, PLR0912
 
     Returns
     -------
-    `tuple`\[`dict`\[`int`, `int` | `None`\], `dict`\[`int`, `int` | `None`\], `dict`\[`frozenset`\[`int`\], `int` | `None`\]\]
-        A tuple containing the compressed prepare_time, measure_time, and entangle_time dictionaries.
+    tuple
+        A tuple containing:
+
+        - `dict`\[`int`, `int` | `None`\]: compressed prepare_time
+        - `dict`\[`int`, `int` | `None`\]: compressed measure_time
+        - `dict`\[`frozenset`\[`int`\], `int` | `None`\]: compressed entangle_time
     """
     # Collect all used time indices
     all_times: set[int] = set()
@@ -86,7 +90,7 @@ def compress_schedule(  # noqa: C901, PLR0912
             compressed_measure_time[node] = None
 
     # Apply compression to entanglement times
-    compressed_entangle_time: dict[frozenset[int], int | None] = {}
+    compressed_entangle_time = {}
     if entangle_time is not None:
         for edge, old_time in entangle_time.items():
             if old_time is not None:

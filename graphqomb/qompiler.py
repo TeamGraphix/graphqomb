@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from graphqomb.scheduler import Scheduler
 
 
-def qompile(
+def qompile(  # noqa: PLR0913
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
@@ -125,7 +125,9 @@ def _qompile(
 
             # Order within time slice: N -> E -> M
             commands.extend(N(node) for node in prepare_nodes)
-            commands.extend(E(nodes=tuple(edge)) for edge in entangle_edges)
+            for edge in entangle_edges:
+                a, b = edge
+                commands.append(E(nodes=(a, b)))
             commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
 
             # Insert TICK between time slices
