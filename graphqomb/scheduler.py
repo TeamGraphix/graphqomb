@@ -90,7 +90,7 @@ def compress_schedule(  # noqa: C901, PLR0912
             compressed_measure_time[node] = None
 
     # Apply compression to entanglement times
-    compressed_entangle_time = {}
+    compressed_entangle_time: dict[frozenset[int], int | None] = {}
     if entangle_time is not None:
         for edge, old_time in entangle_time.items():
             if old_time is not None:
