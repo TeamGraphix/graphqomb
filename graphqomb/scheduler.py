@@ -66,7 +66,9 @@ def compress_schedule(  # noqa: C901, PLR0912
                 all_times.add(time)
 
     if not all_times:
-        compressed_entangle_time = dict(entangle_time) if entangle_time is not None else {}
+        compressed_entangle_time: dict[frozenset[int], int | None] = (
+            dict(entangle_time) if entangle_time is not None else {}
+        )
         return dict(prepare_time), dict(measure_time), compressed_entangle_time
 
     # Create mapping from old time to new compressed time
@@ -90,7 +92,7 @@ def compress_schedule(  # noqa: C901, PLR0912
             compressed_measure_time[node] = None
 
     # Apply compression to entanglement times
-    compressed_entangle_time: dict[frozenset[int], int | None] = {}
+    compressed_entangle_time = {}
     if entangle_time is not None:
         for edge, old_time in entangle_time.items():
             if old_time is not None:
