@@ -10,8 +10,8 @@
 
 **GraphQOMB** (Qompiler for Measurement-Based Quantum Computing) is a modular graph-based compiler for measurement-based quantum computing (MBQC), providing a high-level interface to the [graphix](https://github.com/TeamGraphix/graphix) package for applications such as fault-tolerant MBQC.
 
-GraphQOMB's philosophy is to use graph-like ZX diagrams as MBQC representation, with feedforward strategy treated independently. 
-This allows, for example, to incorporate Pauli frame tracking for fault-tolerant MBQC to be integrated into basic feedforward strategy of MBQC, allowing streamlined compilation.
+GraphQOMB's philosophy is to use graph-like ZX diagrams as MBQC representation, with feedforward strategy treated independently.
+This allows, for example, to incorporate Pauli frame tracking for fault-tolerant MBQC into basic feedforward strategy of MBQC, allowing streamlined compilation.
 
 ## Features
 
