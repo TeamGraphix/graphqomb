@@ -670,8 +670,6 @@ class GraphState(BaseGraphState):
             msg = "Duplicate nodes in input"
             raise ValueError(msg)
 
-        # Create node mapping
-        node_map: dict[NodeT, int] = {node: idx for idx, node in enumerate(nodes_list)}
         node_set = set(nodes_list)
 
         # Validate inputs
@@ -703,9 +701,11 @@ class GraphState(BaseGraphState):
         # Create GraphState instance
         graph_state = cls()
 
-        # Add nodes
-        for _ in nodes_list:
-            graph_state.add_physical_node()
+        # Add nodes and create node mapping
+        node_map: dict[NodeT, int] = {}
+        for node in nodes_list:
+            new_node = graph_state.add_physical_node()
+            node_map[node] = new_node
 
         # Add edges
         for node1, node2 in edges_list:
