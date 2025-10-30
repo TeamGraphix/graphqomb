@@ -9,7 +9,7 @@ Simple example to draw a GraphState in graphqomb.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
+from graphqomb.common import Axis, AxisMeasBasis, MeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.visualizer import visualize
@@ -26,44 +26,32 @@ print("Displayed flow graph")
 # %%
 # Create a demo graph with different measurement planes and input/output nodes
 
-demo_graph = GraphState()
+# Define graph structure with named nodes
+nodes = ["input1", "input2", "internal1", "internal2", "internal3", "output1", "output2"]
+edges = [
+    ("input1", "internal1"),
+    ("input2", "internal2"),
+    ("internal1", "internal3"),
+    ("internal2", "internal3"),
+    ("internal3", "output1"),
+    ("input1", "output2"),
+]
+inputs = ["input1", "input2"]
+outputs = ["output1", "output2"]
 
-# Add input nodes
-input_node1 = demo_graph.add_physical_node()
-input_node2 = demo_graph.add_physical_node()
-demo_graph.register_input(input_node1, 0)
-demo_graph.register_input(input_node2, 1)
+# Define measurement bases for nodes
+meas_bases: dict[str, MeasBasis] = {
+    "input1": AxisMeasBasis(Axis.X, Sign.PLUS),
+    "input2": PlannerMeasBasis(Plane.XY, np.pi / 6),
+    "internal1": PlannerMeasBasis(Plane.XZ, np.pi / 4),  # XZ plane with angle π/4
+    "internal2": PlannerMeasBasis(Plane.YZ, np.pi / 3),  # YZ plane with angle π/3
+    "internal3": PlannerMeasBasis(Plane.XZ, np.pi / 2),  # XZ plane with angle π/2
+}
 
-# Set measurement bases for input nodes (XY plane with different angles)
-demo_graph.assign_meas_basis(input_node1, AxisMeasBasis(Axis.X, Sign.PLUS))
-demo_graph.assign_meas_basis(input_node2, PlannerMeasBasis(Plane.XY, np.pi / 6))
-
-# Add internal nodes with different measurement planes
-internal_node1 = demo_graph.add_physical_node()
-internal_node2 = demo_graph.add_physical_node()
-internal_node3 = demo_graph.add_physical_node()
-
-# Set measurement bases for internal nodes
-# XZ plane (blue) with angle π/4
-demo_graph.assign_meas_basis(internal_node1, PlannerMeasBasis(Plane.XZ, np.pi / 4))
-# YZ plane (red) with angle π/3
-demo_graph.assign_meas_basis(internal_node2, PlannerMeasBasis(Plane.YZ, np.pi / 3))
-# XZ plane (blue) with angle π/2
-demo_graph.assign_meas_basis(internal_node3, PlannerMeasBasis(Plane.XZ, np.pi / 2))
-
-# Add output nodes
-output_node1 = demo_graph.add_physical_node()
-output_node2 = demo_graph.add_physical_node()
-demo_graph.register_output(output_node1, 0)
-demo_graph.register_output(output_node2, 1)
-
-# Create edges to connect the graph
-demo_graph.add_physical_edge(input_node1, internal_node1)
-demo_graph.add_physical_edge(input_node2, internal_node2)
-demo_graph.add_physical_edge(internal_node1, internal_node3)
-demo_graph.add_physical_edge(internal_node2, internal_node3)
-demo_graph.add_physical_edge(internal_node3, output_node1)
-demo_graph.add_physical_edge(internal_node1, output_node2)
+# Create graph state from structure
+demo_graph, node_map = GraphState.from_graph(
+    nodes=nodes, edges=edges, inputs=inputs, outputs=outputs, meas_bases=meas_bases
+)
 
 print("Demo graph with XZ and YZ measurement planes:")
 print(f"Input nodes: {list(demo_graph.input_node_indices.keys())}")
@@ -86,34 +74,35 @@ print("Displayed demo graph without labels")
 
 # %%
 # Create another demo graph with Pauli measurements (θ=0, π)
-pauli_demo_graph = GraphState()
+# Define Pauli measurement graph structure
+pauli_nodes = ["input", "x_meas", "y_meas", "z_meas", "output"]
+pauli_edges = [
+    ("input", "x_meas"),
+    ("x_meas", "y_meas"),
+    ("y_meas", "z_meas"),
+    ("z_meas", "output"),
+]
+pauli_inputs = ["input"]
+pauli_outputs = ["output"]
 
-# Add nodes for Pauli measurements
-pauli_input = pauli_demo_graph.add_physical_node()
-pauli_demo_graph.register_input(pauli_input, 0)
+# Define Pauli measurement bases
+pauli_meas_bases = {
+    "input": AxisMeasBasis(Axis.X, Sign.PLUS),  # X+
+    "x_meas": AxisMeasBasis(Axis.X, Sign.PLUS),  # X+: XY plane, θ=0
+    "y_meas": AxisMeasBasis(Axis.Y, Sign.PLUS),  # Y+: YZ plane, θ=π/2
+    "z_meas": AxisMeasBasis(Axis.Z, Sign.MINUS),  # Z-: XZ plane, θ=π
+}
 
-# Create internal nodes with Pauli measurements
-x_measurement_node = pauli_demo_graph.add_physical_node()  # X measurement: XY plane, θ=0
-y_measurement_node = pauli_demo_graph.add_physical_node()  # Y measurement: YZ plane, θ=π/2
-z_measurement_node = pauli_demo_graph.add_physical_node()  # Z measurement: XZ plane, θ=π
+# Create Pauli measurement graph state from structure
+pauli_demo_graph, pauli_node_map = GraphState.from_graph(
+    nodes=pauli_nodes,
+    edges=pauli_edges,
+    inputs=pauli_inputs,
+    outputs=pauli_outputs,
+    meas_bases=pauli_meas_bases,
+)
 
-# Set Pauli measurement bases
-pauli_demo_graph.assign_meas_basis(pauli_input, AxisMeasBasis(Axis.X, Sign.PLUS))  # X+
-pauli_demo_graph.assign_meas_basis(x_measurement_node, AxisMeasBasis(Axis.X, Sign.PLUS))  # X+
-pauli_demo_graph.assign_meas_basis(y_measurement_node, AxisMeasBasis(Axis.Y, Sign.PLUS))  # Y+
-pauli_demo_graph.assign_meas_basis(z_measurement_node, AxisMeasBasis(Axis.Z, Sign.MINUS))  # Z-
-
-# Add output node
-pauli_output = pauli_demo_graph.add_physical_node()
-pauli_demo_graph.register_output(pauli_output, 0)
-
-# Connect nodes
-pauli_demo_graph.add_physical_edge(pauli_input, x_measurement_node)
-pauli_demo_graph.add_physical_edge(x_measurement_node, y_measurement_node)
-pauli_demo_graph.add_physical_edge(y_measurement_node, z_measurement_node)
-pauli_demo_graph.add_physical_edge(z_measurement_node, pauli_output)
-
-print("\\nPauli measurement demo graph:")
+print("\nPauli measurement demo graph:")
 print(f"Input nodes: {list(pauli_demo_graph.input_node_indices.keys())}")
 print(f"Output nodes: {list(pauli_demo_graph.output_node_indices.keys())}")
 print("Pauli measurement nodes (will show bordered patterns):")

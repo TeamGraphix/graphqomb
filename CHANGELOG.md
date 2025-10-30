@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.2] - 2025-10-31
 
+### Added
+
+- **Graph State**: Bulk initialization methods for GraphState ([#120](https://github.com/TeamGraphix/graphqomb/issues/120))
+  - Added `from_graph()` class method for direct graph-based initialization
+  - Added `from_base_graph_state()` class method for initialization from base GraphState objects
+  - Improved initialization flexibility for diverse use cases
+
 ### Performance
 
 - **Pauli Frame**: Optimized `_collect_dependent_chain` method with memoization and caching
@@ -24,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tests for dependent chain collection across X, Y, Z measurement axes
   - Added tests for detector groups and logical observables
   - Improved test coverage from 77.78% to 97% for pauli_frame.py
+- **Graph State**: Added comprehensive test suite for bulk initialization methods
+  - Added tests for `from_graph()` initialization
+  - Added tests for `from_base_graph_state()` initialization
+  - Added tests for graph consistency and state equivalence
 
 ## [0.1.1] - 2025-10-23
 
