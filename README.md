@@ -4,11 +4,15 @@
 [![PyPI version](https://badge.fury.io/py/graphqomb.svg)](https://badge.fury.io/py/graphqomb)
 [![Python Versions](https://img.shields.io/pypi/pyversions/graphqomb.svg)](https://pypi.org/project/graphqomb/)
 [![Documentation Status](https://readthedocs.org/projects/graphqomb/badge/?version=latest)](https://graphqomb.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/TeamGraphix/graphqomb/branch/master/graph/badge.svg)](https://codecov.io/gh/TeamGraphix/graphqomb)
 [![pytest](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/pytest.yml)
 [![typecheck](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing) is a comprehensive reimplementation of the [graphix](https://github.com/TeamGraphix/graphix). Our package compiles ZX-diagrams with optional feedforward strategy into measurement patterns with Pauli frame tracking.
+**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing, pronounce as _graphcomb_) is a modular graph-based compiler for measurement-based quantum computing (MBQC), providing a high-level interface to the [graphix](https://github.com/TeamGraphix/graphix) package for applications such as fault-tolerant MBQC.
+
+GraphQOMB's philosophy is to use graph-like ZX diagrams as MBQC representation, with feedforward strategy treated independently.
+This allows, for example, to integrate Pauli frame tracking needed for fault-tolerant MBQC, into basic feedforward strategy of MBQC, allowing streamlined compilation.
 
 ## Features
 
@@ -93,20 +97,13 @@ print(simulator.state)
 from graphqomb.graphstate import GraphState
 from graphqomb.visualizer import visualize
 
-# Create a graph state
-graph = GraphState()
-node1 = graph.add_physical_node()
-node2 = graph.add_physical_node()
-node3 = graph.add_physical_node()
-
-# Register input/output nodes
-q_index = 0
-graph.register_input(node1, q_index)
-graph.register_output(node3, q_index)
-
-# Add edges
-graph.add_physical_edge(node1, node2)
-graph.add_physical_edge(node2, node3)
+# Create a graph state using from_graph
+graph, node_map = GraphState.from_graph(
+    nodes=["input", "middle", "output"],
+    edges=[("input", "middle"), ("middle", "output")],
+    inputs=["input"],
+    outputs=["output"]
+)
 
 # Visualize the graph
 visualize(graph)
