@@ -24,6 +24,9 @@ Command Classes
 .. autoclass:: graphqomb.command.Z
     :members:
 
+.. autoclass:: graphqomb.command.TICK
+    :members:
+
 Type Alias
 ----------
 
