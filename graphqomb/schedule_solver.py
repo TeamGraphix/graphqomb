@@ -10,6 +10,8 @@ This module provides:
 from __future__ import annotations
 
 import enum
+import os
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -47,6 +49,117 @@ class _ModelContext:
     graph: BaseGraphState
 
 
+_DEFAULT_HORIZON_SLACK = 3
+
+
+def _compute_dag_properties(  # noqa: C901
+    nodes: set[int],
+    dag: Mapping[int, AbstractSet[int]],
+) -> tuple[list[int], int, dict[int, int], dict[int, int]]:
+    """Return topological order, depth, earliest layers, and longest tail.
+
+    Returns
+    -------
+    tuple[list[int], int, dict[int, int], dict[int, int]]
+        A tuple containing:
+        - topo: Topological ordering of nodes
+        - depth: Maximum depth of the DAG
+        - earliest: Earliest layer for each node
+        - longest_tail: Longest path from each node to the end
+    """
+    all_nodes = set(nodes)
+    for _parent, children in dag.items():
+        all_nodes.add(_parent)
+        all_nodes.update(children)
+
+    indegree: dict[int, int] = dict.fromkeys(all_nodes, 0)
+    for _parent, children in dag.items():
+        for child in children:
+            indegree[child] = indegree.get(child, 0) + 1
+
+    queue: deque[int] = deque(node for node in all_nodes if indegree.get(node, 0) == 0)
+    topo: list[int] = []
+    while queue:
+        node = queue.popleft()
+        topo.append(node)
+        for child in dag.get(node, ()):
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                queue.append(child)
+
+    if len(topo) < len(all_nodes):
+        remaining = [node for node in all_nodes if node not in topo]
+        topo.extend(remaining)
+
+    earliest: dict[int, int] = dict.fromkeys(all_nodes, 0)
+    for node in topo:
+        base = earliest[node] + 1
+        for child in dag.get(node, ()):
+            earliest[child] = max(earliest[child], base)
+
+    depth = max(earliest.values(), default=0)
+
+    longest_tail: dict[int, int] = dict.fromkeys(all_nodes, 0)
+    for node in reversed(topo):
+        best = 0
+        for child in dag.get(node, ()):
+            candidate = longest_tail[child] + 1
+            best = max(best, candidate)
+        longest_tail[node] = best
+
+    return topo, depth, earliest, longest_tail
+
+
+def _infer_default_max_time(depth: int) -> int:
+    base = max(2 * depth, depth + _DEFAULT_HORIZON_SLACK)
+    return max(base, _DEFAULT_HORIZON_SLACK, 1)
+
+
+def _alive_intervals_and_makespan(
+    ctx: _ModelContext,
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
+    max_time: int,
+) -> tuple[list[cp_model.IntervalVar], cp_model.IntVar]:
+    """Build alive intervals per node and the global makespan.
+
+    Returns
+    -------
+    tuple[list[cp_model.IntervalVar], cp_model.IntVar]
+        A tuple containing:
+        - intervals: List of interval variables representing node lifetimes
+        - makespan: Integer variable representing the total execution time
+    """
+    model = ctx.model
+    graph = ctx.graph
+    meas_vars = [node2meas[node] for node in graph.physical_nodes if node in node2meas]
+
+    makespan = model.NewIntVar(0, max_time, "makespan")
+    if meas_vars:
+        model.AddMaxEquality(makespan, meas_vars)
+    else:
+        model.Add(makespan == 0)
+
+    output_nodes = set(graph.output_node_indices)
+    intervals: list[cp_model.IntervalVar] = []
+    for node in graph.physical_nodes:
+        start = node2prep.get(node)
+        start_expr = start if start is not None else model.NewConstant(0)
+
+        if node in output_nodes:
+            end_expr = makespan
+            model.Add(end_expr >= start_expr)
+        else:
+            end_expr = node2meas[node]
+
+        size_name = f"alive_size[{node}]"
+        size_var = model.NewIntVar(0, max_time, size_name)
+        model.Add(size_var == end_expr - start_expr)
+        intervals.append(model.NewIntervalVar(start_expr, size_var, end_expr, f"alive[{node}]"))
+
+    return intervals, makespan
+
+
 def _add_constraints(
     model: cp_model.CpModel,
     graph: BaseGraphState,
@@ -68,6 +181,11 @@ def _add_constraints(
                 continue
             model.Add(node2prep[neighbor] < node2meas[node])
 
+    for node, meas in node2meas.items():
+        prep = node2prep.get(node)
+        if prep is not None:
+            model.Add(prep <= meas)
+
 
 def _set_objective(
     ctx: _ModelContext,
@@ -84,7 +202,7 @@ def _set_objective(
         If the scheduling strategy is unknown.
     """
     if config.strategy == Strategy.MINIMIZE_SPACE:
-        _set_minimize_space_objective(ctx, node2prep, node2meas, max_time)
+        _set_minimize_space_objective(ctx, node2prep, node2meas, config, max_time)
     elif config.strategy == Strategy.MINIMIZE_TIME:
         _set_minimize_time_objective(ctx, node2prep, node2meas, max_time, config.max_qubit_count)
     else:
@@ -136,14 +254,22 @@ def _set_minimize_space_objective(
     ctx: _ModelContext,
     node2prep: Mapping[int, cp_model.IntVar],
     node2meas: Mapping[int, cp_model.IntVar],
+    config: ScheduleConfig,
     max_time: int,
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
+    intervals, makespan = _alive_intervals_and_makespan(ctx, node2prep, node2meas, max_time)
     max_space = ctx.model.NewIntVar(0, len(ctx.graph.physical_nodes), "max_space")
-    for t in range(max_time):
-        alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-        ctx.model.Add(max_space >= sum(alive_at_t))
-    ctx.model.Minimize(max_space)
+    if intervals:
+        ctx.model.AddCumulative(intervals, [1] * len(intervals), max_space)
+    else:
+        ctx.model.Add(max_space == 0)
+
+    if getattr(config, "break_ties_by_time", True):
+        big_m = max_time + 1
+        ctx.model.Minimize(max_space * big_m + makespan)
+    else:
+        ctx.model.Minimize(max_space)
 
 
 def _set_minimize_time_objective(
@@ -167,7 +293,7 @@ def _set_minimize_time_objective(
     ctx.model.Minimize(makespan)
 
 
-def solve_schedule(
+def solve_schedule(  # noqa: PLR0914
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
     config: ScheduleConfig,
@@ -195,8 +321,11 @@ def solve_schedule(
     # Construct model
     model = cp_model.CpModel()
 
+    nodes = set(graph.physical_nodes)
+    _, depth, earliest_layers, longest_tail = _compute_dag_properties(nodes, dag)
+
     # Determine max_time from config or calculate default
-    max_time = config.max_time if config.max_time is not None else 2 * len(graph.physical_nodes)
+    max_time = config.max_time if config.max_time is not None else _infer_default_max_time(depth)
 
     # Create variables
     node2prep: dict[int, cp_model.IntVar] = {}
@@ -206,6 +335,26 @@ def solve_schedule(
             node2prep[node] = model.NewIntVar(0, max_time, f"prep_{node}")
         if node not in graph.output_node_indices:
             node2meas[node] = model.NewIntVar(0, max_time, f"meas_{node}")
+
+    for node, meas in node2meas.items():
+        lower_bound = earliest_layers.get(node, 0)
+        upper_bound = max_time - longest_tail.get(node, 0)
+        upper_bound = max(upper_bound, lower_bound)
+        model.Add(meas >= lower_bound)
+        model.Add(meas <= upper_bound)
+        model.AddHint(meas, lower_bound)
+
+    for prep in node2prep.values():
+        model.AddHint(prep, 0)
+
+    if node2meas:
+        # Note: type: ignore is needed due to a bug in or-tools type annotations
+        # The constants are incorrectly annotated as ValueType instead of proper strategy types
+        model.AddDecisionStrategy(
+            list(node2meas.values()),
+            cp_model.CHOOSE_LOWEST_MIN,  # type: ignore[arg-type]
+            cp_model.SELECT_MIN_VALUE,  # type: ignore[arg-type]
+        )
 
     # Add constraints
     _add_constraints(model, graph, dag, node2prep, node2meas)
@@ -217,6 +366,9 @@ def solve_schedule(
     # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = timeout
+    workers = os.cpu_count() or 1
+    solver.parameters.num_search_workers = max(1, min(workers, 8))
+    solver.parameters.linearization_level = 2
     status = solver.Solve(model)
 
     # Note: type: ignore is needed due to a bug in or-tools type annotations
