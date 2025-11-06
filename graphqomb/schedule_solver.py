@@ -34,11 +34,27 @@ class Strategy(Enum):
 
 @dataclass
 class ScheduleConfig:
-    """Configuration for scheduling strategy, constraints, and parameters."""
+    """Configuration for scheduling strategy, constraints, and parameters.
+
+    Attributes
+    ----------
+    strategy : Strategy
+        The scheduling optimization strategy (MINIMIZE_SPACE or MINIMIZE_TIME).
+    max_qubit_count : int | None, optional
+        Maximum number of qubits allowed at any time. Only used with MINIMIZE_TIME strategy.
+    max_time : int | None, optional
+        Maximum time horizon for scheduling. If None, inferred from DAG depth.
+    break_ties_by_time : bool, optional
+        When minimizing space, also minimize time as a secondary objective. Default is True.
+    log_search_progress : bool, optional
+        Enable CP-SAT solver progress logging for debugging. Default is False.
+    """
 
     strategy: Strategy
     max_qubit_count: int | None = None
     max_time: int | None = None
+    break_ties_by_time: bool = True
+    log_search_progress: bool = False
 
 
 @dataclass
@@ -265,7 +281,7 @@ def _set_minimize_space_objective(
     else:
         ctx.model.Add(max_space == 0)
 
-    if getattr(config, "break_ties_by_time", True):
+    if config.break_ties_by_time:
         big_m = max_time + 1
         ctx.model.Minimize(max_space * big_m + makespan)
     else:
@@ -369,6 +385,7 @@ def solve_schedule(  # noqa: PLR0914
     workers = os.cpu_count() or 1
     solver.parameters.num_search_workers = max(1, min(workers, 8))
     solver.parameters.linearization_level = 2
+    solver.parameters.log_search_progress = config.log_search_progress
     status = solver.Solve(model)
 
     # Note: type: ignore is needed due to a bug in or-tools type annotations
