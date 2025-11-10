@@ -67,7 +67,7 @@ if success:
     scheduler.auto_schedule_entanglement()
 
     # Show entanglement times
-    ent_times = {tuple(sorted(edge)): time for edge, time in scheduler.entangle_time.items() if time is not None}
+    ent_times = {edge: time for edge, time in scheduler.entangle_time.items() if time is not None}
     print(f"   Entanglement times: {ent_times}")
 
     # Show detailed timeline
@@ -99,9 +99,9 @@ if success:
         prepare_time={node1: 0, node2: 1, node3: 2},
         measure_time={node0: 0, node1: 1, node2: 2},
         entangle_time={
-            frozenset({node0, node1}): 0,
-            frozenset({node1, node2}): 1,
-            frozenset({node2, node3}): 2,
+            (node0, node1): 0,
+            (node1, node2): 1,
+            (node2, node3): 2,
         },
     )
 

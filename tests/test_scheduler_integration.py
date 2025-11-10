@@ -405,8 +405,8 @@ def test_entangle_time_scheduling() -> None:
     scheduler.auto_schedule_entanglement()
 
     # Check that entanglement times were set
-    edge01 = frozenset({node0, node1})
-    edge12 = frozenset({node1, node2})
+    edge01 = (node0, node1)
+    edge12 = (node1, node2)
 
     assert scheduler.entangle_time[edge01] is not None
     assert scheduler.entangle_time[edge12] is not None
@@ -447,13 +447,13 @@ def test_detailed_timeline() -> None:
     # Time slice 0: prepare node1, entangle (0,1), measure node0
     prep_nodes_0, ent_edges_0, meas_nodes_0 = timeline[0]
     assert node1 in prep_nodes_0
-    assert frozenset({node0, node1}) in ent_edges_0
+    assert (node0, node1) in ent_edges_0
     assert node0 in meas_nodes_0
 
     # Time slice 1: prepare node2, entangle (1,2), measure node1
     prep_nodes_1, ent_edges_1, meas_nodes_1 = timeline[1]
     assert node2 in prep_nodes_1
-    assert frozenset({node1, node2}) in ent_edges_1
+    assert (node1, node2) in ent_edges_1
     assert node1 in meas_nodes_1
 
 
@@ -514,7 +514,7 @@ def test_validate_entangle_time_constraints() -> None:
     assert scheduler.validate_schedule()
 
     # Set invalid entanglement time (before node is prepared)
-    edge12 = frozenset({node1, node2})
+    edge12 = (node1, node2)
     scheduler.entangle_time[edge12] = 0  # node2 is prepared at time 1, so this is invalid
 
     # Should be invalid
@@ -526,7 +526,7 @@ def test_compress_schedule_with_entangle_time() -> None:
     # Create schedules with gaps
     prepare_time = {1: 5, 2: 10}
     measure_time = {0: 5, 1: 10}
-    entangle_time = {frozenset({0, 1}): 5, frozenset({1, 2}): 10}
+    entangle_time = {(0, 1): 5, (1, 2): 10}
 
     # Compress
     compressed_prep, compressed_meas, compressed_ent = compress_schedule(prepare_time, measure_time, entangle_time)
@@ -536,8 +536,8 @@ def test_compress_schedule_with_entangle_time() -> None:
     assert compressed_prep[2] == 1
     assert compressed_meas[0] == 0
     assert compressed_meas[1] == 1
-    assert compressed_ent[frozenset({0, 1})] == 0
-    assert compressed_ent[frozenset({1, 2})] == 1
+    assert compressed_ent[0, 1] == 0
+    assert compressed_ent[1, 2] == 1
 
 
 def test_simulator_with_tick_commands() -> None:
