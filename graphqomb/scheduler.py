@@ -311,6 +311,7 @@ class Scheduler:
         Note
         ----
         Only schedules entanglement for edges with `None` time. Preserves manually set times.
+        Validation of measurement causality is performed by `validate_schedule()`.
         """
         for edge in self.graph.physical_edges:
             node1, node2 = edge
@@ -327,10 +328,15 @@ class Scheduler:
             # Edge can be created when both nodes are prepared
             # Only schedule if not already scheduled (preserve manual settings)
             if time1 is not None and time2 is not None and self.entangle_time[edge] is None:
+                # Entanglement happens when both nodes are prepared
                 self.entangle_time[edge] = max(time1, time2)
 
     def _validate_entangle_time_constraints(self) -> bool:
-        """Validate that entanglement times respect preparation constraints.
+        """Validate that entanglement times respect preparation and measurement constraints.
+
+        Checks that:
+        - Entanglement happens AFTER both nodes are prepared
+        - Entanglement happens BEFORE either node is measured
 
         Returns
         -------
@@ -360,6 +366,20 @@ class Scheduler:
 
             if ent_time < time1 or ent_time < time2:
                 # Entanglement happens before one of the nodes is prepared
+                return False
+
+            # Entanglement must happen BEFORE measurement of either node
+            # Get measurement times (output nodes are not measured)
+            meas_time1 = self.measure_time.get(node1)
+            meas_time2 = self.measure_time.get(node2)
+
+            # If node is measured, entanglement must be strictly before measurement
+            if meas_time1 is not None and ent_time >= meas_time1:
+                # Entanglement at or after node1 measurement
+                return False
+
+            if meas_time2 is not None and ent_time >= meas_time2:
+                # Entanglement at or after node2 measurement
                 return False
 
         return True
@@ -405,7 +425,9 @@ class Scheduler:
         - All non-output nodes have a measurement time
         - Measurement order respects DAG dependencies
         - Within same time slice, measurements happen before preparations
-        - Entanglement times respect preparation constraints (if entanglement is scheduled)
+        - Entanglement times respect causality constraints (if entanglement is scheduled):
+          - Entanglement happens AFTER both nodes are prepared
+          - Entanglement happens BEFORE either node is measured
 
         Returns
         -------
