@@ -83,10 +83,8 @@ class Pattern(Sequence[Command]):
         for cmd in self.commands:
             if isinstance(cmd, N):
                 nodes += 1
-                space_list.append(nodes)
             elif isinstance(cmd, M):
                 nodes -= 1
-                space_list.append(nodes)
             elif isinstance(cmd, TICK):
                 # TICK does not change the number of qubits
                 space_list.append(nodes)
