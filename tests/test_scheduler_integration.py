@@ -399,10 +399,7 @@ def test_entangle_time_scheduling() -> None:
     # Set manual schedule
     scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
 
-    # Auto-schedule entanglement
-    scheduler.auto_schedule_entanglement()
-
-    # Check that entanglement times were set
+    # Check that entanglement times were set (auto-scheduled by manual_schedule)
     edge01 = (node0, node1)
     edge12 = (node1, node2)
 
@@ -434,9 +431,8 @@ def test_timeline_includes_entanglement() -> None:
 
     # Set manual schedule
     scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
-    scheduler.auto_schedule_entanglement()
 
-    # Get timeline with entanglement information
+    # Get timeline with entanglement information (auto-scheduled by manual_schedule)
     timeline = scheduler.timeline
 
     # Check that timeline has the correct structure
@@ -504,9 +500,8 @@ def test_validate_entangle_time_constraints() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Set valid schedule
+    # Set valid schedule (entanglement auto-scheduled by manual_schedule)
     scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
-    scheduler.auto_schedule_entanglement()
 
     # Should be valid
     assert scheduler.validate_schedule()
@@ -559,9 +554,8 @@ def test_simulator_with_tick_commands() -> None:
     scheduler = Scheduler(graph, flow)
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
     scheduler.solve_schedule(config)
-    scheduler.auto_schedule_entanglement()
 
-    # Compile with scheduler-driven TICK commands
+    # Compile with scheduler-driven TICK commands (entanglement auto-scheduled by solve_schedule)
     pattern = qompile(graph, flow, scheduler=scheduler)
 
     # Verify TICK commands are present

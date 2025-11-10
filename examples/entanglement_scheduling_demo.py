@@ -62,11 +62,8 @@ if success:
     meas_times = {k: v for k, v in scheduler.measure_time.items() if v is not None}
     print(f"   Measurement times: {meas_times}")
 
-    # Auto-schedule entanglement
-    print("\n3. Auto-scheduling entanglement operations...")
-    scheduler.auto_schedule_entanglement()
-
-    # Show entanglement times
+    # Show entanglement times (auto-scheduled by solve_schedule)
+    print("\n3. Entanglement times (auto-scheduled)...")
     ent_times = {edge: time for edge, time in scheduler.entangle_time.items() if time is not None}
     print(f"   Entanglement times: {ent_times}")
 

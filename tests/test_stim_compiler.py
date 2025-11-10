@@ -351,9 +351,8 @@ def test_stim_compile_with_tick_commands() -> None:
     scheduler = Scheduler(graph, flow)
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
     scheduler.solve_schedule(config)
-    scheduler.auto_schedule_entanglement()
 
-    # Compile with scheduler-driven TICK commands
+    # Compile with scheduler-driven TICK commands (entanglement auto-scheduled by solve_schedule)
     pattern = qompile(graph, flow, scheduler=scheduler)
 
     # Verify TICK commands are present in pattern
