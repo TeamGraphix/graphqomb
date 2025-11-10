@@ -83,25 +83,17 @@ if success:
         if meas_nodes:
             print(f"     Measure: {sorted(meas_nodes)}")
 
-    # Compile pattern with TICK commands
-    print("\n5. Compiling pattern with TICK commands...")
-    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+    # Compile pattern (TICK commands are inserted automatically per time slice)
+    print("\n5. Compiling pattern with scheduler-driven TICK commands...")
+    pattern = qompile(graph, flow, scheduler=scheduler)
     print(f"   Pattern has {len(pattern.commands)} commands")
     print(f"   Maximum space usage: {pattern.max_space} qubits")
 
     print("\n   Pattern commands:")
     print_pattern(pattern, lim=30)
 
-    # Compile pattern without TICK commands
-    print("\n6. Compiling pattern without TICK commands...")
-    pattern_no_tick = qompile(graph, flow, scheduler=scheduler, insert_tick=False)
-    print(f"   Pattern has {len(pattern_no_tick.commands)} commands")
-
-    print("\n   Pattern commands (first 15):")
-    print_pattern(pattern_no_tick, lim=15)
-
     # Manual entanglement scheduling example
-    print("\n7. Manual entanglement scheduling example...")
+    print("\n6. Manual entanglement scheduling example...")
     scheduler2 = Scheduler(graph, flow)
     scheduler2.manual_schedule(
         prepare_time={node1: 0, node2: 1, node3: 2},
@@ -116,7 +108,7 @@ if success:
     print(f"   Manual schedule is valid: {scheduler2.validate_schedule()}")
     print(f"   Number of time slices: {scheduler2.num_slices()}")
 
-    pattern_manual = qompile(graph, flow, scheduler=scheduler2, insert_tick=True)
+    pattern_manual = qompile(graph, flow, scheduler=scheduler2)
     print(f"   Pattern has {len(pattern_manual.commands)} commands")
     print(f"   Maximum space usage: {pattern_manual.max_space} qubits")
 
