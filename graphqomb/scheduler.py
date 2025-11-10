@@ -22,39 +22,19 @@ if TYPE_CHECKING:
 
 
 class ScheduleTimings(NamedTuple):
-    """Scheduling timings for preparation, entanglement, and measurement.
+    """Scheduling timings for preparation, entanglement, and measurement."""
 
-    Attributes
-    ----------
-    prepare_time : dict[int, int | None]
-        Mapping from node indices to their preparation time.
-    measure_time : dict[int, int | None]
-        Mapping from node indices to their measurement time.
-    entangle_time : dict[tuple[int, int], int | None]
-        Mapping from edges to their entanglement time.
-    """
-
-    prepare_time: dict[int, int | None]
-    measure_time: dict[int, int | None]
-    entangle_time: dict[tuple[int, int], int | None]
+    prepare_time: dict[int, int | None]  #: Mapping from node indices to their preparation time.
+    measure_time: dict[int, int | None]  #: Mapping from node indices to their measurement time.
+    entangle_time: dict[tuple[int, int], int | None]  #: Mapping from edges to their entanglement time.
 
 
 class TimeSlice(NamedTuple):
-    """Operations for a single time slice in the schedule.
+    """Operations for a single time slice in the schedule."""
 
-    Attributes
-    ----------
-    prepare_nodes : set[int]
-        Set of node indices to prepare in this time slice.
-    entangle_edges : set[tuple[int, int]]
-        Set of edges to entangle in this time slice.
-    measure_nodes : set[int]
-        Set of node indices to measure in this time slice.
-    """
-
-    prepare_nodes: set[int]
-    entangle_edges: set[tuple[int, int]]
-    measure_nodes: set[int]
+    prepare_nodes: set[int]  #: Set of node indices to prepare in this time slice.
+    entangle_edges: set[tuple[int, int]]  #: Set of edges to entangle in this time slice.
+    measure_nodes: set[int]  #: Set of node indices to measure in this time slice.
 
 
 def compress_schedule(  # noqa: C901, PLR0912
@@ -487,6 +467,7 @@ class Scheduler:
         - Measurement order respects DAG dependencies
         - Within same time slice, measurements happen before preparations
         - Entanglement times respect causality constraints (if entanglement is scheduled):
+
           - Entanglement happens AFTER both nodes are prepared
           - Entanglement happens BEFORE either node is measured
         """
