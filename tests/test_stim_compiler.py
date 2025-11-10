@@ -353,12 +353,13 @@ def test_stim_compile_with_tick_commands() -> None:
     scheduler.solve_schedule(config)
     scheduler.auto_schedule_entanglement()
 
-    # Compile with TICK commands
-    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+    # Compile with scheduler-driven TICK commands
+    pattern = qompile(graph, flow, scheduler=scheduler)
 
     # Verify TICK commands are present in pattern
     tick_count = sum(1 for cmd in pattern if isinstance(cmd, TICK))
     assert tick_count > 0, "Pattern should contain TICK commands"
+    assert tick_count == scheduler.num_slices(), "Each time slice should yield one TICK command"
 
     # Compile to Stim format
     stim_str = stim_compile(pattern)

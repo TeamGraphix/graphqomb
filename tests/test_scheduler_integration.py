@@ -482,19 +482,12 @@ def test_qompile_with_tick_commands() -> None:
     success = scheduler.solve_schedule(config)
     assert success
 
-    # Compile pattern with TICK commands
-    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+    # Compile pattern and ensure TICK commands mark every slice boundary
+    pattern = qompile(graph, flow, scheduler=scheduler)
 
-    # Check that pattern contains TICK commands
     tick_commands = [cmd for cmd in pattern if isinstance(cmd, TICK)]
-    assert len(tick_commands) > 0
-
-    # Compile pattern without TICK commands
-    pattern_no_tick = qompile(graph, flow, scheduler=scheduler, insert_tick=False)
-
-    # Check that pattern does not contain TICK commands
-    tick_commands_no_tick = [cmd for cmd in pattern_no_tick if isinstance(cmd, TICK)]
-    assert len(tick_commands_no_tick) == 0
+    assert tick_commands, "Pattern should contain TICK commands when a scheduler is provided"
+    assert len(tick_commands) == scheduler.num_slices(), "Each time slice should contribute exactly one TICK"
 
 
 def test_validate_entangle_time_constraints() -> None:
@@ -570,8 +563,8 @@ def test_simulator_with_tick_commands() -> None:
     scheduler.solve_schedule(config)
     scheduler.auto_schedule_entanglement()
 
-    # Compile with TICK commands
-    pattern = qompile(graph, flow, scheduler=scheduler, insert_tick=True)
+    # Compile with scheduler-driven TICK commands
+    pattern = qompile(graph, flow, scheduler=scheduler)
 
     # Verify TICK commands are present
     tick_count = sum(1 for cmd in pattern if isinstance(cmd, TICK))
