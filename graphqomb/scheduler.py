@@ -220,8 +220,8 @@ class Scheduler:
             A mapping from edges (as tuples) to their entanglement time.
             If None, unscheduled entanglement times are auto-scheduled based on preparation times.
 
-        Note
-        ----
+        Notes
+        -----
         After setting preparation and measurement times, any unscheduled entanglement times
         (with `None` value) are automatically scheduled using `auto_schedule_entanglement()`.
         """
