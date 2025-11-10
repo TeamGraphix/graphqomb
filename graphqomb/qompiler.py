@@ -26,14 +26,13 @@ if TYPE_CHECKING:
     from graphqomb.scheduler import Scheduler
 
 
-def qompile(  # noqa: PLR0913
+def qompile(
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     parity_check_group: Sequence[AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
-    insert_tick: bool = True,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
 
@@ -52,9 +51,6 @@ def qompile(  # noqa: PLR0913
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
-    insert_tick : `bool`, optional
-        whether to insert TICK commands between time slices when using a scheduler,
-        by default `True`
 
     Returns
     -------
@@ -68,7 +64,7 @@ def qompile(  # noqa: PLR0913
 
     pauli_frame = PauliFrame(graph, xflow, zflow, parity_check_group=parity_check_group)
 
-    return _qompile(graph, pauli_frame, scheduler=scheduler, insert_tick=insert_tick)
+    return _qompile(graph, pauli_frame, scheduler=scheduler)
 
 
 def _qompile(
@@ -76,7 +72,6 @@ def _qompile(
     pauli_frame: PauliFrame,
     *,
     scheduler: Scheduler | None = None,
-    insert_tick: bool = True,
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
 
@@ -92,9 +87,6 @@ def _qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, the commands are scheduled in a single slice,
         by default `None`
-    insert_tick : `bool`, optional
-        whether to insert TICK commands between time slices when using a scheduler,
-        by default `True`
 
     Returns
     -------
@@ -113,6 +105,7 @@ def _qompile(
         commands.extend(N(node=node) for node in non_input_nodes)
         commands.extend(E(nodes=edge) for edge in graph.physical_edges)
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
+        commands.append(TICK())  # Final TICK for output consistency
     else:
         # Auto-schedule entanglement if not already scheduled
         if all(time is None for time in scheduler.entangle_time.values()):
@@ -131,8 +124,7 @@ def _qompile(
             commands.extend(M(node, meas_bases[node]) for node in measure_nodes)
 
             # Insert TICK between time slices
-            if insert_tick and time_idx < scheduler.num_slices() - 1:
-                commands.append(TICK())
+            commands.append(TICK())
 
     for node in graph.output_node_indices:
         if meas_basis := graph.meas_bases.get(node):
