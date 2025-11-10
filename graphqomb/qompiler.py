@@ -107,10 +107,6 @@ def _qompile(
         commands.extend(M(node, meas_bases[node]) for node in topo_order if node not in graph.output_node_indices)
         commands.append(TICK())  # Final TICK for output consistency
     else:
-        # Auto-schedule entanglement if not already scheduled
-        if all(time is None for time in scheduler.entangle_time.values()):
-            scheduler.auto_schedule_entanglement()
-
         timeline = scheduler.timeline
 
         for time_idx in range(scheduler.num_slices()):

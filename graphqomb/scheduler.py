@@ -220,7 +220,12 @@ class Scheduler:
             A mapping from node indices to their measurement time.
         entangle_time : `collections.abc.Mapping`\[`tuple`\[`int`, `int`\], `int` | `None`\] | `None`, optional
             A mapping from edges (as tuples) to their entanglement time.
-            If None, entanglement times remain unchanged.
+            If None, unscheduled entanglement times are auto-scheduled based on preparation times.
+
+        Note
+        ----
+        After setting preparation and measurement times, any unscheduled entanglement times
+        (with `None` value) are automatically scheduled using `auto_schedule_entanglement()`.
         """
         self.prepare_time = {
             node: prepare_time.get(node, None)
@@ -232,6 +237,10 @@ class Scheduler:
         }
         if entangle_time is not None:
             self.entangle_time = {edge: entangle_time.get(edge, None) for edge in self.entangle_time}
+
+        # Auto-schedule unscheduled entanglement times
+        if any(time is None for time in self.entangle_time.values()):
+            self.auto_schedule_entanglement()
 
     def _validate_node_sets(self) -> bool:
         """Validate that node sets are correctly configured.
@@ -298,6 +307,10 @@ class Scheduler:
         Each edge is scheduled at the time when both of its endpoints are prepared.
         For edges involving input nodes, they are scheduled when the non-input node is prepared.
         Input nodes are considered to be prepared at time -1 (before the first time slice).
+
+        Note
+        ----
+        Only schedules entanglement for edges with `None` time. Preserves manually set times.
         """
         for edge in self.graph.physical_edges:
             node1, node2 = edge
@@ -312,7 +325,8 @@ class Scheduler:
                 time2 = -1
 
             # Edge can be created when both nodes are prepared
-            if time1 is not None and time2 is not None:
+            # Only schedule if not already scheduled (preserve manual settings)
+            if time1 is not None and time2 is not None and self.entangle_time[edge] is None:
                 self.entangle_time[edge] = max(time1, time2)
 
     def _validate_entangle_time_constraints(self) -> bool:
@@ -432,6 +446,11 @@ class Scheduler:
         -------
         `bool`
             True if a solution was found and applied, False otherwise.
+
+        Note
+        ----
+        After solving, any unscheduled entanglement times (with `None` value) are
+        automatically scheduled using `auto_schedule_entanglement()`.
         """
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_SPACE)
@@ -455,4 +474,9 @@ class Scheduler:
         self.prepare_time = timings.prepare_time
         self.measure_time = timings.measure_time
         self.entangle_time = timings.entangle_time
+
+        # Auto-schedule unscheduled entanglement times
+        if any(time is None for time in self.entangle_time.values()):
+            self.auto_schedule_entanglement()
+
         return True
