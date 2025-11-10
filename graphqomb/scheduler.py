@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 def compress_schedule(  # noqa: C901, PLR0912
     prepare_time: Mapping[int, int | None],
     measure_time: Mapping[int, int | None],
-    entangle_time: Mapping[frozenset[int], int | None] | None = None,
-) -> tuple[dict[int, int | None], dict[int, int | None], dict[frozenset[int], int | None]]:
+    entangle_time: Mapping[tuple[int, int], int | None] | None = None,
+) -> tuple[dict[int, int | None], dict[int, int | None], dict[tuple[int, int], int | None]]:
     r"""Compress a schedule by removing gaps in time indices.
 
     This function shifts all time indices forward to remove unused time slots,
@@ -37,8 +37,8 @@ def compress_schedule(  # noqa: C901, PLR0912
         A mapping from node indices to their preparation time.
     measure_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
         A mapping from node indices to their measurement time.
-    entangle_time : `collections.abc.Mapping`\[`frozenset`\[`int`\], `int` | `None`\] | `None`, optional
-        A mapping from edges (as frozensets) to their entanglement time.
+    entangle_time : `collections.abc.Mapping`\[`tuple`\[`int`, `int`\], `int` | `None`\] | `None`, optional
+        A mapping from edges (as tuples) to their entanglement time.
 
     Returns
     -------
@@ -47,7 +47,7 @@ def compress_schedule(  # noqa: C901, PLR0912
 
         - `dict`\[`int`, `int` | `None`\]: compressed prepare_time
         - `dict`\[`int`, `int` | `None`\]: compressed measure_time
-        - `dict`\[`frozenset`\[`int`\], `int` | `None`\]: compressed entangle_time
+        - `dict`\[`tuple`\[`int`, `int`\], `int` | `None`\]: compressed entangle_time
     """
     # Collect all used time indices
     all_times: set[int] = set()
@@ -66,7 +66,7 @@ def compress_schedule(  # noqa: C901, PLR0912
                 all_times.add(time)
 
     if not all_times:
-        compressed_entangle_time: dict[frozenset[int], int | None] = (
+        compressed_entangle_time: dict[tuple[int, int], int | None] = (
             dict(entangle_time) if entangle_time is not None else {}
         )
         return dict(prepare_time), dict(measure_time), compressed_entangle_time
@@ -116,15 +116,15 @@ class Scheduler:
         A mapping from node indices to their preparation time.
     measure_time : `dict`\[`int`, `int` | `None`\]
         A mapping from node indices to their measurement time.
-    entangle_time : `dict`\[`frozenset`\[`int`\], `int` | `None`\]
-        A mapping from edge (as frozenset of two node indices) to their entanglement time.
+    entangle_time : `dict`\[`tuple`\[`int`, `int`\], `int` | `None`\]
+        A mapping from edge (as tuple of two node indices) to their entanglement time.
     """
 
     graph: BaseGraphState
     dag: dict[int, set[int]]
     prepare_time: dict[int, int | None]
     measure_time: dict[int, int | None]
-    entangle_time: dict[frozenset[int], int | None]
+    entangle_time: dict[tuple[int, int], int | None]
 
     def __init__(
         self,
@@ -137,7 +137,7 @@ class Scheduler:
         self.prepare_time = dict.fromkeys(graph.physical_nodes - graph.input_node_indices.keys())
         self.measure_time = dict.fromkeys(graph.physical_nodes - graph.output_node_indices.keys())
         # Initialize entangle_time for all physical edges
-        self.entangle_time = {frozenset(edge): None for edge in graph.physical_edges}
+        self.entangle_time = dict.fromkeys(graph.physical_edges)
 
     def num_slices(self) -> int:
         r"""Return the number of slices in the schedule.
@@ -177,15 +177,15 @@ class Scheduler:
         return [(prep_time[time], meas_time[time]) for time in range(self.num_slices())]
 
     @property
-    def detailed_timeline(self) -> list[tuple[set[int], set[frozenset[int]], set[int]]]:
+    def detailed_timeline(self) -> list[tuple[set[int], set[tuple[int, int]], set[int]]]:
         r"""Get the detailed timeline including entanglement operations.
 
         Returns
         -------
-        `list`\[`tuple`\[`set`\[`int`\], `set`\[`frozenset`\[`int`\]\], `set`\[`int`\]\]\]
+        `list`\[`tuple`\[`set`\[`int`\], `set`\[`tuple`\[`int`, `int`\]\], `set`\[`int`\]\]\]
             A list where each element is a tuple containing:
             - set of node indices scheduled for preparation
-            - set of edges (as frozensets) scheduled for entanglement
+            - set of edges (as tuples) scheduled for entanglement
             - set of node indices scheduled for measurement
         """
         prep_time: defaultdict[int, set[int]] = defaultdict(set)
@@ -193,7 +193,7 @@ class Scheduler:
             if time is not None:
                 prep_time[time].add(node)
 
-        ent_time: defaultdict[int, set[frozenset[int]]] = defaultdict(set)
+        ent_time: defaultdict[int, set[tuple[int, int]]] = defaultdict(set)
         for edge, time in self.entangle_time.items():
             if time is not None:
                 ent_time[time].add(edge)
@@ -209,7 +209,7 @@ class Scheduler:
         self,
         prepare_time: Mapping[int, int | None],
         measure_time: Mapping[int, int | None],
-        entangle_time: Mapping[frozenset[int], int | None] | None = None,
+        entangle_time: Mapping[tuple[int, int], int | None] | None = None,
     ) -> None:
         r"""Set the schedule manually.
 
@@ -219,8 +219,8 @@ class Scheduler:
             A mapping from node indices to their preparation time.
         measure_time : `collections.abc.Mapping`\[`int`, `int` | `None`\]
             A mapping from node indices to their measurement time.
-        entangle_time : `collections.abc.Mapping`\[`frozenset`\[`int`\], `int` | `None`\] | `None`, optional
-            A mapping from edges (as frozensets) to their entanglement time.
+        entangle_time : `collections.abc.Mapping`\[`tuple`\[`int`, `int`\], `int` | `None`\] | `None`, optional
+            A mapping from edges (as tuples) to their entanglement time.
             If None, entanglement times remain unchanged.
         """
         self.prepare_time = {
@@ -301,7 +301,6 @@ class Scheduler:
         Input nodes are considered to be prepared at time -1 (before the first time slice).
         """
         for edge in self.graph.physical_edges:
-            edge_frozen = frozenset(edge)
             node1, node2 = edge
 
             # Get preparation times (input nodes are considered prepared at time -1)
@@ -315,7 +314,7 @@ class Scheduler:
 
             # Edge can be created when both nodes are prepared
             if time1 is not None and time2 is not None:
-                self.entangle_time[edge_frozen] = max(time1, time2)
+                self.entangle_time[edge] = max(time1, time2)
 
     def _validate_entangle_time_constraints(self) -> bool:
         """Validate that entanglement times respect preparation constraints.
