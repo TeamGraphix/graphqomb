@@ -15,26 +15,28 @@ from graphqomb.scheduler import Scheduler
 # Create a simple graph state
 print("=== Entanglement Scheduling Demo ===\n")
 print("1. Creating graph state...")
-graph = GraphState()
-node0 = graph.add_physical_node()
-node1 = graph.add_physical_node()
-node2 = graph.add_physical_node()
-node3 = graph.add_physical_node()
+node_labels = ["input", "middle1", "middle2", "output"]
+edges = [("input", "middle1"), ("middle1", "middle2"), ("middle2", "output")]
+inputs = ["input"]
+outputs = ["output"]
+meas_bases = {
+    "input": PlannerMeasBasis(Plane.XY, 0.0),
+    "middle1": PlannerMeasBasis(Plane.XY, 0.0),
+    "middle2": PlannerMeasBasis(Plane.XY, 0.0),
+}
 
-# Add edges
-graph.add_physical_edge(node0, node1)
-graph.add_physical_edge(node1, node2)
-graph.add_physical_edge(node2, node3)
+graph, node_map = GraphState.from_graph(
+    nodes=node_labels,
+    edges=edges,
+    inputs=inputs,
+    outputs=outputs,
+    meas_bases=meas_bases,
+)
 
-# Set input/output
-qindex = 0
-graph.register_input(node0, qindex)
-graph.register_output(node3, qindex)
-
-# Set measurement bases for non-output nodes
-graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
-graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
-graph.assign_meas_basis(node2, PlannerMeasBasis(Plane.XY, 0.0))
+node0 = node_map["input"]
+node1 = node_map["middle1"]
+node2 = node_map["middle2"]
+node3 = node_map["output"]
 
 print(f"   Nodes: {list(graph.physical_nodes)}")
 print(f"   Input: {list(graph.input_node_indices.keys())}")
