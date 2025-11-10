@@ -1,5 +1,7 @@
 """Integration tests for scheduler and schedule_solve_scheduler."""
 
+import pytest
+
 from graphqomb.command import TICK
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
@@ -262,13 +264,13 @@ def test_validate_schedule_valid() -> None:
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
     success = scheduler.solve_schedule(config)
     assert success
-    assert scheduler.validate_schedule()
+    scheduler.validate_schedule()
 
     # Test a valid manual schedule
     scheduler2 = Scheduler(graph, flow)
     # node0 is input (not in prepare_time), node2 is output (not in measure_time)
     scheduler2.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
-    assert scheduler2.validate_schedule()
+    scheduler2.validate_schedule()
 
 
 def test_validate_schedule_invalid_node_sets() -> None:
@@ -290,13 +292,15 @@ def test_validate_schedule_invalid_node_sets() -> None:
     # Manually set invalid schedule (trying to prepare input node)
     scheduler.prepare_time = {node0: 0, node1: 1}  # node0 is input, shouldn't be prepared
     scheduler.measure_time = {node0: 1, node1: 2}
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match="Input nodes"):
+        scheduler.validate_schedule()
 
     # Reset and test measuring output node
     scheduler2 = Scheduler(graph, flow)
     scheduler2.prepare_time = {node1: 0}
     scheduler2.measure_time = {node0: 1, node1: 1, node2: 2}  # node2 is output, shouldn't be measured
-    assert not scheduler2.validate_schedule()
+    with pytest.raises(ValueError, match="Output nodes"):
+        scheduler2.validate_schedule()
 
 
 def test_validate_schedule_missing_times() -> None:
@@ -316,15 +320,17 @@ def test_validate_schedule_missing_times() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Set schedule with None values (unscheduled nodes)
-    scheduler.prepare_time = {node1: None}  # node1 not scheduled for preparation
+    scheduler.prepare_time = {node1: None, node2: 1}  # node1 not scheduled for preparation
     scheduler.measure_time = {node0: 0, node1: 1}
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match="no preparation time"):
+        scheduler.validate_schedule()
 
     # Reset and test missing measurement time
     scheduler2 = Scheduler(graph, flow)
-    scheduler2.prepare_time = {node1: 0}
+    scheduler2.prepare_time = {node1: 0, node2: 1}
     scheduler2.measure_time = {node0: 0, node1: None}  # node1 not scheduled for measurement
-    assert not scheduler2.validate_schedule()
+    with pytest.raises(ValueError, match="no measurement time"):
+        scheduler2.validate_schedule()
 
 
 def test_validate_schedule_dag_violations() -> None:
@@ -347,15 +353,17 @@ def test_validate_schedule_dag_violations() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Set schedule that violates DAG (node1 measured after node2)
-    scheduler.prepare_time = {node1: 0, node2: 0}
+    scheduler.prepare_time = {node1: 0, node2: 0, node3: 0}
     scheduler.measure_time = {node0: 0, node1: 2, node2: 1}  # Violates DAG: node1 should be measured before node2
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match="DAG violation"):
+        scheduler.validate_schedule()
 
     # Test equal times (also violates DAG)
     scheduler2 = Scheduler(graph, flow)
-    scheduler2.prepare_time = {node1: 0, node2: 0}
+    scheduler2.prepare_time = {node1: 0, node2: 0, node3: 0}
     scheduler2.measure_time = {node0: 0, node1: 1, node2: 1}  # Same measurement time violates DAG
-    assert not scheduler2.validate_schedule()
+    with pytest.raises(ValueError, match="DAG violation"):
+        scheduler2.validate_schedule()
 
 
 def test_validate_schedule_same_time_prep_meas() -> None:
@@ -375,9 +383,10 @@ def test_validate_schedule_same_time_prep_meas() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Set schedule where node1 is both prepared and measured at time 1
-    scheduler.prepare_time = {node1: 1}
+    scheduler.prepare_time = {node1: 1, node2: 2}
     scheduler.measure_time = {node0: 0, node1: 1}  # node1 prepared and measured at time 1
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match="cannot be both prepared and measured"):
+        scheduler.validate_schedule()
 
 
 def test_entangle_time_scheduling() -> None:
@@ -507,14 +516,15 @@ def test_validate_entangle_time_constraints() -> None:
     scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
 
     # Should be valid
-    assert scheduler.validate_schedule()
+    scheduler.validate_schedule()
 
     # Set invalid entanglement time (before node is prepared)
     edge12 = (node1, node2)
     scheduler.entangle_time[edge12] = 0  # node2 is prepared at time 1, so this is invalid
 
     # Should be invalid
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match=r"entanglement.*before.*preparation"):
+        scheduler.validate_schedule()
 
 
 def test_compress_schedule_with_entangle_time() -> None:
@@ -599,7 +609,8 @@ def test_validate_entangle_at_measurement_time_invalid() -> None:
     )
 
     # Should be invalid (entanglement at same time as node0 measurement)
-    assert not scheduler.validate_schedule()
+    with pytest.raises(ValueError, match=r"entanglement.*not before.*measurement"):
+        scheduler.validate_schedule()
 
 
 def test_validate_entangle_before_measurement_valid() -> None:
@@ -631,4 +642,4 @@ def test_validate_entangle_before_measurement_valid() -> None:
     )
 
     # Should be valid
-    assert scheduler.validate_schedule()
+    scheduler.validate_schedule()

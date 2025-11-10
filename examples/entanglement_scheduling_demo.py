@@ -102,7 +102,8 @@ if success:
         },
     )
 
-    print(f"   Manual schedule is valid: {scheduler2.validate_schedule()}")
+    scheduler2.validate_schedule()  # Will raise ValueError if invalid
+    print("   Manual schedule is valid: True")
     print(f"   Number of time slices: {scheduler2.num_slices()}")
 
     pattern_manual = qompile(graph, flow, scheduler=scheduler2)
