@@ -9,7 +9,7 @@ This module provides:
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
 from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
@@ -21,11 +21,29 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
+class ScheduleTimings(NamedTuple):
+    """Scheduling timings for preparation, entanglement, and measurement.
+
+    Attributes
+    ----------
+    prepare_time : dict[int, int | None]
+        Mapping from node indices to their preparation time.
+    measure_time : dict[int, int | None]
+        Mapping from node indices to their measurement time.
+    entangle_time : dict[tuple[int, int], int | None]
+        Mapping from edges to their entanglement time.
+    """
+
+    prepare_time: dict[int, int | None]
+    measure_time: dict[int, int | None]
+    entangle_time: dict[tuple[int, int], int | None]
+
+
 def compress_schedule(  # noqa: C901, PLR0912
     prepare_time: Mapping[int, int | None],
     measure_time: Mapping[int, int | None],
     entangle_time: Mapping[tuple[int, int], int | None] | None = None,
-) -> tuple[dict[int, int | None], dict[int, int | None], dict[tuple[int, int], int | None]]:
+) -> ScheduleTimings:
     r"""Compress a schedule by removing gaps in time indices.
 
     This function shifts all time indices forward to remove unused time slots,
@@ -42,12 +60,12 @@ def compress_schedule(  # noqa: C901, PLR0912
 
     Returns
     -------
-    tuple
-        A tuple containing:
+    ScheduleTimings
+        A NamedTuple containing compressed timing information:
 
-        - `dict`\[`int`, `int` | `None`\]: compressed prepare_time
-        - `dict`\[`int`, `int` | `None`\]: compressed measure_time
-        - `dict`\[`tuple`\[`int`, `int`\], `int` | `None`\]: compressed entangle_time
+        - prepare_time: `dict`\[`int`, `int` | `None`\]
+        - measure_time: `dict`\[`int`, `int` | `None`\]
+        - entangle_time: `dict`\[`tuple`\[`int`, `int`\], `int` | `None`\]
     """
     # Collect all used time indices
     all_times: set[int] = set()
@@ -69,7 +87,7 @@ def compress_schedule(  # noqa: C901, PLR0912
         compressed_entangle_time: dict[tuple[int, int], int | None] = (
             dict(entangle_time) if entangle_time is not None else {}
         )
-        return dict(prepare_time), dict(measure_time), compressed_entangle_time
+        return ScheduleTimings(dict(prepare_time), dict(measure_time), compressed_entangle_time)
 
     # Create mapping from old time to new compressed time
     sorted_times = sorted(all_times)
@@ -100,7 +118,7 @@ def compress_schedule(  # noqa: C901, PLR0912
             else:
                 compressed_entangle_time[edge] = None
 
-    return compressed_prepare_time, compressed_measure_time, compressed_entangle_time
+    return ScheduleTimings(compressed_prepare_time, compressed_measure_time, compressed_entangle_time)
 
 
 class Scheduler:
@@ -452,8 +470,8 @@ class Scheduler:
         }
 
         # Compress the schedule to minimize time indices
-        self.prepare_time, self.measure_time, compressed_entangle = compress_schedule(
-            prep_time, meas_time, self.entangle_time
-        )
-        self.entangle_time = compressed_entangle
+        timings = compress_schedule(prep_time, meas_time, self.entangle_time)
+        self.prepare_time = timings.prepare_time
+        self.measure_time = timings.measure_time
+        self.entangle_time = timings.entangle_time
         return True

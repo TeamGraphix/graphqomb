@@ -162,7 +162,7 @@ def test_space_constrained_scheduling() -> None:
     assert isinstance(success, bool)
 
 
-def test_schedule_compression() -> None:  # noqa: PLR0914
+def test_schedule_compression() -> None:
     """Test that schedule compression reduces unnecessary time gaps."""
     # Create a graph
     graph = GraphState()
@@ -185,12 +185,10 @@ def test_schedule_compression() -> None:  # noqa: PLR0914
     slices_before = scheduler.num_slices()
 
     # Apply compression
-    compressed_prep_time, compressed_meas_time, compressed_ent_time = compress_schedule(
-        scheduler.prepare_time, scheduler.measure_time, scheduler.entangle_time
-    )
-    scheduler.prepare_time = compressed_prep_time
-    scheduler.measure_time = compressed_meas_time
-    scheduler.entangle_time = compressed_ent_time
+    timings = compress_schedule(scheduler.prepare_time, scheduler.measure_time, scheduler.entangle_time)
+    scheduler.prepare_time = timings.prepare_time
+    scheduler.measure_time = timings.measure_time
+    scheduler.entangle_time = timings.entangle_time
 
     # After compression, gaps should be removed
     slices_after = scheduler.num_slices()
@@ -529,15 +527,15 @@ def test_compress_schedule_with_entangle_time() -> None:
     entangle_time = {(0, 1): 5, (1, 2): 10}
 
     # Compress
-    compressed_prep, compressed_meas, compressed_ent = compress_schedule(prepare_time, measure_time, entangle_time)
+    timings = compress_schedule(prepare_time, measure_time, entangle_time)
 
     # Check that gaps are removed
-    assert compressed_prep[1] == 0
-    assert compressed_prep[2] == 1
-    assert compressed_meas[0] == 0
-    assert compressed_meas[1] == 1
-    assert compressed_ent[0, 1] == 0
-    assert compressed_ent[1, 2] == 1
+    assert timings.prepare_time[1] == 0
+    assert timings.prepare_time[2] == 1
+    assert timings.measure_time[0] == 0
+    assert timings.measure_time[1] == 1
+    assert timings.entangle_time[0, 1] == 0
+    assert timings.entangle_time[1, 2] == 1
 
 
 def test_simulator_with_tick_commands() -> None:
