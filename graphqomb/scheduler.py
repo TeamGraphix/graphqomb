@@ -260,54 +260,85 @@ class Scheduler:
         if any(time is None for time in self.entangle_time.values()):
             self.auto_schedule_entanglement()
 
-    def _validate_node_sets(self) -> bool:
+    def _validate_node_sets(self) -> None:
         """Validate that node sets are correctly configured.
 
-        Returns
-        -------
-        `bool`
-            True if input/output nodes are correctly excluded from prepare/measure times.
+        Raises
+        ------
+        ValueError
+            If input/output nodes are incorrectly included in prepare/measure times,
+            or if node sets do not match expected sets.
         """
         input_nodes = self.graph.input_node_indices.keys()
         output_nodes = self.graph.output_node_indices.keys()
         physical_nodes = self.graph.physical_nodes
 
         # Input nodes should not be in prepare_time
-        if not input_nodes.isdisjoint(self.prepare_time.keys()):
-            return False
+        invalid_prep = input_nodes & self.prepare_time.keys()
+        if invalid_prep:
+            msg = f"Input nodes {sorted(invalid_prep)} should not be in prepare_time"
+            raise ValueError(msg)
 
         # Output nodes should not be in measure_time
-        if not output_nodes.isdisjoint(self.measure_time.keys()):
-            return False
+        invalid_meas = output_nodes & self.measure_time.keys()
+        if invalid_meas:
+            msg = f"Output nodes {sorted(invalid_meas)} should not be in measure_time"
+            raise ValueError(msg)
 
         # Check expected node sets
         expected_prep_nodes = physical_nodes - input_nodes
         expected_meas_nodes = physical_nodes - output_nodes
 
-        return self.prepare_time.keys() == expected_prep_nodes and self.measure_time.keys() == expected_meas_nodes
+        if self.prepare_time.keys() != expected_prep_nodes:
+            missing = expected_prep_nodes - self.prepare_time.keys()
+            unexpected = self.prepare_time.keys() - expected_prep_nodes
+            msg_parts: list[str] = []
+            if missing:
+                msg_parts.append(f"missing nodes {sorted(missing)}")
+            if unexpected:
+                msg_parts.append(f"unexpected nodes {sorted(unexpected)}")
+            msg = f"prepare_time has incorrect node set: {', '.join(msg_parts)}"
+            raise ValueError(msg)
 
-    def _validate_all_nodes_scheduled(self) -> bool:
+        if self.measure_time.keys() != expected_meas_nodes:
+            missing = expected_meas_nodes - self.measure_time.keys()
+            unexpected = self.measure_time.keys() - expected_meas_nodes
+            msg_parts = []
+            if missing:
+                msg_parts.append(f"missing nodes {sorted(missing)}")
+            if unexpected:
+                msg_parts.append(f"unexpected nodes {sorted(unexpected)}")
+            msg = f"measure_time has incorrect node set: {', '.join(msg_parts)}"
+            raise ValueError(msg)
+
+    def _validate_all_nodes_scheduled(self) -> None:
         """Validate that all required nodes are scheduled.
 
-        Returns
-        -------
-        `bool`
-            True if all nodes in prepare_time and measure_time have non-None values.
+        Raises
+        ------
+        ValueError
+            If any node in prepare_time or measure_time has None as its time value.
         """
         # All nodes in prepare_time must have non-None values
-        if any(time is None for time in self.prepare_time.values()):
-            return False
+        unscheduled_prep = [node for node, time in self.prepare_time.items() if time is None]
+        if unscheduled_prep:
+            msg = f"Nodes {sorted(unscheduled_prep)} have no preparation time scheduled (time is None)"
+            raise ValueError(msg)
 
         # All nodes in measure_time must have non-None values
-        return all(time is not None for time in self.measure_time.values())
+        unscheduled_meas = [node for node, time in self.measure_time.items() if time is None]
+        if unscheduled_meas:
+            msg = f"Nodes {sorted(unscheduled_meas)} have no measurement time scheduled (time is None)"
+            raise ValueError(msg)
 
-    def _validate_dag_constraints(self) -> bool:
+    def _validate_dag_constraints(self) -> None:
         """Validate that measurement order respects DAG dependencies.
 
-        Returns
-        -------
-        `bool`
-            True if measurement times respect the DAG ordering constraints.
+        Raises
+        ------
+        ValueError
+            If measurement times violate DAG ordering constraints
+            (a node must be measured before all its successors in the DAG).
         """
         for u, successors in self.dag.items():
             u_time = self.measure_time.get(u)
@@ -316,8 +347,11 @@ class Scheduler:
             for v in successors:
                 v_time = self.measure_time.get(v)
                 if v_time is not None and u_time >= v_time:
-                    return False
-        return True
+                    msg = (
+                        f"DAG violation: node {u} (measure_time={u_time}) "
+                        f"must be measured before node {v} (measure_time={v_time})"
+                    )
+                    raise ValueError(msg)
 
     def auto_schedule_entanglement(self) -> None:
         r"""Automatically schedule entanglement operations based on preparation times.
@@ -349,17 +383,17 @@ class Scheduler:
                 # Entanglement happens when both nodes are prepared
                 self.entangle_time[edge] = max(time1, time2)
 
-    def _validate_entangle_time_constraints(self) -> bool:
+    def _validate_entangle_time_constraints(self) -> None:
         """Validate that entanglement times respect preparation and measurement constraints.
 
         Checks that:
         - Entanglement happens AFTER both nodes are prepared
         - Entanglement happens BEFORE either node is measured
 
-        Returns
-        -------
-        `bool`
-            True if entanglement times are valid, False otherwise.
+        Raises
+        ------
+        ValueError
+            If entanglement times violate preparation or measurement causality constraints.
         """
         for edge, ent_time in self.entangle_time.items():
             if ent_time is None:
@@ -380,11 +414,16 @@ class Scheduler:
             # Both nodes must be prepared before or at entanglement time
             if time1 is None or time2 is None:
                 # Cannot validate if preparation times are not set
-                return False
+                msg = f"Edge {edge} entanglement validation failed: preparation times not set"
+                raise ValueError(msg)
 
-            if ent_time < time1 or ent_time < time2:
-                # Entanglement happens before one of the nodes is prepared
-                return False
+            if ent_time < time1:
+                msg = f"Edge {edge} entanglement at time {ent_time} is before node {node1} preparation at time {time1}"
+                raise ValueError(msg)
+
+            if ent_time < time2:
+                msg = f"Edge {edge} entanglement at time {ent_time} is before node {node2} preparation at time {time2}"
+                raise ValueError(msg)
 
             # Entanglement must happen BEFORE measurement of either node
             # Get measurement times (output nodes are not measured)
@@ -393,22 +432,26 @@ class Scheduler:
 
             # If node is measured, entanglement must be strictly before measurement
             if meas_time1 is not None and ent_time >= meas_time1:
-                # Entanglement at or after node1 measurement
-                return False
+                msg = (
+                    f"Edge {edge} entanglement at time {ent_time} "
+                    f"is not before node {node1} measurement at time {meas_time1}"
+                )
+                raise ValueError(msg)
 
             if meas_time2 is not None and ent_time >= meas_time2:
-                # Entanglement at or after node2 measurement
-                return False
+                msg = (
+                    f"Edge {edge} entanglement at time {ent_time} "
+                    f"is not before node {node2} measurement at time {meas_time2}"
+                )
+                raise ValueError(msg)
 
-        return True
-
-    def _validate_time_ordering(self) -> bool:
+    def _validate_time_ordering(self) -> None:
         """Validate ordering within same time slice.
 
-        Returns
-        -------
-        `bool`
-            True if no node is both prepared and measured at the same time.
+        Raises
+        ------
+        ValueError
+            If any node is both prepared and measured at the same time.
         """
         # Within each time slice, all measurements should happen before all preparations
         # Group nodes by time
@@ -428,12 +471,12 @@ class Scheduler:
         for time in all_times:
             prep_nodes = time_to_prep_nodes[time]
             meas_nodes = time_to_meas_nodes[time]
-            if not prep_nodes.isdisjoint(meas_nodes):
-                return False
+            conflicting_nodes = prep_nodes & meas_nodes
+            if conflicting_nodes:
+                msg = f"Nodes {sorted(conflicting_nodes)} cannot be both prepared and measured at time {time}"
+                raise ValueError(msg)
 
-        return True
-
-    def validate_schedule(self) -> bool:
+    def validate_schedule(self) -> None:
         r"""Validate that the schedule is consistent with the graph state and DAG.
 
         Checks:
@@ -446,27 +489,15 @@ class Scheduler:
         - Entanglement times respect causality constraints (if entanglement is scheduled):
           - Entanglement happens AFTER both nodes are prepared
           - Entanglement happens BEFORE either node is measured
-
-        Returns
-        -------
-        `bool`
-            True if the schedule is valid, False otherwise.
         """
-        basic_valid = (
-            self._validate_node_sets()
-            and self._validate_all_nodes_scheduled()
-            and self._validate_dag_constraints()
-            and self._validate_time_ordering()
-        )
-
-        if not basic_valid:
-            return False
+        self._validate_node_sets()
+        self._validate_all_nodes_scheduled()
+        self._validate_dag_constraints()
+        self._validate_time_ordering()
 
         # Validate entanglement times only if at least one edge has a scheduled time
         if any(time is not None for time in self.entangle_time.values()):
-            return self._validate_entangle_time_constraints()
-
-        return True
+            self._validate_entangle_time_constraints()
 
     def solve_schedule(
         self,
