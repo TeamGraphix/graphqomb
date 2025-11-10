@@ -39,6 +39,24 @@ class ScheduleTimings(NamedTuple):
     entangle_time: dict[tuple[int, int], int | None]
 
 
+class TimeSlice(NamedTuple):
+    """Operations for a single time slice in the schedule.
+
+    Attributes
+    ----------
+    prepare_nodes : set[int]
+        Set of node indices to prepare in this time slice.
+    entangle_edges : set[tuple[int, int]]
+        Set of edges to entangle in this time slice.
+    measure_nodes : set[int]
+        Set of node indices to measure in this time slice.
+    """
+
+    prepare_nodes: set[int]
+    entangle_edges: set[tuple[int, int]]
+    measure_nodes: set[int]
+
+
 def compress_schedule(  # noqa: C901, PLR0912
     prepare_time: Mapping[int, int | None],
     measure_time: Mapping[int, int | None],
@@ -175,17 +193,17 @@ class Scheduler:
         )
 
     @property
-    def timeline(self) -> list[tuple[set[int], set[tuple[int, int]], set[int]]]:
+    def timeline(self) -> list[TimeSlice]:
         r"""Get the per-slice operations for preparation, entanglement, and measurement.
 
         Returns
         -------
-        `list`\[`tuple`\[`set`\[`int`\], `set`\[`tuple`\[`int`, `int`\]\], `set`\[`int`\]\]\]
-            Each element contains a tuple of three sets for each time slice:
+        `list`\[`TimeSlice`\]
+            Each element is a `TimeSlice` containing three sets for each time slice:
 
-            - Nodes to prepare
-            - Edges to entangle
-            - Nodes to measure.
+            - prepare_nodes: Nodes to prepare
+            - entangle_edges: Edges to entangle
+            - measure_nodes: Nodes to measure
         """
         prep_time: defaultdict[int, set[int]] = defaultdict(set)
         for node, time in self.prepare_time.items():
@@ -202,7 +220,7 @@ class Scheduler:
             if time is not None:
                 meas_time[time].add(node)
 
-        return [(prep_time[time], ent_time[time], meas_time[time]) for time in range(self.num_slices())]
+        return [TimeSlice(prep_time[time], ent_time[time], meas_time[time]) for time in range(self.num_slices())]
 
     def manual_schedule(
         self,
