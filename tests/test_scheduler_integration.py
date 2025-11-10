@@ -416,8 +416,8 @@ def test_entangle_time_scheduling() -> None:
     assert scheduler.entangle_time[edge12] == 1
 
 
-def test_detailed_timeline() -> None:
-    """Test the detailed_timeline property."""
+def test_timeline_includes_entanglement() -> None:
+    """Timeline should expose preparation, entanglement, and measurement sets."""
     # Create a simple graph
     graph = GraphState()
     node0 = graph.add_physical_node()
@@ -436,8 +436,8 @@ def test_detailed_timeline() -> None:
     scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
     scheduler.auto_schedule_entanglement()
 
-    # Get detailed timeline
-    timeline = scheduler.detailed_timeline
+    # Get timeline with entanglement information
+    timeline = scheduler.timeline
 
     # Check that timeline has the correct structure
     assert len(timeline) == 2  # 2 time slices

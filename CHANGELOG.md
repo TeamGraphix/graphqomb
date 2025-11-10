@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Edge Scheduler**: Automatic entanglement operation scheduling based on node preparation times ([#99](https://github.com/TeamGraphix/graphqomb/issues/99))
   - Added `entangle_time` attribute to Scheduler for tracking entanglement operation timing
   - Added `auto_schedule_entanglement()` method to automatically schedule CZ gates when both nodes are prepared
-  - Added `detailed_timeline` property for comprehensive scheduling information including entanglement operations
+  - Extended the `timeline` property to include entanglement operations
   - Added entanglement time validation in schedule validation
   - Added `compress_schedule()` function to support entanglement time compression
 

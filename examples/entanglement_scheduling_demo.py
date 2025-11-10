@@ -72,7 +72,7 @@ if success:
 
     # Show detailed timeline
     print("\n4. Detailed timeline (Prep, Entangle, Measure):")
-    timeline = scheduler.detailed_timeline
+    timeline = scheduler.timeline
     for time_idx, (prep_nodes, ent_edges, meas_nodes) in enumerate(timeline):
         print(f"   Time {time_idx}:")
         if prep_nodes:
