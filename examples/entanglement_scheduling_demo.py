@@ -94,7 +94,7 @@ if success:
     scheduler2 = Scheduler(graph, flow)
     scheduler2.manual_schedule(
         prepare_time={node1: 0, node2: 1, node3: 2},
-        measure_time={node0: 0, node1: 1, node2: 2},
+        measure_time={node0: 1, node1: 2, node2: 3},
         entangle_time={
             (node0, node1): 0,
             (node1, node2): 1,

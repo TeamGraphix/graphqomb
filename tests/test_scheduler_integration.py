@@ -267,7 +267,7 @@ def test_validate_schedule_valid() -> None:
     # Test a valid manual schedule
     scheduler2 = Scheduler(graph, flow)
     # node0 is input (not in prepare_time), node2 is output (not in measure_time)
-    scheduler2.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    scheduler2.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
     assert scheduler2.validate_schedule()
 
 
@@ -396,8 +396,8 @@ def test_entangle_time_scheduling() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Set manual schedule
-    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    # Set manual schedule (measurement times allow valid entanglement windows)
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
 
     # Check that entanglement times were set (auto-scheduled by manual_schedule)
     edge01 = (node0, node1)
@@ -406,10 +406,10 @@ def test_entangle_time_scheduling() -> None:
     assert scheduler.entangle_time[edge01] is not None
     assert scheduler.entangle_time[edge12] is not None
 
-    # Edge (0,1) should be scheduled at time 0 (when node1 is prepared, node0 is input)
+    # Edge (0,1) should be scheduled at time 0 (when node1 is prepared, node0 is input, before node0 measured at 1)
     assert scheduler.entangle_time[edge01] == 0
 
-    # Edge (1,2) should be scheduled at time 1 (when node2 is prepared)
+    # Edge (1,2) should be scheduled at time 1 (when node2 is prepared, before node1 measured at 2)
     assert scheduler.entangle_time[edge12] == 1
 
 
@@ -429,26 +429,29 @@ def test_timeline_includes_entanglement() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Set manual schedule
-    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    # Set manual schedule (measurement times allow valid entanglement windows)
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
 
     # Get timeline with entanglement information (auto-scheduled by manual_schedule)
     timeline = scheduler.timeline
 
     # Check that timeline has the correct structure
-    assert len(timeline) == 2  # 2 time slices
+    assert len(timeline) == 3  # 3 time slices
 
-    # Time slice 0: prepare node1, entangle (0,1), measure node0
-    prep_nodes_0, ent_edges_0, meas_nodes_0 = timeline[0]
-    assert node1 in prep_nodes_0
-    assert (node0, node1) in ent_edges_0
-    assert node0 in meas_nodes_0
+    # Time slice 0: prepare node1, entangle (0,1)
+    assert node1 in timeline[0][0]  # prep_nodes
+    assert (node0, node1) in timeline[0][1]  # ent_edges
+    assert len(timeline[0][2]) == 0  # meas_nodes - no measurements at time 0
 
-    # Time slice 1: prepare node2, entangle (1,2), measure node1
-    prep_nodes_1, ent_edges_1, meas_nodes_1 = timeline[1]
-    assert node2 in prep_nodes_1
-    assert (node1, node2) in ent_edges_1
-    assert node1 in meas_nodes_1
+    # Time slice 1: prepare node2, entangle (1,2), measure node0
+    assert node2 in timeline[1][0]  # prep_nodes
+    assert (node1, node2) in timeline[1][1]  # ent_edges
+    assert node0 in timeline[1][2]  # meas_nodes
+
+    # Time slice 2: measure node1
+    assert len(timeline[2][0]) == 0  # prep_nodes - no preparations at time 2
+    assert len(timeline[2][1]) == 0  # ent_edges - no entanglements at time 2
+    assert node1 in timeline[2][2]  # meas_nodes
 
 
 def test_qompile_with_tick_commands() -> None:
@@ -501,7 +504,7 @@ def test_validate_entangle_time_constraints() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Set valid schedule (entanglement auto-scheduled by manual_schedule)
-    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 0, node1: 1})
+    scheduler.manual_schedule(prepare_time={node1: 0, node2: 1}, measure_time={node0: 1, node1: 2})
 
     # Should be valid
     assert scheduler.validate_schedule()
@@ -568,3 +571,64 @@ def test_simulator_with_tick_commands() -> None:
 
     # Check that simulation completed successfully
     assert len(simulator.results) > 0
+
+
+def test_validate_entangle_at_measurement_time_invalid() -> None:
+    """Test that entanglement at same time as measurement is invalid."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Schedule with explicit entanglement times
+    scheduler.manual_schedule(
+        prepare_time={node1: 0, node2: 1},
+        measure_time={node0: 2, node1: 3},
+        entangle_time={(node0, node1): 2, (node1, node2): 1},  # (0,1) at SAME time as measurement
+    )
+
+    # Should be invalid (entanglement at same time as node0 measurement)
+    assert not scheduler.validate_schedule()
+
+
+def test_validate_entangle_before_measurement_valid() -> None:
+    """Test that entanglement before measurement is valid."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set valid schedule with entanglement BEFORE measurements
+    scheduler.manual_schedule(
+        prepare_time={node1: 0, node2: 1},
+        measure_time={node0: 2, node1: 3},
+        entangle_time={
+            (node0, node1): 0,  # Before measurement at 2
+            (node1, node2): 1,  # node1 measured at 3, node2 is output (not measured)
+        },
+    )
+
+    # Should be valid
+    assert scheduler.validate_schedule()
