@@ -175,36 +175,17 @@ class Scheduler:
         )
 
     @property
-    def timeline(self) -> list[tuple[set[int], set[int]]]:
-        r"""Get the timeline as a list of sets of nodes.
-
-        Returns
-        -------
-        `list`\[`tuple`\[`set`\[`int`\], `set`\[`int`\]\]
-            A list where each element is a tuple containing a set of node indices
-            scheduled for preparation and a set of node indices scheduled for measurement.
-        """
-        prep_time: defaultdict[int, set[int]] = defaultdict(set)
-        for node, time in self.prepare_time.items():
-            if time is not None:
-                prep_time[time].add(node)
-        meas_time: defaultdict[int, set[int]] = defaultdict(set)
-        for node, time in self.measure_time.items():
-            if time is not None:
-                meas_time[time].add(node)
-        return [(prep_time[time], meas_time[time]) for time in range(self.num_slices())]
-
-    @property
-    def detailed_timeline(self) -> list[tuple[set[int], set[tuple[int, int]], set[int]]]:
-        r"""Get the detailed timeline including entanglement operations.
+    def timeline(self) -> list[tuple[set[int], set[tuple[int, int]], set[int]]]:
+        r"""Get the per-slice operations for preparation, entanglement, and measurement.
 
         Returns
         -------
         `list`\[`tuple`\[`set`\[`int`\], `set`\[`tuple`\[`int`, `int`\]\], `set`\[`int`\]\]\]
-            A list where each element is a tuple containing:
-            - set of node indices scheduled for preparation
-            - set of edges (as tuples) scheduled for entanglement
-            - set of node indices scheduled for measurement
+            Each element contains a tuple of three sets for each time slice:
+
+            - Nodes to prepare
+            - Edges to entangle
+            - Nodes to measure.
         """
         prep_time: defaultdict[int, set[int]] = defaultdict(set)
         for node, time in self.prepare_time.items():

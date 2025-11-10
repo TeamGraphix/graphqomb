@@ -111,10 +111,10 @@ def _qompile(
         if all(time is None for time in scheduler.entangle_time.values()):
             scheduler.auto_schedule_entanglement()
 
-        detailed_timeline = scheduler.detailed_timeline
+        timeline = scheduler.timeline
 
         for time_idx in range(scheduler.num_slices()):
-            prepare_nodes, entangle_edges, measure_nodes = detailed_timeline[time_idx]
+            prepare_nodes, entangle_edges, measure_nodes = timeline[time_idx]
 
             # Order within time slice: N -> E -> M
             commands.extend(N(node) for node in prepare_nodes)
