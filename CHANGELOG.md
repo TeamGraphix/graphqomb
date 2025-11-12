@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Pattern**: Updated command sequence generation to support TICK commands
 - **Command**: Extended Command type alias to include TICK
+- The default strategy of `Scheduler.solve_schedule` is now `MINIMIZE_TIME` instead of `MINIMIZE_SPACE` for the compilation performance.
 
 ## [0.1.2] - 2025-10-31
 
