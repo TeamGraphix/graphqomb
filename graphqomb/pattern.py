@@ -90,6 +90,17 @@ class Pattern(Sequence[Command]):
                 space_list.append(nodes)
         return space_list
 
+    @property
+    def depth(self) -> int:
+        """Depth of the pattern (number of TICK commands).
+
+        Returns
+        -------
+        `int`
+            Depth of the pattern
+        """
+        return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
+
 
 def is_runnable(pattern: Pattern) -> None:
     """Check if the pattern is runnable.
