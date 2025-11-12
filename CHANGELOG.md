@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Scheduler Integration**: Enhanced qompile() to support temporal scheduling with TICK commands
   - Added `scheduler` parameter to qompile() for custom scheduling
-  - Automatically inserts TICK commands between time slices when scheduler is provided
+  - Automatically inserts TICK commands between time slices
 
 - **Examples**: Added entanglement_scheduling_demo.py demonstrating edge scheduler features
 
@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Pattern**: Updated command sequence generation to support TICK commands
 - **Command**: Extended Command type alias to include TICK
-- **Qompiler**: Modified E command generation to explicitly unpack frozenset edges for type safety
 
 ## [0.1.2] - 2025-10-31
 
