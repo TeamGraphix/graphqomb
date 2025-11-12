@@ -505,7 +505,7 @@ class Scheduler:
         automatically scheduled using `auto_schedule_entanglement()`.
         """
         if config is None:
-            config = ScheduleConfig(Strategy.MINIMIZE_SPACE)
+            config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
         result = solve_schedule(self.graph, self.dag, config, timeout)
         if result is None:
