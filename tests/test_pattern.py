@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from graphqomb.command import E, M, N, TICK, X, Z
+from graphqomb.command import TICK, E, M, N, X, Z
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
-from graphqomb.pauli_frame import PauliFrame
 from graphqomb.pattern import Pattern
+from graphqomb.pauli_frame import PauliFrame
 
 
 @pytest.fixture
