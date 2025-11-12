@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added entanglement time validation in schedule validation
   - Added `compress_schedule()` function to support entanglement time compression
 
+- **Pattern**: Added the `depth` attribute into `Pattern`, which represents the depth of parallel execution.
+
 - **Scheduler Integration**: Enhanced qompile() to support temporal scheduling with TICK commands
   - Added `scheduler` parameter to qompile() for custom scheduling
   - Automatically inserts TICK commands between time slices
