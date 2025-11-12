@@ -153,7 +153,7 @@ def check_flow(
     check_dag(dag)
 
 
-def propagate_correction_map(
+def propagate_correction_map(  # noqa: C901, PLR0912
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]],
