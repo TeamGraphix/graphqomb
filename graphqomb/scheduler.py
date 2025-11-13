@@ -433,7 +433,6 @@ class Scheduler:
         ValueError
             If any node is both prepared and measured at the same time.
         """
-        # Within each time slice, all measurements should happen before all preparations
         # Group nodes by time
         time_to_prep_nodes: defaultdict[int, set[int]] = defaultdict(set)
         time_to_meas_nodes: defaultdict[int, set[int]] = defaultdict(set)
