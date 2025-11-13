@@ -156,7 +156,7 @@ def check_flow(
 
 
 def signal_shifting(
-    graph: BaseGraphState, xflow: Mapping[int, AbstractSet[int]], zflow: Mapping[int, AbstractSet[int]]
+    graph: BaseGraphState, xflow: Mapping[int, AbstractSet[int]], zflow: Mapping[int, AbstractSet[int]] | None = None
 ) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
     r"""Convert the correction maps into more parallel-friendly forms using signal shifting.
 
@@ -166,14 +166,17 @@ def signal_shifting(
         Underlying graph state.
     xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         Correction map for X.
-    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        Correction map for Z.
+    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+        Correction map for Z. If `None`, it is generated from xflow by odd neighbors.
 
     Returns
     -------
     `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
         Updated correction maps for X and Z after signal shifting.
     """
+    if zflow is None:
+        zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
+
     dag = dag_from_flow(graph, xflow, zflow)
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # from parents to children
@@ -185,29 +188,29 @@ def signal_shifting(
     new_zflow = {k: set(vs) for k, vs in zflow.items()}
 
     for target_node in topo_order:
-        new_xflow, new_zflow = propagate_correction_map(graph, new_xflow, new_zflow, target_node)
+        new_xflow, new_zflow = propagate_correction_map(target_node, graph, new_xflow, new_zflow)
 
     return new_xflow, new_zflow
 
 
 def propagate_correction_map(  # noqa: C901, PLR0912
+    target_node: int,
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
-    zflow: Mapping[int, AbstractSet[int]],
-    target_node: int,
+    zflow: Mapping[int, AbstractSet[int]] | None = None,
 ) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
     r"""Propagate the correction map through a measurement at the target node.
 
     Parameters
     ----------
+    target_node : `int`
+        Node at which the measurement is performed.
     graph : `BaseGraphState`
         Underlying graph state.
     xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         Correction map for X.
-    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        Correction map for Z.
-    target_node : `int`
-        Node at which the measurement is performed.
+    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+        Correction map for Z. If `None`, it is generated from xflow by odd neighbors.
 
     Returns
     -------
@@ -230,6 +233,9 @@ def propagate_correction_map(  # noqa: C901, PLR0912
     if target_node in graph.output_node_indices:
         msg = "Cannot propagate flow for output nodes."
         raise ValueError(msg)
+
+    if zflow is None:
+        zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
 
     inv_xflow: dict[int, set[int]] = {}
     inv_zflow: dict[int, set[int]] = {}
