@@ -5,6 +5,7 @@ This module provides:
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
 - `check_dag`: Check if a directed acyclic graph (DAG) does not contain a cycle.
 - `check_flow`: Check if the flowlike object is causal with respect to the graph state.
+- `signal_shifting`: Convert the correction maps into more parallel-friendly forms using signal shifting.
 - `propagate_correction_map`: Propagate the correction map through a measurement at the target node.
 """
 
@@ -13,6 +14,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
+from graphlib import TopologicalSorter
 from typing import Any
 
 import typing_extensions
@@ -151,6 +153,41 @@ def check_flow(
     """  # noqa: E501
     dag = dag_from_flow(graph, xflow, zflow)
     check_dag(dag)
+
+
+def signal_shifting(
+    graph: BaseGraphState, xflow: Mapping[int, AbstractSet[int]], zflow: Mapping[int, AbstractSet[int]]
+) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+    r"""Convert the correction maps into more parallel-friendly forms using signal shifting.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        Underlying graph state.
+    xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        Correction map for X.
+    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        Correction map for Z.
+
+    Returns
+    -------
+    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
+        Updated correction maps for X and Z after signal shifting.
+    """
+    dag = dag_from_flow(graph, xflow, zflow)
+    topo_order = list(TopologicalSorter(dag).static_order())
+    topo_order.reverse()  # from parents to children
+
+    for output in graph.output_node_indices:
+        topo_order.remove(output)
+
+    new_xflow = {k: set(vs) for k, vs in xflow.items()}
+    new_zflow = {k: set(vs) for k, vs in zflow.items()}
+
+    for target_node in topo_order:
+        new_xflow, new_zflow = propagate_correction_map(graph, new_xflow, new_zflow, target_node)
+
+    return new_xflow, new_zflow
 
 
 def propagate_correction_map(  # noqa: C901, PLR0912
