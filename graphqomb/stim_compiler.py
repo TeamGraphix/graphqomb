@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import typing_extensions
 
-from graphqomb.command import E, M, N
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
 
 if TYPE_CHECKING:
@@ -239,6 +239,8 @@ def stim_compile(
             _entangle_nodes(stim_io, cmd.nodes, p_depol_after_clifford)
         elif isinstance(cmd, M):
             _measure_node(stim_io, cmd.meas_basis, cmd.node, p_before_meas_flip)
+        elif isinstance(cmd, TICK):
+            stim_io.write("TICK\n")
 
     # Add detectors
     check_groups = pframe.detector_groups()

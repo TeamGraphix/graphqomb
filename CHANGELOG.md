@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **TICK Command**: Time slice boundary marker for temporal scheduling in MBQC patterns
+  - Added TICK command type to mark boundaries between time slices
+  - Integrated TICK command handling in PatternSimulator
+  - Integrated TICK command processing in Stim compiler
+
+- **Edge Scheduler**: Automatic entanglement operation scheduling based on node preparation times ([#99](https://github.com/TeamGraphix/graphqomb/issues/99))
+  - Added `entangle_time` attribute to Scheduler for tracking entanglement operation timing
+  - Added `auto_schedule_entanglement()` method to automatically schedule CZ gates when both nodes are prepared
+  - Extended the `timeline` property to include entanglement operations
+  - Added entanglement time validation in schedule validation
+  - Added `compress_schedule()` function to support entanglement time compression
+
+- **Pattern**: Added the `depth` attribute into `Pattern`, which represents the depth of parallel execution.
+
+- **Scheduler Integration**: Enhanced qompile() to support temporal scheduling with TICK commands
+  - Added `scheduler` parameter to qompile() for custom scheduling
+  - Automatically inserts TICK commands between time slices
+
+- **Examples**: Added entanglement_scheduling_demo.py demonstrating edge scheduler features
+
+### Changed
+
+- **Pattern**: Updated command sequence generation to support TICK commands
+- **Command**: Extended Command type alias to include TICK
+- The default strategy of `Scheduler.solve_schedule` is now `MINIMIZE_TIME` instead of `MINIMIZE_SPACE` for the compilation performance.
+
 ## [0.1.2] - 2025-10-31
 
 ### Added
@@ -24,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optimized set operations for better performance in large graph states
 
 ### Tests
+
+- **TICK Command**: Added comprehensive test suite for TICK command functionality
+  - Added `test_simulator_with_tick_commands()` for TICK command handling in PatternSimulator
+  - Added `test_stim_compile_with_tick_commands()` for TICK command compilation to Stim format
+  - Extended scheduler integration tests with comprehensive edge scheduling validation
 
 - **Pauli Frame**: Added comprehensive test suite for PauliFrame module
   - Added tests for basic methods (x_flip, z_flip, meas_flip, children, parents)
