@@ -7,6 +7,7 @@ This module provides:
 - `M`: Measurement command.
 - `X`: X correction command.
 - `Z`: Z correction command.
+- `TICK`: Time slice separator command.
 - `Command`: Type alias of all commands.
 """
 
@@ -104,7 +105,19 @@ class Z(_Correction):
         return f"Z: node={self.node}"
 
 
+@dataclasses.dataclass
+class TICK:
+    """Time slice separator command.
+
+    Marks the boundary between time slices. Commands between two consecutive
+    TICK commands can be executed in parallel within the same time slice.
+    """
+
+    def __str__(self) -> str:
+        return "TICK"
+
+
 if sys.version_info >= (3, 10):
-    Command = N | E | M | X | Z
+    Command = N | E | M | X | Z | TICK
 else:
-    Command = Union[N, E, M, X, Z]
+    Command = Union[N, E, M, X, Z, TICK]

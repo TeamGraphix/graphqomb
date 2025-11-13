@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from graphqomb.command import TICK
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.qompiler import qompile
+from graphqomb.schedule_solver import ScheduleConfig, Strategy
+from graphqomb.scheduler import Scheduler
 from graphqomb.stim_compiler import stim_compile
 
 if TYPE_CHECKING:
@@ -326,3 +329,43 @@ def test_stim_compile_axis_meas_basis() -> None:
     # Should compile with both MX and MY
     assert "MX" in stim_str
     assert "MY" in stim_str
+
+
+def test_stim_compile_with_tick_commands() -> None:
+    """Test that TICK commands are properly compiled to Stim format."""
+    # Create a simple graph and compile with TICK commands
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    scheduler.solve_schedule(config)
+
+    # Compile with scheduler-driven TICK commands (entanglement auto-scheduled by solve_schedule)
+    pattern = qompile(graph, flow, scheduler=scheduler)
+
+    # Verify TICK commands are present in pattern
+    tick_count = sum(1 for cmd in pattern if isinstance(cmd, TICK))
+    assert tick_count > 0, "Pattern should contain TICK commands"
+    assert tick_count == scheduler.num_slices(), "Each time slice should yield one TICK command"
+
+    # Compile to Stim format
+    stim_str = stim_compile(pattern)
+
+    # Verify TICK instructions are present in Stim output
+    assert "TICK" in stim_str, "Stim output should contain TICK instructions"
+
+    # Count TICK instructions in output
+    stim_tick_count = stim_str.count("TICK")
+    assert stim_tick_count == tick_count, "Number of TICK instructions should match pattern"
