@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Examples**: Added entanglement_scheduling_demo.py demonstrating edge scheduler features
 
+- **Feedforward Optimization**: Added a `signal_shifting` method as a feedforward optimization.
+  - This optimization is equivalent to the operation of the same name in the measurement calculus, and makes the measurement pattern as parallel as possible.
+  - The optimization is now self-contained within the feedforward module.
+
 ### Changed
 
 - **Pattern**: Updated command sequence generation to support TICK commands
