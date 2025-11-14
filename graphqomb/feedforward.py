@@ -235,7 +235,7 @@ def propagate_correction_map(  # noqa: C901, PLR0912
         raise ValueError(msg)
 
     if zflow is None:
-        zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
+        zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
 
     inv_xflow: dict[int, set[int]] = {}
     inv_zflow: dict[int, set[int]] = {}
