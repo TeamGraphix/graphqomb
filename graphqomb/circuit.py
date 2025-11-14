@@ -6,7 +6,7 @@ This module provides:
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
 - `Circuit`: A class for circuits that include macro instructions.
 - `circuit2graph`: A function that converts a circuit to a graph state and gflow.
-- `circuit2graph_with_preschedule`: A function that converts a circuit to a graph state and gflow with manual scheduling.
+- `circuit2graph_with_preschedule`: A function that converts a circuit to a graph state and gflow with manual scheduling
 """
 
 from __future__ import annotations
