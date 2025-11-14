@@ -83,9 +83,11 @@ class PauliFrame:
         # Pre-compute Pauli axes for performance optimization
         # Only cache nodes that have measurement bases
         # NOTE: if non-Pauli measurements are involved, the stim_compile func will error out earlier
-        self._pauli_axis_cache = {
-            node: determine_pauli_axis(meas_basis) for node, meas_basis in graphstate.meas_bases.items()
-        }
+        self._pauli_axis_cache = (
+            {node: determine_pauli_axis(meas_basis) for node, meas_basis in graphstate.meas_bases.items()}
+            if parity_check_group
+            else {}
+        )  # only necessary for FTQC
         # Cache for memoization of dependent chains
         self._chain_cache = {}
 
