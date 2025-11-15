@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
 from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
+from graphqomb.greedy_scheduler import solve_greedy_schedule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -483,15 +484,21 @@ class Scheduler:
         self,
         config: ScheduleConfig | None = None,
         timeout: int = 60,
+        use_greedy: bool = False,
     ) -> bool:
-        r"""Compute the schedule using the constraint programming solver.
+        r"""Compute the schedule using constraint programming or greedy heuristics.
 
         Parameters
         ----------
         config : `ScheduleConfig` | `None`, optional
-            The scheduling configuration. If None, defaults to MINIMIZE_SPACE strategy.
+            The scheduling configuration. If None, defaults to MINIMIZE_TIME strategy.
         timeout : `int`, optional
-            Maximum solve time in seconds, by default 60
+            Maximum solve time in seconds for CP-SAT solver, by default 60.
+            Ignored when use_greedy=True.
+        use_greedy : `bool`, optional
+            If True, use fast greedy heuristics instead of CP-SAT.
+            Greedy algorithms are much faster than CP-SAT, but provide approximate solutions.
+            Default is False (use CP-SAT for optimal solutions).
 
         Returns
         -------
@@ -506,7 +513,15 @@ class Scheduler:
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
-        result = solve_schedule(self.graph, self.dag, config, timeout)
+        if use_greedy:
+            # Use fast greedy heuristics
+
+            minimize_space = config.strategy == Strategy.MINIMIZE_SPACE
+            result = solve_greedy_schedule(self.graph, self.dag, minimize_space)
+        else:
+            # Use CP-SAT solver for optimal solution
+            result = solve_schedule(self.graph, self.dag, config, timeout)
+
         if result is None:
             return False
 
