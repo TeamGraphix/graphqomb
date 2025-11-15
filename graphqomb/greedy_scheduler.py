@@ -13,7 +13,6 @@ This module provides:
 
 from __future__ import annotations
 
-from collections import defaultdict
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
@@ -344,7 +343,6 @@ def solve_greedy_schedule(
     try:
         if minimize_space:
             return greedy_minimize_space(graph, dag)
-        else:
-            return greedy_minimize_time(graph, dag)
+        return greedy_minimize_time(graph, dag)
     except Exception:
         return None

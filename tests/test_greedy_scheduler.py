@@ -4,7 +4,6 @@ import time
 
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 from graphqomb.greedy_scheduler import (
     greedy_minimize_space,

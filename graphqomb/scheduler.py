@@ -12,8 +12,8 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
-from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 from graphqomb.greedy_scheduler import solve_greedy_schedule
+from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
