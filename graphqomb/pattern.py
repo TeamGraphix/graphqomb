@@ -101,6 +101,18 @@ class Pattern(Sequence[Command]):
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
+    def throughput(self) -> float:
+        """Calculate the number of measurements per TICK in the pattern.
+
+        Returns
+        -------
+        `float`
+            Number of measurements per TICK
+        """
+        num_measurements = sum(1 for cmd in self.commands if isinstance(cmd, M))
+        num_ticks = self.depth
+        return num_measurements / num_ticks
+
 
 def is_runnable(pattern: Pattern) -> None:
     """Check if the pattern is runnable.
