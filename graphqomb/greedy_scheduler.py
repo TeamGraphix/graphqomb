@@ -53,13 +53,15 @@ def greedy_minimize_time(
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
-    inv_dag: dict[int, set[int]] = {node: set() for node in dag}
+    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
+
+    # Build inverse DAG: for each node, track which nodes must be measured before it
+    inv_dag: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
     for parent, children in dag.items():
         for child in children:
             inv_dag[child].add(parent)
 
     prepared: set[int] = set(graph.input_node_indices.keys())
-    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
     current_time = 0
 
     while unmeasured:
@@ -72,16 +74,26 @@ def greedy_minimize_time(
             msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
             raise RuntimeError(msg)
 
+        needs_prep = False
+        # Prepare neighbors at current_time
         for node in to_measure:
             for neighbor in graph.neighbors(node):
                 if neighbor not in prepared:
                     prepare_time[neighbor] = current_time
                     prepared.add(neighbor)
-                inv_dag[neighbor].discard(node)  # remove measured node from dependencies
-            measure_time[node] = current_time
-            unmeasured.remove(node)
+                    needs_prep = True
 
-        current_time += 1
+        # Measure at current_time if no prep needed, otherwise at current_time + 1
+        meas_time = current_time + 1 if needs_prep else current_time
+        for node in to_measure:
+            measure_time[node] = meas_time
+            unmeasured.remove(node)
+            # Remove measured node from dependencies of all its children in the DAG
+            for child in dag.get(node, set()):
+                if child in inv_dag:
+                    inv_dag[child].remove(node)
+
+        current_time = meas_time + 1
 
     return prepare_time, measure_time
 
@@ -119,17 +131,19 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
+    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
+
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # from parents to children
 
-    inv_dag: dict[int, set[int]] = {node: set() for node in dag}
+    # Build inverse DAG: for each node, track which nodes must be measured before it
+    inv_dag: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
     for parent, children in dag.items():
         for child in children:
             inv_dag[child].add(parent)
 
     prepared: set[int] = set(graph.input_node_indices.keys())
     alive: set[int] = set(graph.input_node_indices.keys())
-    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
     current_time = 0
 
     while unmeasured:
@@ -152,7 +166,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
         best_node_candidate: set[int] = set()
         best_cost = float("inf")
         for node in candidate_nodes:
-            cost = _calc_activate_cost(node, graph, prepared, inv_dag)
+            cost = _calc_activate_cost(node, graph, prepared)
             if cost < best_cost:
                 best_cost = cost
                 best_node_candidate = {node}
@@ -161,16 +175,28 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
 
         # tie-breaker: choose the node that appears first in topological order
         best_node = min(best_node_candidate, key=topo_order.index)
+
+        # Prepare neighbors at current_time
+        needs_prep = False
         for neighbor in graph.neighbors(best_node):
             if neighbor not in prepared:
                 prepare_time[neighbor] = current_time
                 prepared.add(neighbor)
-            inv_dag[neighbor].discard(best_node)  # remove measured node from dependencies
-            alive.add(neighbor)
-        measure_time[best_node] = current_time
+                alive.add(neighbor)
+                needs_prep = True
+
+        # Measure at current_time if no prep needed, otherwise at current_time + 1
+        meas_time = current_time + 1 if needs_prep else current_time
+        measure_time[best_node] = meas_time
         unmeasured.remove(best_node)
-        alive.discard(best_node)
-        current_time += 1
+        alive.remove(best_node)
+
+        # Remove measured node from dependencies of all its children in the DAG
+        for child in dag.get(best_node, set()):
+            if child in inv_dag:
+                inv_dag[child].remove(best_node)
+
+        current_time = meas_time + 1
 
     return prepare_time, measure_time
 
@@ -179,7 +205,6 @@ def _calc_activate_cost(
     node: int,
     graph: BaseGraphState,
     prepared: set[int],
-    inv_dag: dict[int, set[int]],
 ) -> int:
     """Calculate the cost of activating (preparing) a node.
 
@@ -194,8 +219,6 @@ def _calc_activate_cost(
         The graph state.
     prepared : set[int]
         The set of currently prepared nodes.
-    inv_dag : dict[int, set[int]]
-        The inverse DAG representing dependencies.
 
     Returns
     -------
