@@ -101,6 +101,7 @@ class Pattern(Sequence[Command]):
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
+    @property
     def throughput(self) -> float:
         """Calculate the number of measurements per TICK in the pattern.
 
