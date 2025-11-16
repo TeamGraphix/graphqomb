@@ -334,12 +334,11 @@ def test_greedy_scheduler_dag_constraints() -> None:
 
     scheduler = Scheduler(graph, flow)
     config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve_schedule(config, use_greedy=True)
 
     # Note: This flow creates a cyclic DAG (nodes 3 and 4 have circular dependency)
-    # Both CP-SAT and greedy schedulers should fail on invalid flows
-    # This test verifies that the greedy scheduler handles invalid input gracefully
-    assert not success  # Should fail due to cyclic DAG
+    # The greedy scheduler should raise RuntimeError for invalid flows
+    with pytest.raises(RuntimeError, match="No nodes can be measured"):
+        scheduler.solve_schedule(config, use_greedy=True)
 
 
 def test_greedy_scheduler_edge_constraints() -> None:
