@@ -14,3 +14,7 @@ Functions
 .. autofunction:: graphqomb.feedforward.check_dag
 
 .. autofunction:: graphqomb.feedforward.check_flow
+
+.. autofunction:: graphqomb.feedforward.signal_shifting
+
+.. autofunction:: graphqomb.feedforward.propagate_correction_map
