@@ -45,191 +45,60 @@ def greedy_minimize_time(
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:
-    """Fast greedy scheduler optimizing for minimal execution time (makespan).
+    r"""Fast greedy scheduler optimizing for minimal execution time (makespan).
 
-    This algorithm uses level-by-level parallel scheduling:
-    1. At each time step, measure all nodes whose parents are measured and neighbors are prepared
-    2. Prepare children and neighbors just before they are needed
-    3. DAG constraints are naturally satisfied by topological processing
-
-    Computational Complexity: O(N + E) where N is number of nodes, E is number of edges
-    Expected speedup: 100-1000x compared to CP-SAT
-    Approximation quality: Typically within 2x of optimal
+    This algorithm uses a straightforward greedy approach:
+    1. At each time step, measure all nodes that can be measured
+    2. Prepare all neighbors of measured nodes just before measurement
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         The graph state to schedule
-    dag : Mapping[int, AbstractSet[int]]
+    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The directed acyclic graph representing measurement dependencies
 
     Returns
     -------
-    tuple[dict[int, int], dict[int, int]]
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         A tuple of (prepare_time, measure_time) dictionaries
+
+    Raises
+    ------
+    RuntimeError
+        If no nodes can be measured at a given time step, indicating a possible
     """
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
-    # Track which nodes have been measured (or are output nodes that won't be measured)
-    measured: set[int] = set(graph.output_node_indices.keys())
+    inv_dag: dict[int, set[int]] = {node: set() for node in dag}
+    for parent, children in dag.items():
+        for child in children:
+            inv_dag[child].add(parent)
 
-    # Input nodes are considered prepared at time -1
     prepared: set[int] = set(graph.input_node_indices.keys())
-
-    # Prepare neighbors of input nodes at time 0 (they can be prepared before input measurement)
-    # This avoids circular dependency: input measurement needs neighbor prep, but neighbor prep needs parent meas
-    # Output nodes are also prepared early since they don't have DAG parent constraints
-    for input_node in graph.input_node_indices:
-        for neighbor in graph.neighbors(input_node):
-            if neighbor not in prepared and neighbor not in graph.input_node_indices:
-                prepare_time[neighbor] = 0
-                prepared.add(neighbor)
-
-    # Also prepare output nodes at time 0 (they have no DAG parent constraints that matter)
-    for output_node in graph.output_node_indices:
-        if output_node not in prepared and output_node not in graph.input_node_indices:
-            prepare_time[output_node] = 0
-            prepared.add(output_node)
-
+    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
     current_time = 0
 
-    # Get all nodes in topological order
-    topo_order = list(TopologicalSorter(dag).static_order())
-
-    # Nodes that are candidates for measurement (not yet measured, not outputs)
-    unmeasured = {n for n in topo_order if n not in graph.output_node_indices}
-
     while unmeasured:
-        # Find all nodes that can be measured at this time step:
-        # 1. All DAG parents (non-output) are measured
-        # 2. All neighbors are prepared (or will be prepared just before measurement)
-        ready_to_measure = []
-
+        to_measure = set()
         for node in unmeasured:
-            # Check DAG parents (only consider non-output parents)
-            parents = _dag_parents(dag, node)
-            non_output_parents = [p for p in parents if p not in graph.output_node_indices]
-            if not all(p in measured for p in non_output_parents):
-                continue
+            if len(inv_dag[node]) == 0:
+                to_measure.add(node)
 
-            # Check neighbors - need to prepare unprepared neighbors first
-            neighbors = list(graph.neighbors(node))
-            all_neighbors_ready = True
+        if not to_measure:
+            msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
+            raise RuntimeError(msg)
 
-            for neighbor in neighbors:
-                if neighbor not in prepared:
-                    # This neighbor needs to be prepared
-                    # Can we prepare it? (its DAG parents must be measured)
-                    neighbor_parents = _dag_parents(dag, neighbor)
-                    non_output_neighbor_parents = [p for p in neighbor_parents if p not in graph.output_node_indices]
-                    if not all(p in measured for p in non_output_neighbor_parents):
-                        all_neighbors_ready = False
-                        break
-
-            if all_neighbors_ready:
-                ready_to_measure.append(node)
-
-        if not ready_to_measure:
-            # No nodes can be measured - try to prepare more nodes
-            for node in unmeasured:
-                if node not in prepared and node not in graph.input_node_indices:
-                    parents = _dag_parents(dag, node)
-                    non_output_parents = [p for p in parents if p not in graph.output_node_indices]
-                    if all(p in measured for p in non_output_parents):
-                        prepare_time[node] = current_time
-                        prepared.add(node)
-
-            # Also prepare output nodes if their parents are measured
-            for node in graph.output_node_indices:
-                if node not in prepared and node not in graph.input_node_indices:
-                    parents = _dag_parents(dag, node)
-                    non_output_parents = [p for p in parents if p not in graph.output_node_indices]
-                    if all(p in measured for p in non_output_parents):
-                        prepare_time[node] = current_time
-                        prepared.add(node)
-
-            current_time += 1
-            if current_time > len(topo_order) * 2:
-                # Safety check to avoid infinite loop
-                break
-            continue
-
-        # Check if any node or neighbor was just prepared at current_time (need to wait before measuring)
-        needs_delay_for_prep = False
-        for node in ready_to_measure:
-            # Check if node itself was just prepared at current_time
-            if node not in graph.input_node_indices and prepare_time.get(node) == current_time:
-                needs_delay_for_prep = True
-                break
-            # Check if any neighbor was just prepared at current_time
+        for node in to_measure:
             for neighbor in graph.neighbors(node):
-                if neighbor not in graph.input_node_indices and prepare_time.get(neighbor) == current_time:
-                    needs_delay_for_prep = True
-                    break
-            if needs_delay_for_prep:
-                break
-
-        # If something was just prepared at current_time, delay measurement to next time step
-        if needs_delay_for_prep:
-            current_time += 1
-        else:
-            # Check if we need to prepare anything now
-            needs_prep_now = False
-            for node in ready_to_measure:
-                if node not in graph.input_node_indices and node not in prepared:
-                    needs_prep_now = True
-                    break
-                for neighbor in graph.neighbors(node):
-                    if neighbor not in prepared and neighbor not in graph.input_node_indices:
-                        needs_prep_now = True
-                        break
-                if needs_prep_now:
-                    break
-
-            if needs_prep_now:
-                for node in ready_to_measure:
-                    # Prepare the node itself if it's not an input node
-                    if node not in graph.input_node_indices and node not in prepared:
-                        prepare_time[node] = current_time
-                        prepared.add(node)
-
-                    # Prepare unprepared neighbors
-                    for neighbor in graph.neighbors(node):
-                        if neighbor not in prepared and neighbor not in graph.input_node_indices:
-                            prepare_time[neighbor] = current_time
-                            prepared.add(neighbor)
-
-                # Measure at next time step (after preparation)
-                current_time += 1
-
-        # Measure all ready nodes at the same time (maximize parallelism)
-        for node in ready_to_measure:
+                if neighbor not in prepared:
+                    prepare_time[neighbor] = current_time
+                    prepared.add(neighbor)
             measure_time[node] = current_time
-            measured.add(node)
-            unmeasured.discard(node)
-
-        # After measurement, prepare children nodes whose parents are now all measured
-        for node in ready_to_measure:
-            children = dag.get(node, set())
-            for child in children:
-                if child not in prepared and child not in graph.input_node_indices:
-                    # Check if all non-output parents of this child are now measured
-                    child_parents = _dag_parents(dag, child)
-                    non_output_child_parents = [p for p in child_parents if p not in graph.output_node_indices]
-                    if all(p in measured for p in non_output_child_parents):
-                        prepare_time[child] = current_time + 1
-                        prepared.add(child)
+            unmeasured.remove(node)
 
         current_time += 1
-
-    # Ensure all non-input nodes are prepared (including output nodes)
-    for node in graph.physical_nodes:
-        if node not in graph.input_node_indices and node not in prepared:
-            # This node was never prepared - prepare it now
-            # (typically output nodes or unreachable nodes)
-            prepare_time[node] = current_time
-            prepared.add(node)
 
     return prepare_time, measure_time
 
