@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
-from graphqomb.feedforward import _is_flow, _is_gflow, check_dag, check_flow, dag_from_flow
+from graphqomb.circuit import MBQCCircuit, circuit2graph
+from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.feedforward import (
+    _is_flow,
+    _is_gflow,
+    check_dag,
+    check_flow,
+    dag_from_flow,
+    propagate_correction_map,
+    signal_shifting,
+)
 from graphqomb.graphstate import GraphState
+from graphqomb.qompiler import qompile
+from graphqomb.simulator import CircuitSimulator, PatternSimulator, SimulatorBackend
 
 
 def two_node_graph() -> tuple[GraphState, int, int]:
@@ -80,3 +93,246 @@ def test_check_flow_true_for_acyclic() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
     check_flow(graphstate, flow)
+
+
+# Tests for propagate_correction_map
+
+
+def test_propagate_correction_map_xy_plane() -> None:
+    """Test propagate_correction_map with XY plane measurement."""
+    # Create a simple graph with 3 nodes: parent -> target -> child
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    child = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, child)
+
+    # Set measurement basis for target node (XY plane)
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.0))
+    # Set measurement basis for other nodes to avoid validation errors
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Register child as output
+    graphstate.register_output(child, 0)
+
+    # Define flows
+    xflow = {parent: {target}, target: {child}}
+    zflow = {parent: {target}, target: {child}}
+
+    # Propagate through target node
+    new_xflow, new_zflow = propagate_correction_map(target, graphstate, xflow, zflow)
+
+    # In XY plane, Z correction should be removed from parent -> target
+    assert target not in new_zflow[parent]
+    # X correction from target (child) should be propagated to parent
+    assert child in new_xflow[parent]
+    assert target in new_xflow[parent]
+
+
+def test_propagate_correction_map_yz_plane() -> None:
+    """Test propagate_correction_map with YZ plane measurement."""
+    # Create a simple graph with 3 nodes: parent -> target -> child
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    child = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, child)
+
+    # Set measurement basis for target node (YZ plane)
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.YZ, 0.0))
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.YZ, 0.0))
+
+    # Register child as output
+    graphstate.register_output(child, 0)
+
+    # Define flows
+    xflow = {parent: {target}, target: {child}}
+    zflow = {parent: {target}, target: {child}}
+
+    # Propagate through target node
+    new_xflow, new_zflow = propagate_correction_map(target, graphstate, xflow, zflow)
+
+    # In YZ plane, X correction should be removed from parent -> target
+    assert target not in new_xflow[parent]
+    # Z correction from target (child) should be propagated to parent
+    assert child in new_zflow[parent]
+    assert target in new_zflow[parent]
+
+
+def test_propagate_correction_map_xz_plane() -> None:
+    """Test propagate_correction_map with XZ plane measurement."""
+    # Create a simple graph with 3 nodes: parent -> target -> child
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    child = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, child)
+
+    # Set measurement basis for target node (XZ plane)
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XZ, 0.0))
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.XZ, 0.0))
+
+    # Register child as output
+    graphstate.register_output(child, 0)
+
+    # Define flows
+    xflow = {parent: {target}, target: {child}}
+    zflow = {parent: {target}, target: {child}}
+
+    # Propagate through target node
+    new_xflow, new_zflow = propagate_correction_map(target, graphstate, xflow, zflow)
+
+    # In XZ plane, both X and Z corrections should be removed from parent -> target
+    assert target not in new_xflow[parent]
+    assert target not in new_zflow[parent]
+    # Both X and Z corrections from target (child) should be propagated to parent
+    assert child in new_xflow[parent]
+    assert child in new_zflow[parent]
+
+
+def test_propagate_correction_map_output_node_error() -> None:
+    """Test that propagate_correction_map raises error for output nodes."""
+    graphstate = GraphState()
+    node = graphstate.add_physical_node()
+    graphstate.register_output(node, 0)
+
+    xflow: dict[int, set[int]] = {node: set()}
+    zflow: dict[int, set[int]] = {node: set()}
+
+    with pytest.raises(ValueError, match="Cannot propagate flow for output nodes"):
+        propagate_correction_map(node, graphstate, xflow, zflow)
+
+
+def test_propagate_correction_map_zflow_none() -> None:
+    """Test propagate_correction_map with zflow=None."""
+    # Create a simple graph
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    child = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, child)
+
+    # Set measurement basis
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Register child as output
+    graphstate.register_output(child, 0)
+
+    # Define xflow only
+    xflow = {parent: {target}, target: {child}}
+
+    # Should not raise error; zflow will be generated automatically
+    new_xflow, new_zflow = propagate_correction_map(target, graphstate, xflow)
+
+    # Check that both xflow and zflow were generated and corrections were propagated
+    assert isinstance(new_xflow, dict)
+    assert isinstance(new_zflow, dict)
+    assert parent in new_xflow
+    assert parent in new_zflow
+
+
+# Tests for signal_shifting
+
+
+def test_signal_shifting_simple() -> None:
+    """Test signal_shifting on a simple graph."""
+    # Create a linear graph: node0 -> node1 -> output
+    graphstate = GraphState()
+    node0 = graphstate.add_physical_node()
+    node1 = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(node0, node1)
+    graphstate.add_physical_edge(node1, output)
+
+    # Set measurement bases
+    graphstate.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Register output
+    graphstate.register_output(output, 0)
+
+    # Define flows
+    xflow = {node0: {node1}, node1: {output}}
+    zflow = {node0: {node1}, node1: {output}}
+
+    # Apply signal shifting
+    new_xflow, new_zflow = signal_shifting(graphstate, xflow, zflow)
+
+    # Verify that flows are valid dictionaries
+    assert isinstance(new_xflow, dict)
+    assert isinstance(new_zflow, dict)
+
+
+def test_signal_shifting_zflow_none() -> None:
+    """Test signal_shifting with zflow=None."""
+    # Create a simple graph
+    graphstate = GraphState()
+    node0 = graphstate.add_physical_node()
+    node1 = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(node0, node1)
+    graphstate.add_physical_edge(node1, output)
+
+    # Set measurement bases
+    graphstate.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Register output
+    graphstate.register_output(output, 0)
+
+    # Define xflow only
+    xflow = {node0: {node1}, node1: {output}}
+
+    # Apply signal shifting without zflow
+    new_xflow, new_zflow = signal_shifting(graphstate, xflow)
+
+    # Should not raise error; zflow will be generated automatically
+    assert isinstance(new_xflow, dict)
+    assert isinstance(new_zflow, dict)
+
+
+def test_signal_shifting_circuit_integration() -> None:
+    """Test signal_shifting integration with circuit compilation and simulation."""
+    # Create a simple quantum circuit
+    circuit = MBQCCircuit(3)
+    circuit.j(0, 0.5 * np.pi)
+    circuit.cz(0, 1)
+    circuit.cz(0, 2)
+    circuit.j(1, 0.75 * np.pi)
+    circuit.j(2, 0.25 * np.pi)
+    circuit.cz(0, 2)
+    circuit.cz(1, 2)
+
+    # Convert circuit to graph and gflow
+    graphstate, gflow = circuit2graph(circuit)
+
+    # Apply signal shifting
+    xflow, zflow = signal_shifting(graphstate, gflow)
+
+    # Compile to pattern
+    pattern = qompile(graphstate, xflow, zflow)
+
+    # Verify pattern is runnable
+    assert pattern is not None
+    assert pattern.max_space >= 0
+    assert pattern.depth >= 0
+
+    # Simulate the pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.state
+    statevec = state.state()
+
+    # Compare with circuit simulator
+    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    circ_state = circ_simulator.state.state()
+    inner_product = np.vdot(statevec, circ_state)
+
+    # Verify that the results match (inner product should be close to 1)
+    assert np.isclose(np.abs(inner_product), 1.0)
