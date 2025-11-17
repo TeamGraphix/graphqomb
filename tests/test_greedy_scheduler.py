@@ -8,7 +8,6 @@ from graphqomb.graphstate import GraphState
 from graphqomb.greedy_scheduler import (
     greedy_minimize_space,
     greedy_minimize_time,
-    solve_greedy_schedule,
 )
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
@@ -95,7 +94,7 @@ def _compute_max_alive_qubits(
         The maximum number of alive qubits at any time step.
     """
     # Determine time range to check
-    max_t = max(prepare_time.values() | measure_time.values(), default=0)
+    max_t = max(set(prepare_time.values()) | set(measure_time.values()), default=0)
 
     max_alive = len(graph.input_node_indices)  # At least inputs are alive at t = -1
     for t in range(max_t + 1):
@@ -191,8 +190,8 @@ def test_greedy_scheduler_via_solve_schedule() -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test with greedy MINIMIZE_TIME
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Verify schedule is valid
@@ -200,8 +199,8 @@ def test_greedy_scheduler_via_solve_schedule() -> None:
 
     # Test with greedy MINIMIZE_SPACE
     scheduler2 = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
-    success = scheduler2.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE, use_greedy=True)
+    success = scheduler2.solve_schedule(config)
     assert success
 
     # Verify schedule is valid
@@ -226,8 +225,8 @@ def test_greedy_vs_cpsat_correctness() -> None:
 
     # Test greedy scheduler
     scheduler_greedy = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success_greedy = scheduler_greedy.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
+    success_greedy = scheduler_greedy.solve_schedule(config)
     assert success_greedy
 
     # Verify greedy schedule is valid
@@ -235,7 +234,8 @@ def test_greedy_vs_cpsat_correctness() -> None:
 
     # Test CP-SAT scheduler
     scheduler_cpsat = Scheduler(graph, flow)
-    success_cpsat = scheduler_cpsat.solve_schedule(config, use_greedy=False, timeout=10)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=False)
+    success_cpsat = scheduler_cpsat.solve_schedule(config, timeout=10)
     assert success_cpsat
 
     # Verify CP-SAT schedule is valid
@@ -280,8 +280,8 @@ def test_greedy_scheduler_larger_graph() -> None:
 
     # Test greedy scheduler
     scheduler = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Validate the schedule
@@ -312,16 +312,16 @@ def test_greedy_scheduler_both_strategies(strategy: Strategy) -> None:
     scheduler = Scheduler(graph, flow)
 
     # Test with specified strategy
-    config = ScheduleConfig(strategy=strategy)
-    success = scheduler.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=strategy, use_greedy=True)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Validate schedule
     scheduler.validate_schedule()
 
 
-def test_solve_greedy_schedule_wrapper() -> None:
-    """Test the solve_greedy_schedule wrapper function."""
+def test_greedy_minimize_space_wrapper() -> None:
+    """Test the greedy_minimize_space wrapper function."""
     # Create a simple graph
     graph = GraphState()
     node0 = graph.add_physical_node()
@@ -336,15 +336,15 @@ def test_solve_greedy_schedule_wrapper() -> None:
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
 
-    # Test MINIMIZE_TIME (minimize_space=False)
-    result = solve_greedy_schedule(graph, scheduler.dag, minimize_space=False)
+    # Test MINIMIZE_TIME
+    result = greedy_minimize_time(graph, scheduler.dag)
     assert result is not None
     prepare_time, measure_time = result
     assert len(prepare_time) > 0
     assert len(measure_time) > 0
 
-    # Test MINIMIZE_SPACE (minimize_space=True)
-    result = solve_greedy_schedule(graph, scheduler.dag, minimize_space=True)
+    # Test MINIMIZE_SPACE
+    result = greedy_minimize_space(graph, scheduler.dag)
     assert result is not None
     prepare_time, measure_time = result
     assert len(prepare_time) > 0
@@ -368,10 +368,10 @@ def test_greedy_scheduler_performance() -> None:
 
     # Time greedy scheduler
     scheduler_greedy = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
 
     start_greedy = time.perf_counter()
-    success_greedy = scheduler_greedy.solve_schedule(config, use_greedy=True)
+    success_greedy = scheduler_greedy.solve_schedule(config)
     end_greedy = time.perf_counter()
     greedy_time = end_greedy - start_greedy
 
@@ -382,7 +382,8 @@ def test_greedy_scheduler_performance() -> None:
     scheduler_cpsat = Scheduler(graph, flow)
 
     start_cpsat = time.perf_counter()
-    success_cpsat = scheduler_cpsat.solve_schedule(config, use_greedy=False, timeout=10)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=False)
+    success_cpsat = scheduler_cpsat.solve_schedule(config, timeout=10)
     end_cpsat = time.perf_counter()
     cpsat_time = end_cpsat - start_cpsat
 
@@ -429,12 +430,12 @@ def test_greedy_scheduler_dag_constraints() -> None:
     }
 
     scheduler = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
 
     # Note: This flow creates a cyclic DAG (nodes 3 and 4 have circular dependency)
     # The greedy scheduler should raise RuntimeError for invalid flows
     with pytest.raises(RuntimeError, match="No nodes can be measured"):
-        scheduler.solve_schedule(config, use_greedy=True)
+        scheduler.solve_schedule(config)
 
 
 def test_greedy_scheduler_edge_constraints() -> None:
@@ -452,8 +453,8 @@ def test_greedy_scheduler_edge_constraints() -> None:
 
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
-    success = scheduler.solve_schedule(config, use_greedy=True)
+    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
+    success = scheduler.solve_schedule(config)
     assert success
 
     # Validate edge constraints via validate_schedule
