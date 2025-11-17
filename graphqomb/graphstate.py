@@ -589,7 +589,7 @@ class GraphState(BaseGraphState):
                 delta *= sign
             elif meas_plane == Plane.YZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
                 meas_plane = Plane.XZ
-                sign = 1 if is_close_angle(gamma + np.pi / 2, 0.0) else -1
+                sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
                 delta *= sign
 
             self.assign_meas_basis(input_node, PlannerMeasBasis(meas_plane, delta))
