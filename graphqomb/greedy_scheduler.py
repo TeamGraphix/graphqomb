@@ -17,7 +17,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
 
     from graphqomb.graphstate import BaseGraphState
