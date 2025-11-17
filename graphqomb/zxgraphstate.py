@@ -195,8 +195,6 @@ class ZXGraphState(GraphState):
     def pivot(self, node1: int, node2: int) -> None:
         """Pivot operation on the graph state: G∧(uv) (= G*u*v*u = G*v*u*v) for neighboring nodes u and v.
 
-        In order to maintain the ZX-diagram simple, pi-spiders are shifted properly.
-
         Parameters
         ----------
         node1 : `int`
@@ -234,8 +232,9 @@ class ZXGraphState(GraphState):
     def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
 
-        For this operation, the following must hold:
-            measurement plane = YZ or XZ and measurement angle = 0 or pi (mod 2pi)
+        For this operation, the followings must hold:
+            measurement plane = YZ or XZ
+            measurement angle = 0 or pi (mod 2pi)
 
         Parameters
         ----------
@@ -259,8 +258,9 @@ class ZXGraphState(GraphState):
     def _needs_lc(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a local complementation in order to perform _remove_clifford.
 
-        For this operation, the following must hold:
-            measurement plane = YZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
+        For this operation, the followings must hold:
+            measurement plane = XY or YZ
+            measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
 
         Parameters
         ----------
@@ -304,7 +304,7 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.9 with correction
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.9
         """
         non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
         if not non_input_nbrs:
@@ -348,7 +348,7 @@ class ZXGraphState(GraphState):
         [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.11
         """
         non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
-        # check non_input_nbrs is consisted of only output nodes and is not empty
+        # check non_input_nbrs is composed of only output nodes and is not empty
         if not (non_input_nbrs.issubset(set(self.output_node_indices)) and non_input_nbrs):
             return False
 
@@ -407,6 +407,10 @@ class ZXGraphState(GraphState):
             3. If all neighbors are input nodes
                 in some special cases ((meas_plane, meas_angle) = (XY, a pi), (XZ, a pi/2) for a = 0, 1).
             4. If the node has no neighbors that are not connected only to output nodes.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Theorem 4.12
         """
         self._ensure_node_exists(node)
         if node in self.input_node_indices or node in self.output_node_indices:
