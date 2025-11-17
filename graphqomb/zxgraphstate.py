@@ -276,11 +276,10 @@ class ZXGraphState(GraphState):
 
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.8 with correction
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.8
         """
         alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        # measurement plane = YZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
-        return self.meas_bases[node].plane == Plane.YZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
+        return self.meas_bases[node].plane in {Plane.XY, Plane.YZ} and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
 
     def _needs_pivot(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node needs a pivot operation in order to perform _remove_clifford.
