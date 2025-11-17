@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING, NamedTuple, TypeVar
 import numpy as np
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
-from graphqomb.euler import LocalClifford, is_close_angle, update_lc_basis, update_lc_lc
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
     from graphqomb.euler import LocalClifford
