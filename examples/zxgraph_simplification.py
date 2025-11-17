@@ -11,7 +11,11 @@ Note that as a result of the simplification, local Clifford operations are appli
 """
 
 # %%
+
+from __future__ import annotations
+
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -19,12 +23,16 @@ import swiflow as sf
 from swiflow import gflow
 
 from graphqomb.common import Plane
-from graphqomb.graphstate import BaseGraphState
 from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.visualizer import visualize
 from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
+
+if TYPE_CHECKING:
+    from networkx import Graph as NxGraph
+
+    from graphqomb.graphstate import BaseGraphState
 
 FlowLike = dict[int, set[int]]
 
@@ -126,7 +134,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
     ValueError
         If no gflow is found
     """
-    graph = nx.Graph()
+    graph: NxGraph[Any] = nx.Graph()
     graph.add_nodes_from(graphstate.physical_nodes)
     graph.add_edges_from(graphstate.physical_edges)
 
