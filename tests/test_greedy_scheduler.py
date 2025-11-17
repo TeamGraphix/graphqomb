@@ -78,6 +78,102 @@ def test_greedy_minimize_space_simple() -> None:
     assert measure_time[node0] < measure_time[node1]
 
 
+def _compute_max_alive_qubits(
+    graph: GraphState,
+    prepare_time: dict[int, int],
+    measure_time: dict[int, int],
+) -> int:
+    """Compute the maximum number of alive qubits over time.
+
+    A node is considered alive at time t if:
+    - It is an input node and t >= -1 and t < measurement time (if any), or
+    - It has a preparation time p and t >= p and t < measurement time (if any).
+
+    Returns
+    -------
+    int
+        The maximum number of alive qubits at any time step.
+    """
+    # Determine time range to check
+    max_t = max(prepare_time.values() | measure_time.values(), default=0)
+
+    max_alive = len(graph.input_node_indices)  # At least inputs are alive at t = -1
+    for t in range(max_t + 1):
+        alive_nodes = set()
+        for node in graph.physical_nodes:
+            # Determine preparation time
+            prep_t = -1 if node in graph.input_node_indices else prepare_time.get(node)
+
+            if prep_t is None or t < prep_t:
+                continue
+
+            # Determine measurement time (None for outputs or unscheduled)
+            meas_t = measure_time.get(node)
+
+            if meas_t is None or t < meas_t:
+                alive_nodes.add(node)
+
+        max_alive = max(max_alive, len(alive_nodes))
+
+    return max_alive
+
+
+def test_greedy_minimize_time_with_max_qubit_count_respects_limit() -> None:
+    """Verify that greedy_minimize_time respects max_qubit_count."""
+    graph = GraphState()
+    # chain graph: 0-1-2-3
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    n3 = graph.add_physical_node()
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+
+    qindex = 0
+    graph.register_input(n0, qindex)
+    graph.register_output(n3, qindex)
+
+    flow = {n0: {n1}, n1: {n2}, n2: {n3}}
+    scheduler = Scheduler(graph, flow)
+
+    # Set max_qubit_count to 2 (a feasible value for this graph)
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag, max_qubit_count=2)
+
+    # Check basic properties
+    assert n1 in prepare_time
+    assert n0 not in prepare_time
+    assert n0 in measure_time
+    assert n2 in measure_time
+    assert n3 not in measure_time
+
+    # Verify that the number of alive qubits never exceeds the limit
+    max_alive = _compute_max_alive_qubits(graph, prepare_time, measure_time)
+    assert max_alive <= 2
+
+
+def test_greedy_minimize_time_with_too_small_max_qubit_count_raises() -> None:
+    """Verify that greedy_minimize_time raises RuntimeError when max_qubit_count is too small."""
+    graph = GraphState()
+    # chain graph: 0-1-2 (at least 2 qubits are needed)
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+
+    qindex = 0
+    graph.register_input(n0, qindex)
+    graph.register_output(n2, qindex)
+
+    flow = {n0: {n1}, n1: {n2}}
+    scheduler = Scheduler(graph, flow)
+
+    # max_qubit_count=1 is not feasible, so expect RuntimeError
+    with pytest.raises(RuntimeError, match="max_qubit_count"):
+        greedy_minimize_time(graph, scheduler.dag, max_qubit_count=1)
+
+
 def test_greedy_scheduler_via_solve_schedule() -> None:
     """Test greedy scheduler through Scheduler.solve_schedule with use_greedy=True."""
     # Create a simple graph
