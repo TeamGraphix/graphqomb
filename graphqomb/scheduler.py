@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
-from graphqomb.greedy_scheduler import solve_greedy_schedule
+from graphqomb.greedy_scheduler import greedy_minimize_space, greedy_minimize_time
 from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
@@ -484,7 +484,6 @@ class Scheduler:
         self,
         config: ScheduleConfig | None = None,
         timeout: int = 60,
-        use_greedy: bool = False,
     ) -> bool:
         r"""Compute the schedule using constraint programming or greedy heuristics.
 
@@ -495,10 +494,6 @@ class Scheduler:
         timeout : `int`, optional
             Maximum solve time in seconds for CP-SAT solver, by default 60.
             Ignored when use_greedy=True.
-        use_greedy : `bool`, optional
-            If True, use fast greedy heuristics instead of CP-SAT.
-            Greedy algorithms are much faster than CP-SAT, but provide approximate solutions.
-            Default is False (use CP-SAT for optimal solutions).
 
         Returns
         -------
@@ -513,11 +508,12 @@ class Scheduler:
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
-        if use_greedy:
+        if config.use_greedy:
             # Use fast greedy heuristics
-
-            minimize_space = config.strategy == Strategy.MINIMIZE_SPACE
-            result = solve_greedy_schedule(self.graph, self.dag, minimize_space)
+            if config.strategy == Strategy.MINIMIZE_TIME:
+                result = greedy_minimize_time(self.graph, self.dag, max_qubit_count=config.max_qubit_count)
+            else:  # Strategy.MINIMIZE_SPACE
+                result = greedy_minimize_space(self.graph, self.dag)
         else:
             # Use CP-SAT solver for optimal solution
             result = solve_schedule(self.graph, self.dag, config, timeout)
