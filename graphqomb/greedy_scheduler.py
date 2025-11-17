@@ -63,6 +63,12 @@ def greedy_minimize_time(
             inv_dag[child].add(parent)
 
     prepared: set[int] = set(graph.input_node_indices.keys())
+    alive: set[int] = set(graph.input_node_indices.keys())
+
+    if max_qubit_count is not None and len(alive) > max_qubit_count:
+        msg = "Initial number of active qubits exceeds max_qubit_count."
+        raise RuntimeError(msg)
+
     current_time = 0
 
     while unmeasured:
@@ -76,13 +82,21 @@ def greedy_minimize_time(
             raise RuntimeError(msg)
 
         if max_qubit_count is not None:
-            to_measure, to_prepare = _determine_measure_node(
+            to_measure, to_prepare = _determine_measure_nodes(
                 graph,
                 measure_candidate,
                 prepared,
+                alive,
                 max_qubit_count,
             )
-            needs_prep = bool(to_prepare)
+            needs_prep = False
+            # Prepare selected neighbors at current_time
+            for neighbor in to_prepare:
+                if neighbor not in prepared:
+                    prepare_time[neighbor] = current_time
+                    prepared.add(neighbor)
+                    alive.add(neighbor)
+                    needs_prep = True
         else:
             to_measure = measure_candidate
             needs_prep = False
@@ -92,12 +106,14 @@ def greedy_minimize_time(
                     if neighbor not in prepared:
                         prepare_time[neighbor] = current_time
                         prepared.add(neighbor)
+                        alive.add(neighbor)
                         needs_prep = True
 
         # Measure at current_time if no prep needed, otherwise at current_time + 1
         meas_time = current_time + 1 if needs_prep else current_time
         for node in to_measure:
             measure_time[node] = meas_time
+            alive.remove(node)
             unmeasured.remove(node)
             # Remove measured node from dependencies of all its children in the DAG
             for child in dag.get(node, set()):
@@ -109,10 +125,11 @@ def greedy_minimize_time(
     return prepare_time, measure_time
 
 
-def _determine_measure_node(
+def _determine_measure_nodes(
     graph: BaseGraphState,
     measure_candidates: AbstractSet[int],
     prepared: AbstractSet[int],
+    alive: AbstractSet[int],
     max_qubit_count: int,
 ) -> tuple[set[int], set[int]]:
     r"""Determine which nodes to measure without exceeding max qubit count.
@@ -125,6 +142,8 @@ def _determine_measure_node(
         The candidate nodes available for measurement.
     prepared : `collections.abc.Set`\[`int`\]
         The set of currently prepared nodes.
+    alive : `collections.abc.Set`\[`int`\]
+        The set of currently active (prepared but not yet measured) nodes.
     max_qubit_count : `int`
         The maximum allowed number of active qubits.
 
@@ -139,25 +158,32 @@ def _determine_measure_node(
         If no nodes can be measured without exceeding the max qubit count.
     """
     to_measure: set[int] = set()
-    to_activate: set[int] = set()
-    active_cost = 0
+    to_prepare: set[int] = set()
+
     for node in measure_candidates:
-        to_be_activated = graph.neighbors(node) - prepared
-        to_activate |= to_be_activated
-        if active_cost + len(to_be_activated) <= max_qubit_count:
+        # Neighbors that still need to be prepared for this node
+        new_neighbors = graph.neighbors(node) - prepared
+        additional_to_prepare = new_neighbors - to_prepare
+
+        # Projected number of active qubits after preparing these neighbors
+        projected_active = len(alive) + len(to_prepare) + len(additional_to_prepare)
+
+        if projected_active <= max_qubit_count:
             to_measure.add(node)
-            active_cost += len(to_be_activated)
+            to_prepare |= new_neighbors
+
     if not to_measure:
         msg = "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
         raise RuntimeError(msg)
-    return to_measure, to_activate
+
+    return to_measure, to_prepare
 
 
 def greedy_minimize_space(  # noqa: C901, PLR0912
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:
-    """Fast greedy scheduler optimizing for minimal qubit usage (space).
+    r"""Fast greedy scheduler optimizing for minimal qubit usage (space).
 
     This algorithm uses a greedy approach to minimize the number of active
     qubits at each time step:
@@ -167,14 +193,14 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
 
     Parameters
     ----------
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         The graph state to schedule
-    dag : Mapping[int, AbstractSet[int]]
+    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The directed acyclic graph representing measurement dependencies
 
     Returns
     -------
-    tuple[dict[int, int], dict[int, int]]
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]
         A tuple of (prepare_time, measure_time) dictionaries
 
     Raises
@@ -259,25 +285,25 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
 def _calc_activate_cost(
     node: int,
     graph: BaseGraphState,
-    prepared: set[int],
+    prepared: AbstractSet[int],
 ) -> int:
-    """Calculate the cost of activating (preparing) a node.
+    r"""Calculate the cost of activating (preparing) a node.
 
     The cost is defined as the number of new qubits that would become active
     (prepared but not yet measured) if this node were to be measured next.
 
     Parameters
     ----------
-    node : int
+    node : `int`
         The node to evaluate.
-    graph : BaseGraphState
+    graph : `BaseGraphState`
         The graph state.
-    prepared : set[int]
+    prepared : `collections.abc.Set`\[`int`\]
         The set of currently prepared nodes.
 
     Returns
     -------
-    int
+    `int`
         The activation cost for the node.
     """
     return len(graph.neighbors(node) - prepared)
