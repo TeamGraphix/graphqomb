@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def greedy_minimize_time(
+def greedy_minimize_time(  # noqa: C901, PLR0912
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
     max_qubit_count: int | None = None,
@@ -71,54 +71,66 @@ def greedy_minimize_time(
 
     current_time = 0
 
-    while unmeasured:
-        measure_candidate = set()
-        for node in unmeasured:
-            if len(inv_dag[node]) == 0:
-                measure_candidate.add(node)
+    # Nodes whose dependencies are all resolved and are not yet measured
+    measure_candidates: set[int] = {node for node in unmeasured if not inv_dag[node]}
 
-        if not measure_candidate:
+    # Cache neighbors to avoid repeated set constructions in tight loops
+    neighbors_map = {node: graph.neighbors(node) for node in graph.physical_nodes}
+
+    while unmeasured:  # noqa: PLR1702
+        if not measure_candidates:
             msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
             raise RuntimeError(msg)
 
         if max_qubit_count is not None:
+            # Choose measurement nodes from measure_candidates while respecting max_qubit_count
             to_measure, to_prepare = _determine_measure_nodes(
-                graph,
-                measure_candidate,
+                neighbors_map,
+                measure_candidates,
                 prepared,
                 alive,
                 max_qubit_count,
             )
             needs_prep = False
-            # Prepare selected neighbors at current_time
             for neighbor in to_prepare:
                 if neighbor not in prepared:
                     prepare_time[neighbor] = current_time
                     prepared.add(neighbor)
                     alive.add(neighbor)
-                    needs_prep = True
+                    needs_prep = True  # toggle prep flag
+
+                    # If this neighbor already had no dependencies, it becomes measure candidate
+                    if not inv_dag[neighbor] and neighbor in unmeasured:
+                        measure_candidates.add(neighbor)
         else:
-            to_measure = measure_candidate
+            # Without a qubit limit, measure all currently measure candidates
+            to_measure = set(measure_candidates)
             needs_prep = False
-            # Prepare neighbors at current_time
             for node in to_measure:
-                for neighbor in graph.neighbors(node):
+                for neighbor in neighbors_map[node]:
                     if neighbor not in prepared:
                         prepare_time[neighbor] = current_time
                         prepared.add(neighbor)
                         alive.add(neighbor)
                         needs_prep = True
 
+                        if not inv_dag[neighbor] and neighbor in unmeasured:
+                            measure_candidates.add(neighbor)
+
         # Measure at current_time if no prep needed, otherwise at current_time + 1
         meas_time = current_time + 1 if needs_prep else current_time
+
         for node in to_measure:
             measure_time[node] = meas_time
             alive.remove(node)
             unmeasured.remove(node)
+            measure_candidates.remove(node)
+
             # Remove measured node from dependencies of all its children in the DAG
-            for child in dag.get(node, set()):
-                if child in inv_dag:
-                    inv_dag[child].remove(node)
+            for child in dag.get(node, ()):
+                inv_dag[child].remove(node)
+                if not inv_dag[child] and child in unmeasured:
+                    measure_candidates.add(child)
 
         current_time = meas_time + 1
 
@@ -126,7 +138,7 @@ def greedy_minimize_time(
 
 
 def _determine_measure_nodes(
-    graph: BaseGraphState,
+    neighbors_map: Mapping[int, AbstractSet[int]],
     measure_candidates: AbstractSet[int],
     prepared: AbstractSet[int],
     alive: AbstractSet[int],
@@ -136,8 +148,8 @@ def _determine_measure_nodes(
 
     Parameters
     ----------
-    graph : `BaseGraphState`
-        The graph state.
+    neighbors_map : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        Mapping from node to its neighbors.
     measure_candidates : `collections.abc.Set`\[`int`\]
         The candidate nodes available for measurement.
     prepared : `collections.abc.Set`\[`int`\]
@@ -162,7 +174,7 @@ def _determine_measure_nodes(
 
     for node in measure_candidates:
         # Neighbors that still need to be prepared for this node
-        new_neighbors = graph.neighbors(node) - prepared
+        new_neighbors = neighbors_map[node] - prepared
         additional_to_prepare = new_neighbors - to_prepare
 
         # Projected number of active qubits after preparing these neighbors
@@ -216,6 +228,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
 
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # from parents to children
+    topo_rank = {node: i for i, node in enumerate(topo_order)}
 
     # Build inverse DAG: for each node, track which nodes must be measured before it
     inv_dag: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
@@ -227,27 +240,21 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
     alive: set[int] = set(graph.input_node_indices.keys())
     current_time = 0
 
+    # Cache neighbors once as the graph is static during scheduling
+    neighbors_map = {node: graph.neighbors(node) for node in graph.physical_nodes}
+
+    measure_candidates: set[int] = {node for node in unmeasured if not inv_dag[node]}
+
     while unmeasured:
-        candidate_nodes = set()
-        for node in alive:
-            if len(inv_dag[node]) == 0:
-                candidate_nodes.add(node)
-
-        if not candidate_nodes:
-            # If no alive nodes can be measured, pick from unmeasured
-            for node in unmeasured - alive:
-                if len(inv_dag[node]) == 0:
-                    candidate_nodes.add(node)
-
-        if not candidate_nodes:
+        if not measure_candidates:
             msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
             raise RuntimeError(msg)
 
         # calculate costs and pick the best node to measure
         best_node_candidate: set[int] = set()
         best_cost = float("inf")
-        for node in candidate_nodes:
-            cost = _calc_activate_cost(node, graph, prepared)
+        for node in measure_candidates:
+            cost = _calc_activate_cost(node, neighbors_map, prepared)
             if cost < best_cost:
                 best_cost = cost
                 best_node_candidate = {node}
@@ -255,11 +262,12 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
                 best_node_candidate.add(node)
 
         # tie-breaker: choose the node that appears first in topological order
-        best_node = min(best_node_candidate, key=topo_order.index)
+        default_rank = len(topo_rank)
+        best_node = min(best_node_candidate, key=lambda n: topo_rank.get(n, default_rank))
 
         # Prepare neighbors at current_time
         needs_prep = False
-        for neighbor in graph.neighbors(best_node):
+        for neighbor in neighbors_map[best_node]:
             if neighbor not in prepared:
                 prepare_time[neighbor] = current_time
                 prepared.add(neighbor)
@@ -272,10 +280,13 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
         unmeasured.remove(best_node)
         alive.remove(best_node)
 
+        measure_candidates.remove(best_node)
+
         # Remove measured node from dependencies of all its children in the DAG
-        for child in dag.get(best_node, set()):
-            if child in inv_dag:
-                inv_dag[child].remove(best_node)
+        for child in dag.get(best_node, ()):
+            inv_dag[child].remove(best_node)
+            if not inv_dag[child] and child in unmeasured:
+                measure_candidates.add(child)
 
         current_time = meas_time + 1
 
@@ -284,7 +295,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0912
 
 def _calc_activate_cost(
     node: int,
-    graph: BaseGraphState,
+    neighbors_map: Mapping[int, AbstractSet[int]],
     prepared: AbstractSet[int],
 ) -> int:
     r"""Calculate the cost of activating (preparing) a node.
@@ -296,8 +307,8 @@ def _calc_activate_cost(
     ----------
     node : `int`
         The node to evaluate.
-    graph : `BaseGraphState`
-        The graph state.
+    neighbors_map : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        Cached neighbor sets for graph nodes.
     prepared : `collections.abc.Set`\[`int`\]
         The set of currently prepared nodes.
 
@@ -306,4 +317,4 @@ def _calc_activate_cost(
     `int`
         The activation cost for the node.
     """
-    return len(graph.neighbors(node) - prepared)
+    return len(neighbors_map[node] - prepared)
