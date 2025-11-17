@@ -307,34 +307,3 @@ def _calc_activate_cost(
         The activation cost for the node.
     """
     return len(graph.neighbors(node) - prepared)
-
-
-def solve_greedy_schedule(
-    graph: BaseGraphState,
-    dag: Mapping[int, AbstractSet[int]],
-    minimize_space: bool = False,
-) -> tuple[dict[int, int], dict[int, int]] | None:
-    """Solve scheduling using greedy heuristics.
-
-    This is a convenience wrapper that selects the appropriate greedy algorithm
-    based on the optimization objective.
-
-    Parameters
-    ----------
-    graph : BaseGraphState
-        The graph state to schedule
-    dag : Mapping[int, AbstractSet[int]]
-        The directed acyclic graph representing measurement dependencies
-    minimize_space : bool, default=False
-        If True, optimize for minimal qubit usage (space).
-        If False, optimize for minimal execution time.
-
-    Returns
-    -------
-    tuple[dict[int, int], dict[int, int]] | None
-        A tuple of (prepare_time, measure_time) dictionaries if successful,
-        None if scheduling fails (should rarely happen for valid inputs)
-    """
-    if minimize_space:
-        return greedy_minimize_space(graph, dag)
-    return greedy_minimize_time(graph, dag)
