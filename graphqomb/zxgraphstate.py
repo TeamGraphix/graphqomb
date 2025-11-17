@@ -76,7 +76,6 @@ class ZXGraphState(GraphState):
                 self._needs_pivot,
                 lambda node: self.pivot(node, min(self.neighbors(node) - set(self.input_node_indices))),
             ),
-            (self._needs_pivot_and_lc, self._apply_pivot_and_lc),
             (
                 self._is_noninput_with_io_nbrs,
                 lambda node: self.pivot(node, min(self.neighbors(node) - set(self.input_node_indices))),
@@ -318,39 +317,6 @@ class ZXGraphState(GraphState):
         case_b = self.meas_bases[node].plane == Plane.XZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
         return case_a or case_b
 
-    def _needs_pivot_and_lc(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node needs a pivot and a local complementation in order to perform _remove_clifford.
-
-        For this operation, the following must hold:
-            measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        atol : `float`, optional
-            absolute tolerance, by default 1e-9
-
-        Returns
-        -------
-        `bool`
-            True if the node needs a pivot operation
-            followed by a local complementation.
-        """
-        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        return self.meas_bases[node].plane == Plane.XZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
-
-    def _apply_pivot_and_lc(self, node: int) -> None:
-        """Apply pivot and then local complement operations on the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        """
-        self.pivot(node, min(self.neighbors(node) - set(self.input_node_indices)))
-        self.local_complement(node)
-
     def _is_noninput_with_io_nbrs(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node is non-input and all neighbors are input or output nodes.
 
@@ -484,7 +450,6 @@ class ZXGraphState(GraphState):
                 self._is_trivial_meas(node, atol),
                 self._needs_lc(node, atol),
                 self._needs_pivot(node, atol),
-                self._needs_pivot_and_lc(node, atol),
                 self._is_noninput_with_io_nbrs(node, atol),
             ]
         )
