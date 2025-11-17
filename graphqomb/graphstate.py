@@ -19,7 +19,9 @@ import functools
 import itertools
 import operator
 from abc import ABC
-from typing import TYPE_CHECKING, NamedTuple
+from collections.abc import Hashable, Iterable, Mapping, Sequence
+from collections.abc import Set as AbstractSet
+from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
 import numpy as np
 import typing_extensions
@@ -28,7 +30,9 @@ from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
 from graphqomb.euler import LocalClifford, is_close_angle, update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
-    from collections.abc import Set as AbstractSet
+    from graphqomb.euler import LocalClifford
+
+NodeT = TypeVar("NodeT", bound=Hashable)
 
 
 class BaseGraphState(ABC):
@@ -640,6 +644,178 @@ class GraphState(BaseGraphState):
 
         return node_index_addition_map
 
+    @classmethod
+    def from_graph(  # noqa: C901, PLR0912
+        cls,
+        nodes: Iterable[NodeT],
+        edges: Iterable[tuple[NodeT, NodeT]],
+        inputs: Sequence[NodeT] | None = None,
+        outputs: Sequence[NodeT] | None = None,
+        meas_bases: Mapping[NodeT, MeasBasis] | None = None,
+    ) -> tuple[GraphState, dict[NodeT, int]]:
+        r"""Create a graph state from nodes and edges with arbitrary node types.
+
+        This factory method allows creating a graph state from any hashable node type
+        (e.g., strings, tuples, custom objects). The method internally maps external
+        node identifiers to integer indices used by GraphState.
+
+        Parameters
+        ----------
+        nodes : `collections.abc.Iterable`\[NodeT\]
+            Nodes to add to the graph. Can be any hashable type.
+        edges : `collections.abc.Iterable`\[`tuple`\[NodeT, NodeT\]\]
+            Edges as pairs of node identifiers.
+        inputs : `collections.abc.Sequence`\[NodeT\] | `None`, optional
+            Input nodes in order. Qubit indices are assigned sequentially (0, 1, 2, ...).
+            Default is None (no inputs).
+        outputs : `collections.abc.Sequence`\[NodeT\] | `None`, optional
+            Output nodes in order. Qubit indices are assigned sequentially (0, 1, 2, ...).
+            Default is None (no outputs).
+        meas_bases : `collections.abc.Mapping`\[NodeT, `MeasBasis`\] | `None`, optional
+            Measurement bases for nodes. Nodes not specified can be set later.
+            Default is None (no bases assigned initially).
+
+        Returns
+        -------
+        `tuple`\[`GraphState`, `dict`\[NodeT, `int`\]\]
+            - Created GraphState instance
+            - Mapping from external node IDs to internal integer indices
+
+        Raises
+        ------
+        ValueError
+            If duplicate nodes, invalid edges, or invalid input/output nodes.
+        """
+        # Convert nodes to list to preserve order
+        nodes_list = list(nodes)
+
+        # Check for duplicate nodes
+        if len(nodes_list) != len(set(nodes_list)):
+            msg = "Duplicate nodes in input"
+            raise ValueError(msg)
+
+        node_set = set(nodes_list)
+
+        # Validate inputs
+        if inputs is not None:
+            for input_node in inputs:
+                if input_node not in node_set:
+                    msg = f"Input node {input_node} not in nodes collection"
+                    raise ValueError(msg)
+
+        # Validate outputs
+        if outputs is not None:
+            for output_node in outputs:
+                if output_node not in node_set:
+                    msg = f"Output node {output_node} not in nodes collection"
+                    raise ValueError(msg)
+
+        # Convert edges to list for validation
+        edges_list = list(edges)
+
+        # Validate edges
+        for node1, node2 in edges_list:
+            if node1 not in node_set:
+                msg = f"Edge references non-existent node {node1}"
+                raise ValueError(msg)
+            if node2 not in node_set:
+                msg = f"Edge references non-existent node {node2}"
+                raise ValueError(msg)
+
+        # Create GraphState instance
+        graph_state = cls()
+
+        # Add nodes and create node mapping
+        node_map: dict[NodeT, int] = {}
+        for node in nodes_list:
+            new_node = graph_state.add_physical_node()
+            node_map[node] = new_node
+
+        # Add edges
+        for node1, node2 in edges_list:
+            idx1 = node_map[node1]
+            idx2 = node_map[node2]
+            graph_state.add_physical_edge(idx1, idx2)
+
+        # Register inputs with sequential qubit indices
+        if inputs is not None:
+            for q_index, input_node in enumerate(inputs):
+                graph_state.register_input(node_map[input_node], q_index)
+
+        # Register outputs with sequential qubit indices
+        if outputs is not None:
+            for q_index, output_node in enumerate(outputs):
+                graph_state.register_output(node_map[output_node], q_index)
+
+        # Assign measurement bases
+        if meas_bases is not None:
+            for node, meas_basis in meas_bases.items():
+                if node in node_set:
+                    graph_state.assign_meas_basis(node_map[node], meas_basis)
+
+        return graph_state, node_map
+
+    @classmethod
+    def from_base_graph_state(
+        cls,
+        base: BaseGraphState,
+        copy_local_cliffords: bool = True,
+    ) -> tuple[GraphState, dict[int, int]]:
+        r"""Create a new GraphState from an existing BaseGraphState instance.
+
+        This method creates a complete copy of the graph structure, including nodes,
+        edges, input/output registrations, and measurement bases. Useful for creating
+        mutable copies or converting between GraphState implementations.
+
+        Parameters
+        ----------
+        base : `BaseGraphState`
+            The source graph state to copy from.
+        copy_local_cliffords : `bool`, optional
+            Whether to copy local Clifford operators if the source is a GraphState.
+            If True and the source has local Cliffords, they are copied.
+            If False, local Cliffords are not copied (canonical form only).
+            Default is True.
+
+        Returns
+        -------
+        `tuple`\[`GraphState`, `dict`\[`int`, `int`\]\]
+            - Created GraphState instance
+            - Mapping from source node indices to new node indices
+        """
+        # Create new GraphState instance
+        graph_state = cls()
+
+        # Create node mapping
+        node_map: dict[int, int] = {}
+        for node in base.physical_nodes:
+            new_node = graph_state.add_physical_node()
+            node_map[node] = new_node
+
+        # Add edges using node mapping
+        for node1, node2 in base.physical_edges:
+            graph_state.add_physical_edge(node_map[node1], node_map[node2])
+
+        # Register inputs with same qubit indices
+        for input_node, q_index in base.input_node_indices.items():
+            graph_state.register_input(node_map[input_node], q_index)
+
+        # Register outputs with same qubit indices
+        for output_node, q_index in base.output_node_indices.items():
+            graph_state.register_output(node_map[output_node], q_index)
+
+        # Copy measurement bases
+        for node, meas_basis in base.meas_bases.items():
+            graph_state.assign_meas_basis(node_map[node], meas_basis)
+
+        # Copy local Clifford operators if requested and source is GraphState
+        if copy_local_cliffords and isinstance(base, GraphState):
+            for node, lc in base.local_cliffords.items():
+                # Access private attribute to copy local cliffords
+                graph_state.apply_local_clifford(node_map[node], lc)
+
+        return graph_state, node_map
+
 
 class InputLocalCliffordExpansion(NamedTuple):
     """Local Clifford expansion map for input node."""
@@ -681,7 +857,7 @@ def compose(  # noqa: C901
 
     Returns
     -------
-    `tuple`\[`BaseGraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
+    `tuple`\[`GraphState`, `dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         composed graph state, node map for graph1, node map for graph2
 
     Raises

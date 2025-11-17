@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphqomb.command import E, M, N, X, Z
+from graphqomb.command import TICK, E, M, N, X, Z
 from graphqomb.common import MeasBasis, Plane
 from graphqomb.gates import MultiGate, SingleGate, TwoQubitGate
 from graphqomb.pattern import is_runnable
@@ -208,6 +208,11 @@ class PatternSimulator:
         node_id = self.node_indices.index(cmd.node)
         if self.__pattern.pauli_frame.z_pauli[cmd.node]:
             self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
+
+    @apply_cmd.register
+    def _(self, cmd: TICK, *, rng: np.random.Generator) -> None:
+        # TICK is a time separator that doesn't affect quantum state
+        pass
 
     def simulate(self, rng: np.random.Generator | None = None) -> None:
         """

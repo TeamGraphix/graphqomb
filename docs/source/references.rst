@@ -20,5 +20,6 @@ Module reference
     pauli_frame
     qompiler
     scheduler
+    stim_compiler
     visualizer
     zxgraphstate

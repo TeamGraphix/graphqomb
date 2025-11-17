@@ -33,7 +33,8 @@ space_config = ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE)
 success_space = scheduler_space.solve_schedule(space_config, timeout=10)
 pattern_space = None
 
-if success_space and scheduler_space.validate_schedule():
+if success_space:
+    scheduler_space.validate_schedule()  # Will raise ValueError if invalid
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_space.num_slices()}")
 
@@ -66,7 +67,8 @@ time_config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME)
 success_time = scheduler_time.solve_schedule(time_config, timeout=10)
 pattern_time = None
 
-if success_time and scheduler_time.validate_schedule():
+if success_time:
+    scheduler_time.validate_schedule()  # Will raise ValueError if invalid
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_time.num_slices()}")
 
@@ -106,7 +108,8 @@ scheduler_constrained = Scheduler(graph, xflow)
 success_constrained = scheduler_constrained.solve_schedule(constrained_config, timeout=15)
 pattern_constrained = None
 
-if success_constrained and scheduler_constrained.validate_schedule():
+if success_constrained:
+    scheduler_constrained.validate_schedule()  # Will raise ValueError if invalid
     print("   Scheduling successful!")
     print(f"   Number of time slices: {scheduler_constrained.num_slices()}")
     print(f"   Max qubits constraint: {max_qubits}")
@@ -148,7 +151,8 @@ custom_time_config = ScheduleConfig(
 scheduler_custom = Scheduler(graph, xflow)
 success_custom = scheduler_custom.solve_schedule(custom_time_config, timeout=10)
 
-if success_custom and scheduler_custom.validate_schedule():
+if success_custom:
+    scheduler_custom.validate_schedule()  # Will raise ValueError if invalid
     print("   Scheduling with custom max_time successful!")
     print(f"   Number of time slices: {scheduler_custom.num_slices()}")
     print(f"   Custom max_time: {custom_time_config.max_time}")
