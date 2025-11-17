@@ -17,7 +17,7 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from collections.abc import Set as AbstractSet
 
     from graphqomb.graphstate import BaseGraphState
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 def greedy_minimize_time(
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
+    max_qubit_count: int | None = None,
 ) -> tuple[dict[int, int], dict[int, int]]:
     r"""Fast greedy scheduler optimizing for minimal execution time (makespan).
 
@@ -65,23 +66,33 @@ def greedy_minimize_time(
     current_time = 0
 
     while unmeasured:
-        to_measure = set()
+        measure_candidate = set()
         for node in unmeasured:
             if len(inv_dag[node]) == 0:
-                to_measure.add(node)
+                measure_candidate.add(node)
 
-        if not to_measure:
+        if not measure_candidate:
             msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
             raise RuntimeError(msg)
 
-        needs_prep = False
-        # Prepare neighbors at current_time
-        for node in to_measure:
-            for neighbor in graph.neighbors(node):
-                if neighbor not in prepared:
-                    prepare_time[neighbor] = current_time
-                    prepared.add(neighbor)
-                    needs_prep = True
+        if max_qubit_count is not None:
+            to_measure, to_prepare = _determine_measure_node(
+                graph,
+                measure_candidate,
+                prepared,
+                max_qubit_count,
+            )
+            needs_prep = bool(to_prepare)
+        else:
+            to_measure = measure_candidate
+            needs_prep = False
+            # Prepare neighbors at current_time
+            for node in to_measure:
+                for neighbor in graph.neighbors(node):
+                    if neighbor not in prepared:
+                        prepare_time[neighbor] = current_time
+                        prepared.add(neighbor)
+                        needs_prep = True
 
         # Measure at current_time if no prep needed, otherwise at current_time + 1
         meas_time = current_time + 1 if needs_prep else current_time
@@ -96,6 +107,50 @@ def greedy_minimize_time(
         current_time = meas_time + 1
 
     return prepare_time, measure_time
+
+
+def _determine_measure_node(
+    graph: BaseGraphState,
+    measure_candidates: AbstractSet[int],
+    prepared: AbstractSet[int],
+    max_qubit_count: int,
+) -> tuple[set[int], set[int]]:
+    r"""Determine which nodes to measure without exceeding max qubit count.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        The graph state.
+    measure_candidates : `collections.abc.Set`\[`int`\]
+        The candidate nodes available for measurement.
+    prepared : `collections.abc.Set`\[`int`\]
+        The set of currently prepared nodes.
+    max_qubit_count : `int`
+        The maximum allowed number of active qubits.
+
+    Returns
+    -------
+    `tuple`\[`set`\[`int`\], `set`\[`int`\]\]
+        A tuple of (to_measure, to_prepare) sets indicating which nodes to measure and prepare.
+
+    Raises
+    ------
+    RuntimeError
+        If no nodes can be measured without exceeding the max qubit count.
+    """
+    to_measure: set[int] = set()
+    to_activate: set[int] = set()
+    active_cost = 0
+    for node in measure_candidates:
+        to_be_activated = graph.neighbors(node) - prepared
+        to_activate |= to_be_activated
+        if active_cost + len(to_be_activated) <= max_qubit_count:
+            to_measure.add(node)
+            active_cost += len(to_be_activated)
+    if not to_measure:
+        msg = "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
+        raise RuntimeError(msg)
+    return to_measure, to_activate
 
 
 def greedy_minimize_space(  # noqa: C901, PLR0912
