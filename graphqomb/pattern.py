@@ -102,6 +102,55 @@ class Pattern(Sequence[Command]):
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
     @property
+    def volume(self) -> int:
+        """Calculate tha volume, summation of space for each timeslice.
+
+        Returns
+        -------
+        `int`
+            Volume of the pattern
+        """
+        return sum(self.space)
+
+    @property
+    def max_volume(self) -> int:
+        """Calculate the maximum volume, defined as max_space * depth.
+
+        Returns
+        -------
+        `int`
+            Maximum volume of the pattern
+        """
+        return self.max_space * self.depth
+
+    @property
+    def idle_times(self) -> dict[int, int]:
+        r"""Calculate the idle times for each qubit in the pattern.
+
+        Returns
+        -------
+        `dict`\[`int`, `int`\]
+            A dictionary mapping each qubit index to its idle time.
+        """
+        idle_times: dict[int, int] = {}
+        prepared_time: dict[int, int] = dict.fromkeys(self.input_node_indices, -1)
+
+        current_time = 0
+        for cmd in self.commands:
+            if isinstance(cmd, TICK):
+                current_time += 1
+            elif isinstance(cmd, N):
+                prepared_time[cmd.node] = current_time
+            elif isinstance(cmd, M):
+                idle_times[cmd.node] = current_time - prepared_time[cmd.node]
+
+        for output_node in self.output_node_indices:
+            if output_node in prepared_time:
+                idle_times[output_node] = current_time - prepared_time[output_node]
+
+        return idle_times
+
+    @property
     def throughput(self) -> float:
         """Calculate the number of measurements per TICK in the pattern.
 
