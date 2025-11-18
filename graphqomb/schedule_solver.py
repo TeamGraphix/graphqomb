@@ -37,6 +37,7 @@ class ScheduleConfig:
     strategy: Strategy
     max_qubit_count: int | None = None
     max_time: int | None = None
+    use_greedy: bool = False
 
 
 @dataclass
