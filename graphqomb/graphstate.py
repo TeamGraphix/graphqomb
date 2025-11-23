@@ -566,33 +566,30 @@ class GraphState(BaseGraphState):
             self.add_physical_edge(new_node_index0, new_node_index1)
             self.add_physical_edge(new_node_index1, input_node)
 
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, -lc.alpha))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, -lc.beta))
-
             gamma = lc.gamma
-            delta = self.meas_bases[input_node].angle
-            meas_plane = self.meas_bases[input_node].plane
-            if meas_plane == Plane.XY:
-                meas_plane = Plane.XY
-                delta -= gamma
-            elif meas_plane == Plane.XZ and is_close_angle(2 * gamma, 0.0):
-                meas_plane = Plane.XZ
+            i_angle = self.meas_bases[input_node].angle
+            i_meas_plane = self.meas_bases[input_node].plane
+            if i_meas_plane == Plane.XY:
+                i_meas_plane = Plane.XY
+                i_angle -= gamma
+            elif i_meas_plane == Plane.XZ and is_close_angle(2 * gamma, 0.0):
                 sign = 1 if is_close_angle(gamma, 0.0) else -1
-                delta *= sign
-            elif meas_plane == Plane.XZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
-                meas_plane = Plane.YZ
+                i_angle *= sign
+            elif i_meas_plane == Plane.XZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
+                i_meas_plane = Plane.YZ
                 sign = 1 if is_close_angle(gamma + np.pi / 2, 0.0) else -1
-                delta *= sign
-            elif meas_plane == Plane.YZ and is_close_angle(2 * gamma, 0.0):
-                meas_plane = Plane.YZ
+                i_angle *= sign
+            elif i_meas_plane == Plane.YZ and is_close_angle(2 * gamma, 0.0):
                 sign = 1 if is_close_angle(gamma, 0.0) else -1
-                delta *= sign
-            elif meas_plane == Plane.YZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
-                meas_plane = Plane.XZ
+                i_angle *= sign
+            elif i_meas_plane == Plane.YZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
+                i_meas_plane = Plane.XZ
                 sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
-                delta *= sign
+                i_angle *= sign
 
-            self.assign_meas_basis(input_node, PlannerMeasBasis(meas_plane, delta))
+            self.assign_meas_basis(input_node, PlannerMeasBasis(Plane.XY, -lc.alpha))
+            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, -lc.beta))
+            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(i_meas_plane, i_angle))
 
             node_index_addition_map[input_node] = InputLocalCliffordExpansion(new_node_index0, new_node_index1)
 
