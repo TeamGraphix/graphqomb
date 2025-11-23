@@ -21,6 +21,7 @@ import operator
 from abc import ABC
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
+from types import MappingProxyType
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
 import typing_extensions
@@ -182,6 +183,8 @@ class GraphState(BaseGraphState):
 
     __node_counter: int
 
+    _cached_physical_nodes: frozenset[int] | None = None
+
     def __init__(self) -> None:
         self.__input_node_indices = {}
         self.__output_node_indices = {}
@@ -226,7 +229,9 @@ class GraphState(BaseGraphState):
         `set`\[`int`\]
             set of physical nodes.
         """
-        return self.__physical_nodes.copy()
+        if self._cached_physical_nodes is None:
+            self._cached_physical_nodes = frozenset(self.__physical_nodes)
+        return set(self._cached_physical_nodes)
 
     @property
     @typing_extensions.override
@@ -247,15 +252,15 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def meas_bases(self) -> dict[int, MeasBasis]:
+    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
         -------
-        `dict`\[`int`, `MeasBasis`\]
+        `types.MappingProxyType`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
-        return self.__meas_bases.copy()
+        return MappingProxyType(self.__meas_bases)
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
@@ -306,6 +311,7 @@ class GraphState(BaseGraphState):
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
         self.__node_counter += 1
+        self._cached_physical_nodes = None
 
         return node
 
@@ -364,6 +370,8 @@ class GraphState(BaseGraphState):
             del self.__output_node_indices[node]
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
+
+        self._cached_physical_nodes = None
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
         """Remove a physical edge from the graph state.
@@ -510,7 +518,7 @@ class GraphState(BaseGraphState):
         if self.__local_cliffords:
             msg = "Clifford operators are applied."
             raise ValueError(msg)
-        for node in self.physical_nodes - set(self.output_node_indices):
+        for node in self.physical_nodes - self.output_node_indices.keys():
             if self.meas_bases.get(node) is None:
                 msg = "All non-output nodes must have measurement basis."
                 raise ValueError(msg)
