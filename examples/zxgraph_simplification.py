@@ -15,24 +15,16 @@ Note that as a result of the simplification, local Clifford operations are appli
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any
 
-import networkx as nx
 import numpy as np
-import swiflow as sf
-from swiflow import gflow
 
 from graphqomb.common import Plane
+from graphqomb.gflow_utils import gflow_wrapper
 from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.visualizer import visualize
 from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
-
-if TYPE_CHECKING:
-    from networkx import Graph as NxGraph
-
-    from graphqomb.graphstate import BaseGraphState
 
 FlowLike = dict[int, set[int]]
 
@@ -113,59 +105,6 @@ statevec_original = sim.state
 
 # %%
 # Next, we simulate the pattern obtained from the simplified graph state.
-# Here is a wrapper function to find gflow using swiflow.gflow.
-
-
-def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
-    """Wrapper function for swiflow.gflow
-
-    Parameters
-    ----------
-    graphstate : `BaseGraphState`
-        graph state to find gflow
-
-    Returns
-    -------
-    `FlowLike`
-        gflow object
-
-    Raises
-    ------
-    ValueError
-        If no gflow is found
-    """
-    graph: NxGraph[Any] = nx.Graph()
-    graph.add_nodes_from(graphstate.physical_nodes)
-    graph.add_edges_from(graphstate.physical_edges)
-
-    bases = graphstate.meas_bases
-    planes = {node: bases[node].plane for node in bases}
-    swiflow_planes = {}
-    for node, plane in planes.items():
-        if plane == Plane.XY:
-            swiflow_planes[node] = sf.common.Plane.XY
-        elif plane == Plane.YZ:
-            swiflow_planes[node] = sf.common.Plane.YZ
-        elif plane == Plane.XZ:
-            swiflow_planes[node] = sf.common.Plane.XZ
-        else:
-            msg = f"No match {plane}"
-            raise ValueError(msg)
-
-    gflow_object = gflow.find(
-        graph, set(graphstate.input_node_indices), set(graphstate.output_node_indices), swiflow_planes
-    )
-    print(gflow_object)
-    if gflow_object is None:
-        msg = "No flow found"
-        raise ValueError(msg)
-
-    gflow_obj = gflow_object.f
-
-    return {node: {child for child in children if child != node} for node, children in gflow_obj.items()}
-
-
-# %%
 # Note that we need to call the `expand_local_cliffords` method before generating the pattern to get the gflow.
 
 zx_graph_smp.expand_local_cliffords()
