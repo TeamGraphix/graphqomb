@@ -142,27 +142,6 @@ class ZXGraphState(GraphState):
         for v in nbrs:
             self.apply_local_clifford(v, lc)
 
-    def _swap(self, node1: int, node2: int) -> None:
-        """Swap nodes u and v in the graph state.
-
-        Parameters
-        ----------
-        node1  : `int`
-            node index
-        node2 : `int`
-            node index
-        """
-        node1_nbrs = self.neighbors(node1) - {node2}
-        node2_nbrs = self.neighbors(node2) - {node1}
-        nbr_b = node1_nbrs - node2_nbrs
-        nbr_c = node2_nbrs - node1_nbrs
-        for b in nbr_b:
-            self.remove_physical_edge(node1, b)
-            self.add_physical_edge(node2, b)
-        for c in nbr_c:
-            self.remove_physical_edge(node2, c)
-            self.add_physical_edge(node1, c)
-
     def _pivot(self, node1: int, node2: int) -> None:
         """Pivot edges around nodes u and v in the graph state.
 
