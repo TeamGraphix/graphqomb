@@ -21,7 +21,10 @@ import numpy as np
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.gflow_utils import gflow_wrapper
+from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
+from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
 
 if TYPE_CHECKING:
@@ -320,6 +323,47 @@ def test_local_complement_4_times(
 
     exp_measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(3)]
     _test(zx_graph, exp_nodes={0, 1, 2}, exp_edges={(0, 1), (1, 2)}, exp_measurements=exp_measurements)
+
+
+def test_remove_clifford_validity() -> None:
+    graph, flow = generate_random_flow_graph(width=1, depth=3, edge_p=0.5)
+    zx_graph, _ = to_zx_graphstate(graph)
+
+    pattern = qompile(zx_graph, flow)
+    sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
+    sim.simulate()
+    psi_original = sim.state.state()
+
+    zx_graph_cp = deepcopy(zx_graph)
+    zx_graph_cp.remove_clifford(1)
+    zx_graph_cp.expand_local_cliffords()
+    gflow_lc = gflow_wrapper(zx_graph_cp)
+    pattern_lc = qompile(zx_graph_cp, gflow_lc)
+    sim_lc = PatternSimulator(pattern_lc, backend=SimulatorBackend.StateVector)
+    sim_lc.simulate()
+    psi_lc = sim_lc.state.state()
+    assert np.isclose(np.abs(np.vdot(psi_original, psi_lc)), 1.0)
+
+
+def test_pivot_validity() -> None:
+    graph, flow = generate_random_flow_graph(width=1, depth=4, edge_p=0.5)
+    zx_graph, _ = to_zx_graphstate(graph)
+
+    pattern = qompile(zx_graph, flow)
+    sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
+    sim.simulate()
+    psi_original = sim.state.state()
+
+    zx_graph.pivot(1, 2)
+    zx_graph.remove_clifford(1)
+    zx_graph.remove_clifford(2)
+    zx_graph.expand_local_cliffords()
+    gflow_lc = gflow_wrapper(zx_graph)
+    pattern_lc = qompile(zx_graph, gflow_lc)
+    sim_lc = PatternSimulator(pattern_lc, backend=SimulatorBackend.StateVector)
+    sim_lc.simulate()
+    psi_lc = sim_lc.state.state()
+    assert np.isclose(np.abs(np.vdot(psi_original, psi_lc)), 1.0)
 
 
 def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:
