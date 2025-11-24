@@ -342,7 +342,7 @@ def test_pivot_fails_with_input_node(zx_graph: ZXGraphState) -> None:
 
 def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
     """Test pivot with an obvious graph."""
-    # 0---1---2
+    # 0---1---2 -> 0---2---1
     for _ in range(3):
         zx_graph.add_physical_node()
 
@@ -573,7 +573,7 @@ def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
         )
     ),
 )
-def test_is_noninput_with_io_nbrs_xy(
+def test_needs_pivot_on_boundary_xy(
     zx_graph: ZXGraphState,
     planes: tuple[Plane, Plane],
     rng: np.random.Generator,
@@ -585,7 +585,7 @@ def test_is_noninput_with_io_nbrs_xy(
     angles[1] = rng.choice([0.0, np.pi])
     measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(2)]
     _apply_measurements(zx_graph, measurements)
-    assert zx_graph._is_noninput_with_io_nbrs(1, atol=1e-9) is True
+    assert zx_graph._needs_pivot_on_boundary(1, atol=1e-9) is True
 
 
 @pytest.mark.parametrize(
@@ -597,7 +597,7 @@ def test_is_noninput_with_io_nbrs_xy(
         )
     ),
 )
-def test_is_noninput_with_io_nbrs_xz(
+def test_needs_pivot_on_boundary_xz(
     zx_graph: ZXGraphState,
     planes: tuple[Plane, Plane],
     rng: np.random.Generator,
@@ -609,7 +609,7 @@ def test_is_noninput_with_io_nbrs_xz(
     angles[1] = rng.choice([0.5 * np.pi, 1.5 * np.pi])
     measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(2)]
     _apply_measurements(zx_graph, measurements)
-    assert zx_graph._is_noninput_with_io_nbrs(1, atol=1e-9) is True
+    assert zx_graph._needs_pivot_on_boundary(1, atol=1e-9) is True
 
 
 def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
