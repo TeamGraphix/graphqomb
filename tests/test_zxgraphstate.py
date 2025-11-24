@@ -394,21 +394,22 @@ def test_pivot_with_obvious_graph(zx_graph: ZXGraphState) -> None:
         zx_graph.add_physical_edge(i, j)
 
     measurements = [
-        (0, PlannerMeasBasis(Plane.XY, 1.1 * np.pi)),
-        (1, PlannerMeasBasis(Plane.XZ, 1.2 * np.pi)),
-        (2, PlannerMeasBasis(Plane.YZ, 1.3 * np.pi)),
+        (0, PlannerMeasBasis(Plane.XY, np.pi)),
+        (1, PlannerMeasBasis(Plane.XZ, 1.4 * np.pi)),
+        (2, PlannerMeasBasis(Plane.YZ, 0.4 * np.pi)),
     ]
     _apply_measurements(zx_graph, measurements)
 
-    original_zx_graph = deepcopy(zx_graph)
     zx_graph.pivot(1, 2)
-    original_zx_graph.local_complement(1)
-    original_zx_graph.local_complement(2)
-    original_zx_graph.local_complement(1)
-    assert zx_graph.physical_edges == original_zx_graph.physical_edges
-    original_planes = [original_zx_graph.meas_bases[i].plane for i in range(3)]
-    planes = [zx_graph.meas_bases[i].plane for i in range(3)]
-    assert planes == original_planes
+    assert zx_graph.physical_edges == {(0, 2), (1, 2)}
+    ref_plane1, ref_angle_func1 = MEAS_ACTION_PV_TARGET[Plane.XZ]
+    ref_plane2, ref_angle_func2 = MEAS_ACTION_PV_TARGET[Plane.YZ]
+    assert zx_graph.meas_bases[0].plane == Plane.XY
+    assert zx_graph.meas_bases[1].plane == ref_plane1
+    assert zx_graph.meas_bases[2].plane == ref_plane2
+    assert is_close_angle(zx_graph.meas_bases[0].angle, np.pi)
+    assert is_close_angle(zx_graph.meas_bases[1].angle, ref_angle_func1(1.4 * np.pi))
+    assert is_close_angle(zx_graph.meas_bases[2].angle, ref_angle_func2(0.4 * np.pi))
 
 
 @pytest.mark.parametrize("planes", plane_combinations(5))
