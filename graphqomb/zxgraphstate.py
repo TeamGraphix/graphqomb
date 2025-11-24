@@ -111,6 +111,16 @@ class ZXGraphState(GraphState):
         ------
         ValueError
             If the node does not exist, is an input node, or the graph is not a ZX-diagram.
+
+        Notes
+        -----
+        Here we adopt the definition (lemma) of local complementation from [1].
+        In some literature, local complementation is defined with Rx(-pi/2) on the target node
+        and Rz(pi/2) on the neighbors, which is strictly equivalent.
+
+        References
+        ----------
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 2.31 and lemma 4.3
         """
         self._ensure_node_exists(node)
         if node in self.input_node_indices:
@@ -204,9 +214,17 @@ class ZXGraphState(GraphState):
         ValueError
             If the nodes are input nodes, or the graph is not a ZX-diagram.
 
+        Notes
+        -----
+        Here we adopt the definition (lemma) of pivot from [1].
+        In some literature, pivot is defined as below:
+            Rz(pi/2) Rx(-pi/2) Rz(pi/2) on the target nodes,
+            Rz(pi) on all the neighbors of both target nodes (not including the target nodes).
+        This definition is strictly equivalent to the one adopted here.
+
         References
         ----------
-        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.5 with correction
+        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 2.32 and lemma 4.5
         """
         self._ensure_node_exists(node1)
         self._ensure_node_exists(node2)
@@ -217,13 +235,13 @@ class ZXGraphState(GraphState):
         self._pivot(node1, node2)
 
         # update node1 and node2 measurement
-        lc = LocalClifford(-np.pi / 2, np.pi / 2, -np.pi / 2)
+        lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
         for a in {node1, node2}:
             self.apply_local_clifford(a, lc)
 
         # update nodes measurement of neighbors
         lc = LocalClifford(np.pi, 0, 0)
-        for w in self.neighbors(node1) | self.neighbors(node2) - {node1, node2}:
+        for w in self.neighbors(node1) & self.neighbors(node2):
             self.apply_local_clifford(w, lc)
 
     def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
