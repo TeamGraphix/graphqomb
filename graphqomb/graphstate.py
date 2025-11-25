@@ -475,7 +475,7 @@ class GraphState(BaseGraphState):
                 self.__local_cliffords[node] = lc
         else:
             self._check_meas_basis()
-            new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
             self.assign_meas_basis(node, new_meas_basis)
 
     @typing_extensions.override
@@ -571,13 +571,13 @@ class GraphState(BaseGraphState):
             i_meas_plane = self.meas_bases[input_node].plane
             if i_meas_plane == Plane.XY:
                 i_meas_plane = Plane.XY
-                i_angle -= gamma
+                i_angle += gamma
             elif i_meas_plane == Plane.XZ and is_close_angle(2 * gamma, 0.0):
                 sign = 1 if is_close_angle(gamma, 0.0) else -1
                 i_angle *= sign
             elif i_meas_plane == Plane.XZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
                 i_meas_plane = Plane.YZ
-                sign = 1 if is_close_angle(gamma + np.pi / 2, 0.0) else -1
+                sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
                 i_angle *= sign
             elif i_meas_plane == Plane.YZ and is_close_angle(2 * gamma, 0.0):
                 sign = 1 if is_close_angle(gamma, 0.0) else -1
@@ -587,8 +587,8 @@ class GraphState(BaseGraphState):
                 sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
                 i_angle *= sign
 
-            self.assign_meas_basis(input_node, PlannerMeasBasis(Plane.XY, -lc.alpha))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, -lc.beta))
+            self.assign_meas_basis(input_node, PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
             self.assign_meas_basis(new_node_index0, PlannerMeasBasis(i_meas_plane, i_angle))
 
             node_index_addition_map[input_node] = InputLocalCliffordExpansion(new_node_index0, new_node_index1)
@@ -626,9 +626,9 @@ class GraphState(BaseGraphState):
             self.add_physical_edge(new_node_index1, new_node_index2)
             self.add_physical_edge(new_node_index2, new_node_index3)
 
-            self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, -lc.alpha))
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, -lc.beta))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, -lc.gamma))
+            self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, lc.alpha))
+            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
+            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.gamma))
             self.assign_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, 0.0))
 
             node_index_addition_map[output_node] = OutputLocalCliffordExpansion(
