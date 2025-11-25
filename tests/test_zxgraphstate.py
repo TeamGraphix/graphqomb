@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.euler import LocalClifford
 from graphqomb.gflow_utils import gflow_wrapper
 from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
@@ -50,8 +51,8 @@ MEAS_ACTION_PV_TARGET: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
 }
 MEAS_ACTION_PV_NEIGHBORS: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
     Plane.XY: (Plane.XY, lambda angle: (angle + np.pi) % (2.0 * np.pi)),
-    Plane.XZ: (Plane.XZ, lambda angle: -angle % (2.0 * np.pi)),
-    Plane.YZ: (Plane.YZ, lambda angle: -angle % (2.0 * np.pi)),
+    Plane.XZ: (Plane.XZ, operator.neg),
+    Plane.YZ: (Plane.YZ, operator.neg),
 }
 ATOL = 1e-9
 MEAS_ACTION_RC: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
@@ -192,6 +193,20 @@ def test_local_complement_fails_with_input_node(zx_graph: ZXGraphState) -> None:
         zx_graph.local_complement(node)
 
 
+def test_local_clifford_updates_xy_basis(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
+    """Applying an LC should update stored XY angles using the public convention."""
+    node = zx_graph.add_physical_node()
+    angle = rng.random() * 2 * np.pi
+    zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, angle))
+    lc = LocalClifford(0.0, 0.0, -np.pi / 2)
+
+    zx_graph.apply_local_clifford(node, lc)
+    meas_basis_vector = zx_graph.meas_bases[node].vector()
+    ref_vector = PlannerMeasBasis(Plane.XY, angle + np.pi / 2).vector()
+    inner_product = abs(np.vdot(meas_basis_vector, ref_vector))
+    assert np.isclose(inner_product, 1)
+
+
 @pytest.mark.parametrize("plane", list(Plane))
 def test_local_complement_with_no_edge(zx_graph: ZXGraphState, plane: Plane, rng: np.random.Generator) -> None:
     """Test local complement with a graph with a single node and no edges."""
@@ -325,6 +340,29 @@ def test_local_complement_4_times(
     _test(zx_graph, exp_nodes={0, 1, 2}, exp_edges={(0, 1), (1, 2)}, exp_measurements=exp_measurements)
 
 
+def test_local_clifford_expansion() -> None:
+    graph, flow = generate_random_flow_graph(width=1, depth=3, edge_p=0.5)
+    zx_graph, _ = to_zx_graphstate(graph)
+
+    pattern = qompile(zx_graph, flow)
+    sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
+    sim.simulate()
+    psi_original = sim.state.state()
+
+    zx_graph_cp = deepcopy(zx_graph)
+    lc = LocalClifford(2 * np.pi, 2 * np.pi, 2 * np.pi)
+    zx_graph_cp.apply_local_clifford(0, lc)
+    lc = LocalClifford(2 * np.pi, 0.0, 0.0)
+    zx_graph_cp.apply_local_clifford(2, lc)
+    zx_graph_cp.expand_local_cliffords()
+    gflow_cp = gflow_wrapper(zx_graph_cp)
+    pattern_cp = qompile(zx_graph_cp, gflow_cp)
+    sim_cp = PatternSimulator(pattern_cp, backend=SimulatorBackend.StateVector)
+    sim_cp.simulate()
+    psi_cp = sim_cp.state.state()
+    assert np.isclose(np.abs(np.vdot(psi_original, psi_cp)), 1.0)
+
+
 def test_remove_clifford_validity() -> None:
     graph, flow = generate_random_flow_graph(width=1, depth=3, edge_p=0.5)
     zx_graph, _ = to_zx_graphstate(graph)
@@ -335,7 +373,7 @@ def test_remove_clifford_validity() -> None:
     psi_original = sim.state.state()
 
     zx_graph_cp = deepcopy(zx_graph)
-    zx_graph_cp.remove_clifford(1)
+    zx_graph_cp.remove_cliffords()
     zx_graph_cp.expand_local_cliffords()
     gflow_lc = gflow_wrapper(zx_graph_cp)
     pattern_lc = qompile(zx_graph_cp, gflow_lc)
