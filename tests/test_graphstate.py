@@ -217,7 +217,7 @@ def test_expand_input_local_cliffords_xy_plane(graph: GraphState, gamma: float) 
     assert graph.input_node_indices == {new_input_node: 0}
     for node in graph.physical_nodes - set(graph.output_node_indices):
         assert graph.meas_bases[node].plane == Plane.XY
-    assert is_close_angle(graph.meas_bases[new_input_node].angle, old_input_angle - gamma)
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, old_input_angle + gamma)
     assert is_close_angle(graph.meas_bases[new_input_node + 1].angle, -beta)
     assert is_close_angle(graph.meas_bases[old_input_node].angle, -alpha)
 
@@ -278,7 +278,7 @@ def test_expand_input_local_cliffords_xz_plane(graph: GraphState, gamma: float) 
         exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
     elif is_close_angle(2 * (gamma - np.pi / 2), 0):
         assert graph.meas_bases[new_input_node].plane == Plane.YZ
-        exp_angle = old_input_angle if is_close_angle(gamma + np.pi / 2, 0) else -old_input_angle
+        exp_angle = old_input_angle if is_close_angle(gamma - np.pi / 2, 0) else -old_input_angle
     assert is_close_angle(graph.meas_bases[new_input_node].angle, exp_angle)
 
 
@@ -300,7 +300,7 @@ def test_expand_output_local_cliffords(graph: GraphState) -> None:
     exp_results = [(1, np.pi / 2), (2, np.pi), (3, 3 * np.pi / 2), (4, 0.0)]
     for node, angle in exp_results:
         assert graph.meas_bases[node].plane == Plane.XY
-        assert is_close_angle(graph.meas_bases[node].angle, -angle)
+        assert is_close_angle(graph.meas_bases[node].angle, angle)
 
 
 def test_check_canonical_form_true(canonical_graph: GraphState) -> None:
