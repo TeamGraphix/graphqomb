@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import networkx as nx
-import swiflow as sf
 from swiflow import gflow
+from swiflow.common import Plane as SfPlane
 
 from graphqomb.common import Plane
 
@@ -50,14 +50,14 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
 
     bases = graphstate.meas_bases
     planes = {node: bases[node].plane for node in bases}
-    swiflow_planes = {}
+    swiflow_planes: dict[int, SfPlane] = {}
     for node, plane in planes.items():
         if plane == Plane.XY:
-            swiflow_planes[node] = sf.common.Plane.XY
+            swiflow_planes[node] = SfPlane.XY
         elif plane == Plane.YZ:
-            swiflow_planes[node] = sf.common.Plane.YZ
+            swiflow_planes[node] = SfPlane.YZ
         elif plane == Plane.XZ:
-            swiflow_planes[node] = sf.common.Plane.XZ
+            swiflow_planes[node] = SfPlane.XZ
         else:
             msg = f"No match {plane}"
             raise ValueError(msg)

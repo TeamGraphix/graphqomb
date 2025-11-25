@@ -243,6 +243,7 @@ def test_expand_input_local_cliffords_yz_plane(graph: GraphState, gamma: float) 
     graph.expand_local_cliffords()
 
     new_input_node = 2
+    exp_angle: float = old_input_angle
     if is_close_angle(2 * gamma, 0):
         assert graph.meas_bases[new_input_node].plane == Plane.YZ
         exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
@@ -273,6 +274,7 @@ def test_expand_input_local_cliffords_xz_plane(graph: GraphState, gamma: float) 
     graph.expand_local_cliffords()
 
     new_input_node = 2
+    exp_angle: float = old_input_angle
     if is_close_angle(2 * gamma, 0):
         assert graph.meas_bases[new_input_node].plane == Plane.XZ
         exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
