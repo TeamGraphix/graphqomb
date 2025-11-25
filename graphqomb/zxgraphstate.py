@@ -366,7 +366,7 @@ class ZXGraphState(GraphState):
         ----------
         [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.11
         """
-        output_nbr = next(self.neighbors(node) - set(self.input_node_indices))
+        output_nbr = min(self.neighbors(node) - set(self.input_node_indices))
         self.pivot(node, output_nbr)
 
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
