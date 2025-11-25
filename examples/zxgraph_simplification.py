@@ -18,7 +18,6 @@ from copy import deepcopy
 
 import numpy as np
 
-from graphqomb.common import Plane
 from graphqomb.gflow_utils import gflow_wrapper
 from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph

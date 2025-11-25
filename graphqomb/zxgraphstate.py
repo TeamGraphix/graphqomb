@@ -359,8 +359,6 @@ class ZXGraphState(GraphState):
         ----------
         node : `int`
             node index
-        atol : `float`, optional
-            absolute tolerance, by default 1e-9
 
         References
         ----------
