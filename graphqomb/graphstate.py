@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, NamedTuple, TypeVar
 import numpy as np
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
 from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
@@ -543,55 +543,35 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords.pop(node, None)
 
-    def _expand_input_local_cliffords(self) -> dict[int, InputLocalCliffordExpansion]:
+    def _expand_input_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the input nodes.
 
         Returns
         -------
-        `dict`\[`int`, `InputLocalCliffordExpansion`\]
+        `dict`\[`int`, `LocalCliffordExpansion`\]
             A dictionary mapping input node indices to the new node indices created.
         """
-        node_index_addition_map: dict[int, InputLocalCliffordExpansion] = {}
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices: dict[int, int] = {}
-        for input_node, q_index in self.input_node_indices.items():
-            lc = self._pop_local_clifford(input_node)
+        for old_input_node, q_index in self.input_node_indices.items():
+            lc = self._pop_local_clifford(old_input_node)
             if lc is None:
-                new_input_indices[input_node] = q_index
+                new_input_indices[old_input_node] = q_index
                 continue
 
-            new_node_index0 = self.add_physical_node()
-            new_input_indices[new_node_index0] = q_index
-            new_node_index1 = self.add_physical_node()
+            new_input = self.add_physical_node()
+            new_node = self.add_physical_node()
+            new_input_indices[new_input] = q_index
 
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, input_node)
+            self.add_physical_edge(new_input, new_node)
+            self.add_physical_edge(new_node, old_input_node)
 
-            gamma = lc.gamma
-            i_angle = self.meas_bases[input_node].angle
-            i_meas_plane = self.meas_bases[input_node].plane
-            if i_meas_plane == Plane.XY:
-                i_meas_plane = Plane.XY
-                i_angle += gamma
-            elif i_meas_plane == Plane.XZ and is_close_angle(2 * gamma, 0.0):
-                sign = 1 if is_close_angle(gamma, 0.0) else -1
-                i_angle *= sign
-            elif i_meas_plane == Plane.XZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
-                i_meas_plane = Plane.YZ
-                sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
-                i_angle *= sign
-            elif i_meas_plane == Plane.YZ and is_close_angle(2 * gamma, 0.0):
-                sign = 1 if is_close_angle(gamma, 0.0) else -1
-                i_angle *= sign
-            elif i_meas_plane == Plane.YZ and is_close_angle(2 * (gamma - np.pi / 2), 0.0):
-                i_meas_plane = Plane.XZ
-                sign = 1 if is_close_angle(gamma - np.pi / 2, 0.0) else -1
-                i_angle *= sign
-
-            self.assign_meas_basis(input_node, PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(i_meas_plane, i_angle))
-
-            node_index_addition_map[input_node] = InputLocalCliffordExpansion(new_node_index0, new_node_index1)
+            self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = self.meas_bases[old_input_node]
+            new_basis = update_lc_basis(lc, meas_basis)
+            self.assign_meas_basis(old_input_node, new_basis)
+            node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
 
         self.__input_node_indices = {}
         for new_input_index, q_index in new_input_indices.items():
@@ -599,45 +579,37 @@ class GraphState(BaseGraphState):
 
         return node_index_addition_map
 
-    def _expand_output_local_cliffords(self) -> dict[int, OutputLocalCliffordExpansion]:
+    def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the output nodes.
 
         Returns
         -------
-        `dict`\[`int`, `OutputLocalCliffordExpansion`\]
+        `dict`\[`int`, `LocalCliffordExpansion`\]
             A dictionary mapping output node indices to the new node indices created.
         """
-        node_index_addition_map: dict[int, OutputLocalCliffordExpansion] = {}
-        new_output_index_map: dict[int, int] = {}
-        for output_node, q_index in self.output_node_indices.items():
-            lc = self._pop_local_clifford(output_node)
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
+        new_output_node_index_map: dict[int, int] = {}
+        for old_output_node, q_index in self.output_node_indices.items():
+            lc = self._pop_local_clifford(old_output_node)
             if lc is None:
-                new_output_index_map[output_node] = q_index
+                new_output_node_index_map[old_output_node] = q_index
                 continue
 
-            new_node_index0 = self.add_physical_node()
-            new_node_index1 = self.add_physical_node()
-            new_node_index2 = self.add_physical_node()
-            new_node_index3 = self.add_physical_node()
-            new_output_index_map[new_node_index3] = q_index
+            new_node = self.add_physical_node()
+            new_output_node = self.add_physical_node()
+            new_output_node_index_map[new_output_node] = q_index
 
-            self.add_physical_edge(output_node, new_node_index0)
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, new_node_index2)
-            self.add_physical_edge(new_node_index2, new_node_index3)
+            self.__output_node_indices.pop(old_output_node)
+            self.register_output(new_output_node, q_index)
 
-            self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.gamma))
-            self.assign_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, 0.0))
+            self.add_physical_edge(old_output_node, new_node)
+            self.add_physical_edge(new_node, new_output_node)
 
-            node_index_addition_map[output_node] = OutputLocalCliffordExpansion(
-                new_node_index0, new_node_index1, new_node_index2, new_node_index3
-            )
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(old_output_node, meas_basis)
 
-        self.__output_node_indices = {}
-        for new_output_index, q_index in new_output_index_map.items():
-            self.register_output(new_output_index, q_index)
+            node_index_addition_map[old_output_node] = LocalCliffordExpansion(new_node, new_output_node)
 
         return node_index_addition_map
 
@@ -814,27 +786,18 @@ class GraphState(BaseGraphState):
         return graph_state, node_map
 
 
-class InputLocalCliffordExpansion(NamedTuple):
-    """Local Clifford expansion map for input node."""
+class LocalCliffordExpansion(NamedTuple):
+    """Local Clifford expansion map."""
 
     node1: int
     node2: int
-
-
-class OutputLocalCliffordExpansion(NamedTuple):
-    """Local Clifford expansion map for output node."""
-
-    node1: int
-    node2: int
-    node3: int
-    node4: int
 
 
 class ExpansionMaps(NamedTuple):
     """Expansion maps for inputs and outputs with Local Clifford."""
 
-    input_node_map: dict[int, InputLocalCliffordExpansion]
-    output_node_map: dict[int, OutputLocalCliffordExpansion]
+    input_node_map: dict[int, LocalCliffordExpansion]
+    output_node_map: dict[int, LocalCliffordExpansion]
 
 
 def compose(  # noqa: C901

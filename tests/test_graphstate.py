@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
-from graphqomb.euler import LocalClifford
+from graphqomb.euler import LocalClifford, update_lc_basis
 from graphqomb.graphstate import GraphState, bipartite_edges, odd_neighbors
 
 
@@ -217,9 +217,9 @@ def test_expand_input_local_cliffords_xy_plane(graph: GraphState, gamma: float) 
     assert graph.input_node_indices == {new_input_node: 0}
     for node in graph.physical_nodes - set(graph.output_node_indices):
         assert graph.meas_bases[node].plane == Plane.XY
-    assert is_close_angle(graph.meas_bases[new_input_node].angle, old_input_angle + gamma)
-    assert is_close_angle(graph.meas_bases[new_input_node + 1].angle, -beta)
-    assert is_close_angle(graph.meas_bases[old_input_node].angle, -alpha)
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
+    assert is_close_angle(graph.meas_bases[new_input_node + 1].angle, 0.0)
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, old_input_angle - gamma)
 
 
 @pytest.mark.parametrize(
@@ -242,15 +242,17 @@ def test_expand_input_local_cliffords_yz_plane(graph: GraphState, gamma: float) 
     graph.apply_local_clifford(old_input_node, lc)
     graph.expand_local_cliffords()
 
-    new_input_node = 2
     exp_angle: float = old_input_angle
     if is_close_angle(2 * gamma, 0):
-        assert graph.meas_bases[new_input_node].plane == Plane.YZ
+        assert graph.meas_bases[old_input_node].plane == Plane.YZ
         exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
     elif is_close_angle(2 * (gamma - np.pi / 2), 0):
-        assert graph.meas_bases[new_input_node].plane == Plane.XZ
+        assert graph.meas_bases[old_input_node].plane == Plane.XZ
         exp_angle = old_input_angle if is_close_angle(gamma - np.pi / 2, 0) else -old_input_angle
-    assert is_close_angle(graph.meas_bases[new_input_node].angle, exp_angle)
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, exp_angle)
+    new_input_node = 2
+    assert graph.meas_bases[new_input_node].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
 
 
 @pytest.mark.parametrize(
@@ -273,15 +275,17 @@ def test_expand_input_local_cliffords_xz_plane(graph: GraphState, gamma: float) 
     graph.apply_local_clifford(old_input_node, lc)
     graph.expand_local_cliffords()
 
-    new_input_node = 2
     exp_angle: float = old_input_angle
     if is_close_angle(2 * gamma, 0):
-        assert graph.meas_bases[new_input_node].plane == Plane.XZ
+        assert graph.meas_bases[old_input_node].plane == Plane.XZ
         exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
     elif is_close_angle(2 * (gamma - np.pi / 2), 0):
-        assert graph.meas_bases[new_input_node].plane == Plane.YZ
-        exp_angle = old_input_angle if is_close_angle(gamma - np.pi / 2, 0) else -old_input_angle
-    assert is_close_angle(graph.meas_bases[new_input_node].angle, exp_angle)
+        assert graph.meas_bases[old_input_node].plane == Plane.YZ
+        exp_angle = old_input_angle if is_close_angle(gamma + np.pi / 2, 0) else -old_input_angle
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, exp_angle)
+    new_input_node = 2
+    assert graph.meas_bases[new_input_node].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
 
 
 def test_expand_output_local_cliffords(graph: GraphState) -> None:
@@ -297,12 +301,13 @@ def test_expand_output_local_cliffords(graph: GraphState) -> None:
     graph.apply_local_clifford(old_output_node, lc)
     graph.expand_local_cliffords()
 
-    new_output_node = 5
+    new_output_node = 3
     assert graph.output_node_indices == {new_output_node: 0}
-    exp_results = [(1, np.pi / 2), (2, np.pi), (3, 3 * np.pi / 2), (4, 0.0)]
-    for node, angle in exp_results:
-        assert graph.meas_bases[node].plane == Plane.XY
-        assert is_close_angle(graph.meas_bases[node].angle, angle)
+    assert graph.meas_bases[old_output_node + 1].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[old_output_node + 1].angle, 0.0)
+    meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
+    assert graph.meas_bases[old_output_node].plane == meas_basis.plane
+    assert is_close_angle(graph.meas_bases[old_output_node].angle, meas_basis.angle)
 
 
 def test_check_canonical_form_true(canonical_graph: GraphState) -> None:
