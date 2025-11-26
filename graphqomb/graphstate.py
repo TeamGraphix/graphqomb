@@ -23,7 +23,6 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
-import numpy as np
 import typing_extensions
 
 from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
