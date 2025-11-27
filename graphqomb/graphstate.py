@@ -584,8 +584,6 @@ class GraphState(BaseGraphState):
         ----------
         node : `int`
             node index
-        basis : `tuple[Plane, float]`
-            Basis used as a key for _EQUIV_MEAS_BASIS_MAP.
         """
         cur = self.meas_bases[node]
         rounded = round_clifford_angle(cur.angle)
