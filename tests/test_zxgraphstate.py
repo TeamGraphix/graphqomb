@@ -526,6 +526,8 @@ def test_local_clifford_expansion() -> None:
     lc = LocalClifford(2 * np.pi, 0.0, 0.0)
     zx_graph_cp.apply_local_clifford(2, lc)
     zx_graph_cp.expand_local_cliffords()
+    zx_graph_cp.to_xy()
+    zx_graph_cp.to_xz()
     gflow_cp = gflow_wrapper(zx_graph_cp)
     pattern_cp = qompile(zx_graph_cp, gflow_cp)
     sim_cp = PatternSimulator(pattern_cp, backend=SimulatorBackend.StateVector)

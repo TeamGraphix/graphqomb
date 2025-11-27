@@ -107,6 +107,8 @@ statevec_original = sim.state
 # Note that we need to call the `expand_local_cliffords` method before generating the pattern to get the gflow.
 
 zx_graph_smp.expand_local_cliffords()
+zx_graph_smp.to_xy()
+zx_graph_smp.to_xz()
 print("input_node_indices: ", set(zx_graph_smp.input_node_indices))
 print("output_node_indices: ", set(zx_graph_smp.output_node_indices))
 print("local_cliffords: ", zx_graph_smp.local_cliffords)

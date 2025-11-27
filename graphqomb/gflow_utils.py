@@ -3,7 +3,7 @@
 This module provides:
 
 - `gflow_wrapper`: Thin adapter around ``swiflow.gflow`` so that gflow can be computed directly
-from a `BaseGraphState` instance.
+    from a `BaseGraphState` instance.
 - `_EQUIV_MEAS_BASIS_MAP`: A mapping between equivalent measurement bases used to improve gflow finding performance.
 """
 

@@ -249,9 +249,11 @@ class ZXGraphState(GraphState):
         Notes
         -----
         Here we adopt the definition (lemma) of pivot from [1].
-        In some literature, pivot is defined as below:
+        In some literature, pivot is defined as below::
+
             Rz(pi/2) Rx(-pi/2) Rz(pi/2) on the target nodes,
             Rz(pi) on all the neighbors of both target nodes (not including the target nodes).
+
         This definition is strictly equivalent to the one adopted here.
 
         References
@@ -610,19 +612,6 @@ class ZXGraphState(GraphState):
                 self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, 0.0))
             elif basis.plane == Plane.YZ and is_close_angle(basis.angle, np.pi):
                 self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, np.pi))
-
-    def expand_local_cliffords(self) -> ExpansionMaps:
-        r"""Expand local Clifford operators applied on the input and output nodes.
-
-        Returns
-        -------
-        `ExpansionMaps`
-            A tuple of dictionaries mapping input and output node indices to the new node indices created.
-        """
-        expansion_map = super().expand_local_cliffords()
-        self.to_xy()
-        self.to_xz()
-        return expansion_map
 
     def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
         r"""Call inside convert_to_phase_gadget.
