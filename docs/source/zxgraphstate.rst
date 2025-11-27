@@ -1,14 +1,14 @@
 ZXGraphState
 ============
 
-:mod:`graphix_zx.zxgraphstate` module
+:mod:`graphqomb.zxgraphstate` module
 +++++++++++++++++++++++++++++++++++++
 
-.. automodule:: graphix_zx.zxgraphstate
+.. automodule:: graphqomb.zxgraphstate
 
 ZX Graph State
 --------------
-.. autoclass:: graphix_zx.zxgraphstate.ZXGraphState
+.. autoclass:: graphqomb.zxgraphstate.ZXGraphState
    :members:
    :show-inheritance:
    :member-order: bysource
@@ -16,5 +16,5 @@ ZX Graph State
 Functions
 ---------
 
-.. autofunction:: graphix_zx.zxgraphstate.to_zx_graphstate
-.. autofunction:: graphix_zx.zxgraphstate.complete_graph_edges
+.. autofunction:: graphqomb.zxgraphstate.to_zx_graphstate
+.. autofunction:: graphqomb.zxgraphstate.complete_graph_edges
