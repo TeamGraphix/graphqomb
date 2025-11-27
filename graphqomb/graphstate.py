@@ -21,15 +21,14 @@ import operator
 from abc import ABC
 from collections.abc import Hashable, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import TYPE_CHECKING, NamedTuple, TypeVar
+from typing import NamedTuple, TypeVar
 
+import numpy as np
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, basis2tuple, is_close_angle, round_clifford_angle
 from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
-
-if TYPE_CHECKING:
-    from graphqomb.euler import LocalClifford
+from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
 
 NodeT = TypeVar("NodeT", bound=Hashable)
 
@@ -555,8 +554,7 @@ class GraphState(BaseGraphState):
         for old_input_node, q_index in self.input_node_indices.items():
             lc = self._pop_local_clifford(old_input_node)
             if lc is None:
-                new_input_indices[old_input_node] = q_index
-                continue
+                lc = LocalClifford(0.0, 0.0, 0.0)
 
             new_input = self.add_physical_node()
             new_node = self.add_physical_node()
@@ -568,8 +566,10 @@ class GraphState(BaseGraphState):
             self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
             self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
             meas_basis = self.meas_bases[old_input_node]
-            new_basis = update_lc_basis(lc, meas_basis)
-            self.assign_meas_basis(old_input_node, new_basis)
+            basis = basis2tuple(meas_basis)
+            new_meas_basis = update_lc_basis(lc, meas_basis)
+            self.assign_meas_basis(old_input_node, new_meas_basis)
+            self._assure_gflow_input_expansion(old_input_node, basis)
             node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
 
         self.__input_node_indices = {}
@@ -577,6 +577,34 @@ class GraphState(BaseGraphState):
             self.register_input(new_input_index, q_index)
 
         return node_index_addition_map
+
+    def _assure_gflow_input_expansion(self, node: int, basis: tuple[Plane, float]) -> None:
+        r"""Assure gflow existence after input local Clifford expansion.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        basis : `tuple[Plane, float]`
+            Basis used as a key for _EQUIV_MEAS_BASIS_MAP.
+        """
+        cur = self.meas_bases[node]
+        rounded = round_clifford_angle(cur.angle)
+        self.assign_meas_basis(node, PlannerMeasBasis(cur.plane, rounded))
+
+        cur = self.meas_bases[node]
+        cur_key = basis2tuple(cur)
+
+        # if the updated basis is self-inclusion type, push it to an XY-equivalent one.
+        if (cur.plane in {Plane.XZ, Plane.YZ} and is_close_angle(cur.angle, 0.0)) or (
+            is_close_angle(cur.angle, np.pi) and cur_key in _EQUIV_MEAS_BASIS_MAP
+        ):
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
+
+        # ensure XY if possible.
+        cur = self.meas_bases[node]
+        if cur.plane != Plane.XY and cur_key in _EQUIV_MEAS_BASIS_MAP:
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
 
     def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the output nodes.
