@@ -130,8 +130,8 @@ def test_lc_basis_update(
     angle = rng.uniform(0, 2 * np.pi)
     basis = PlannerMeasBasis(plane, angle)
     basis_updated = update_lc_basis(lc, basis)
-    ref_updated_basis = lc.matrix() @ basis.vector()
-    inner_product = abs(np.vdot(basis_updated.vector(), ref_updated_basis))
+    ref_updated_vector = lc.conjugate().matrix() @ basis.vector()
+    inner_product = abs(np.vdot(basis_updated.vector(), ref_updated_vector))
     assert np.isclose(inner_product, 1)
 
 
@@ -140,17 +140,16 @@ def test_local_complement_target_update(plane: Plane, rng: np.random.Generator) 
     lc = LocalClifford(0, np.pi / 2, 0)
     measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
         Plane.XY: (Plane.XZ, lambda angle: angle + np.pi / 2),
-        Plane.XZ: (Plane.XY, lambda angle: np.pi / 2 - angle),
+        Plane.XZ: (Plane.XY, lambda angle: -angle + np.pi / 2),
         Plane.YZ: (Plane.YZ, lambda angle: angle + np.pi / 2),
     }
 
     angle = rng.random() * 2 * np.pi
 
     meas_basis = PlannerMeasBasis(plane, angle)
-    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
-
     assert result_basis.plane == ref_plane
     assert is_close_angle(result_basis.angle, ref_angle)
 
@@ -167,9 +166,80 @@ def test_local_complement_neighbors(plane: Plane, rng: np.random.Generator) -> N
     angle = rng.random() * 2 * np.pi
 
     meas_basis = PlannerMeasBasis(plane, angle)
-    result_basis = update_lc_basis(lc.conjugate(), meas_basis)
+    result_basis = update_lc_basis(lc, meas_basis)
     ref_plane, ref_angle_func = measurement_action[plane]
     ref_angle = ref_angle_func(angle)
 
     assert result_basis.plane == ref_plane
     assert is_close_angle(result_basis.angle, ref_angle)
+
+
+@pytest.mark.parametrize("plane", list(Plane))
+def test_pivot_target_update(plane: Plane, rng: np.random.Generator) -> None:
+    lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+        Plane.XY: (Plane.YZ, lambda angle: -1 * angle),
+        Plane.XZ: (Plane.XZ, lambda angle: (np.pi / 2 - angle)),
+        Plane.YZ: (Plane.XY, lambda angle: -1 * angle),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    meas_basis = PlannerMeasBasis(plane, angle)
+    result_basis = update_lc_basis(lc, meas_basis)
+    ref_plane, ref_angle_func = measurement_action[plane]
+    ref_angle = ref_angle_func(angle)
+
+    assert result_basis.plane == ref_plane
+    assert is_close_angle(result_basis.angle, ref_angle)
+
+
+@pytest.mark.parametrize("plane", list(Plane))
+def test_pivot_neighbors(plane: Plane, rng: np.random.Generator) -> None:
+    lc = LocalClifford(np.pi, 0, 0)
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float], float]]] = {
+        Plane.XY: (Plane.XY, lambda angle: (angle + np.pi) % (2.0 * np.pi)),
+        Plane.XZ: (Plane.XZ, lambda angle: -1 * angle),
+        Plane.YZ: (Plane.YZ, lambda angle: -1 * angle),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    meas_basis = PlannerMeasBasis(plane, angle)
+    result_basis = update_lc_basis(lc, meas_basis)
+    ref_plane, ref_angle_func = measurement_action[plane]
+    ref_angle = ref_angle_func(angle)
+
+    assert result_basis.plane == ref_plane
+    assert is_close_angle(result_basis.angle, ref_angle)
+
+
+@pytest.mark.parametrize("plane", list(Plane))
+def test_remove_clifford_update(plane: Plane, rng: np.random.Generator) -> None:
+    measurement_action: dict[Plane, tuple[Plane, Callable[[float, float], float]]] = {
+        Plane.XY: (
+            Plane.XY,
+            lambda a_pi, alpha: (alpha if is_close_angle(a_pi, 0) else alpha + np.pi) % (2.0 * np.pi),
+        ),
+        Plane.XZ: (
+            Plane.XZ,
+            lambda a_pi, alpha: (alpha if is_close_angle(a_pi, 0) else -alpha) % (2.0 * np.pi),
+        ),
+        Plane.YZ: (
+            Plane.YZ,
+            lambda a_pi, alpha: (alpha if is_close_angle(a_pi, 0) else -alpha) % (2.0 * np.pi),
+        ),
+    }
+
+    angle = rng.random() * 2 * np.pi
+
+    a_pi = np.pi
+    for a_pi in (0.0, np.pi):
+        lc = LocalClifford(a_pi, 0, 0)
+        meas_basis = PlannerMeasBasis(plane, angle)
+        result_basis = update_lc_basis(lc, meas_basis)
+        ref_plane, ref_angle_func = measurement_action[plane]
+        ref_angle = ref_angle_func(a_pi, angle)
+
+        assert result_basis.plane == ref_plane
+        assert is_close_angle(result_basis.angle, ref_angle)
