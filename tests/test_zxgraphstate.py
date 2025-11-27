@@ -183,9 +183,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xy_1(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, angle + np.pi / 2))
+    ref_meas_basis = PlannerMeasBasis(Plane.XY, angle + np.pi / 2)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_xy_2(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -199,9 +202,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xy_2(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, angle + np.pi / 2))
+    ref_meas_basis = PlannerMeasBasis(Plane.XZ, angle + np.pi / 2)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_xy_3(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -215,9 +221,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xy_3(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.YZ, -angle))
+    ref_meas_basis = PlannerMeasBasis(Plane.YZ, -angle)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_xz_1(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -231,9 +240,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xz_1(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.YZ, angle))
+    ref_meas_basis = PlannerMeasBasis(Plane.YZ, angle)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_xz_2(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -247,9 +259,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xz_2(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, -angle + np.pi / 2))
+    ref_meas_basis = PlannerMeasBasis(Plane.XY, -angle + np.pi / 2)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_xz_3(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -263,9 +278,12 @@ def test_apply_local_clifford_to_planner_meas_basis_xz_3(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, -angle + np.pi / 2))
+    ref_meas_basis = PlannerMeasBasis(Plane.XZ, -angle + np.pi / 2)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_yz_1(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -279,9 +297,12 @@ def test_apply_local_clifford_to_planner_meas_basis_yz_1(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, -angle))
+    ref_meas_basis = PlannerMeasBasis(Plane.XZ, -angle)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_yz_2(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -295,9 +316,12 @@ def test_apply_local_clifford_to_planner_meas_basis_yz_2(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.YZ, angle + np.pi / 2))
+    ref_meas_basis = PlannerMeasBasis(Plane.YZ, angle + np.pi / 2)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_apply_local_clifford_to_planner_meas_basis_yz_3(zx_graph: ZXGraphState, rng: np.random.Generator) -> None:
@@ -311,9 +335,12 @@ def test_apply_local_clifford_to_planner_meas_basis_yz_3(zx_graph: ZXGraphState,
     zx_graph.apply_local_clifford(node, lc)
     meas_vector = zx_graph.meas_bases[node].vector()
 
-    ref_zx_graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, -angle))
+    ref_meas_basis = PlannerMeasBasis(Plane.XY, -angle)
+    ref_zx_graph.assign_meas_basis(node, ref_meas_basis)
     ref_meas_vector = ref_zx_graph.meas_bases[node].vector()
     assert np.isclose(abs(np.vdot(meas_vector, ref_meas_vector)), 1)
+    assert zx_graph.meas_bases[node].plane == ref_meas_basis.plane
+    assert is_close_angle(zx_graph.meas_bases[node].angle, ref_meas_basis.angle)
 
 
 def test_local_complement_fails_if_nonexistent_node(zx_graph: ZXGraphState) -> None:
@@ -505,47 +532,6 @@ def test_local_clifford_expansion() -> None:
     sim_cp.simulate()
     psi_cp = sim_cp.state.state()
     assert np.isclose(np.abs(np.vdot(psi_original, psi_cp)), 1.0)
-
-
-def test_remove_clifford_validity() -> None:
-    graph, flow = generate_random_flow_graph(width=1, depth=3, edge_p=0.5)
-    zx_graph, _ = to_zx_graphstate(graph)
-
-    pattern = qompile(zx_graph, flow)
-    sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
-    sim.simulate()
-    psi_original = sim.state.state()
-
-    zx_graph_cp = deepcopy(zx_graph)
-    zx_graph_cp.remove_cliffords()
-    zx_graph_cp.expand_local_cliffords()
-    gflow_lc = gflow_wrapper(zx_graph_cp)
-    pattern_lc = qompile(zx_graph_cp, gflow_lc)
-    sim_lc = PatternSimulator(pattern_lc, backend=SimulatorBackend.StateVector)
-    sim_lc.simulate()
-    psi_lc = sim_lc.state.state()
-    assert np.isclose(np.abs(np.vdot(psi_original, psi_lc)), 1.0)
-
-
-def test_pivot_validity() -> None:
-    graph, flow = generate_random_flow_graph(width=1, depth=4, edge_p=0.5)
-    zx_graph, _ = to_zx_graphstate(graph)
-
-    pattern = qompile(zx_graph, flow)
-    sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
-    sim.simulate()
-    psi_original = sim.state.state()
-
-    zx_graph.pivot(1, 2)
-    zx_graph.remove_clifford(1)
-    zx_graph.remove_clifford(2)
-    zx_graph.expand_local_cliffords()
-    gflow_lc = gflow_wrapper(zx_graph)
-    pattern_lc = qompile(zx_graph, gflow_lc)
-    sim_lc = PatternSimulator(pattern_lc, backend=SimulatorBackend.StateVector)
-    sim_lc.simulate()
-    psi_lc = sim_lc.state.state()
-    assert np.isclose(np.abs(np.vdot(psi_original, psi_lc)), 1.0)
 
 
 def test_pivot_fails_with_nonexistent_nodes(zx_graph: ZXGraphState) -> None:

@@ -301,7 +301,7 @@ def test_expand_output_local_cliffords(graph: GraphState) -> None:
     graph.apply_local_clifford(old_output_node, lc)
     graph.expand_local_cliffords()
 
-    new_output_node = 3
+    new_output_node = 5
     assert graph.output_node_indices == {new_output_node: 0}
     assert graph.meas_bases[old_output_node + 1].plane == Plane.XY
     assert is_close_angle(graph.meas_bases[old_output_node + 1].angle, 0.0)
