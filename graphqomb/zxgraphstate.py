@@ -26,7 +26,7 @@ from graphqomb.common import (
 )
 from graphqomb.euler import LocalClifford
 from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
-from graphqomb.graphstate import BaseGraphState, ExpansionMaps, GraphState, bipartite_edges
+from graphqomb.graphstate import BaseGraphState, GraphState, bipartite_edges
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias

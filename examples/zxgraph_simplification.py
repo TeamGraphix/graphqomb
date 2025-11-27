@@ -28,10 +28,17 @@ from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
 FlowLike = dict[int, set[int]]
 
 # %%
-# Create a random graph state with flow
+# Prepare an initial random graph state with flow
 graph, flow = generate_random_flow_graph(width=3, depth=4, edge_p=0.5)
 zx_graph, _ = to_zx_graphstate(graph)
 visualize(zx_graph)
+
+# %%
+# We can compile the graph state into a measurement pattern, simulate it, and get the resulting statevector.
+pattern = qompile(zx_graph, flow)
+sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
+sim.simulate()
+statevec_original = sim.state
 
 
 # %%
@@ -49,88 +56,74 @@ def print_boundary_lcs(zxgraph: ZXGraphState) -> None:
             print(f"Node {node} has no local Clifford.")
 
 
+def print_meas_bses(graph: ZXGraphState) -> None:
+    print("node | plane | angle (/pi)")
+    for node in graph.input_node_indices:
+        print(f"{node} (input)", graph.meas_bases[node].plane, graph.meas_bases[node].angle / np.pi)
+    for node in graph.physical_nodes - set(graph.input_node_indices) - set(graph.output_node_indices):
+        print(node, graph.meas_bases[node].plane, graph.meas_bases[node].angle / np.pi)
+    for node in graph.output_node_indices:
+        print(f"{node} (output)", "-", "-")
+
+
 # %%
 print_boundary_lcs(zx_graph)
 
 # %%
 # Initial graph state before simplification
-print("node | plane | angle (/pi)")
-for node in zx_graph.input_node_indices:
-    print(f"{node} (input)", zx_graph.meas_bases[node].plane, zx_graph.meas_bases[node].angle / np.pi)
-for node in zx_graph.physical_nodes - set(zx_graph.input_node_indices) - set(zx_graph.output_node_indices):
-    print(node, zx_graph.meas_bases[node].plane, zx_graph.meas_bases[node].angle / np.pi)
-for node in zx_graph.output_node_indices:
-    print(f"{node} (output)", "-", "-")
+print_meas_bses(zx_graph)
 
 
 # %%
 # Simplify the graph state by full_reduce method
 zx_graph_smp = deepcopy(zx_graph)
-# zx_graph_smp.full_reduce()
-zx_graph_smp.remove_cliffords()
+zx_graph_smp.full_reduce()
 
 # %%
 # Simplified graph state after full_reduce.
 visualize(zx_graph_smp)
-print("node | plane | angle (/pi)")
-for node in zx_graph_smp.input_node_indices:
-    print(f"{node} (input)", zx_graph_smp.meas_bases[node].plane, zx_graph_smp.meas_bases[node].angle / np.pi)
-for node in zx_graph_smp.physical_nodes - set(zx_graph_smp.input_node_indices) - set(zx_graph_smp.output_node_indices):
-    print(node, zx_graph_smp.meas_bases[node].plane, zx_graph_smp.meas_bases[node].angle / np.pi)
-for node in zx_graph_smp.output_node_indices:
-    print(f"{node} (output)", "-", "-")
-
-# %%
-print(zx_graph_smp.input_node_indices, "\n", zx_graph_smp.output_node_indices, "\n", zx_graph_smp.physical_edges)
+print_meas_bses(zx_graph_smp)
 print_boundary_lcs(zx_graph_smp)
 
 # %%
-# Supplementary Note:
+# NOTE:
 # At first glance, the input/output nodes appear to remain unaffected.
 # However, note that a local Clifford operation is actually applied as a result of the action of the full_reduce method.
 
 # If you visualize the graph state after executing the `expand_local_cliffords` method,
-# you will see additional nodes connected to the former input/output nodes,
-# indicating that local Clifford operations on the input/output nodes have been expanded into the graph.
+# you will see additional nodes connected to the former input/output nodes.
 
 
 # %%
 # Let us compare the graph state before and after simplification.
-# First, we simulate the original graph state and get the resulting statevector.
-pattern = qompile(zx_graph, flow)
-sim = PatternSimulator(pattern, backend=SimulatorBackend.StateVector)
-sim.simulate()
-statevec_original = sim.state
-
-# %%
-# Next, we simulate the pattern obtained from the simplified graph state.
+# We simulate the pattern obtained from the simplified graph state.
 # Note that we need to call the `expand_local_cliffords` method before generating the pattern to get the gflow.
 
 zx_graph_smp.expand_local_cliffords()
-zx_graph_smp.to_xy()
-zx_graph_smp.to_xz()
+zx_graph_smp.to_xy()  # to improve gflow search performance
+zx_graph_smp.to_xz()  # to improve gflow search performance
 print("input_node_indices: ", set(zx_graph_smp.input_node_indices))
 print("output_node_indices: ", set(zx_graph_smp.output_node_indices))
 print("local_cliffords: ", zx_graph_smp.local_cliffords)
-print("node | plane | angle (/pi)")
-for node in zx_graph_smp.input_node_indices:
-    print(f"{node} (input)", zx_graph_smp.meas_bases[node].plane, zx_graph_smp.meas_bases[node].angle / np.pi)
 
-for node in zx_graph_smp.physical_nodes - set(zx_graph_smp.input_node_indices) - set(zx_graph_smp.output_node_indices):
-    print(node, zx_graph_smp.meas_bases[node].plane, zx_graph_smp.meas_bases[node].angle / np.pi)
-
-for node in zx_graph_smp.output_node_indices:
-    print(f"{node} (output)", "-", "-")
+print_meas_bses(zx_graph_smp)
 visualize(zx_graph_smp)
 print_boundary_lcs(zx_graph_smp)
-gflow_smp = gflow_wrapper(zx_graph_smp)
 
 # %%
-# Now we can compile the simplified graph state into a measurement pattern and simulate it.
+# Now we can obtain the gflow for the simplified graph state.
+# Then, we compile the simplified graph state into a measurement pattern,
+# simulate it, and get the resulting statevector.
+
+# NOTE:
+# gflow_wrapper does not support graph states with multiple subgraph structures in the gflow search wrapper below.
+# Hence, in case you fail, ensure that the simplified graph state consists of a single connected component.
+# To calculate the graph states with multiple subgraph structures,
+# you need to calculate gflow for each connected component separately.
+gflow_smp = gflow_wrapper(zx_graph_smp)
 pattern_smp = qompile(zx_graph_smp, gflow_smp)
 sim_smp = PatternSimulator(pattern_smp, backend=SimulatorBackend.StateVector)
 sim_smp.simulate()
-print(pattern_smp)
 
 # %%
 statevec_smp = sim_smp.state
@@ -156,6 +149,6 @@ print("norm: ", np.linalg.norm(statevec_original.state()), np.linalg.norm(statev
 print("data shape: ", statevec_original.state().shape, statevec_smp.state().shape)
 psi_org = statevec_original.state()
 psi_smp = statevec_smp.state()
-print("inner product: ", np.sqrt(np.abs(np.vdot(psi_org, psi_smp))))
+print("inner product: ", np.abs(np.vdot(psi_org, psi_smp)))
 
 # %%
