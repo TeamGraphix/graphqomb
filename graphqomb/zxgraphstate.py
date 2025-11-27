@@ -26,7 +26,7 @@ from graphqomb.common import (
 )
 from graphqomb.euler import LocalClifford
 from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
-from graphqomb.graphstate import BaseGraphState, GraphState, bipartite_edges
+from graphqomb.graphstate import BaseGraphState, ExpansionMaps, GraphState, bipartite_edges
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -610,6 +610,19 @@ class ZXGraphState(GraphState):
                 self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, 0.0))
             elif basis.plane == Plane.YZ and is_close_angle(basis.angle, np.pi):
                 self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, np.pi))
+
+    def expand_local_cliffords(self) -> ExpansionMaps:
+        r"""Expand local Clifford operators applied on the input and output nodes.
+
+        Returns
+        -------
+        `ExpansionMaps`
+            A tuple of dictionaries mapping input and output node indices to the new node indices created.
+        """
+        expansion_map = super().expand_local_cliffords()
+        self.to_xy()
+        self.to_xz()
+        return expansion_map
 
     def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
         r"""Call inside convert_to_phase_gadget.

@@ -119,9 +119,9 @@ for node in zx_graph_smp.physical_nodes - set(zx_graph_smp.input_node_indices) -
 
 for node in zx_graph_smp.output_node_indices:
     print(f"{node} (output)", "-", "-")
-gflow_smp = gflow_wrapper(zx_graph_smp)
 visualize(zx_graph_smp)
 print_boundary_lcs(zx_graph_smp)
+gflow_smp = gflow_wrapper(zx_graph_smp)
 
 # %%
 # Now we can compile the simplified graph state into a measurement pattern and simulate it.
@@ -140,14 +140,16 @@ print("norm of simplified statevector:", np.linalg.norm(statevec_smp.state()))
 # %%
 # Finally, we compare the expectation values of random observables before and after simplification.
 rng = np.random.default_rng()
-rand_mat = rng.random((2, 2)) + 1j * rng.random((2, 2))
-rand_mat += rand_mat.T.conj()
-exp = statevec_original.expectation(rand_mat, [2])
-exp_cr = statevec_smp.expectation(rand_mat, [2])
-print("Expectation values for rand_mat\n===============================")
-print("rand_mat: \n", rand_mat)
+for i in range(len(zx_graph.input_node_indices)):
+    rand_mat = rng.random((2, 2)) + 1j * rng.random((2, 2))
+    rand_mat += rand_mat.T.conj()
+    exp = statevec_original.expectation(rand_mat, [i])
+    exp_cr = statevec_smp.expectation(rand_mat, [i])
+    print("Expectation values for rand_mat\n===============================")
+    print("rand_mat: \n", rand_mat)
+    print("Original: \t\t", exp)
+    print("After simplification: \t", exp_cr)
 
-print("Original: ", exp, "\nAfter simplification: ", exp_cr)
 print("norm: ", np.linalg.norm(statevec_original.state()), np.linalg.norm(statevec_smp.state()))
 print("data shape: ", statevec_original.state().shape, statevec_smp.state().shape)
 psi_org = statevec_original.state()

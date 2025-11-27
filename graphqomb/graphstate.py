@@ -566,10 +566,9 @@ class GraphState(BaseGraphState):
             self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
             self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
             meas_basis = self.meas_bases[old_input_node]
-            basis = basis2tuple(meas_basis)
             new_meas_basis = update_lc_basis(lc, meas_basis)
             self.assign_meas_basis(old_input_node, new_meas_basis)
-            self._assure_gflow_input_expansion(old_input_node, basis)
+            self._assure_gflow_input_expansion(old_input_node)
             node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
 
         self.__input_node_indices = {}
@@ -578,7 +577,7 @@ class GraphState(BaseGraphState):
 
         return node_index_addition_map
 
-    def _assure_gflow_input_expansion(self, node: int, basis: tuple[Plane, float]) -> None:
+    def _assure_gflow_input_expansion(self, node: int) -> None:
         r"""Assure gflow existence after input local Clifford expansion.
 
         Parameters
