@@ -2,7 +2,7 @@
 
 This module provides:
 
-- `gflow_wrapper`: Thin adapter around `swiflow.gflow` so that gflow can be computed directly
+- `gflow_wrapper`: Thin adapter around ``swiflow.gflow`` so that gflow can be computed directly
 from a `BaseGraphState` instance.
 - `_EQUIV_MEAS_BASIS_MAP`: A mapping between equivalent measurement bases used to improve gflow finding performance.
 """
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
-    """Utilize `swiflow.gflow` to search gflow.
+    """Utilize ``swiflow.gflow`` to search gflow.
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
 
     Returns
     -------
-    `FlowLike`
+    ``FlowLike``
         gflow object
 
     Raises
@@ -76,6 +76,15 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
     return {node: {child for child in children if child != node} for node, children in gflow_obj.items()}
 
 
+#: Mapping between equivalent measurement bases.
+#:
+#: This map is used to replace a measurement basis by an equivalent one
+#: to improve gflow search performance.
+#:
+#: Key:
+#:   ``(Plane, angle)`` where angle is in radians.
+#: Value:
+#:   :class:`~graphqomb.common.PlannerMeasBasis`.
 _EQUIV_MEAS_BASIS_MAP: dict[tuple[Plane, float], PlannerMeasBasis] = {
     # (XY, 0) <-> (XZ, pi/2)
     (Plane.XY, 0.0): PlannerMeasBasis(Plane.XZ, 0.5 * math.pi),

@@ -8,6 +8,7 @@ ZXGraphState
 
 ZX Graph State
 --------------
+
 .. autoclass:: graphqomb.zxgraphstate.ZXGraphState
    :members:
    :show-inheritance:
