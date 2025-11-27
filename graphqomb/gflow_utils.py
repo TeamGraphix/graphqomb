@@ -8,13 +8,14 @@ from a `BaseGraphState` instance.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import networkx as nx
 from swiflow import gflow
 from swiflow.common import Plane as SfPlane
 
-from graphqomb.common import Plane
+from graphqomb.common import Plane, PlannerMeasBasis
 
 if TYPE_CHECKING:
     from typing import Any
@@ -72,3 +73,25 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
     gflow_obj = gflow_object.f
 
     return {node: {child for child in children if child != node} for node, children in gflow_obj.items()}
+
+
+_EQUIV_MEAS_BASIS_MAP: dict[tuple[Plane, float], PlannerMeasBasis] = {
+    # (XY, 0) <-> (XZ, pi/2)
+    (Plane.XY, 0.0): PlannerMeasBasis(Plane.XZ, 0.5 * math.pi),
+    (Plane.XZ, 0.5 * math.pi): PlannerMeasBasis(Plane.XY, 0.0),
+    # (XY, pi/2) <-> (YZ, pi/2)
+    (Plane.XY, 0.5 * math.pi): PlannerMeasBasis(Plane.YZ, 0.5 * math.pi),
+    (Plane.YZ, 0.5 * math.pi): PlannerMeasBasis(Plane.XY, 0.5 * math.pi),
+    # (XY, -pi/2) == (XY, 3pi/2) <-> (YZ, 3pi/2)
+    (Plane.XY, 1.5 * math.pi): PlannerMeasBasis(Plane.YZ, 1.5 * math.pi),
+    (Plane.YZ, 1.5 * math.pi): PlannerMeasBasis(Plane.XY, 1.5 * math.pi),
+    # (XY, pi) <-> (XZ, -pi/2) == (XZ, 3pi/2)
+    (Plane.XY, math.pi): PlannerMeasBasis(Plane.XZ, 1.5 * math.pi),
+    (Plane.XZ, 1.5 * math.pi): PlannerMeasBasis(Plane.XY, math.pi),
+    # (XZ, 0) <-> (YZ, 0)
+    (Plane.XZ, 0.0): PlannerMeasBasis(Plane.YZ, 0.0),
+    (Plane.YZ, 0.0): PlannerMeasBasis(Plane.XZ, 0.0),
+    # (XZ, pi) <-> (YZ, pi)
+    (Plane.XZ, math.pi): PlannerMeasBasis(Plane.YZ, math.pi),
+    (Plane.YZ, math.pi): PlannerMeasBasis(Plane.XZ, math.pi),
+}
