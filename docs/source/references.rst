@@ -15,6 +15,7 @@ Module reference
     random_objects
     feedforward
     focus_flow
+    gflow_utils
     command
     pattern
     pauli_frame
@@ -22,3 +23,4 @@ Module reference
     scheduler
     stim_compiler
     visualizer
+    zxgraphstate

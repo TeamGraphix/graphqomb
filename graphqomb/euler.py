@@ -290,7 +290,7 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     `PlannerMeasBasis`
         updated `PlannerMeasBasis`
     """
-    matrix = lc.matrix()
+    matrix = lc.matrix().conjugate().T
     vector = basis.vector()
 
     updated_vector = np.asarray(matrix @ vector, dtype=np.complex128)

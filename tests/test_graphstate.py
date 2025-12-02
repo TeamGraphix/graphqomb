@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis
-from graphqomb.euler import LocalClifford
+from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
+from graphqomb.euler import LocalClifford, update_lc_basis
 from graphqomb.graphstate import GraphState, bipartite_edges, odd_neighbors
 
 
@@ -191,6 +191,123 @@ def test_assign_meas_basis(graph: GraphState) -> None:
     graph.assign_meas_basis(node_index, meas_basis)
     assert graph.meas_bases[node_index].plane == Plane.XZ
     assert graph.meas_bases[node_index].angle == 0.5 * np.pi
+
+
+@pytest.mark.parametrize(
+    "gamma",
+    [0, np.pi / 2, np.pi, 3 * np.pi / 2],
+)
+def test_expand_input_local_cliffords_xy_plane(graph: GraphState, gamma: float) -> None:
+    """Test expanding local Clifford operators on an input node with XY measurement plane."""
+    old_input_node = graph.add_physical_node()
+    output_node = graph.add_physical_node()
+    graph.add_physical_edge(old_input_node, output_node)
+    graph.register_input(old_input_node, 0)
+    graph.register_output(output_node, 0)
+    old_input_angle = np.pi / 3
+    graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.XY, old_input_angle))
+
+    alpha = 0.0
+    beta = 0.0
+    lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
+    graph.apply_local_clifford(old_input_node, lc)
+    graph.expand_local_cliffords()
+
+    new_input_node = 2
+    assert graph.input_node_indices == {new_input_node: 0}
+    for node in graph.physical_nodes - set(graph.output_node_indices):
+        assert graph.meas_bases[node].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
+    assert is_close_angle(graph.meas_bases[new_input_node + 1].angle, 0.0)
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, old_input_angle - gamma)
+
+
+@pytest.mark.parametrize(
+    "gamma",
+    [0, np.pi, np.pi / 2, 3 * np.pi / 2],
+)
+def test_expand_input_local_cliffords_yz_plane(graph: GraphState, gamma: float) -> None:
+    """Test expanding local Clifford operators on an input node with YZ measurement plane."""
+    old_input_node = graph.add_physical_node()
+    output_node = graph.add_physical_node()
+    graph.add_physical_edge(old_input_node, output_node)
+    graph.register_input(old_input_node, 0)
+    graph.register_output(output_node, 0)
+    old_input_angle = np.pi / 3
+    graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.YZ, old_input_angle))
+
+    alpha = 0.0
+    beta = 0.0
+    lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
+    graph.apply_local_clifford(old_input_node, lc)
+    graph.expand_local_cliffords()
+
+    exp_angle: float = old_input_angle
+    if is_close_angle(2 * gamma, 0):
+        assert graph.meas_bases[old_input_node].plane == Plane.YZ
+        exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
+    elif is_close_angle(2 * (gamma - np.pi / 2), 0):
+        assert graph.meas_bases[old_input_node].plane == Plane.XZ
+        exp_angle = old_input_angle if is_close_angle(gamma - np.pi / 2, 0) else -old_input_angle
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, exp_angle)
+    new_input_node = 2
+    assert graph.meas_bases[new_input_node].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
+
+
+@pytest.mark.parametrize(
+    "gamma",
+    [0, np.pi / 2, np.pi, 3 * np.pi / 2],
+)
+def test_expand_input_local_cliffords_xz_plane(graph: GraphState, gamma: float) -> None:
+    """Test expanding local Clifford operators on an input node with XZ measurement plane."""
+    old_input_node = graph.add_physical_node()
+    output_node = graph.add_physical_node()
+    graph.add_physical_edge(old_input_node, output_node)
+    graph.register_input(old_input_node, 0)
+    graph.register_output(output_node, 0)
+    old_input_angle = np.pi / 3
+    graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.XZ, old_input_angle))
+
+    alpha = 0.0
+    beta = 0.0
+    lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
+    graph.apply_local_clifford(old_input_node, lc)
+    graph.expand_local_cliffords()
+
+    exp_angle: float = old_input_angle
+    if is_close_angle(2 * gamma, 0):
+        assert graph.meas_bases[old_input_node].plane == Plane.XZ
+        exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
+    elif is_close_angle(2 * (gamma - np.pi / 2), 0):
+        assert graph.meas_bases[old_input_node].plane == Plane.YZ
+        exp_angle = old_input_angle if is_close_angle(gamma + np.pi / 2, 0) else -old_input_angle
+    assert is_close_angle(graph.meas_bases[old_input_node].angle, exp_angle)
+    new_input_node = 2
+    assert graph.meas_bases[new_input_node].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[new_input_node].angle, 0.0)
+
+
+def test_expand_output_local_cliffords(graph: GraphState) -> None:
+    """Test expanding local Clifford operators on an output node."""
+    input_node = graph.add_physical_node()
+    old_output_node = graph.add_physical_node()
+    graph.add_physical_edge(input_node, old_output_node)
+    graph.register_input(input_node, 0)
+    graph.register_output(old_output_node, 0)
+    graph.assign_meas_basis(input_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    lc = LocalClifford(alpha=np.pi / 2, beta=np.pi, gamma=3 * np.pi / 2)
+    graph.apply_local_clifford(old_output_node, lc)
+    graph.expand_local_cliffords()
+
+    new_output_node = 5
+    assert graph.output_node_indices == {new_output_node: 0}
+    assert graph.meas_bases[old_output_node + 1].plane == Plane.XY
+    assert is_close_angle(graph.meas_bases[old_output_node + 1].angle, 0.0)
+    meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
+    assert graph.meas_bases[old_output_node].plane == meas_basis.plane
+    assert is_close_angle(graph.meas_bases[old_output_node].angle, meas_basis.angle)
 
 
 def test_check_canonical_form_true(canonical_graph: GraphState) -> None:

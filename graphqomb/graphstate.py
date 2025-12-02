@@ -24,13 +24,12 @@ from collections.abc import Set as AbstractSet
 from types import MappingProxyType
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
+import numpy as np
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
-from graphqomb.euler import update_lc_basis, update_lc_lc
-
-if TYPE_CHECKING:
-    from graphqomb.euler import LocalClifford
+from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, basis2tuple, is_close_angle, round_clifford_angle
+from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
+from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
 
 NodeT = TypeVar("NodeT", bound=Hashable)
 
@@ -482,7 +481,7 @@ class GraphState(BaseGraphState):
                 self.__local_cliffords[node] = lc
         else:
             self._check_meas_basis()
-            new_meas_basis = update_lc_basis(lc.conjugate(), self.meas_bases[node])
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
             self.assign_meas_basis(node, new_meas_basis)
 
     @typing_extensions.override
@@ -560,34 +559,57 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices: dict[int, int] = {}
-        for input_node, q_index in self.input_node_indices.items():
-            lc = self._pop_local_clifford(input_node)
+        for old_input_node, q_index in self.input_node_indices.items():
+            lc = self._pop_local_clifford(old_input_node)
             if lc is None:
-                new_input_indices[input_node] = q_index
-                continue
+                lc = LocalClifford(0.0, 0.0, 0.0)
 
-            new_node_index0 = self.add_physical_node()
-            new_input_indices[new_node_index0] = q_index
-            new_node_index1 = self.add_physical_node()
-            new_node_index2 = self.add_physical_node()
+            new_input = self.add_physical_node()
+            new_node = self.add_physical_node()
+            new_input_indices[new_input] = q_index
 
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, new_node_index2)
-            self.add_physical_edge(new_node_index2, input_node)
+            self.add_physical_edge(new_input, new_node)
+            self.add_physical_edge(new_node, old_input_node)
 
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
-            self.assign_meas_basis(new_node_index2, PlannerMeasBasis(Plane.XY, lc.gamma))
-
-            node_index_addition_map[input_node] = LocalCliffordExpansion(
-                new_node_index0, new_node_index1, new_node_index2
-            )
+            self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = self.meas_bases[old_input_node]
+            new_meas_basis = update_lc_basis(lc, meas_basis)
+            self.assign_meas_basis(old_input_node, new_meas_basis)
+            self._assure_gflow_input_expansion(old_input_node)
+            node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
 
         self.__input_node_indices = {}
         for new_input_index, q_index in new_input_indices.items():
             self.register_input(new_input_index, q_index)
 
         return node_index_addition_map
+
+    def _assure_gflow_input_expansion(self, node: int) -> None:
+        r"""Assure gflow existence after input local Clifford expansion.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        """
+        cur = self.meas_bases[node]
+        rounded = round_clifford_angle(cur.angle)
+        self.assign_meas_basis(node, PlannerMeasBasis(cur.plane, rounded))
+
+        cur = self.meas_bases[node]
+        cur_key = basis2tuple(cur)
+
+        # if the updated basis is self-inclusion type, push it to an XY-equivalent one.
+        if (cur.plane in {Plane.XZ, Plane.YZ} and is_close_angle(cur.angle, 0.0)) or (
+            is_close_angle(cur.angle, np.pi) and cur_key in _EQUIV_MEAS_BASIS_MAP
+        ):
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
+
+        # ensure XY if possible.
+        cur = self.meas_bases[node]
+        if cur.plane != Plane.XY and cur_key in _EQUIV_MEAS_BASIS_MAP:
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
 
     def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
         r"""Expand local Clifford operators applied on the output nodes.
@@ -598,33 +620,28 @@ class GraphState(BaseGraphState):
             A dictionary mapping output node indices to the new node indices created.
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_output_index_map: dict[int, int] = {}
-        for output_node, q_index in self.output_node_indices.items():
-            lc = self._pop_local_clifford(output_node)
+        new_output_node_index_map: dict[int, int] = {}
+        for old_output_node, q_index in self.output_node_indices.items():
+            lc = self._pop_local_clifford(old_output_node)
             if lc is None:
-                new_output_index_map[output_node] = q_index
+                new_output_node_index_map[old_output_node] = q_index
                 continue
 
-            new_node_index0 = self.add_physical_node()
-            new_node_index1 = self.add_physical_node()
-            new_node_index2 = self.add_physical_node()
-            new_output_index_map[new_node_index2] = q_index
+            new_node = self.add_physical_node()
+            new_output_node = self.add_physical_node()
+            new_output_node_index_map[new_output_node] = q_index
 
-            self.add_physical_edge(output_node, new_node_index0)
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, new_node_index2)
+            self.__output_node_indices.pop(old_output_node)
+            self.register_output(new_output_node, q_index)
 
-            self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, lc.alpha))
-            self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
-            self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.gamma))
+            self.add_physical_edge(old_output_node, new_node)
+            self.add_physical_edge(new_node, new_output_node)
 
-            node_index_addition_map[output_node] = LocalCliffordExpansion(
-                new_node_index0, new_node_index1, new_node_index2
-            )
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(old_output_node, meas_basis)
 
-        self.__output_node_indices = {}
-        for new_output_index, q_index in new_output_index_map.items():
-            self.register_output(new_output_index, q_index)
+            node_index_addition_map[old_output_node] = LocalCliffordExpansion(new_node, new_output_node)
 
         return node_index_addition_map
 
@@ -802,11 +819,10 @@ class GraphState(BaseGraphState):
 
 
 class LocalCliffordExpansion(NamedTuple):
-    """Local Clifford expansion map for each input/output node."""
+    """Local Clifford expansion map."""
 
     node1: int
     node2: int
-    node3: int
 
 
 class ExpansionMaps(NamedTuple):
