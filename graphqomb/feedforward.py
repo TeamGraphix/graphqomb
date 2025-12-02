@@ -19,7 +19,7 @@ from typing import Any
 
 import typing_extensions
 
-from graphqomb.common import Plane
+from graphqomb.common import Plane, determine_pauli_axis, Axis
 from graphqomb.graphstate import BaseGraphState, odd_neighbors
 
 if sys.version_info >= (3, 10):
@@ -275,5 +275,59 @@ def propagate_correction_map(  # noqa: C901, PLR0912
     for child_z in zflow.get(target_node, set()):
         for parent in target_parents:
             new_zflow[parent] ^= {child_z}
+
+    return new_xflow, new_zflow
+
+
+def pauli_simplification(  # noqa: C901
+    graph: BaseGraphState,
+    xflow: Mapping[int, AbstractSet[int]],
+    zflow: Mapping[int, AbstractSet[int]] | None = None,
+) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+    r"""Simplify the correction maps by removing redundant Pauli corrections.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        Underlying graph state.
+    xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+        Correction map for X.
+    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+        Correction map for Z. If `None`, it is generated from xflow by odd neighbors.
+
+    Returns
+    -------
+    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
+        Updated correction maps for X and Z after simplification.
+    """
+    if zflow is None:
+        zflow = {node: odd_neighbors(xflow[node], graph) - {node} for node in xflow}
+
+    new_xflow = {k: set(vs) for k, vs in xflow.items()}
+    new_zflow = {k: set(vs) for k, vs in zflow.items()}
+
+    inv_xflow: dict[int, set[int]] = {}
+    inv_zflow: dict[int, set[int]] = {}
+    for k, vs in xflow.items():
+        for v in vs:
+            inv_xflow.setdefault(v, set()).add(k)
+    for k, vs in zflow.items():
+        for v in vs:
+            inv_zflow.setdefault(v, set()).add(k)
+
+    for node in graph.physical_nodes - graph.output_node_indices.keys():
+        meas_basis = graph.meas_bases.get(node)
+        meas_axis = determine_pauli_axis(meas_basis)
+
+        if meas_axis == Axis.X:
+            for parent in inv_xflow.get(node, set()):
+                new_xflow[parent] -= {node}
+        elif meas_axis == Axis.Z:
+            for parent in inv_zflow.get(node, set()):
+                new_zflow[parent] -= {node}
+        elif meas_axis == Axis.Y:
+            for parent in inv_xflow.get(node, set()) & inv_zflow.get(node, set()):
+                new_xflow[parent] -= {node}
+                new_zflow[parent] -= {node}
 
     return new_xflow, new_zflow
