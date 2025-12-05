@@ -3,8 +3,9 @@
 This module provides:
 
 - `ZXGraphState`: Graph State for the ZX-calculus.
-- `to_zx_graphstate`: Convert input GraphState to ZXGraphState.
 - `complete_graph_edges`: Return a set of edges for the complete graph on the given nodes.
+- `LocalCliffordExpansion`: Local Clifford expansion.
+- `ExpansionMaps`: Expansion maps for local clifford operators.
 """
 
 from __future__ import annotations
@@ -12,9 +13,10 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from itertools import combinations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
+import typing_extensions
 
 from graphqomb.common import (
     Plane,
@@ -24,7 +26,7 @@ from graphqomb.common import (
     is_close_angle,
     round_clifford_angle,
 )
-from graphqomb.euler import LocalClifford
+from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
 from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
 from graphqomb.graphstate import BaseGraphState, GraphState, bipartite_edges
 
@@ -61,8 +63,127 @@ class ZXGraphState(GraphState):
         local clifford operators
     """
 
+    __local_cliffords: dict[int, LocalClifford]
+
     def __init__(self) -> None:
         super().__init__()
+        self.__local_cliffords = {}
+
+    @property
+    def local_cliffords(self) -> dict[int, LocalClifford]:
+        r"""Return local clifford nodes.
+
+        Returns
+        -------
+        `dict`\[`int`, `LocalClifford`\]
+            local clifford nodes.
+        """
+        return self.__local_cliffords.copy()
+
+    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+        """Apply a local clifford to the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        lc : `LocalClifford`
+            local clifford operator
+        """
+        self._ensure_node_exists(node)
+        if node in self.input_node_indices or node in self.output_node_indices:
+            original_lc = self._pop_local_clifford(node)
+            if original_lc is not None:
+                new_lc = update_lc_lc(lc, original_lc)
+                self.__local_cliffords[node] = new_lc
+            else:
+                self.__local_cliffords[node] = lc
+        else:
+            self._check_meas_basis()
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            self.assign_meas_basis(node, new_meas_basis)
+
+    def remove_physical_node(self, node: int) -> None:
+        """Remove a physical node from the zxgraph state.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        """
+        super().remove_physical_node(node)
+        self.__local_cliffords.pop(node, None)
+
+    @typing_extensions.override
+    def check_canonical_form(self) -> None:
+        r"""Check if the graph state is in canonical form.
+
+        The definition of canonical form is:
+        1. No Clifford operators applied.
+        2. All non-output nodes have measurement basis
+
+        Raises
+        ------
+        ValueError
+            If the graph state is not in canonical form.
+        """
+        if self.__local_cliffords:
+            msg = "Clifford operators are applied."
+            raise ValueError(msg)
+        super().check_canonical_form()
+
+    def _pop_local_clifford(self, node: int) -> LocalClifford | None:
+        """Pop local clifford of the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index to remove local clifford.
+
+        Returns
+        -------
+        `LocalClifford` | `None`
+            removed local clifford
+        """
+        return self.__local_cliffords.pop(node, None)
+
+    @classmethod
+    def from_base_graph_state(
+        cls,
+        base: BaseGraphState,
+        copy_local_cliffords: bool = True,
+    ) -> tuple[ZXGraphState, dict[int, int]]:
+        r"""Create a new ZXGraphState from an existing BaseGraphState instance.
+
+        This method creates a complete copy of the graph structure, including nodes,
+        edges, input/output registrations, and measurement bases. Useful for creating
+        mutable copies or converting between ZXGraphState implementations.
+
+        Parameters
+        ----------
+        base : `BaseGraphState`
+            The source graph state to copy from.
+        copy_local_cliffords : `bool`, optional
+            Whether to copy local Clifford operators if the source is a ZXGraphState.
+            If True and the source has local Cliffords, they are copied.
+            If False, local Cliffords are not copied (canonical form only).
+            Default is True.
+
+        Returns
+        -------
+        `tuple`\[`ZXGraphState`, `dict`\[`int`, `int`\]\]
+            - Created ZXGraphState instance
+            - Mapping from source node indices to new node indices
+        """
+        zxgraph_state, node_map = super().from_base_graph_state(base)
+
+        # Copy local Clifford operators if requested and source is ZXGraphState
+        if copy_local_cliffords and isinstance(base, ZXGraphState):
+            for node, lc in base.local_cliffords.items():
+                # Access private attribute to copy local cliffords
+                zxgraph_state.apply_local_clifford(node_map[node], lc)
+
+        return zxgraph_state, node_map
 
     @property
     def _clifford_rules(self) -> tuple[CliffordRule, ...]:
@@ -730,58 +851,113 @@ class ZXGraphState(GraphState):
             ):
                 break
 
+    def expand_local_cliffords(self) -> ExpansionMaps:
+        r"""Expand local Clifford operators applied on the input and output nodes.
 
-def to_zx_graphstate(graph: BaseGraphState) -> tuple[ZXGraphState, dict[int, int]]:
-    r"""Convert input graph to ZXGraphState.
+        Returns
+        -------
+        `ExpansionMaps`
+            A tuple of dictionaries mapping input and output node indices to the new node indices created.
+        """
+        input_node_map = self._expand_input_local_cliffords()
+        output_node_map = self._expand_output_local_cliffords()
+        return ExpansionMaps(input_node_map, output_node_map)
 
-    Parameters
-    ----------
-    graph : `BaseGraphState`
-        The graph state to convert.
+    def _expand_input_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
+        r"""Expand local Clifford operators applied on the input nodes.
 
-    Returns
-    -------
-    `tuple`\[`ZXGraphState`, `dict`\[`int`, `int`\]\]
-        Converted ZXGraphState and node map for old node index to new node index.
+        Returns
+        -------
+        `dict`\[`int`, `LocalCliffordExpansion`\]
+            A dictionary mapping input node indices to the new node indices created.
+        """
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
+        new_input_indices: dict[int, int] = {}
+        for old_input_node, q_index in self.input_node_indices.items():
+            lc = self._pop_local_clifford(old_input_node)
+            if lc is None:
+                lc = LocalClifford(0.0, 0.0, 0.0)
 
-    Raises
-    ------
-    TypeError
-        If the input graph is not an instance of GraphState.
-    """
-    graph.check_canonical_form()
-    if not isinstance(graph, GraphState):
-        msg = "The input graph must be an instance of GraphState."
-        raise TypeError(msg)
+            new_input = self.add_physical_node()
+            new_node = self.add_physical_node()
+            new_input_indices[new_input] = q_index
 
-    node_map: dict[int, int] = {}
-    zx_graph = ZXGraphState()
+            self.add_physical_edge(new_input, new_node)
+            self.add_physical_edge(new_node, old_input_node)
 
-    # Copy all physical nodes and measurement bases
-    for node in graph.physical_nodes:
-        node_index = zx_graph.add_physical_node()
-        node_map[node] = node_index
-        meas_basis = graph.meas_bases.get(node, None)
-        if meas_basis is not None:
-            zx_graph.assign_meas_basis(node_index, meas_basis)
+            self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = self.meas_bases[old_input_node]
+            new_meas_basis = update_lc_basis(lc, meas_basis)
+            self.assign_meas_basis(old_input_node, new_meas_basis)
+            self._assure_gflow_input_expansion(old_input_node)
+            node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
 
-    # Register input nodes
-    for node, q_index in graph.input_node_indices.items():
-        zx_graph.register_input(node_map[node], q_index)
+        self._input_node_indices = {}
+        for new_input_index, q_index in new_input_indices.items():
+            self.register_input(new_input_index, q_index)
 
-    # Register output nodes
-    for node, q_index in graph.output_node_indices.items():
-        zx_graph.register_output(node_map[node], q_index)
+        return node_index_addition_map
 
-    # Copy all physical edges
-    for u, v in graph.physical_edges:
-        zx_graph.add_physical_edge(node_map[u], node_map[v])
+    def _assure_gflow_input_expansion(self, node: int) -> None:
+        r"""Assure gflow existence after input local Clifford expansion.
 
-    # Copy local Clifford operators
-    for node, lc in graph.local_cliffords.items():
-        zx_graph.apply_local_clifford(node_map[node], lc)
+        Parameters
+        ----------
+        node : `int`
+            node index
+        """
+        cur = self.meas_bases[node]
+        rounded = round_clifford_angle(cur.angle)
+        self.assign_meas_basis(node, PlannerMeasBasis(cur.plane, rounded))
 
-    return zx_graph, node_map
+        cur = self.meas_bases[node]
+        cur_key = basis2tuple(cur)
+
+        # if the updated basis is self-inclusion type, push it to an XY-equivalent one.
+        if (cur.plane in {Plane.XZ, Plane.YZ} and is_close_angle(cur.angle, 0.0)) or (
+            is_close_angle(cur.angle, np.pi) and cur_key in _EQUIV_MEAS_BASIS_MAP
+        ):
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
+
+        # ensure XY if possible.
+        cur = self.meas_bases[node]
+        if cur.plane != Plane.XY and cur_key in _EQUIV_MEAS_BASIS_MAP:
+            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
+
+    def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
+        r"""Expand local Clifford operators applied on the output nodes.
+
+        Returns
+        -------
+        `dict`\[`int`, `LocalCliffordExpansion`\]
+            A dictionary mapping output node indices to the new node indices created.
+        """
+        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
+        new_output_node_index_map: dict[int, int] = {}
+        for old_output_node, q_index in self.output_node_indices.items():
+            lc = self._pop_local_clifford(old_output_node)
+            if lc is None:
+                new_output_node_index_map[old_output_node] = q_index
+                continue
+
+            new_node = self.add_physical_node()
+            new_output_node = self.add_physical_node()
+            new_output_node_index_map[new_output_node] = q_index
+
+            self._output_node_indices.pop(old_output_node)
+            self.register_output(new_output_node, q_index)
+
+            self.add_physical_edge(old_output_node, new_node)
+            self.add_physical_edge(new_node, new_output_node)
+
+            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
+            meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
+            self.assign_meas_basis(old_output_node, meas_basis)
+
+            node_index_addition_map[old_output_node] = LocalCliffordExpansion(new_node, new_output_node)
+
+        return node_index_addition_map
 
 
 def complete_graph_edges(nodes: Iterable[int]) -> set[tuple[int, int]]:
@@ -798,3 +974,17 @@ def complete_graph_edges(nodes: Iterable[int]) -> set[tuple[int, int]]:
         edges of the complete graph
     """
     return {(min(u, v), max(u, v)) for u, v in combinations(nodes, 2)}
+
+
+class LocalCliffordExpansion(NamedTuple):
+    """Local Clifford expansion map."""
+
+    node1: int
+    node2: int
+
+
+class ExpansionMaps(NamedTuple):
+    """Expansion maps for inputs and outputs with Local Clifford."""
+
+    input_node_map: dict[int, LocalCliffordExpansion]
+    output_node_map: dict[int, LocalCliffordExpansion]
