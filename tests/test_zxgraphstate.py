@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+
 from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
 from graphqomb.euler import LocalClifford, update_lc_basis
 from graphqomb.gflow_utils import gflow_wrapper
