@@ -23,14 +23,14 @@ from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.visualizer import visualize
-from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
+from graphqomb.zxgraphstate import ZXGraphState
 
 FlowLike = dict[int, set[int]]
 
 # %%
 # Prepare an initial random graph state with flow
 graph, flow = generate_random_flow_graph(width=3, depth=4, edge_p=0.5)
-zx_graph, _ = to_zx_graphstate(graph)
+zx_graph, _ = ZXGraphState.from_base_graph_state(graph)
 visualize(zx_graph)
 
 # %%
