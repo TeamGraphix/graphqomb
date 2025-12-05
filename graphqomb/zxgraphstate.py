@@ -59,8 +59,6 @@ class ZXGraphState(GraphState):
         measurement bases
     q_indices : `dict`\[`int`, `int`\]
         qubit indices
-    local_cliffords : `dict`\[`int`, `LocalClifford`\]
-        local clifford operators
     """
 
     __local_cliffords: dict[int, LocalClifford]
