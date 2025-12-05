@@ -2,4 +2,5 @@ numpy>=1.22,<3
 matplotlib
 networkx
 ortools>=9,<10
+swiflow
 typing_extensions

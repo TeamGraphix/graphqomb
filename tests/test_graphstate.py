@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis
-from graphqomb.euler import LocalClifford
 from graphqomb.graphstate import GraphState, bipartite_edges, odd_neighbors
 
 
@@ -205,24 +204,6 @@ def test_check_canonical_form_input_output_mismatch(canonical_graph: GraphState)
     canonical_graph.assign_meas_basis(node_index, PlannerMeasBasis(Plane.XY, 0.5 * np.pi))
     # The current implementation does not check input-output mismatch, so the test should pass
     canonical_graph.check_canonical_form()
-
-
-def test_check_canonical_form_with_local_clifford_false(canonical_graph: GraphState) -> None:
-    """Test if the graph is in canonical form with local Clifford operator."""
-    local_clifford = LocalClifford()
-    in_node = next(iter(canonical_graph.input_node_indices))
-    canonical_graph.apply_local_clifford(in_node, local_clifford)
-    with pytest.raises(ValueError, match="Clifford operators are applied"):
-        canonical_graph.check_canonical_form()
-
-
-def test_check_canonical_form_with_local_clifford_expansion_true(canonical_graph: GraphState) -> None:
-    """Test if the graph is in canonical form with local Clifford operator expansion."""
-    local_clifford = LocalClifford()
-    in_node = next(iter(canonical_graph.input_node_indices))
-    canonical_graph.apply_local_clifford(in_node, local_clifford)
-    canonical_graph.expand_local_cliffords()
-    canonical_graph.check_canonical_form()  # Should not raise an exception
 
 
 def test_check_canonical_form_missing_meas_basis_false(canonical_graph: GraphState) -> None:

@@ -11,10 +11,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from graphqomb.circuit import MBQCCircuit
 from graphqomb.common import default_meas_basis
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.random import Generator
 
 
@@ -80,3 +83,48 @@ def generate_random_flow_graph(
         flow[node_index - width] = {node_index}
 
     return graph, flow
+
+
+def random_circ(
+    width: int,
+    depth: int,
+    rng: np.random.Generator | None = None,
+    edge_p: float = 0.5,
+    angle_candidates: Sequence[float] = (0.0, np.pi / 3, 2 * np.pi / 3, np.pi),
+) -> MBQCCircuit:
+    r"""Generate a random MBQC circuit.
+
+    Parameters
+    ----------
+    width : `int`
+        circuit width
+    depth : `int`
+        circuit depth
+    rng : `numpy.random.Generator`, optional
+        random number generator, by default numpy.random.default_rng()
+    edge_p : `float`, optional
+        probability of adding CZ gate, by default 0.5
+    angle_candidates : `collections.abc.Sequence[float]`, optional
+        sequence of angles, by default (0, np.pi / 3, 2 * np.pi / 3, np.pi)
+
+    Returns
+    -------
+    `MBQCCircuit`
+        generated MBQC circuit
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+    circ = MBQCCircuit(width)
+    for d in range(depth):
+        for j in range(width):
+            circ.j(j, rng.choice(angle_candidates))
+        if d < depth - 1:
+            for j in range(width):
+                if rng.random() < edge_p:
+                    circ.cz(j, (j + 1) % width)
+            num = rng.integers(0, width)
+            if num > 0:
+                target = sorted(set(rng.choice(range(width), num)))
+                circ.phase_gadget(target, rng.choice(angle_candidates))
+
+    return circ
