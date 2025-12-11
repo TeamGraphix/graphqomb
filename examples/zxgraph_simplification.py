@@ -25,8 +25,6 @@ from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.visualizer import visualize
 from graphqomb.zxgraphstate import ZXGraphState
 
-FlowLike = dict[int, set[int]]
-
 # %%
 # Prepare an initial random graph state with flow
 graph, flow = generate_random_flow_graph(width=3, depth=4, edge_p=0.5)

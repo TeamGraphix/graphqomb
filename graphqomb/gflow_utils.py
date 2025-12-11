@@ -25,10 +25,8 @@ if TYPE_CHECKING:
 
     from graphqomb.graphstate import BaseGraphState
 
-    FlowLike = dict[int, set[int]]
 
-
-def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
+def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
     """Utilize ``swiflow.gflow`` to search gflow.
 
     Parameters
@@ -38,7 +36,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> FlowLike:
 
     Returns
     -------
-    ``FlowLike``
+    ``dict[int, set[int]]``
         gflow object
 
     Raises
