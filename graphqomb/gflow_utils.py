@@ -19,8 +19,6 @@ from swiflow.common import Plane as SfPlane
 from graphqomb.common import Plane, PlannerMeasBasis
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from networkx import Graph as NxGraph
 
     from graphqomb.graphstate import BaseGraphState
@@ -48,7 +46,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
     -----
     This wrapper does not support graph states with multiple subgraph structures.
     """
-    graph: NxGraph[Any] = nx.Graph()
+    graph: NxGraph[int] = nx.Graph()
     graph.add_nodes_from(graphstate.physical_nodes)
     graph.add_edges_from(graphstate.physical_edges)
 
