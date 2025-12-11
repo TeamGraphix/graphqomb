@@ -176,10 +176,10 @@ class ZXGraphState(GraphState):
         zxgraph_state, node_map = super().from_base_graph_state(base)
 
         # Copy local Clifford operators if requested and source is ZXGraphState
-        if copy_local_cliffords and isinstance(base, ZXGraphState):
-            for node, lc in base.local_cliffords.items():
-                # Access private attribute to copy local cliffords
-                zxgraph_state.apply_local_clifford(node_map[node], lc)
+        if not copy_local_cliffords or not isinstance(base, ZXGraphState) or not hasattr(base, "local_cliffords"):
+            return zxgraph_state, node_map
+        for node, lc in base.local_cliffords.items():
+            zxgraph_state.apply_local_clifford(node_map[node], lc)
 
         return zxgraph_state, node_map
 
