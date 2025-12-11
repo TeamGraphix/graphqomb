@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import networkx as nx
 from swiflow import gflow
 from swiflow.common import Plane as SfPlane
+from typing_extensions import assert_never
 
 from graphqomb.common import Plane, PlannerMeasBasis
 
@@ -61,8 +62,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
         elif plane == Plane.XZ:
             swiflow_planes[node] = SfPlane.XZ
         else:
-            msg = f"No match {plane}"
-            raise ValueError(msg)
+            assert_never(plane)
 
     gflow_object = gflow.find(
         graph, set(graphstate.input_node_indices), set(graphstate.output_node_indices), swiflow_planes
