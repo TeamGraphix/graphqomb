@@ -459,8 +459,7 @@ class GraphState(BaseGraphState):
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. No Clifford operators applied (here, always true)
-        2. All non-output nodes have measurement basis
+            All non-output nodes have measurement basis
 
         Raises
         ------
