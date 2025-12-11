@@ -65,7 +65,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
             assert_never(plane)
 
     gflow_object = gflow.find(
-        graph, set(graphstate.input_node_indices), set(graphstate.output_node_indices), swiflow_planes
+        graph, graphstate.input_node_indices.keys(), graphstate.output_node_indices.keys(), swiflow_planes
     )
     if gflow_object is None:
         msg = "No flow found"
