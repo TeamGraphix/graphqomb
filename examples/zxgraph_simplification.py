@@ -83,14 +83,6 @@ visualize(zx_graph_smp)
 print_meas_bses(zx_graph_smp)
 print_boundary_lcs(zx_graph_smp)
 
-# %%
-# NOTE:
-# At first glance, the input/output nodes appear to remain unaffected.
-# However, note that a local Clifford operation is actually applied as a result of the action of the full_reduce method.
-
-# If you visualize the graph state after executing the `expand_local_cliffords` method,
-# you will see additional nodes connected to the former input/output nodes.
-
 
 # %%
 # Let us compare the graph state before and after simplification.
