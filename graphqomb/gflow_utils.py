@@ -71,9 +71,7 @@ def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
         msg = "No flow found"
         raise ValueError(msg)
 
-    gflow_obj = gflow_object.f
-
-    return {node: {child for child in children if child != node} for node, children in gflow_obj.items()}
+    return gflow_object.f
 
 
 #: Mapping between equivalent measurement bases.
