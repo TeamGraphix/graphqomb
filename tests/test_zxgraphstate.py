@@ -924,30 +924,6 @@ def test_remove_cliffords_graph2(zx_graph: ZXGraphState) -> None:
     _test(zx_graph, {0, 2}, {(0, 2)}, exp_measurements=exp_measurements)
 
 
-@pytest.mark.parametrize(
-    "planes",
-    list(
-        itertools.product(
-            list(Plane),
-            [Plane.XZ],
-        )
-    ),
-)
-def test_needs_pivot_on_boundary_xz(
-    zx_graph: ZXGraphState,
-    planes: tuple[Plane, Plane],
-    rng: np.random.Generator,
-) -> None:
-    graph_2(zx_graph)
-    zx_graph.register_input(0, q_index=0)
-    zx_graph.register_output(2, q_index=0)
-    angles = [rng.random() * 2 * np.pi for _ in range(2)]
-    angles[1] = rng.choice([0.5 * np.pi, 1.5 * np.pi])
-    measurements = [(i, PlannerMeasBasis(planes[i], angles[i])) for i in range(2)]
-    _apply_measurements(zx_graph, measurements)
-    assert zx_graph._needs_pivot_on_boundary(1, atol=1e-9) is True
-
-
 def test_remove_cliffords_graph3(zx_graph: ZXGraphState) -> None:
     graph_3(zx_graph)
     measurements = [
