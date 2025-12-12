@@ -21,13 +21,10 @@ import typing_extensions
 from graphqomb.common import (
     Plane,
     PlannerMeasBasis,
-    basis2tuple,
     is_clifford_angle,
     is_close_angle,
-    round_clifford_angle,
 )
 from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
-from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
 from graphqomb.graphstate import BaseGraphState, GraphState, bipartite_edges
 
 if sys.version_info >= (3, 10):
@@ -78,7 +75,7 @@ class ZXGraphState(GraphState):
         """
         return self.__local_cliffords.copy()
 
-    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
+    def apply_local_clifford(self, node: int, lc: LocalClifford, expected_plane: Plane | None = None) -> None:
         """Apply a local clifford to the node.
 
         Parameters
@@ -87,6 +84,8 @@ class ZXGraphState(GraphState):
             node index
         lc : `LocalClifford`
             local clifford operator
+        expected_plane : `Plane` | `None`, optional
+            expected measurement plane to preserve gflow existence, by default None
         """
         self._ensure_node_exists(node)
         if node in self.input_node_indices or node in self.output_node_indices:
@@ -98,7 +97,7 @@ class ZXGraphState(GraphState):
                 self.__local_cliffords[node] = lc
         else:
             self._check_meas_basis()
-            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
+            new_meas_basis = update_lc_basis(lc, self.meas_bases[node], expected_plane=expected_plane)
             self.assign_meas_basis(node, new_meas_basis)
 
     def remove_physical_node(self, node: int) -> None:
@@ -201,38 +200,13 @@ class ZXGraphState(GraphState):
             (self._is_trivial_meas, lambda _: None),
             (
                 self._needs_pivot,
-                lambda node: self.pivot(node, min(self.neighbors(node) - set(self.input_node_indices))),
+                lambda node: self.pivot(
+                    node,
+                    min(self.neighbors(node) - set(self.input_node_indices) - set(self.output_node_indices)),
+                ),
             ),
             (self._needs_pivot_on_boundary, self.pivot_on_boundary),
         )
-
-    def _assure_gflow(self, node: int, plane_map: dict[Plane, Plane], old_basis: tuple[Plane, float]) -> None:
-        r"""Transform the measurement basis after applying operation to assure gflow existence.
-
-        This method is used to assure gflow existence
-        after the Clifford angle measurement basis is transformed by LocalClifford.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        plane_map : `dict`\[`Plane`, `Plane`\]
-            mapping of planes
-        old_basis : `tuple[Plane, float]`
-            basis before applying the operation (such as local complement, pivot etc.)
-        """
-        # Round first
-        cur = self.meas_bases[node]
-        rounded = round_clifford_angle(cur.angle)
-        self.assign_meas_basis(node, PlannerMeasBasis(cur.plane, rounded))
-
-        # Re-read after rounding
-        cur = self.meas_bases[node]
-        cur_key = basis2tuple(cur)
-
-        # Convert to an equivalent basis if plane mismatch
-        if plane_map[old_basis[0]] != cur.plane:
-            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
 
     def _update_connections(
         self, rmv_edges: AbstractSet[tuple[int, int]], new_edges: AbstractSet[tuple[int, int]]
@@ -290,29 +264,34 @@ class ZXGraphState(GraphState):
 
         self._update_connections(rmv_edges, new_edges)
 
-        # apply local clifford to node and assure gflow existence
+        # apply local clifford to node
         lc = LocalClifford(0, np.pi / 2, 0)
         old_meas_basis = self.meas_bases.get(node, None)
         if old_meas_basis is None:
             self.apply_local_clifford(node, lc)
         else:
-            old_basis = basis2tuple(old_meas_basis)
-            self.apply_local_clifford(node, lc)
-            plane_map: dict[Plane, Plane] = {Plane.XY: Plane.XZ, Plane.XZ: Plane.XY, Plane.YZ: Plane.YZ}
-            self._assure_gflow(node, plane_map, old_basis)
+            # assure gflow existence
+            plane_map: dict[Plane, Plane] = {
+                Plane.XY: Plane.XZ,
+                Plane.XZ: Plane.XY,
+                Plane.YZ: Plane.YZ,
+            }
+            self.apply_local_clifford(node, lc, expected_plane=plane_map[old_meas_basis.plane])
 
-        # apply local clifford to neighbors and assure gflow existence
+        # apply local clifford to neighbors
         lc = LocalClifford(-np.pi / 2, 0, 0)
-        plane_map = {Plane.XY: Plane.XY, Plane.XZ: Plane.YZ, Plane.YZ: Plane.XZ}
+        plane_map = {
+            Plane.XY: Plane.XY,
+            Plane.XZ: Plane.YZ,
+            Plane.YZ: Plane.XZ,
+        }
         for v in nbrs:
             old_meas_basis = self.meas_bases.get(v, None)
             if old_meas_basis is None:
                 self.apply_local_clifford(v, lc)
                 continue
 
-            self.apply_local_clifford(v, lc)
-            old_basis = basis2tuple(old_meas_basis)
-            self._assure_gflow(v, plane_map, old_basis)
+            self.apply_local_clifford(v, lc, expected_plane=plane_map[old_meas_basis.plane])
 
     def _pivot(self, node1: int, node2: int) -> None:
         """Pivot edges around nodes u and v in the graph state.
@@ -367,13 +346,16 @@ class ZXGraphState(GraphState):
 
         Notes
         -----
-        Here we adopt the definition (lemma) of pivot from [1].
+        Here we adopt the definition (lemma) of pivot from [1]:
+            Rz(pi/2) Rx(pi/2) Rz(pi/2) on the target nodes,
+            Rz(pi) on the common neighbors of both target nodes.
+
         In some literature, pivot is defined as below::
 
             Rz(pi/2) Rx(-pi/2) Rz(pi/2) on the target nodes,
             Rz(pi) on all the neighbors of both target nodes (not including the target nodes).
 
-        This definition is strictly equivalent to the one adopted here.
+        These definitions are equivalent.
 
         References
         ----------
@@ -385,10 +367,15 @@ class ZXGraphState(GraphState):
             msg = "Cannot apply pivot to input node"
             raise ValueError(msg)
         self._check_meas_basis()
+        common_nbrs = self.neighbors(node1) & self.neighbors(node2)
         self._pivot(node1, node2)
 
         # update node1 and node2 measurement
-        plane_map: dict[Plane, Plane] = {Plane.XY: Plane.YZ, Plane.XZ: Plane.XZ, Plane.YZ: Plane.XY}
+        plane_map: dict[Plane, Plane] = {
+            Plane.XY: Plane.YZ,
+            Plane.XZ: Plane.XZ,
+            Plane.YZ: Plane.XY,
+        }
         lc = LocalClifford(np.pi / 2, np.pi / 2, np.pi / 2)
         for a in {node1, node2}:
             old_meas_basis = self.meas_bases.get(a, None)
@@ -396,22 +383,22 @@ class ZXGraphState(GraphState):
                 self.apply_local_clifford(a, lc)
                 continue
 
-            self.apply_local_clifford(a, lc)
-            old_basis = basis2tuple(old_meas_basis)
-            self._assure_gflow(a, plane_map, old_basis)
+            self.apply_local_clifford(a, lc, expected_plane=plane_map[old_meas_basis.plane])
 
         # update nodes measurement of neighbors
-        plane_map = {Plane.XY: Plane.XY, Plane.XZ: Plane.XZ, Plane.YZ: Plane.YZ}
+        plane_map = {
+            Plane.XY: Plane.XY,
+            Plane.XZ: Plane.XZ,
+            Plane.YZ: Plane.YZ,
+        }
         lc = LocalClifford(np.pi, 0, 0)
-        for w in self.neighbors(node1) & self.neighbors(node2):
+        for w in common_nbrs:
             old_meas_basis = self.meas_bases.get(w, None)
             if old_meas_basis is None:
                 self.apply_local_clifford(w, lc)
                 continue
 
-            self.apply_local_clifford(w, lc)
-            old_basis = basis2tuple(old_meas_basis)
-            self._assure_gflow(w, plane_map, old_basis)
+            self.apply_local_clifford(w, lc, expected_plane=plane_map[old_meas_basis.plane])
 
     def _is_trivial_meas(self, node: int, atol: float = 1e-9) -> bool:
         """Check if the node does not need any operation in order to perform _remove_clifford.
@@ -580,20 +567,25 @@ class ZXGraphState(GraphState):
         if not is_close_angle(2 * a_pi, 0, atol):
             msg = "This node cannot be removed by _remove_clifford."
             raise ValueError(msg)
+        if self.meas_bases[node].plane not in {Plane.YZ, Plane.XZ}:
+            msg = "This node cannot be removed by _remove_clifford (plane must be YZ or XZ)."
+            raise ValueError(msg)
+        neighbors = self.neighbors(node)
+        self.remove_physical_node(node)
 
         lc = LocalClifford(a_pi, 0, 0)
-        plane_map = {Plane.XY: Plane.XY, Plane.XZ: Plane.XZ, Plane.YZ: Plane.YZ}
-        for v in self.neighbors(node):
+        plane_map = {
+            Plane.XY: Plane.XY,
+            Plane.XZ: Plane.XZ,
+            Plane.YZ: Plane.YZ,
+        }
+        for v in neighbors:
             old_meas_basis = self.meas_bases.get(v, None)
             if old_meas_basis is None:
                 self.apply_local_clifford(v, lc)
                 continue
 
-            self.apply_local_clifford(v, lc)
-            old_basis = basis2tuple(old_meas_basis)
-            self._assure_gflow(v, plane_map, old_basis)
-
-        self.remove_physical_node(node)
+            self.apply_local_clifford(v, lc, expected_plane=plane_map[old_meas_basis.plane])
 
     def remove_clifford(self, node: int, atol: float = 1e-9) -> None:
         """Remove the local Clifford node.
@@ -634,6 +626,9 @@ class ZXGraphState(GraphState):
             if not check(node, atol):
                 continue
             action(node)
+            if node in self.input_node_indices or node in self.output_node_indices:
+                msg = "Clifford node removal not allowed for input or output nodes."
+                raise ValueError(msg)
             self._remove_clifford(node, atol)
             return
 
@@ -686,52 +681,6 @@ class ZXGraphState(GraphState):
                     action(clifford_node)
                     self._remove_clifford(clifford_node, atol)
 
-    def to_xy(self) -> None:
-        r"""Update some special measurement basis to logically equivalent XY-basis.
-
-        - (Plane.XZ, \pm pi/2) -> (Plane.XY, 0 or pi)
-        - (Plane.YZ, \pm pi/2) -> (Plane.XY, \pm pi/2)
-
-        This method is mainly used in convert_to_phase_gadget.
-        """
-        for node, basis in self.meas_bases.items():
-            if basis.plane == Plane.XZ and is_close_angle(basis.angle, np.pi / 2):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, 0.0))
-            elif basis.plane == Plane.XZ and is_close_angle(basis.angle, -np.pi / 2):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, np.pi))
-            elif basis.plane == Plane.YZ and is_close_angle(basis.angle, np.pi / 2):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, np.pi / 2))
-            elif basis.plane == Plane.YZ and is_close_angle(basis.angle, -np.pi / 2):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, -np.pi / 2))
-
-    def to_yz(self) -> None:
-        r"""Update some special measurement basis to logically equivalent YZ-basis.
-
-        - (Plane.XZ, 0) -> (Plane.YZ, 0)
-        - (Plane.XZ, pi) -> (Plane.YZ, pi)
-
-        This method is mainly used in convert_to_phase_gadget.
-        """
-        for node, basis in self.meas_bases.items():
-            if basis.plane == Plane.XZ and is_close_angle(basis.angle, 0.0):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.YZ, 0.0))
-            elif basis.plane == Plane.XZ and is_close_angle(basis.angle, np.pi):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.YZ, np.pi))
-
-    def to_xz(self) -> None:
-        r"""Update some special measurement basis to logically equivalent XZ-basis.
-
-        This method is mainly used when we want to find a gflow.
-        """
-        inputs = set(self.input_node_indices)
-        for node, basis in self.meas_bases.items():
-            if node in inputs:
-                continue
-            if basis.plane == Plane.YZ and is_close_angle(basis.angle, 0.0):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, 0.0))
-            elif basis.plane == Plane.YZ and is_close_angle(basis.angle, np.pi):
-                self.assign_meas_basis(node, PlannerMeasBasis(Plane.XZ, np.pi))
-
     def _extract_yz_adjacent_pair(self) -> tuple[int, int] | None:
         r"""Call inside convert_to_phase_gadget.
 
@@ -766,8 +715,6 @@ class ZXGraphState(GraphState):
     def convert_to_phase_gadget(self) -> None:
         """Convert a ZX-diagram with gflow in MBQC+LC form into its phase-gadget form while preserving gflow."""
         while True:
-            self.to_xy()
-            self.to_yz()
             if pair := self._extract_yz_adjacent_pair():
                 self.pivot(*pair)
                 continue
@@ -796,7 +743,7 @@ class ZXGraphState(GraphState):
         }
         for u in target_nodes:
             (v,) = self.neighbors(u)
-            new_angle = (self.meas_bases[u].angle + self.meas_bases[v].angle) % (2.0 * np.pi)
+            new_angle = (self.meas_bases[u].angle - self.meas_bases[v].angle) % (2.0 * np.pi)
             self.assign_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
             self.remove_physical_node(u)
 
