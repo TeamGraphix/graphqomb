@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis, is_close_angle
-from graphqomb.euler import LocalClifford, update_lc_basis
+from graphqomb.euler import LocalClifford
 from graphqomb.gflow_utils import gflow_wrapper
 from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
@@ -543,10 +543,10 @@ def test_local_complement_4_times(
 
 
 @pytest.mark.parametrize(
-    "gamma",
+    "alpha",
     [0, np.pi / 2, np.pi, 3 * np.pi / 2],
 )
-def test_expand_input_local_cliffords_xy_plane(zx_graph: ZXGraphState, gamma: float) -> None:
+def test_expand_input_local_cliffords_xy_plane(zx_graph: ZXGraphState, alpha: float) -> None:
     """Test expanding local Clifford operators on an input node with XY measurement plane."""
     old_input_node = zx_graph.add_physical_node()
     output_node = zx_graph.add_physical_node()
@@ -556,26 +556,26 @@ def test_expand_input_local_cliffords_xy_plane(zx_graph: ZXGraphState, gamma: fl
     old_input_angle = np.pi / 3
     zx_graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.XY, old_input_angle))
 
-    alpha = 0.0
     beta = 0.0
+    gamma = 0.0
     lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
     zx_graph.apply_local_clifford(old_input_node, lc)
     zx_graph.expand_local_cliffords()
 
-    new_input_node = 2
+    new_input_node, new_node = (2, 3)
     assert zx_graph.input_node_indices == {new_input_node: 0}
     for node in zx_graph.physical_nodes - set(zx_graph.output_node_indices):
         assert zx_graph.meas_bases[node].plane == Plane.XY
-    assert is_close_angle(zx_graph.meas_bases[new_input_node].angle, 0.0)
-    assert is_close_angle(zx_graph.meas_bases[new_input_node + 1].angle, 0.0)
-    assert is_close_angle(zx_graph.meas_bases[old_input_node].angle, old_input_angle - gamma)
+    assert is_close_angle(zx_graph.meas_bases[new_node].angle, lc.beta)
+    assert is_close_angle(zx_graph.meas_bases[new_input_node].angle, lc.gamma)
+    assert is_close_angle(zx_graph.meas_bases[old_input_node].angle, old_input_angle - lc.alpha)
 
 
 @pytest.mark.parametrize(
-    "gamma",
+    "alpha",
     [0, np.pi, np.pi / 2, 3 * np.pi / 2],
 )
-def test_expand_input_local_cliffords_yz_plane(zx_graph: ZXGraphState, gamma: float) -> None:
+def test_expand_input_local_cliffords_yz_plane(zx_graph: ZXGraphState, alpha: float) -> None:
     """Test expanding local Clifford operators on an input node with YZ measurement plane."""
     old_input_node = zx_graph.add_physical_node()
     output_node = zx_graph.add_physical_node()
@@ -585,19 +585,19 @@ def test_expand_input_local_cliffords_yz_plane(zx_graph: ZXGraphState, gamma: fl
     old_input_angle = np.pi / 3
     zx_graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.YZ, old_input_angle))
 
-    alpha = 0.0
     beta = 0.0
+    gamma = 0.0
     lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
     zx_graph.apply_local_clifford(old_input_node, lc)
     zx_graph.expand_local_cliffords()
 
     exp_angle: float = old_input_angle
-    if is_close_angle(2 * gamma, 0):
+    if is_close_angle(2 * alpha, 0):
         assert zx_graph.meas_bases[old_input_node].plane == Plane.YZ
-        exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
-    elif is_close_angle(2 * (gamma - np.pi / 2), 0):
+        exp_angle = old_input_angle if is_close_angle(alpha, 0) else -old_input_angle
+    elif is_close_angle(2 * (alpha - np.pi / 2), 0):
         assert zx_graph.meas_bases[old_input_node].plane == Plane.XZ
-        exp_angle = old_input_angle if is_close_angle(gamma - np.pi / 2, 0) else -old_input_angle
+        exp_angle = old_input_angle if is_close_angle(alpha - np.pi / 2, 0) else -old_input_angle
     assert is_close_angle(zx_graph.meas_bases[old_input_node].angle, exp_angle)
     new_input_node = 2
     assert zx_graph.meas_bases[new_input_node].plane == Plane.XY
@@ -605,10 +605,10 @@ def test_expand_input_local_cliffords_yz_plane(zx_graph: ZXGraphState, gamma: fl
 
 
 @pytest.mark.parametrize(
-    "gamma",
+    "alpha",
     [0, np.pi / 2, np.pi, 3 * np.pi / 2],
 )
-def test_expand_input_local_cliffords_xz_plane(zx_graph: ZXGraphState, gamma: float) -> None:
+def test_expand_input_local_cliffords_xz_plane(zx_graph: ZXGraphState, alpha: float) -> None:
     """Test expanding local Clifford operators on an input node with XZ measurement plane."""
     old_input_node = zx_graph.add_physical_node()
     output_node = zx_graph.add_physical_node()
@@ -618,19 +618,19 @@ def test_expand_input_local_cliffords_xz_plane(zx_graph: ZXGraphState, gamma: fl
     old_input_angle = np.pi / 3
     zx_graph.assign_meas_basis(old_input_node, PlannerMeasBasis(Plane.XZ, old_input_angle))
 
-    alpha = 0.0
     beta = 0.0
+    gamma = 0.0
     lc = LocalClifford(alpha=alpha, beta=beta, gamma=gamma)
     zx_graph.apply_local_clifford(old_input_node, lc)
     zx_graph.expand_local_cliffords()
 
     exp_angle: float = old_input_angle
-    if is_close_angle(2 * gamma, 0):
+    if is_close_angle(2 * alpha, 0):
         assert zx_graph.meas_bases[old_input_node].plane == Plane.XZ
-        exp_angle = old_input_angle if is_close_angle(gamma, 0) else -old_input_angle
-    elif is_close_angle(2 * (gamma - np.pi / 2), 0):
+        exp_angle = old_input_angle if is_close_angle(alpha, 0) else -old_input_angle
+    elif is_close_angle(2 * (alpha - np.pi / 2), 0):
         assert zx_graph.meas_bases[old_input_node].plane == Plane.YZ
-        exp_angle = old_input_angle if is_close_angle(gamma + np.pi / 2, 0) else -old_input_angle
+        exp_angle = old_input_angle if is_close_angle(alpha + np.pi / 2, 0) else -old_input_angle
     assert is_close_angle(zx_graph.meas_bases[old_input_node].angle, exp_angle)
     new_input_node = 2
     assert zx_graph.meas_bases[new_input_node].plane == Plane.XY
@@ -650,11 +650,12 @@ def test_expand_output_local_cliffords(zx_graph: ZXGraphState) -> None:
     zx_graph.expand_local_cliffords()
     new_output_node = 5
     assert zx_graph.output_node_indices == {new_output_node: 0}
-    assert zx_graph.meas_bases[old_output_node + 1].plane == Plane.XY
-    assert is_close_angle(zx_graph.meas_bases[old_output_node + 1].angle, 0.0)
-    meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
-    assert zx_graph.meas_bases[old_output_node].plane == meas_basis.plane
-    assert is_close_angle(zx_graph.meas_bases[old_output_node].angle, meas_basis.angle)
+    for node in zx_graph.physical_nodes - set(zx_graph.output_node_indices):
+        assert zx_graph.meas_bases[node].plane == Plane.XY
+    assert is_close_angle(zx_graph.meas_bases[old_output_node].angle, -lc.alpha)
+    assert is_close_angle(zx_graph.meas_bases[old_output_node + 1].angle, -lc.beta)
+    assert is_close_angle(zx_graph.meas_bases[old_output_node + 2].angle, -lc.gamma)
+    assert is_close_angle(zx_graph.meas_bases[old_output_node + 3].angle, 0.0)
 
 
 def test_local_clifford_expansion() -> None:
@@ -672,8 +673,6 @@ def test_local_clifford_expansion() -> None:
     lc = LocalClifford(2 * np.pi, 0.0, 0.0)
     zx_graph_cp.apply_local_clifford(2, lc)
     zx_graph_cp.expand_local_cliffords()
-    zx_graph_cp.to_xy()
-    zx_graph_cp.to_xz()
     gflow_cp = gflow_wrapper(zx_graph_cp)
     pattern_cp = qompile(zx_graph_cp, gflow_cp)
     sim_cp = PatternSimulator(pattern_cp, backend=SimulatorBackend.StateVector)
@@ -1078,7 +1077,7 @@ def test_convert_to_phase_gadget(
                 (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
             ],
             [
-                (1, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
                 (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
                 (3, PlannerMeasBasis(Plane.XY, 0.44 * np.pi)),
             ],
@@ -1096,7 +1095,7 @@ def test_convert_to_phase_gadget(
                 (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
             ],
             [
-                (1, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
+                (1, PlannerMeasBasis(Plane.XY, 0.11 * np.pi)),
                 (2, PlannerMeasBasis(Plane.XY, 0.33 * np.pi)),
                 (3, PlannerMeasBasis(Plane.YZ, 0.44 * np.pi)),
             ],
@@ -1215,7 +1214,7 @@ def test_merge_yz_nodes(
         (
             (range(4), {(0, 1), (1, 2), (1, 3)}),
             [
-                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (0, PlannerMeasBasis(Plane.YZ, -0.1 * np.pi)),
                 (1, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
                 (2, PlannerMeasBasis(Plane.XY, 0.3 * np.pi)),
                 (3, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
@@ -1233,7 +1232,7 @@ def test_merge_yz_nodes(
         (
             (range(4), {(0, 1), (1, 2), (1, 3)}),
             [
-                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (0, PlannerMeasBasis(Plane.YZ, -0.1 * np.pi)),
                 (1, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
                 (2, PlannerMeasBasis(Plane.XZ, 0.8 * np.pi)),
                 (3, PlannerMeasBasis(Plane.XY, 0.4 * np.pi)),
@@ -1251,7 +1250,7 @@ def test_merge_yz_nodes(
         (
             (range(6), {(0, 1), (1, 2), (1, 3), (2, 5), (3, 4)}),
             [
-                (0, PlannerMeasBasis(Plane.YZ, 0.1 * np.pi)),
+                (0, PlannerMeasBasis(Plane.YZ, -0.1 * np.pi)),
                 (1, PlannerMeasBasis(Plane.XY, 0.9 * np.pi)),
                 (2, PlannerMeasBasis(Plane.YZ, 1.2 * np.pi)),
                 (3, PlannerMeasBasis(Plane.XY, 1.4 * np.pi)),
