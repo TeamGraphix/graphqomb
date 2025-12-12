@@ -206,7 +206,6 @@ class ZXGraphState(GraphState):
                     min(self.neighbors(node) - set(self.input_node_indices) - set(self.output_node_indices)),
                 ),
             ),
-            (self._needs_pivot_on_boundary, self.pivot_on_boundary),
         )
 
     def _update_connections(
@@ -488,63 +487,6 @@ class ZXGraphState(GraphState):
         case_b = self.meas_bases[node].plane == Plane.XZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
         return case_a or case_b
 
-    def _needs_pivot_on_boundary(self, node: int, atol: float = 1e-9) -> bool:
-        """Check if the node is non-input and all neighbors are input or output nodes.
-
-        If True, pivot operation is performed on the node and its non-input neighbor, and then the node will be removed.
-
-        For this operation, one of the following must hold:
-        (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
-        (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        atol : `float`, optional
-            absolute tolerance, by default 1e-9
-
-        Returns
-        -------
-        `bool`
-            True if the node is non-input and all neighbors are input or output nodes.
-
-        Notes
-        -----
-        In order to follow the algorithm in Theorem 4.12 of Quantum 5, 421 (2021),
-        this function is not commonalized into _needs_pivot.
-
-        References
-        ----------
-        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.11
-        """
-        non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
-        # check non_input_nbrs is composed of only output nodes and is not empty
-        if not (non_input_nbrs.issubset(set(self.output_node_indices)) and non_input_nbrs):
-            return False
-
-        alpha = self.meas_bases[node].angle % (2.0 * np.pi)
-        # (a) measurement plane = XY and measurement angle = 0 or pi (mod 2pi)
-        case_a = self.meas_bases[node].plane == Plane.XY and is_close_angle(2 * alpha, 0, atol)
-        # (b) measurement plane = XZ and measurement angle = 0.5 pi or 1.5 pi (mod 2pi)
-        case_b = self.meas_bases[node].plane == Plane.XZ and is_close_angle(2 * (alpha - np.pi / 2), 0, atol)
-        return case_a or case_b
-
-    def pivot_on_boundary(self, node: int) -> None:
-        """Perform the Clifford node removal on a corner case.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-
-        References
-        ----------
-        [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.11
-        """
-        output_nbr = min(self.neighbors(node) - set(self.input_node_indices))
-        self.pivot(node, output_nbr)
-
     def _remove_clifford(self, node: int, atol: float = 1e-9) -> None:
         """Perform the Clifford node removal.
 
@@ -656,7 +598,6 @@ class ZXGraphState(GraphState):
                 self._is_trivial_meas(node, atol),
                 self._needs_lc(node, atol),
                 self._needs_pivot(node, atol),
-                self._needs_pivot_on_boundary(node, atol),
             ]
         )
 
