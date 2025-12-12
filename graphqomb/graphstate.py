@@ -170,8 +170,8 @@ class BaseGraphState(ABC):
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState."""
 
-    _input_node_indices: dict[int, int]
-    _output_node_indices: dict[int, int]
+    __input_node_indices: dict[int, int]
+    __output_node_indices: dict[int, int]
     __physical_nodes: set[int]
     __physical_edges: dict[int, set[int]]
     __meas_bases: dict[int, MeasBasis]
