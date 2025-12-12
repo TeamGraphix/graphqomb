@@ -192,6 +192,9 @@ class PauliFrame:
     def _collect_dependent_chain(self, node: int) -> set[int]:
         r"""Generalized dependent-chain collector that respects measurement planes.
 
+        Recursively collects the dependent chain for a node by XORing the
+        dependent chains of all parent nodes.
+
         Parameters
         ----------
         node : `int`
@@ -211,40 +214,26 @@ class PauliFrame:
         if node in self._chain_cache:
             return set(self._chain_cache[node])
 
-        chain: set[int] = set()
-        untracked = {node}
-        tracked: set[int] = set()
+        # Use pre-computed Pauli axis from cache to determine parents
+        axis = self._pauli_axis_cache[node]
 
-        while untracked:
-            current = untracked.pop()
+        if axis == Axis.X:
+            parents = self.inv_zflow[node]
+        elif axis == Axis.Y:
+            parents = self.inv_xflow[node].symmetric_difference(self.inv_zflow[node])
+        elif axis == Axis.Z:
+            parents = self.inv_xflow[node]
+        else:
+            msg = f"Unexpected measurement axis: {axis}"
+            raise ValueError(msg)
 
-            # Optimized XOR operation: toggle membership
-            if current in chain:
-                chain.remove(current)
-            else:
-                chain.add(current)
+        # Start with node itself and XOR all parent dependent chains
+        chain: set[int] = {node}
 
-            # Use pre-computed Pauli axis from cache
-            axis = self._pauli_axis_cache[current]
-
-            # NOTE: might have to support plane instead of axis
-            if axis == Axis.X:
-                # Use defaultdict direct access (no need for .get with default)
-                parents = self.inv_zflow[current]
-            elif axis == Axis.Y:
-                # Optimized symmetric difference for Y axis
-                parents = self.inv_xflow[current].symmetric_difference(self.inv_zflow[current])
-            elif axis == Axis.Z:
-                parents = self.inv_xflow[current]
-            else:
-                msg = f"Unexpected measurement axis: {axis}"
-                raise ValueError(msg)
-
-            # Add untracked parents in bulk
-            untracked.update(p for p in parents if p not in tracked)
-            tracked.add(current)
+        for parent in parents:
+            chain ^= self._collect_dependent_chain(parent)
 
         # Store result in cache for future calls
         self._chain_cache[node] = frozenset(chain)
 
-        return chain
+        return set(self._chain_cache[node])
