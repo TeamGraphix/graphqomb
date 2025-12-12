@@ -22,7 +22,10 @@ Functions
 Auxiliary Classes
 ------------------
 
-.. autoclass:: graphqomb.zxgraphstate.LocalCliffordExpansion
+.. autoclass:: graphqomb.zxgraphstate.InputLocalCliffordExpansion
+   :members:
+
+.. autoclass:: graphqomb.zxgraphstate.OutputLocalCliffordExpansion
    :members:
 
 .. autoclass:: graphqomb.zxgraphstate.ExpansionMaps
