@@ -476,7 +476,7 @@ class ZXGraphState(GraphState):
         ----------
         [1] Backens et al., Quantum 5, 421 (2021); arXiv:2003.01664v3 [quant-ph]. Lemma 4.9
         """
-        non_input_nbrs = self.neighbors(node) - set(self.input_node_indices)
+        non_input_nbrs = self.neighbors(node) - set(self.input_node_indices) - set(self.output_node_indices)
         if not non_input_nbrs:
             return False
 
@@ -686,7 +686,7 @@ class ZXGraphState(GraphState):
         for u in target_nodes:
             (v,) = self.neighbors(u)
             new_angle = (self.meas_bases[u].angle - self.meas_bases[v].angle) % (2.0 * np.pi)
-            self.assign_meas_basis(v, PlannerMeasBasis(Plane.XY, new_angle))
+            self.assign_meas_basis(v, PlannerMeasBasis(Plane.XY, -new_angle))
             self.remove_physical_node(u)
 
     def merge_yz_nodes(self) -> None:
