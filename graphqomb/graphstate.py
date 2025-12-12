@@ -179,8 +179,8 @@ class GraphState(BaseGraphState):
     __node_counter: int
 
     def __init__(self) -> None:
-        self._input_node_indices = {}
-        self._output_node_indices = {}
+        self.__input_node_indices = {}
+        self.__output_node_indices = {}
         self.__physical_nodes = set()
         self.__physical_edges = {}
         self.__meas_bases = {}
@@ -197,7 +197,7 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
-        return self._input_node_indices.copy()
+        return self.__input_node_indices.copy()
 
     @property
     @typing_extensions.override
@@ -209,7 +209,7 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `int`\]
             qubit indices map of output nodes.
         """
-        return self._output_node_indices.copy()
+        return self.__output_node_indices.copy()
 
     @property
     @typing_extensions.override
@@ -345,7 +345,7 @@ class GraphState(BaseGraphState):
         del self.__physical_edges[node]
 
         if node in self.output_node_indices:
-            del self._output_node_indices[node]
+            del self.__output_node_indices[node]
         self.__meas_bases.pop(node, None)
 
     def remove_physical_edge(self, node1: int, node2: int) -> None:
@@ -388,13 +388,61 @@ class GraphState(BaseGraphState):
             If the node is already registered as an input node.
         """
         self._ensure_node_exists(node)
-        if node in self._input_node_indices:
+        if node in self.__input_node_indices:
             msg = "The node is already registered as an input node."
             raise ValueError(msg)
         if q_index in self.input_node_indices.values():
             msg = "The q_index already exists in input qubit indices"
             raise ValueError(msg)
-        self._input_node_indices[node] = q_index
+        self.__input_node_indices[node] = q_index
+
+    def unregister_input(self, node: int) -> int:
+        """Remove the input label from the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+
+        Returns
+        -------
+        `int`
+            logical qubit index of the unregistered input node
+
+        Raises
+        ------
+        ValueError
+            If the node is not registered as an input node.
+        """
+        self._ensure_node_exists(node)
+        if node not in self.__input_node_indices:
+            msg = "The node is not registered as an input node."
+            raise ValueError(msg)
+        return self.__input_node_indices.pop(node)
+
+    def replace_input(self, old_node: int, new_node: int) -> None:
+        """Replace the input node with a new node.
+
+        Parameters
+        ----------
+        old_node : `int`
+            node index whose input label to be replaced
+        new_node : `int`
+            node index to be set as the new input node
+
+        Raises
+        ------
+        ValueError
+            If the new_node is already registered as an input node.
+        """
+        self._ensure_node_exists(new_node)
+
+        q_index = self.unregister_input(old_node)
+        try:
+            self.register_input(new_node, q_index)
+        except ValueError:
+            self.register_input(old_node, q_index)  # rollback
+            raise
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
@@ -415,13 +463,60 @@ class GraphState(BaseGraphState):
             3. If the q_index already exists in output qubit indices.
         """
         self._ensure_node_exists(node)
-        if node in self._output_node_indices:
+        if node in self.__output_node_indices:
             msg = "The node is already registered as an output node."
             raise ValueError(msg)
         if q_index in self.output_node_indices.values():
             msg = "The q_index already exists in output qubit indices"
             raise ValueError(msg)
-        self._output_node_indices[node] = q_index
+        self.__output_node_indices[node] = q_index
+
+    def unregister_output(self, node: int) -> int:
+        """Remove the output label from the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+
+        Returns
+        -------
+        `int`
+            logical qubit index of the unregistered output node
+
+        Raises
+        ------
+        ValueError
+            If the node is not registered as an output node.
+        """
+        self._ensure_node_exists(node)
+        if node not in self.__output_node_indices:
+            msg = "The node is not registered as an output node."
+            raise ValueError(msg)
+        return self.__output_node_indices.pop(node)
+
+    def replace_output(self, old_node: int, new_node: int) -> None:
+        """Replace the output node with a new node.
+
+        Parameters
+        ----------
+        old_node : `int`
+            node index whose output label to be replaced
+        new_node : `int`
+            node index to be set as the new output node
+
+        Raises
+        ------
+        ValueError
+            If the new_node is already registered as an output node.
+        """
+        self._ensure_node_exists(new_node)
+        q_index = self.unregister_output(old_node)
+        try:
+            self.register_output(new_node, q_index)
+        except ValueError:
+            self.register_output(old_node, q_index)  # rollback
+            raise
 
     @typing_extensions.override
     def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
