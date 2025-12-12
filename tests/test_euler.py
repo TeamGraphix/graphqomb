@@ -9,6 +9,7 @@ from graphqomb.common import Plane, PlannerMeasBasis, is_clifford_angle, is_clos
 from graphqomb.euler import (
     LocalClifford,
     LocalUnitary,
+    _meas_basis_candidates,
     bloch_sphere_coordinates,
     euler_decomposition,
     meas_basis_info,
@@ -91,6 +92,37 @@ def test_bloch_sphere_coordinates_corner(plane: Plane, angle: float) -> None:
     assert np.isclose(inner_product, 1)
 
 
+DEGENERATE_CASES: list[tuple[Plane, float, Plane, float]] = [
+    (Plane.XZ, 0.0, Plane.YZ, 0.0),
+    (Plane.XZ, np.pi, Plane.YZ, np.pi),
+    (Plane.XZ, 0.5 * np.pi, Plane.XY, 0.0),
+    (Plane.XZ, 1.5 * np.pi, Plane.XY, np.pi),
+    (Plane.YZ, 0.5 * np.pi, Plane.XY, 0.5 * np.pi),
+    (Plane.YZ, 1.5 * np.pi, Plane.XY, 1.5 * np.pi),
+]
+
+
+def test_equivalence() -> None:
+    for plane1, angle1, plane2, angle2 in DEGENERATE_CASES:
+        basis1 = meas_basis(plane1, angle1)
+        basis2 = meas_basis(plane2, angle2)
+        inner_product = abs(np.vdot(basis1, basis2))
+        assert np.isclose(inner_product, 1)
+
+
+@pytest.mark.parametrize("case", DEGENERATE_CASES)
+def test_meas_basis_candidates(case: tuple[Plane, float, Plane, float]) -> None:
+    plane1, angle1, plane2, angle2 = case
+    basis = meas_basis(plane1, angle1)
+    candidates = _meas_basis_candidates(basis)
+    expected_candidates = [(plane1, angle1), (plane2, angle2)]
+    assert len(candidates) == len(expected_candidates)
+    for expected in expected_candidates:
+        assert any(
+            candidate[0] == expected[0] and is_close_angle(candidate[1], expected[1]) for candidate in candidates
+        )
+
+
 @pytest.mark.parametrize("plane", list(Plane))
 def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     angle = rng.uniform(0, 2 * np.pi)
@@ -98,6 +130,17 @@ def test_meas_basis_info(plane: Plane, rng: np.random.Generator) -> None:
     plane_get, angle_get = meas_basis_info(basis)
     assert plane == plane_get, f"Expected {plane}, got {plane_get}"
     assert is_close_angle(angle, angle_get), f"Expected {angle}, got {angle_get}"
+
+
+@pytest.mark.parametrize("case", DEGENERATE_CASES)
+def test_meas_basis_info_degenerate(case: tuple[Plane, float, Plane, float]) -> None:
+    plane1, angle1, plane2, angle2 = case
+    basis = meas_basis(plane1, angle1)
+
+    for expected_plane, expected_angle in ((plane1, angle1), (plane2, angle2)):
+        plane_get, angle_get = meas_basis_info(basis, expected_plane=expected_plane)
+        assert expected_plane == plane_get
+        assert is_close_angle(expected_angle, angle_get)
 
 
 def test_local_clifford(random_clifford_angles: tuple[float, float, float]) -> None:
