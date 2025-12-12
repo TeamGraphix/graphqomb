@@ -40,10 +40,6 @@ def gflow_wrapper(graphstate: BaseGraphState) -> dict[int, set[int]]:
     ------
     ValueError
         If no gflow is found
-
-    Notes
-    -----
-    This wrapper does not support graph states with multiple subgraph structures.
     """
     graph: NxGraph[int] = nx.Graph()
     graph.add_nodes_from(graphstate.physical_nodes)

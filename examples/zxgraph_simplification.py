@@ -102,12 +102,6 @@ print_boundary_lcs(zx_graph_smp)
 # Now we can obtain the gflow for the simplified graph state.
 # Then, we compile the simplified graph state into a measurement pattern,
 # simulate it, and get the resulting statevector.
-
-# NOTE:
-# gflow_wrapper does not support graph states with multiple subgraph structures in the gflow search wrapper below.
-# Hence, in case you fail, ensure that the simplified graph state consists of a single connected component.
-# To calculate the graph states with multiple subgraph structures,
-# you need to calculate gflow for each connected component separately.
 gflow_smp = gflow_wrapper(zx_graph_smp)
 pattern_smp = qompile(zx_graph_smp, gflow_smp)
 sim_smp = PatternSimulator(pattern_smp, backend=SimulatorBackend.StateVector)
