@@ -24,11 +24,3 @@ Functions
 .. autofunction:: graphqomb.graphstate.compose
 .. autofunction:: graphqomb.graphstate.bipartite_edges
 .. autofunction:: graphqomb.graphstate.odd_neighbors
-
-Auxiliary Classes
-------------------
-.. autoclass:: graphqomb.graphstate.LocalCliffordExpansion
-    :members:
-
-.. autoclass:: graphqomb.graphstate.ExpansionMaps
-    :members:

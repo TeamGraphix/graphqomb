@@ -213,8 +213,8 @@ class LocalClifford(LocalUnitary):
         return LocalClifford(-self.gamma, -self.beta, -self.alpha)
 
 
-def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
-    r"""Return the measurement plane and angle corresponding to a vector.
+def _meas_basis_candidates(vector: NDArray[np.complex128]) -> list[tuple[Plane, float]]:
+    r"""Return candidate measurement planes and angles corresponding to a vector.
 
     Parameters
     ----------
@@ -223,7 +223,42 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
 
     Returns
     -------
-    `tuple`\[`Plane`, `float`]
+    `list`\[`tuple`\[`Plane`, `float`\]\]
+        candidate measurement planes and angles
+    """
+    theta, phi = bloch_sphere_coordinates(vector)
+    candidates: list[tuple[Plane, float]] = []
+    if is_clifford_angle(phi):
+        # YZ or XZ plane
+        if is_close_angle(2 * phi, 0):  # 0 or pi
+            xz_theta = -theta if is_close_angle(phi, math.pi) else theta
+            candidates.append((Plane.XZ, xz_theta))
+            if is_close_angle(phi, 0) and is_close_angle(2 * theta, 0):
+                candidates.append((Plane.YZ, theta))
+        if is_close_angle(2 * (phi - math.pi / 2), 0):
+            yz_theta = -theta if is_close_angle(phi, 3 * math.pi / 2) else theta
+            candidates.append((Plane.YZ, yz_theta))
+    if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
+        # XY plane
+        phi = phi + math.pi if is_close_angle(theta, 3 * math.pi / 2) else phi
+        candidates.append((Plane.XY, phi))
+
+    return candidates
+
+
+def meas_basis_info(vector: NDArray[np.complex128], expected_plane: Plane | None = None) -> tuple[Plane, float]:
+    r"""Return the measurement plane and angle corresponding to a vector.
+
+    Parameters
+    ----------
+    vector : `numpy.typing.NDArray`\[`numpy.complex128`\]
+        1 qubit state vector
+    expected_plane : `Plane` | `None`, optional
+        expected measurement plane to preserve gflow existence, by default None
+
+    Returns
+    -------
+    `tuple`\[`Plane`, `float`\]
         measurement plane and angle
 
     Raises
@@ -231,23 +266,17 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
     ValueError
         if the vector does not lie on any of 3 planes
     """
-    theta, phi = bloch_sphere_coordinates(vector)
-    if is_clifford_angle(phi):
-        # YZ or XZ plane
-        if is_clifford_angle(phi / 2):  # 0 or pi
-            if is_close_angle(phi, math.pi):
-                theta = -theta
-            return Plane.XZ, theta
-        if is_close_angle(phi, 3 * math.pi / 2):
-            theta = -theta
-        return Plane.YZ, theta
-    if is_clifford_angle(theta) and not is_clifford_angle(theta / 2):
-        # XY plane
-        if is_close_angle(theta, 3 * math.pi / 2):
-            phi += math.pi
-        return Plane.XY, phi
-    msg = "The vector does not lie on any of 3 planes"
-    raise ValueError(msg)
+    candidates = _meas_basis_candidates(vector)
+
+    if not candidates:
+        msg = "The vector does not lie on any of 3 planes"
+        raise ValueError(msg)
+
+    if expected_plane is not None:
+        for plane, angle in candidates:
+            if plane == expected_plane:
+                return plane, angle
+    return candidates[0]
 
 
 # TODO(masa10-f): Algebraic backend for this computation(#023)
@@ -275,7 +304,7 @@ def update_lc_lc(lc1: LocalClifford, lc2: LocalClifford) -> LocalClifford:
 
 
 # TODO(masa10-f): Algebraic backend for this computation(#023)
-def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
+def update_lc_basis(lc: LocalClifford, basis: MeasBasis, expected_plane: Plane | None = None) -> PlannerMeasBasis:
     """Update a `MeasBasis` object with an action of `LocalClifford` object.
 
     Parameters
@@ -284,6 +313,8 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
         `LocalClifford`
     basis : `MeasBasis`
         `MeasBasis`
+    expected_plane : `Plane` | `None`, optional
+        expected measurement plane to preserve gflow existence, by default None
 
     Returns
     -------
@@ -294,7 +325,7 @@ def update_lc_basis(lc: LocalClifford, basis: MeasBasis) -> PlannerMeasBasis:
     vector = basis.vector()
 
     updated_vector = np.asarray(matrix @ vector, dtype=np.complex128)
-    plane, angle = meas_basis_info(updated_vector)
+    plane, angle = meas_basis_info(updated_vector, expected_plane=expected_plane)
     return PlannerMeasBasis(plane, angle)
 
 

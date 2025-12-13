@@ -17,5 +17,16 @@ ZX Graph State
 Functions
 ---------
 
-.. autofunction:: graphqomb.zxgraphstate.to_zx_graphstate
 .. autofunction:: graphqomb.zxgraphstate.complete_graph_edges
+
+Auxiliary Classes
+------------------
+
+.. autoclass:: graphqomb.zxgraphstate.InputLocalCliffordExpansion
+   :members:
+
+.. autoclass:: graphqomb.zxgraphstate.OutputLocalCliffordExpansion
+   :members:
+
+.. autoclass:: graphqomb.zxgraphstate.ExpansionMaps
+   :members:

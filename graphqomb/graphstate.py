@@ -4,8 +4,6 @@ This module provides:
 
 - `BaseGraphState`: Abstract base class for Graph State.
 - `GraphState`: Minimal implementation of Graph State.
-- `LocalCliffordExpansion`: Local Clifford expansion.
-- `ExpansionMaps`: Expansion maps for local clifford operators.
 - `compose`: Function to compose two graph states sequentially.
 - `bipartite_edges`: Function to create a complete bipartite graph between two sets of nodes.
 - `odd_neighbors`: Function to get odd neighbors of a node.
@@ -24,12 +22,12 @@ from collections.abc import Set as AbstractSet
 from types import MappingProxyType
 from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
-import numpy as np
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis, basis2tuple, is_close_angle, round_clifford_angle
-from graphqomb.euler import LocalClifford, update_lc_basis, update_lc_lc
-from graphqomb.gflow_utils import _EQUIV_MEAS_BASIS_MAP
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
+    from graphqomb.common import MeasBasis
 
 NodeT = TypeVar("NodeT", bound=Hashable)
 
@@ -178,7 +176,6 @@ class GraphState(BaseGraphState):
     __physical_nodes: set[int]
     __physical_edges: dict[int, set[int]]
     __meas_bases: dict[int, MeasBasis]
-    __local_cliffords: dict[int, LocalClifford]
 
     __node_counter: int
 
@@ -190,7 +187,6 @@ class GraphState(BaseGraphState):
         self.__physical_nodes = set()
         self.__physical_edges = {}
         self.__meas_bases = {}
-        self.__local_cliffords = {}
 
         self.__node_counter = 0
 
@@ -260,17 +256,6 @@ class GraphState(BaseGraphState):
             measurement bases of each physical node.
         """
         return MappingProxyType(self.__meas_bases)
-
-    @property
-    def local_cliffords(self) -> dict[int, LocalClifford]:
-        r"""Return local clifford nodes.
-
-        Returns
-        -------
-        `dict`\[`int`, `LocalClifford`\]
-            local clifford nodes.
-        """
-        return self.__local_cliffords.copy()
 
     def _check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
@@ -368,7 +353,6 @@ class GraphState(BaseGraphState):
         if node in self.output_node_indices:
             del self.__output_node_indices[node]
         self.__meas_bases.pop(node, None)
-        self.__local_cliffords.pop(node, None)
 
         self._cached_physical_nodes = None
 
@@ -420,6 +404,54 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__input_node_indices[node] = q_index
 
+    def unregister_input(self, node: int) -> int:
+        """Remove the input label from the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+
+        Returns
+        -------
+        `int`
+            logical qubit index of the unregistered input node
+
+        Raises
+        ------
+        ValueError
+            If the node is not registered as an input node.
+        """
+        self._ensure_node_exists(node)
+        if node not in self.__input_node_indices:
+            msg = "The node is not registered as an input node."
+            raise ValueError(msg)
+        return self.__input_node_indices.pop(node)
+
+    def replace_input(self, old_node: int, new_node: int) -> None:
+        """Replace the input node with a new node.
+
+        Parameters
+        ----------
+        old_node : `int`
+            node index whose input label to be replaced
+        new_node : `int`
+            node index to be set as the new input node
+
+        Raises
+        ------
+        ValueError
+            If the new_node is already registered as an input node.
+        """
+        self._ensure_node_exists(new_node)
+
+        q_index = self.unregister_input(old_node)
+        try:
+            self.register_input(new_node, q_index)
+        except ValueError:
+            self.register_input(old_node, q_index)  # rollback
+            raise
+
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
         """Mark the node as an output node.
@@ -447,6 +479,53 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
         self.__output_node_indices[node] = q_index
 
+    def unregister_output(self, node: int) -> int:
+        """Remove the output label from the node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+
+        Returns
+        -------
+        `int`
+            logical qubit index of the unregistered output node
+
+        Raises
+        ------
+        ValueError
+            If the node is not registered as an output node.
+        """
+        self._ensure_node_exists(node)
+        if node not in self.__output_node_indices:
+            msg = "The node is not registered as an output node."
+            raise ValueError(msg)
+        return self.__output_node_indices.pop(node)
+
+    def replace_output(self, old_node: int, new_node: int) -> None:
+        """Replace the output node with a new node.
+
+        Parameters
+        ----------
+        old_node : `int`
+            node index whose output label to be replaced
+        new_node : `int`
+            node index to be set as the new output node
+
+        Raises
+        ------
+        ValueError
+            If the new_node is already registered as an output node.
+        """
+        self._ensure_node_exists(new_node)
+        q_index = self.unregister_output(old_node)
+        try:
+            self.register_output(new_node, q_index)
+        except ValueError:
+            self.register_output(old_node, q_index)  # rollback
+            raise
+
     @typing_extensions.override
     def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
         """Set the measurement basis of the node.
@@ -460,29 +539,6 @@ class GraphState(BaseGraphState):
         """
         self._ensure_node_exists(node)
         self.__meas_bases[node] = meas_basis
-
-    def apply_local_clifford(self, node: int, lc: LocalClifford) -> None:
-        """Apply a local clifford to the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        lc : `LocalClifford`
-            local clifford operator
-        """
-        self._ensure_node_exists(node)
-        if node in self.input_node_indices or node in self.output_node_indices:
-            original_lc = self._pop_local_clifford(node)
-            if original_lc is not None:
-                new_lc = update_lc_lc(lc, original_lc)
-                self.__local_cliffords[node] = new_lc
-            else:
-                self.__local_cliffords[node] = lc
-        else:
-            self._check_meas_basis()
-            new_meas_basis = update_lc_basis(lc, self.meas_bases[node])
-            self.assign_meas_basis(node, new_meas_basis)
 
     @typing_extensions.override
     def neighbors(self, node: int) -> set[int]:
@@ -506,144 +562,17 @@ class GraphState(BaseGraphState):
         r"""Check if the graph state is in canonical form.
 
         The definition of canonical form is:
-        1. No Clifford operators applied.
-        2. All non-output nodes have measurement basis
+            All non-output nodes have measurement basis
 
         Raises
         ------
         ValueError
             If the graph state is not in canonical form.
         """
-        if self.__local_cliffords:
-            msg = "Clifford operators are applied."
-            raise ValueError(msg)
-        for node in self.physical_nodes - self.output_node_indices.keys():
+        for node in self.physical_nodes - set(self.output_node_indices):
             if self.meas_bases.get(node) is None:
                 msg = "All non-output nodes must have measurement basis."
                 raise ValueError(msg)
-
-    def expand_local_cliffords(self) -> ExpansionMaps:
-        r"""Expand local Clifford operators applied on the input and output nodes.
-
-        Returns
-        -------
-        `ExpansionMaps`
-            A tuple of dictionaries mapping input and output node indices to the new node indices created.
-        """
-        input_node_map = self._expand_input_local_cliffords()
-        output_node_map = self._expand_output_local_cliffords()
-        return ExpansionMaps(input_node_map, output_node_map)
-
-    def _pop_local_clifford(self, node: int) -> LocalClifford | None:
-        """Pop local clifford of the node.
-
-        Parameters
-        ----------
-        node : `int`
-            node index to remove local clifford.
-
-        Returns
-        -------
-        `LocalClifford` | `None`
-            removed local clifford
-        """
-        return self.__local_cliffords.pop(node, None)
-
-    def _expand_input_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
-        r"""Expand local Clifford operators applied on the input nodes.
-
-        Returns
-        -------
-        `dict`\[`int`, `LocalCliffordExpansion`\]
-            A dictionary mapping input node indices to the new node indices created.
-        """
-        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_input_indices: dict[int, int] = {}
-        for old_input_node, q_index in self.input_node_indices.items():
-            lc = self._pop_local_clifford(old_input_node)
-            if lc is None:
-                lc = LocalClifford(0.0, 0.0, 0.0)
-
-            new_input = self.add_physical_node()
-            new_node = self.add_physical_node()
-            new_input_indices[new_input] = q_index
-
-            self.add_physical_edge(new_input, new_node)
-            self.add_physical_edge(new_node, old_input_node)
-
-            self.assign_meas_basis(new_input, PlannerMeasBasis(Plane.XY, 0.0))
-            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
-            meas_basis = self.meas_bases[old_input_node]
-            new_meas_basis = update_lc_basis(lc, meas_basis)
-            self.assign_meas_basis(old_input_node, new_meas_basis)
-            self._assure_gflow_input_expansion(old_input_node)
-            node_index_addition_map[old_input_node] = LocalCliffordExpansion(new_input, new_node)
-
-        self.__input_node_indices = {}
-        for new_input_index, q_index in new_input_indices.items():
-            self.register_input(new_input_index, q_index)
-
-        return node_index_addition_map
-
-    def _assure_gflow_input_expansion(self, node: int) -> None:
-        r"""Assure gflow existence after input local Clifford expansion.
-
-        Parameters
-        ----------
-        node : `int`
-            node index
-        """
-        cur = self.meas_bases[node]
-        rounded = round_clifford_angle(cur.angle)
-        self.assign_meas_basis(node, PlannerMeasBasis(cur.plane, rounded))
-
-        cur = self.meas_bases[node]
-        cur_key = basis2tuple(cur)
-
-        # if the updated basis is self-inclusion type, push it to an XY-equivalent one.
-        if (cur.plane in {Plane.XZ, Plane.YZ} and is_close_angle(cur.angle, 0.0)) or (
-            is_close_angle(cur.angle, np.pi) and cur_key in _EQUIV_MEAS_BASIS_MAP
-        ):
-            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
-
-        # ensure XY if possible.
-        cur = self.meas_bases[node]
-        if cur.plane != Plane.XY and cur_key in _EQUIV_MEAS_BASIS_MAP:
-            self.assign_meas_basis(node, _EQUIV_MEAS_BASIS_MAP[cur_key])
-
-    def _expand_output_local_cliffords(self) -> dict[int, LocalCliffordExpansion]:
-        r"""Expand local Clifford operators applied on the output nodes.
-
-        Returns
-        -------
-        `dict`\[`int`, `LocalCliffordExpansion`\]
-            A dictionary mapping output node indices to the new node indices created.
-        """
-        node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
-        new_output_node_index_map: dict[int, int] = {}
-        for old_output_node, q_index in self.output_node_indices.items():
-            lc = self._pop_local_clifford(old_output_node)
-            if lc is None:
-                new_output_node_index_map[old_output_node] = q_index
-                continue
-
-            new_node = self.add_physical_node()
-            new_output_node = self.add_physical_node()
-            new_output_node_index_map[new_output_node] = q_index
-
-            self.__output_node_indices.pop(old_output_node)
-            self.register_output(new_output_node, q_index)
-
-            self.add_physical_edge(old_output_node, new_node)
-            self.add_physical_edge(new_node, new_output_node)
-
-            self.assign_meas_basis(new_node, PlannerMeasBasis(Plane.XY, 0.0))
-            meas_basis = update_lc_basis(lc, PlannerMeasBasis(Plane.XY, 0.0))
-            self.assign_meas_basis(old_output_node, meas_basis)
-
-            node_index_addition_map[old_output_node] = LocalCliffordExpansion(new_node, new_output_node)
-
-        return node_index_addition_map
 
     @classmethod
     def from_graph(  # noqa: C901, PLR0912
@@ -760,8 +689,7 @@ class GraphState(BaseGraphState):
     def from_base_graph_state(
         cls,
         base: BaseGraphState,
-        copy_local_cliffords: bool = True,
-    ) -> tuple[GraphState, dict[int, int]]:
+    ) -> tuple[Self, dict[int, int]]:
         r"""Create a new GraphState from an existing BaseGraphState instance.
 
         This method creates a complete copy of the graph structure, including nodes,
@@ -772,11 +700,6 @@ class GraphState(BaseGraphState):
         ----------
         base : `BaseGraphState`
             The source graph state to copy from.
-        copy_local_cliffords : `bool`, optional
-            Whether to copy local Clifford operators if the source is a GraphState.
-            If True and the source has local Cliffords, they are copied.
-            If False, local Cliffords are not copied (canonical form only).
-            Default is True.
 
         Returns
         -------
@@ -809,27 +732,7 @@ class GraphState(BaseGraphState):
         for node, meas_basis in base.meas_bases.items():
             graph_state.assign_meas_basis(node_map[node], meas_basis)
 
-        # Copy local Clifford operators if requested and source is GraphState
-        if copy_local_cliffords and isinstance(base, GraphState):
-            for node, lc in base.local_cliffords.items():
-                # Access private attribute to copy local cliffords
-                graph_state.apply_local_clifford(node_map[node], lc)
-
         return graph_state, node_map
-
-
-class LocalCliffordExpansion(NamedTuple):
-    """Local Clifford expansion map."""
-
-    node1: int
-    node2: int
-
-
-class ExpansionMaps(NamedTuple):
-    """Expansion maps for inputs and outputs with Local Clifford."""
-
-    input_node_map: dict[int, LocalCliffordExpansion]
-    output_node_map: dict[int, LocalCliffordExpansion]
 
 
 def compose(  # noqa: C901

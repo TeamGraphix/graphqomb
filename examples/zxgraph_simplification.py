@@ -23,14 +23,12 @@ from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.visualizer import visualize
-from graphqomb.zxgraphstate import ZXGraphState, to_zx_graphstate
-
-FlowLike = dict[int, set[int]]
+from graphqomb.zxgraphstate import ZXGraphState
 
 # %%
 # Prepare an initial random graph state with flow
 graph, flow = generate_random_flow_graph(width=3, depth=4, edge_p=0.5)
-zx_graph, _ = to_zx_graphstate(graph)
+zx_graph, _ = ZXGraphState.from_base_graph_state(graph)
 visualize(zx_graph)
 
 # %%
@@ -85,14 +83,6 @@ visualize(zx_graph_smp)
 print_meas_bses(zx_graph_smp)
 print_boundary_lcs(zx_graph_smp)
 
-# %%
-# NOTE:
-# At first glance, the input/output nodes appear to remain unaffected.
-# However, note that a local Clifford operation is actually applied as a result of the action of the full_reduce method.
-
-# If you visualize the graph state after executing the `expand_local_cliffords` method,
-# you will see additional nodes connected to the former input/output nodes.
-
 
 # %%
 # Let us compare the graph state before and after simplification.
@@ -100,8 +90,6 @@ print_boundary_lcs(zx_graph_smp)
 # Note that we need to call the `expand_local_cliffords` method before generating the pattern to get the gflow.
 
 zx_graph_smp.expand_local_cliffords()
-zx_graph_smp.to_xy()  # to improve gflow search performance
-zx_graph_smp.to_xz()  # to improve gflow search performance
 print("input_node_indices: ", set(zx_graph_smp.input_node_indices))
 print("output_node_indices: ", set(zx_graph_smp.output_node_indices))
 print("local_cliffords: ", zx_graph_smp.local_cliffords)
@@ -114,12 +102,6 @@ print_boundary_lcs(zx_graph_smp)
 # Now we can obtain the gflow for the simplified graph state.
 # Then, we compile the simplified graph state into a measurement pattern,
 # simulate it, and get the resulting statevector.
-
-# NOTE:
-# gflow_wrapper does not support graph states with multiple subgraph structures in the gflow search wrapper below.
-# Hence, in case you fail, ensure that the simplified graph state consists of a single connected component.
-# To calculate the graph states with multiple subgraph structures,
-# you need to calculate gflow for each connected component separately.
 gflow_smp = gflow_wrapper(zx_graph_smp)
 pattern_smp = qompile(zx_graph_smp, gflow_smp)
 sim_smp = PatternSimulator(pattern_smp, backend=SimulatorBackend.StateVector)
