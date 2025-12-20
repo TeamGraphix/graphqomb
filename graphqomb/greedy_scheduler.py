@@ -191,7 +191,7 @@ def _determine_measure_nodes(
     return to_measure, to_prepare
 
 
-def greedy_minimize_space(  # noqa: C901, PLR0912
+def greedy_minimize_space(  # noqa: C901, PLR0914
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:

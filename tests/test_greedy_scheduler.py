@@ -390,11 +390,6 @@ def test_greedy_scheduler_performance() -> None:
     assert success_cpsat
     scheduler_cpsat.validate_schedule()
 
-    # Print timing information for debugging
-    print(f"\nGreedy time: {greedy_time:.4f}s")
-    print(f"CP-SAT time: {cpsat_time:.4f}s")
-    print(f"Speedup: {cpsat_time / greedy_time:.1f}x")
-
     # Greedy should be significantly faster (at least 5x for this size)
     # Note: We use a conservative factor to avoid flaky tests
     assert greedy_time < cpsat_time
