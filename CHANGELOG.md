@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Command**: Extended Command type alias to include TICK
 - The default strategy of `Scheduler.solve_schedule` is now `MINIMIZE_TIME` instead of `MINIMIZE_SPACE` for the compilation performance.
 
+### Fixed
+
+- **Scheduler**: Accept `entangle_time` edges in either order in `Scheduler.manual_schedule()`.
+
+### Tests
+
+- **Stim Compiler**: Add coverage that manual `entangle_time` determines CZ time slices in both Pattern and Stim output.
+
 ## [0.1.2] - 2025-10-31
 
 ### Added
