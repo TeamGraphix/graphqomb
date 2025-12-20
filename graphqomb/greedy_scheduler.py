@@ -95,17 +95,14 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
                 alive,
                 max_qubit_count,
             )
-            needs_prep = False
+            needs_prep = bool(to_prepare)
             for neighbor in to_prepare:
-                if neighbor not in prepared:
-                    prepare_time[neighbor] = current_time
-                    prepared.add(neighbor)
-                    alive.add(neighbor)
-                    needs_prep = True  # toggle prep flag
-
-                    # If this neighbor already had no dependencies, it becomes measure candidate
-                    if not inv_dag[neighbor] and neighbor in unmeasured:
-                        measure_candidates.add(neighbor)
+                prepare_time[neighbor] = current_time
+                # If this neighbor already had no dependencies, it becomes measure candidate
+                if not inv_dag[neighbor] and neighbor in unmeasured:
+                    measure_candidates.add(neighbor)
+            prepared.update(to_prepare)
+            alive.update(to_prepare)
         else:
             # Without a qubit limit, measure all currently measure candidates
             to_measure = set(measure_candidates)
@@ -115,7 +112,6 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
                     if neighbor not in prepared:
                         prepare_time[neighbor] = current_time
                         prepared.add(neighbor)
-                        alive.add(neighbor)
                         needs_prep = True
 
                         if not inv_dag[neighbor] and neighbor in unmeasured:
@@ -126,7 +122,8 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
 
         for node in to_measure:
             measure_time[node] = meas_time
-            alive.remove(node)
+            if max_qubit_count is not None:
+                alive.remove(node)
             unmeasured.remove(node)
             measure_candidates.remove(node)
 
@@ -259,24 +256,23 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
             raise RuntimeError(msg)
 
         # calculate costs and pick the best node to measure
-        best_node_candidate: set[int] = set()
-        best_cost = float("inf")
-        for node in measure_candidates:
-            cost = _calc_activate_cost(node, neighbors_map, prepared, alive)
-            if cost < best_cost:
-                best_cost = cost
-                best_node_candidate = {node}
-            elif cost == best_cost:
-                best_node_candidate.add(node)
-
-        # tie-breaker: choose the node that appears first in topological order
         default_rank = len(topo_rank)
-        best_node = min(best_node_candidate, key=lambda n: topo_rank.get(n, default_rank))
+        candidates = iter(measure_candidates)
+        best_node = next(candidates)
+        best_cost = _calc_activate_cost(best_node, neighbors_map, prepared, alive)
+        best_rank = topo_rank.get(best_node, default_rank)
+        for node in candidates:
+            cost = _calc_activate_cost(node, neighbors_map, prepared, alive)
+            rank = topo_rank.get(node, default_rank)
+            if cost < best_cost or (cost == best_cost and rank < best_rank):
+                best_cost = cost
+                best_rank = rank
+                best_node = node
 
         # Prepare neighbors at current_time
         new_neighbors = neighbors_map[best_node] - prepared
         needs_prep = bool(new_neighbors)
-        if new_neighbors:
+        if needs_prep:
             for neighbor in new_neighbors:
                 prepare_time[neighbor] = current_time
             prepared.update(new_neighbors)
