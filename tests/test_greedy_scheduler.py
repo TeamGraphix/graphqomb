@@ -98,7 +98,7 @@ def _compute_max_alive_qubits(
 
     max_alive = len(graph.input_node_indices)  # At least inputs are alive at t = -1
     for t in range(max_t + 1):
-        alive_nodes = set()
+        alive_nodes: set[int] = set()
         for node in graph.physical_nodes:
             # Determine preparation time
             prep_t = -1 if node in graph.input_node_indices else prepare_time.get(node)
@@ -253,7 +253,7 @@ def test_greedy_scheduler_larger_graph() -> None:
     nodes_per_layer = 3
 
     # Build layered graph
-    all_nodes = []
+    all_nodes: list[list[int]] = []
     for layer in range(num_layers):
         layer_nodes = [graph.add_physical_node() for _ in range(nodes_per_layer)]
         all_nodes.append(layer_nodes)
@@ -272,7 +272,7 @@ def test_greedy_scheduler_larger_graph() -> None:
         graph.register_output(node, i)
 
     # Build flow (simple forward flow)
-    flow = {}
+    flow: dict[int, set[int]] = {}
     for layer in range(num_layers - 1):
         for i, node in enumerate(all_nodes[layer]):
             if node not in graph.output_node_indices:
