@@ -317,6 +317,8 @@ def pauli_simplification(  # noqa: C901
 
     for node in graph.physical_nodes - graph.output_node_indices.keys():
         meas_basis = graph.meas_bases.get(node)
+        if meas_basis is None:
+            continue
         meas_axis = determine_pauli_axis(meas_basis)
 
         if meas_axis == Axis.X:
