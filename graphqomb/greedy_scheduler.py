@@ -201,10 +201,10 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
 ) -> tuple[dict[int, int], dict[int, int]]:
     r"""Fast greedy scheduler optimizing for minimal qubit usage (space).
 
-    This algorithm uses a greedy approach that proxies space usage by
-    minimizing the number of newly prepared qubits at each step:
+    This algorithm uses a greedy approach to minimize the number of active
+    qubits at each time step:
     1. At each time step, select the next node to measure that minimizes the
-       number of new qubits that need to be prepared.
+       projected number of alive qubits after any required preparations.
     2. Prepare neighbors of the measured node just before measurement.
 
     Parameters
@@ -262,7 +262,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
         best_node_candidate: set[int] = set()
         best_cost = float("inf")
         for node in measure_candidates:
-            cost = _calc_activate_cost(node, neighbors_map, prepared)
+            cost = _calc_activate_cost(node, neighbors_map, prepared, alive)
             if cost < best_cost:
                 best_cost = cost
                 best_node_candidate = {node}
@@ -274,13 +274,12 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
         best_node = min(best_node_candidate, key=lambda n: topo_rank.get(n, default_rank))
 
         # Prepare neighbors at current_time
-        needs_prep = False
-        for neighbor in neighbors_map[best_node]:
-            if neighbor not in prepared:
-                prepare_time[neighbor] = current_time
-                prepared.add(neighbor)
-                alive.add(neighbor)
-                needs_prep = True
+        new_neighbors = neighbors_map[best_node] - prepared
+        needs_prep = bool(new_neighbors)
+        if new_neighbors:
+            prepare_time.update(dict.fromkeys(new_neighbors, current_time))
+            prepared.update(new_neighbors)
+            alive.update(new_neighbors)
 
         # Measure at current_time if no prep needed, otherwise at current_time + 1
         meas_time = current_time + 1 if needs_prep else current_time
@@ -305,11 +304,13 @@ def _calc_activate_cost(
     node: int,
     neighbors_map: Mapping[int, AbstractSet[int]],
     prepared: AbstractSet[int],
+    alive: AbstractSet[int],
 ) -> int:
-    r"""Calculate the cost of activating (preparing) a node.
+    r"""Calculate the projected number of alive qubits if measuring this node next.
 
-    The cost is defined as the number of new qubits that would become active
-    (prepared but not yet measured) if this node were to be measured next.
+    If neighbors must be prepared, they become alive at the current time slice
+    while the node itself remains alive until the next slice. If no preparation
+    is needed, the node is measured in the current slice and removed.
 
     Parameters
     ----------
@@ -319,10 +320,15 @@ def _calc_activate_cost(
         Cached neighbor sets for graph nodes.
     prepared : `collections.abc.Set`\[`int`\]
         The set of currently prepared nodes.
+    alive : `collections.abc.Set`\[`int`\]
+        The set of currently active (prepared but not yet measured) nodes.
 
     Returns
     -------
     `int`
         The activation cost for the node.
     """
-    return len(neighbors_map[node] - prepared)
+    new_neighbors = neighbors_map[node] - prepared
+    if new_neighbors:
+        return len(alive) + len(new_neighbors)
+    return len(alive)
