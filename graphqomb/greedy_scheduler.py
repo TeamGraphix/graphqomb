@@ -277,7 +277,8 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
         new_neighbors = neighbors_map[best_node] - prepared
         needs_prep = bool(new_neighbors)
         if new_neighbors:
-            prepare_time.update(dict.fromkeys(new_neighbors, current_time))
+            for neighbor in new_neighbors:
+                prepare_time[neighbor] = current_time
             prepared.update(new_neighbors)
             alive.update(new_neighbors)
 
@@ -331,4 +332,5 @@ def _calc_activate_cost(
     new_neighbors = neighbors_map[node] - prepared
     if new_neighbors:
         return len(alive) + len(new_neighbors)
-    return len(alive)
+    # No preparation needed -> node is measured in the current slice, so alive decreases by 1.
+    return max(len(alive) - 1, 0)
