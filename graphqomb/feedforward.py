@@ -320,6 +320,8 @@ def pauli_simplification(  # noqa: C901, PLR0912
         if meas_basis is None:
             continue
         meas_axis = determine_pauli_axis(meas_basis)
+        if meas_axis is None:
+            continue
 
         if meas_axis == Axis.X:
             for parent in inv_xflow.get(node, set()):

@@ -463,9 +463,15 @@ def test_greedy_scheduler_edge_constraints() -> None:
     # Check that entanglement times were auto-scheduled correctly
     edge01 = (node0, node1)
     edge12 = (node1, node2)
-    assert scheduler.entangle_time[edge01] is not None
-    assert scheduler.entangle_time[edge12] is not None
+    entangle01 = scheduler.entangle_time[edge01]
+    entangle12 = scheduler.entangle_time[edge12]
+    assert entangle01 is not None
+    assert entangle12 is not None
 
     # Entanglement must happen before measurement
-    assert scheduler.entangle_time[edge01] < scheduler.measure_time[node0]
-    assert scheduler.entangle_time[edge12] < scheduler.measure_time[node1]
+    meas0 = scheduler.measure_time[node0]
+    meas1 = scheduler.measure_time[node1]
+    assert meas0 is not None
+    assert meas1 is not None
+    assert entangle01 < meas0
+    assert entangle12 < meas1
