@@ -13,7 +13,7 @@ This module provides:
 
 from __future__ import annotations
 
-from graphlib import TopologicalSorter
+from graphlib import CycleError, TopologicalSorter
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -40,6 +40,8 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
         The graph state to schedule
     dag : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
         The directed acyclic graph representing measurement dependencies
+    max_qubit_count : `int` | `None`, optional
+        Maximum allowed number of active qubits. If None, no limit is enforced.
 
     Returns
     -------
@@ -50,6 +52,8 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
     ------
     RuntimeError
         If no nodes can be measured at a given time step, indicating a possible
+        cyclic dependency or incomplete preparation, or if max_qubit_count
+        is too small to make progress.
     """
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
@@ -197,8 +201,8 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
 ) -> tuple[dict[int, int], dict[int, int]]:
     r"""Fast greedy scheduler optimizing for minimal qubit usage (space).
 
-    This algorithm uses a greedy approach to minimize the number of active
-    qubits at each time step:
+    This algorithm uses a greedy approach that proxies space usage by
+    minimizing the number of newly prepared qubits at each step:
     1. At each time step, select the next node to measure that minimizes the
        number of new qubits that need to be prepared.
     2. Prepare neighbors of the measured node just before measurement.
@@ -212,7 +216,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
 
     Returns
     -------
-    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]
+    `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         A tuple of (prepare_time, measure_time) dictionaries
 
     Raises
@@ -226,7 +230,11 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
 
     unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
 
-    topo_order = list(TopologicalSorter(dag).static_order())
+    try:
+        topo_order = list(TopologicalSorter(dag).static_order())
+    except CycleError as exc:
+        msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
+        raise RuntimeError(msg) from exc
     topo_order.reverse()  # from parents to children
     topo_rank = {node: i for i, node in enumerate(topo_order)}
 
