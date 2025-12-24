@@ -224,6 +224,11 @@ class Scheduler:
         -----
         After setting preparation and measurement times, any unscheduled entanglement times
         (with `None` value) are automatically scheduled using `auto_schedule_entanglement()`.
+
+        The graph is treated as undirected. For convenience, `entangle_time` accepts edges
+        in either order: both ``(u, v)`` and ``(v, u)`` are recognized. If both keys are
+        provided, the canonical order (as returned by :attr:`BaseGraphState.physical_edges`)
+        takes precedence, even when the value is ``None``.
         """
         self.prepare_time = {
             node: prepare_time.get(node, None)
@@ -234,7 +239,14 @@ class Scheduler:
             for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
         if entangle_time is not None:
-            self.entangle_time = {edge: entangle_time.get(edge, None) for edge in self.entangle_time}
+            resolved_entangle_time: dict[tuple[int, int], int | None] = {}
+            for edge in self.entangle_time:
+                if edge in entangle_time:
+                    resolved_entangle_time[edge] = entangle_time[edge]
+                else:
+                    u, v = edge
+                    resolved_entangle_time[edge] = entangle_time.get((v, u), None)
+            self.entangle_time = resolved_entangle_time
 
         # Auto-schedule unscheduled entanglement times
         if any(time is None for time in self.entangle_time.values()):

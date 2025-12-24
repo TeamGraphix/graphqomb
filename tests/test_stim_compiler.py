@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from graphqomb.command import TICK
+from graphqomb.command import TICK, E
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.qompiler import qompile
@@ -369,3 +369,93 @@ def test_stim_compile_with_tick_commands() -> None:
     # Count TICK instructions in output
     stim_tick_count = stim_str.count("TICK")
     assert stim_tick_count == tick_count, "Number of TICK instructions should match pattern"
+
+
+def _entanglement_slices_from_pattern(pattern: Pattern) -> dict[tuple[int, int], int]:
+    r"""Extract entanglement time slices from a pattern.
+
+    Parameters
+    ----------
+    pattern : `Pattern`
+        The pattern to inspect.
+
+    Returns
+    -------
+    `dict`\[`tuple`\[`int`, `int`\], `int`\]
+        A mapping from entanglement edge ``(u, v)`` to the time slice index, represented as the
+        number of preceding `TICK` commands.
+    """
+    ticks = 0
+    entangle_slice: dict[tuple[int, int], int] = {}
+    for cmd in pattern:
+        if isinstance(cmd, TICK):
+            ticks += 1
+        elif isinstance(cmd, E):
+            entangle_slice[cmd.nodes] = ticks
+    return entangle_slice
+
+
+def _cz_slices_from_stim(stim_str: str) -> dict[tuple[int, int], int]:
+    r"""Extract CZ time slices from a stim circuit string.
+
+    Parameters
+    ----------
+    stim_str : `str`
+        The stim circuit string to inspect.
+
+    Returns
+    -------
+    `dict`\[`tuple`\[`int`, `int`\], `int`\]
+        A mapping from CZ targets ``(q1, q2)`` to the time slice index, represented as the number
+        of preceding ``TICK`` instructions.
+    """
+    ticks = 0
+    cz_slice: dict[tuple[int, int], int] = {}
+    for line in stim_str.splitlines():
+        if line == "TICK":
+            ticks += 1
+        elif line.startswith("CZ "):
+            _, q1, q2 = line.split()
+            cz_slice[int(q1), int(q2)] = ticks
+    return cz_slice
+
+
+def test_stim_compile_respects_manual_entangle_time() -> None:
+    """Manual entanglement times should determine the CZ slice in both Pattern and Stim output."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    mid_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+
+    graph.add_physical_edge(in_node, mid_node)
+    graph.add_physical_edge(mid_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    scheduler = Scheduler(graph, {in_node: {mid_node}, mid_node: {out_node}})
+
+    scheduler.manual_schedule(
+        prepare_time={mid_node: 0, out_node: 0},
+        measure_time={in_node: 3, mid_node: 4},
+        # Intentionally provide edges in reversed order to ensure they are still accepted.
+        entangle_time={
+            (mid_node, in_node): 2,
+            (out_node, mid_node): 1,
+        },
+    )
+    scheduler.validate_schedule()
+
+    pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}}, scheduler=scheduler)
+    entangle_slice = _entanglement_slices_from_pattern(pattern)
+
+    assert entangle_slice[in_node, mid_node] == 2
+    assert entangle_slice[mid_node, out_node] == 1
+
+    cz_slice = _cz_slices_from_stim(stim_compile(pattern))
+
+    assert cz_slice[in_node, mid_node] == 2
+    assert cz_slice[mid_node, out_node] == 1
