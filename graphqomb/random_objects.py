@@ -90,6 +90,7 @@ def random_circ(
     depth: int,
     rng: np.random.Generator | None = None,
     edge_p: float = 0.5,
+    pg_enable: bool = True,
     angle_candidates: Sequence[float] = (0.0, np.pi / 3, 2 * np.pi / 3, np.pi),
 ) -> MBQCCircuit:
     r"""Generate a random MBQC circuit.
@@ -104,6 +105,8 @@ def random_circ(
         random number generator, by default numpy.random.default_rng()
     edge_p : `float`, optional
         probability of adding CZ gate, by default 0.5
+    pg_enable : `bool`, optional
+        whether to enable phase gadgets, by default True
     angle_candidates : `collections.abc.Sequence[float]`, optional
         sequence of angles, by default (0, np.pi / 3, 2 * np.pi / 3, np.pi)
 
@@ -122,9 +125,10 @@ def random_circ(
             for j in range(width):
                 if rng.random() < edge_p:
                     circ.cz(j, (j + 1) % width)
-            num = rng.integers(0, width)
-            if num > 0:
-                target = sorted(set(rng.choice(range(width), num)))
-                circ.phase_gadget(target, rng.choice(angle_candidates))
+            if pg_enable:
+                num = rng.integers(0, width)
+                if num > 0:
+                    target = sorted(set(rng.choice(range(width), num)))
+                    circ.phase_gadget(target, rng.choice(angle_candidates))
 
     return circ
