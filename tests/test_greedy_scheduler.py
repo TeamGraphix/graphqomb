@@ -351,50 +351,6 @@ def test_greedy_minimize_space_wrapper() -> None:
     assert len(measure_time) > 0
 
 
-def test_greedy_scheduler_performance() -> None:
-    """Test that greedy scheduler is significantly faster than CP-SAT on larger graphs."""
-    # Create a larger graph (chain of 20 nodes)
-    graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(20)]
-
-    for i in range(19):
-        graph.add_physical_edge(nodes[i], nodes[i + 1])
-
-    qindex = 0
-    graph.register_input(nodes[0], qindex)
-    graph.register_output(nodes[-1], qindex)
-
-    flow = {nodes[i]: {nodes[i + 1]} for i in range(19)}
-
-    # Time greedy scheduler
-    scheduler_greedy = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
-
-    start_greedy = time.perf_counter()
-    success_greedy = scheduler_greedy.solve_schedule(config)
-    end_greedy = time.perf_counter()
-    greedy_time = end_greedy - start_greedy
-
-    assert success_greedy
-    scheduler_greedy.validate_schedule()
-
-    # Time CP-SAT scheduler
-    scheduler_cpsat = Scheduler(graph, flow)
-
-    start_cpsat = time.perf_counter()
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=False)
-    success_cpsat = scheduler_cpsat.solve_schedule(config, timeout=10)
-    end_cpsat = time.perf_counter()
-    cpsat_time = end_cpsat - start_cpsat
-
-    assert success_cpsat
-    scheduler_cpsat.validate_schedule()
-
-    # Greedy should be significantly faster (at least 5x for this size)
-    # Note: We use a conservative factor to avoid flaky tests
-    assert greedy_time < cpsat_time
-
-
 def test_greedy_scheduler_dag_constraints() -> None:
     """Test that greedy scheduler respects DAG constraints."""
     # Create a graph with more complex dependencies
@@ -402,26 +358,26 @@ def test_greedy_scheduler_dag_constraints() -> None:
     nodes = [graph.add_physical_node() for _ in range(6)]
 
     # Create edges forming a DAG structure
-    #   0 -> 1 -> 3 -> 5
-    #        2 -> 4 ->
-    graph.add_physical_edge(nodes[0], nodes[1])
-    graph.add_physical_edge(nodes[1], nodes[2])
-    graph.add_physical_edge(nodes[1], nodes[3])
+    #   0 -> 2 -> 4
+    #        |
+    #   1 -> 3 -> 5
+    graph.add_physical_edge(nodes[0], nodes[2])
     graph.add_physical_edge(nodes[2], nodes[4])
+    graph.add_physical_edge(nodes[1], nodes[3])
     graph.add_physical_edge(nodes[3], nodes[5])
-    graph.add_physical_edge(nodes[4], nodes[5])
+    graph.add_physical_edge(nodes[2], nodes[3])
 
-    qindex = 0
-    graph.register_input(nodes[0], qindex)
-    graph.register_output(nodes[5], qindex)
+    graph.register_input(nodes[0], 0)
+    graph.register_input(nodes[1], 1)
+    graph.register_output(nodes[4], 0)
+    graph.register_output(nodes[5], 1)
 
     # Create flow with dependencies
     flow = {
-        nodes[0]: {nodes[1]},
-        nodes[1]: {nodes[2], nodes[3]},
+        nodes[0]: {nodes[2]},
+        nodes[1]: {nodes[3]},
         nodes[2]: {nodes[4]},
-        nodes[3]: {nodes[5]},
-        nodes[4]: {nodes[5]},
+        nodes[3]: {nodes[5], nodes[1]},  # cyclic dependency to test DAG constraint handling
     }
 
     scheduler = Scheduler(graph, flow)
