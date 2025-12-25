@@ -102,24 +102,24 @@ class Pattern(Sequence[Command]):
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
     @property
+    def active_volume(self) -> int:
+        """Calculate tha active volume, summation of space for each timeslice.
+
+        Returns
+        -------
+        `int`
+            Active volume of the pattern
+        """
+        return sum(self.space)
+
+    @property
     def volume(self) -> int:
-        """Calculate tha volume, summation of space for each timeslice.
+        """Calculate the volume, defined as max_space * depth.
 
         Returns
         -------
         `int`
             Volume of the pattern
-        """
-        return sum(self.space)
-
-    @property
-    def max_volume(self) -> int:
-        """Calculate the maximum volume, defined as max_space * depth.
-
-        Returns
-        -------
-        `int`
-            Maximum volume of the pattern
         """
         return self.max_space * self.depth
 
