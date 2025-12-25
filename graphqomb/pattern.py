@@ -158,9 +158,17 @@ class Pattern(Sequence[Command]):
         -------
         `float`
             Number of measurements per TICK
+
+        Raises
+        ------
+        ValueError
+            If the pattern has zero depth (no TICK commands)
         """
         num_measurements = sum(1 for cmd in self.commands if isinstance(cmd, M))
         num_ticks = self.depth
+        if num_ticks == 0:
+            msg = "Cannot calculate throughput for a pattern with zero depth (no TICK commands)."
+            raise ValueError(msg)
         return num_measurements / num_ticks
 
 
