@@ -1,7 +1,5 @@
 """Test greedy scheduling algorithms."""
 
-import time
-
 import pytest
 
 from graphqomb.graphstate import GraphState
