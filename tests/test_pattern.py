@@ -219,14 +219,14 @@ def test_idle_times_returns_dict_for_measured_qubits(
     assert idle_times[nodes[1]] == 1
 
 
-def test_idle_times_input_nodes_prepared_before_first_tick(
+def test_idle_times_input_nodes_use_zero_baseline(
     pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
 ) -> None:
-    """Test that input nodes have idle time starting from time -1."""
+    """Test that input nodes have idle time starting from time 0."""
     input_nodes, output_nodes, pauli_frame, nodes = pattern_components
     meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
     # Input node measured at time 1 (after 1 TICK)
-    # prepared_time = -1, current_time = 1 -> idle_time = 2
+    # prepared_time = 0, current_time = 1 -> idle_time = 1
     commands = (
         TICK(),
         M(node=nodes[0], meas_basis=meas_basis),
@@ -241,9 +241,9 @@ def test_idle_times_input_nodes_prepared_before_first_tick(
     )
 
     idle_times = pattern.idle_times
-    # Input node prepared at -1, measured after 1 TICK (time=1)
-    # idle_time = 1 - (-1) = 2
-    assert idle_times[nodes[0]] == 2
+    # Input node prepared at 0, measured after 1 TICK (time=1)
+    # idle_time = 1 - 0 = 1
+    assert idle_times[nodes[0]] == 1
 
 
 def test_idle_times_output_nodes_included_when_prepared() -> None:
@@ -275,9 +275,9 @@ def test_idle_times_output_nodes_included_when_prepared() -> None:
     )
 
     idle_times = pattern.idle_times
-    # Output node prepared at -1, final time is 3 -> idle = 4
+    # Output node prepared at 0, final time is 3 -> idle = 3
     assert output_node in idle_times
-    assert idle_times[output_node] == 4
+    assert idle_times[output_node] == 3
 
 
 # Tests for throughput

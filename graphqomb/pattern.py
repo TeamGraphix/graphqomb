@@ -133,7 +133,7 @@ class Pattern(Sequence[Command]):
             A dictionary mapping each qubit index to its idle time.
         """
         idle_times: dict[int, int] = {}
-        prepared_time: dict[int, int] = dict.fromkeys(self.input_node_indices, -1)
+        prepared_time: dict[int, int] = dict.fromkeys(self.input_node_indices, 0)
 
         current_time = 0
         for cmd in self.commands:
