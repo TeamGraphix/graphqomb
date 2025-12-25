@@ -12,6 +12,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
+from graphqomb.greedy_scheduler import greedy_minimize_space, greedy_minimize_time
 from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
@@ -224,11 +225,6 @@ class Scheduler:
         -----
         After setting preparation and measurement times, any unscheduled entanglement times
         (with `None` value) are automatically scheduled using `auto_schedule_entanglement()`.
-
-        The graph is treated as undirected. For convenience, `entangle_time` accepts edges
-        in either order: both ``(u, v)`` and ``(v, u)`` are recognized. If both keys are
-        provided, the canonical order (as returned by :attr:`BaseGraphState.physical_edges`)
-        takes precedence, even when the value is ``None``.
         """
         self.prepare_time = {
             node: prepare_time.get(node, None)
@@ -239,14 +235,7 @@ class Scheduler:
             for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
         if entangle_time is not None:
-            resolved_entangle_time: dict[tuple[int, int], int | None] = {}
-            for edge in self.entangle_time:
-                if edge in entangle_time:
-                    resolved_entangle_time[edge] = entangle_time[edge]
-                else:
-                    u, v = edge
-                    resolved_entangle_time[edge] = entangle_time.get((v, u), None)
-            self.entangle_time = resolved_entangle_time
+            self.entangle_time = {edge: entangle_time.get(edge, None) for edge in self.entangle_time}
 
         # Auto-schedule unscheduled entanglement times
         if any(time is None for time in self.entangle_time.values()):
@@ -496,14 +485,15 @@ class Scheduler:
         config: ScheduleConfig | None = None,
         timeout: int = 60,
     ) -> bool:
-        r"""Compute the schedule using the constraint programming solver.
+        r"""Compute the schedule using constraint programming or greedy heuristics.
 
         Parameters
         ----------
         config : `ScheduleConfig` | `None`, optional
-            The scheduling configuration. If None, defaults to MINIMIZE_SPACE strategy.
+            The scheduling configuration. If None, defaults to MINIMIZE_TIME strategy.
         timeout : `int`, optional
-            Maximum solve time in seconds, by default 60
+            Maximum solve time in seconds for CP-SAT solver, by default 60.
+            Ignored when use_greedy=True.
 
         Returns
         -------
@@ -518,7 +508,17 @@ class Scheduler:
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
-        result = solve_schedule(self.graph, self.dag, config, timeout)
+        result: tuple[dict[int, int], dict[int, int]] | None
+        if config.use_greedy:
+            # Use fast greedy heuristics
+            if config.strategy == Strategy.MINIMIZE_TIME:
+                result = greedy_minimize_time(self.graph, self.dag, max_qubit_count=config.max_qubit_count)
+            else:  # Strategy.MINIMIZE_SPACE
+                result = greedy_minimize_space(self.graph, self.dag)
+        else:
+            # Use CP-SAT solver for optimal solution
+            result = solve_schedule(self.graph, self.dag, config, timeout)
+
         if result is None:
             return False
 
