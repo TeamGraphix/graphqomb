@@ -86,6 +86,9 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
             msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
             raise RuntimeError(msg)
 
+        # Track which nodes have neighbors being prepared at current_time
+        nodes_with_prep: set[int] = set()
+
         if max_qubit_count is not None:
             # Choose measurement nodes from measure_candidates while respecting max_qubit_count
             to_measure, to_prepare = _determine_measure_nodes(
@@ -95,33 +98,39 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
                 alive,
                 max_qubit_count,
             )
-            needs_prep = bool(to_prepare)
             for neighbor in to_prepare:
                 prepare_time[neighbor] = current_time
                 # If this neighbor already had no dependencies, it becomes measure candidate
                 if not inv_dag[neighbor] and neighbor in unmeasured:
                     measure_candidates.add(neighbor)
+                # Record which measurement nodes have this neighbor
+                for node in to_measure:
+                    if neighbor in neighbors_map[node]:
+                        nodes_with_prep.add(node)
             prepared.update(to_prepare)
             alive.update(to_prepare)
         else:
             # Without a qubit limit, measure all currently measure candidates
             to_measure = set(measure_candidates)
-            needs_prep = False
             for node in to_measure:
                 for neighbor in neighbors_map[node]:
                     if neighbor not in prepared:
                         prepare_time[neighbor] = current_time
                         prepared.add(neighbor)
-                        needs_prep = True
+                        nodes_with_prep.add(node)
 
                         if not inv_dag[neighbor] and neighbor in unmeasured:
                             measure_candidates.add(neighbor)
 
-        # Measure at current_time if no prep needed, otherwise at current_time + 1
-        meas_time = current_time + 1 if needs_prep else current_time
-
+        # Measure at current_time if no prep needed for that node, otherwise at current_time + 1
+        max_meas_time = current_time
         for node in to_measure:
-            measure_time[node] = meas_time
+            if node in nodes_with_prep:
+                measure_time[node] = current_time + 1
+                max_meas_time = current_time + 1
+            else:
+                measure_time[node] = current_time
+
             if max_qubit_count is not None:
                 alive.remove(node)
             unmeasured.remove(node)
@@ -133,7 +142,7 @@ def greedy_minimize_time(  # noqa: C901, PLR0912
                 if not inv_dag[child] and child in unmeasured:
                     measure_candidates.add(child)
 
-        current_time = meas_time + 1
+        current_time = max_meas_time + 1
 
     return prepare_time, measure_time
 
