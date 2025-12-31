@@ -87,16 +87,10 @@ def _greedy_minimize_time_unlimited(
     input_nodes: AbstractSet[int],
     output_nodes: AbstractSet[int],
 ) -> tuple[dict[int, int], dict[int, int]]:
-    prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
-    # 1. Prepare all non-input nodes at time=0
-    for node in graph.physical_nodes:
-        if node not in input_nodes:
-            prepare_time[node] = 0
-
-    # 2. Compute ASAP measurement times using topological order
-    # Each node can be measured at max(parent_meas_times) + 1
+    # 1. Compute ASAP measurement times using topological order
+    # Neighbor constraint: assume all non-input nodes can be prepared at time 0
     # TopologicalSorter expects {node: dependencies}, which is inv_dag
     try:
         topo_order = list(TopologicalSorter(inv_dag).static_order())
@@ -107,11 +101,12 @@ def _greedy_minimize_time_unlimited(
     for node in topo_order:
         if node in output_nodes:
             continue
-        # Find the latest measurement time among parents
+        # DAG constraint: must measure after all parents
         parent_times = [measure_time[p] for p in inv_dag[node] if p in measure_time]
-        # Find the latest preparation time among neighbors (constraint: prep[neighbor] < meas[node])
+        # Neighbor constraint: all neighbors must be prepared before measurement
+        # Input nodes are prepared at time -1, others at time 0 (earliest possible)
         neighbor_prep_times = [
-            prepare_time.get(n, -1) for n in neighbors_map[node]
+            -1 if n in input_nodes else 0 for n in neighbors_map[node]
         ]
         # Measure at the next time slot after all parents are measured
         # AND after all neighbors are prepared
@@ -119,6 +114,9 @@ def _greedy_minimize_time_unlimited(
             max(parent_times, default=-1) + 1,
             max(neighbor_prep_times, default=-1) + 1,
         )
+
+    # 2. Compute ALAP preparation times (replace time=0 with latest possible)
+    prepare_time = alap_prepare_times(graph, measure_time)
 
     return prepare_time, measure_time
 
@@ -216,6 +214,9 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
         if current_time > len(graph.physical_nodes) * 2:
             msg = "Scheduling did not converge; possible cyclic dependency."
             raise RuntimeError(msg)
+
+    # Apply ALAP post-processing to minimize active volume
+    prepare_time = alap_prepare_times(graph, measure_time)
 
     return prepare_time, measure_time
 
@@ -486,3 +487,64 @@ def _calc_activate_cost(
         return len(alive) + len(new_neighbors)
     # No preparation needed -> node is measured in the current slice, so alive decreases by 1.
     return max(len(alive) - 1, 0)
+
+
+def alap_prepare_times(
+    graph: BaseGraphState,
+    measure_time: Mapping[int, int],
+) -> dict[int, int]:
+    r"""Recompute preparation times using ALAP (As Late As Possible) strategy.
+
+    Given fixed measurement times, this computes the latest possible preparation
+    time for each node while respecting the constraint that all neighbors must
+    be prepared before a node is measured.
+
+    This post-processing reduces active volume (sum of qubit lifetimes) without
+    changing the measurement schedule or depth.
+
+    Parameters
+    ----------
+    graph : `BaseGraphState`
+        The graph state
+    measure_time : `collections.abc.Mapping`\[`int`, `int`\]
+        Fixed measurement times for non-output nodes
+
+    Returns
+    -------
+    `dict`\[`int`, `int`\]
+        ALAP preparation times for non-input nodes
+    """
+    input_nodes = set(graph.input_node_indices.keys())
+
+    # deadline[v] = latest time v can be prepared
+    deadline: dict[int, int] = {}
+
+    # For each measured node u, all its neighbors must be prepared before meas(u)
+    for u, meas_u in measure_time.items():
+        for neighbor in graph.neighbors(u):
+            if neighbor in input_nodes:
+                continue  # Input nodes don't need prep
+            if neighbor not in deadline:
+                deadline[neighbor] = meas_u - 1
+            else:
+                deadline[neighbor] = min(deadline[neighbor], meas_u - 1)
+
+    # For measured nodes, they must be prepared before their own measurement
+    for v, meas_v in measure_time.items():
+        if v in input_nodes:
+            continue  # Input nodes don't need prep
+        if v not in deadline:
+            deadline[v] = meas_v - 1
+        else:
+            deadline[v] = min(deadline[v], meas_v - 1)
+
+    # Handle nodes with no deadline yet (output nodes with no measured neighbors)
+    # These should be prepared at the latest possible time: max(measure_time) - 1
+    # or 0 if there are no measurements
+    makespan = max(measure_time.values(), default=0)
+    for v in graph.physical_nodes - input_nodes:
+        if v not in deadline:
+            # No constraint from neighbors, prep as late as possible
+            deadline[v] = max(makespan - 1, 0)
+
+    return deadline
