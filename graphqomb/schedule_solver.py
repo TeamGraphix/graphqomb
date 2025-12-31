@@ -124,13 +124,63 @@ def _compute_alive_nodes_at_time(
             ctx.model.Add(q <= t).OnlyEnforceIf(a_meas)
             ctx.model.Add(q > t).OnlyEnforceIf(a_meas.Not())
 
+        # alive <=> (a_pre AND NOT a_meas)
+        # A node is alive at time t if it has been prepared (prep <= t)
+        # and has not yet been measured (meas > t)
         alive = ctx.model.NewBoolVar(f"alive_{node}_{t}")
+        # Forward: alive => (a_pre AND NOT a_meas)
         ctx.model.AddImplication(alive, a_pre)
         ctx.model.AddImplication(alive, a_meas.Not())
-        ctx.model.Add(a_pre - a_meas <= alive)
+        # Backward: (a_pre AND NOT a_meas) => alive
+        # Equivalent to: (NOT a_pre OR a_meas OR alive)
+        ctx.model.AddBoolOr([a_pre.Not(), a_meas, alive])
         alive_at_t.append(alive)
 
     return alive_at_t
+
+
+def _add_lifetime_cumulative_constraint(
+    ctx: _ModelContext,
+    node2prep: Mapping[int, cp_model.IntVar],
+    node2meas: Mapping[int, cp_model.IntVar],
+    *,
+    max_time: int,
+    capacity: int | cp_model.IntVar,
+    name_prefix: str,
+) -> None:
+    """Add a cumulative constraint that limits the number of alive qubits.
+
+    A qubit is considered alive at time t if it has been prepared (prep <= t)
+    and has not yet been measured (meas > t). This corresponds to an interval
+    [prep, meas) in the CP-SAT model. Input nodes are treated as prepared at
+    time 0, and output nodes are treated as alive until max_time.
+    """
+    intervals: list[cp_model.IntervalVar] = []
+    demands: list[int] = []
+
+    for node in ctx.graph.physical_nodes:
+        if node in node2prep and node in node2meas:
+            ctx.model.Add(node2prep[node] < node2meas[node])
+
+        start = (
+            ctx.model.NewConstant(0)
+            if node in ctx.graph.input_node_indices
+            else node2prep[node]
+        )
+        end = (
+            ctx.model.NewConstant(max_time)
+            if node in ctx.graph.output_node_indices
+            else node2meas[node]
+        )
+
+        duration = ctx.model.NewIntVar(0, max_time, f"{name_prefix}_dur_{node}")
+        ctx.model.Add(end - start == duration)
+        intervals.append(
+            ctx.model.NewIntervalVar(start, duration, end, f"{name_prefix}_{node}")
+        )
+        demands.append(1)
+
+    ctx.model.AddCumulative(intervals, demands, capacity)
 
 
 def _set_minimize_space_objective(
@@ -141,9 +191,14 @@ def _set_minimize_space_objective(
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
     max_space = ctx.model.NewIntVar(0, len(ctx.graph.physical_nodes), "max_space")
-    for t in range(max_time):
-        alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-        ctx.model.Add(max_space >= sum(alive_at_t))
+    _add_lifetime_cumulative_constraint(
+        ctx,
+        node2prep,
+        node2meas,
+        max_time=max_time,
+        capacity=max_space,
+        name_prefix="alive_interval",
+    )
     ctx.model.Minimize(max_space)
 
 
@@ -157,9 +212,14 @@ def _set_minimize_time_objective(
     """Set objective to minimize the total execution time."""
     # Add space constraint if max_qubit_count is specified
     if max_qubit_count is not None:
-        for t in range(max_time):
-            alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-            ctx.model.Add(sum(alive_at_t) <= max_qubit_count)
+        _add_lifetime_cumulative_constraint(
+            ctx,
+            node2prep,
+            node2meas,
+            max_time=max_time,
+            capacity=max_qubit_count,
+            name_prefix="alive_interval",
+        )
 
     # Time objective: minimize makespan
     meas_vars = list(node2meas.values())
