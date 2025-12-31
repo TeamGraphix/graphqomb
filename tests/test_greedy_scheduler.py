@@ -429,3 +429,88 @@ def test_greedy_scheduler_edge_constraints() -> None:
     assert meas1 is not None
     assert entangle01 < meas0
     assert entangle12 < meas1
+
+
+def test_greedy_minimize_time_3x3_grid_optimal() -> None:
+    """Test that greedy_minimize_time achieves optimal depth on 3x3 grid.
+
+    This is a regression test for the optimization that prepares all nodes
+    at time=0 and measures in ASAP order based on DAG dependencies.
+    Previously, the greedy algorithm produced depth=4 instead of optimal depth=3.
+    """
+    # Create 3x3 grid graph
+    # Layout:
+    #   0 - 3 - 6
+    #   |   |   |
+    #   1 - 4 - 7
+    #   |   |   |
+    #   2 - 5 - 8
+    # Inputs: 0, 1, 2 (left column)
+    # Outputs: 6, 7, 8 (right column)
+    graph = GraphState()
+    nodes = [graph.add_physical_node() for _ in range(9)]
+
+    # Horizontal edges
+    for row in range(3):
+        for col in range(2):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
+
+    # Vertical edges
+    for row in range(2):
+        for col in range(3):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
+
+    # Register inputs (left column) and outputs (right column)
+    for row in range(3):
+        graph.register_input(nodes[row], row)
+        graph.register_output(nodes[row + 6], row)
+
+    # Flow: left to right
+    flow: dict[int, set[int]] = {}
+    for row in range(3):
+        flow[nodes[row]] = {nodes[row + 3]}  # 0->3, 1->4, 2->5
+        flow[nodes[row + 3]] = {nodes[row + 6]}  # 3->6, 4->7, 5->8
+
+    scheduler = Scheduler(graph, flow)
+
+    # Test greedy scheduler (no qubit limit)
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # All non-input nodes should be prepared at time=0
+    for node in [3, 4, 5, 6, 7, 8]:
+        assert prepare_time[node] == 0, f"Node {node} should be prepared at time 0"
+
+    # Calculate depth
+    greedy_depth = max(measure_time.values()) + 1
+
+    # The optimal depth for a 3x3 grid is 3 (same as CP-SAT)
+    assert greedy_depth == 3, f"Expected depth=3, got depth={greedy_depth}"
+
+
+def test_greedy_minimize_time_prepares_all_at_time_zero() -> None:
+    """Test that greedy_minimize_time prepares all nodes at time=0 when unlimited."""
+    graph = GraphState()
+    # Create a 4-node chain: 0-1-2-3
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    n3 = graph.add_physical_node()
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+
+    graph.register_input(n0, 0)
+    graph.register_output(n3, 0)
+
+    flow = {n0: {n1}, n1: {n2}, n2: {n3}}
+    scheduler = Scheduler(graph, flow)
+
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # All non-input nodes should be prepared at time=0
+    assert n1 in prepare_time and prepare_time[n1] == 0
+    assert n2 in prepare_time and prepare_time[n2] == 0
+    assert n3 in prepare_time and prepare_time[n3] == 0
+
+    # Input node should not have prepare_time
+    assert n0 not in prepare_time
