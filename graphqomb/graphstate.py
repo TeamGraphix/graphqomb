@@ -332,9 +332,7 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
 
     @typing_extensions.override
-    def add_physical_node(
-        self, coordinate: tuple[float, ...] | None = None
-    ) -> int:
+    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
         r"""Add a physical node to the graph state.
 
         Parameters

@@ -130,11 +130,7 @@ def _qompile(
             commands.extend((X(node=node), Z(node=node)))
 
     # Collect input node coordinates
-    input_coords = {
-        node: graph_coords[node]
-        for node in graph.input_node_indices
-        if node in graph_coords
-    }
+    input_coords = {node: graph_coords[node] for node in graph.input_node_indices if node in graph_coords}
 
     return Pattern(
         input_node_indices=graph.input_node_indices,

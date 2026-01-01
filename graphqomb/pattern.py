@@ -46,9 +46,7 @@ class Pattern(Sequence[Command]):
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
-    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(
-        default_factory=dict
-    )
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.commands)
