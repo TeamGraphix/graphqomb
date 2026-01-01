@@ -102,24 +102,24 @@ class Pattern(Sequence[Command]):
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
     @property
+    def active_volume(self) -> int:
+        """Calculate tha active volume, summation of space for each timeslice.
+
+        Returns
+        -------
+        `int`
+            Active volume of the pattern
+        """
+        return sum(self.space)
+
+    @property
     def volume(self) -> int:
-        """Calculate tha volume, summation of space for each timeslice.
+        """Calculate the volume, defined as max_space * depth.
 
         Returns
         -------
         `int`
             Volume of the pattern
-        """
-        return sum(self.space)
-
-    @property
-    def max_volume(self) -> int:
-        """Calculate the maximum volume, defined as max_space * depth.
-
-        Returns
-        -------
-        `int`
-            Maximum volume of the pattern
         """
         return self.max_space * self.depth
 
@@ -158,9 +158,17 @@ class Pattern(Sequence[Command]):
         -------
         `float`
             Number of measurements per TICK
+
+        Raises
+        ------
+        ValueError
+            If the pattern has zero depth (no TICK commands)
         """
         num_measurements = sum(1 for cmd in self.commands if isinstance(cmd, M))
         num_ticks = self.depth
+        if num_ticks == 0:
+            msg = "Cannot calculate throughput for a pattern with zero depth (no TICK commands)."
+            raise ValueError(msg)
         return num_measurements / num_ticks
 
 

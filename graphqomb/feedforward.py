@@ -19,7 +19,7 @@ from typing import Any
 
 import typing_extensions
 
-from graphqomb.common import Plane, determine_pauli_axis, Axis
+from graphqomb.common import Axis, Plane, determine_pauli_axis
 from graphqomb.graphstate import BaseGraphState, odd_neighbors
 
 if sys.version_info >= (3, 10):
@@ -279,7 +279,7 @@ def propagate_correction_map(  # noqa: C901, PLR0912
     return new_xflow, new_zflow
 
 
-def pauli_simplification(  # noqa: C901
+def pauli_simplification(  # noqa: C901, PLR0912
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
@@ -317,7 +317,11 @@ def pauli_simplification(  # noqa: C901
 
     for node in graph.physical_nodes - graph.output_node_indices.keys():
         meas_basis = graph.meas_bases.get(node)
+        if meas_basis is None:
+            continue
         meas_axis = determine_pauli_axis(meas_basis)
+        if meas_axis is None:
+            continue
 
         if meas_axis == Axis.X:
             for parent in inv_xflow.get(node, set()):

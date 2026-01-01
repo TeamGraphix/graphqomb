@@ -508,6 +508,7 @@ class Scheduler:
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
+        result: tuple[dict[int, int], dict[int, int]] | None
         if config.use_greedy:
             # Use fast greedy heuristics
             if config.strategy == Strategy.MINIMIZE_TIME:

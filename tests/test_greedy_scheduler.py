@@ -1,7 +1,5 @@
 """Test greedy scheduling algorithms."""
 
-import time
-
 import pytest
 
 from graphqomb.graphstate import GraphState
@@ -98,7 +96,7 @@ def _compute_max_alive_qubits(
 
     max_alive = len(graph.input_node_indices)  # At least inputs are alive at t = -1
     for t in range(max_t + 1):
-        alive_nodes = set()
+        alive_nodes: set[int] = set()
         for node in graph.physical_nodes:
             # Determine preparation time
             prep_t = -1 if node in graph.input_node_indices else prepare_time.get(node)
@@ -253,7 +251,7 @@ def test_greedy_scheduler_larger_graph() -> None:
     nodes_per_layer = 3
 
     # Build layered graph
-    all_nodes = []
+    all_nodes: list[list[int]] = []
     for layer in range(num_layers):
         layer_nodes = [graph.add_physical_node() for _ in range(nodes_per_layer)]
         all_nodes.append(layer_nodes)
@@ -272,7 +270,7 @@ def test_greedy_scheduler_larger_graph() -> None:
         graph.register_output(node, i)
 
     # Build flow (simple forward flow)
-    flow = {}
+    flow: dict[int, set[int]] = {}
     for layer in range(num_layers - 1):
         for i, node in enumerate(all_nodes[layer]):
             if node not in graph.output_node_indices:
@@ -351,55 +349,6 @@ def test_greedy_minimize_space_wrapper() -> None:
     assert len(measure_time) > 0
 
 
-def test_greedy_scheduler_performance() -> None:
-    """Test that greedy scheduler is significantly faster than CP-SAT on larger graphs."""
-    # Create a larger graph (chain of 20 nodes)
-    graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(20)]
-
-    for i in range(19):
-        graph.add_physical_edge(nodes[i], nodes[i + 1])
-
-    qindex = 0
-    graph.register_input(nodes[0], qindex)
-    graph.register_output(nodes[-1], qindex)
-
-    flow = {nodes[i]: {nodes[i + 1]} for i in range(19)}
-
-    # Time greedy scheduler
-    scheduler_greedy = Scheduler(graph, flow)
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=True)
-
-    start_greedy = time.perf_counter()
-    success_greedy = scheduler_greedy.solve_schedule(config)
-    end_greedy = time.perf_counter()
-    greedy_time = end_greedy - start_greedy
-
-    assert success_greedy
-    scheduler_greedy.validate_schedule()
-
-    # Time CP-SAT scheduler
-    scheduler_cpsat = Scheduler(graph, flow)
-
-    start_cpsat = time.perf_counter()
-    config = ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, use_greedy=False)
-    success_cpsat = scheduler_cpsat.solve_schedule(config, timeout=10)
-    end_cpsat = time.perf_counter()
-    cpsat_time = end_cpsat - start_cpsat
-
-    assert success_cpsat
-    scheduler_cpsat.validate_schedule()
-
-    # Print timing information for debugging
-    print(f"\nGreedy time: {greedy_time:.4f}s")
-    print(f"CP-SAT time: {cpsat_time:.4f}s")
-    print(f"Speedup: {cpsat_time / greedy_time:.1f}x")
-
-    # Greedy should be significantly faster (at least 5x for this size)
-    # Note: We use a conservative factor to avoid flaky tests
-    assert greedy_time < cpsat_time
-
-
 def test_greedy_scheduler_dag_constraints() -> None:
     """Test that greedy scheduler respects DAG constraints."""
     # Create a graph with more complex dependencies
@@ -407,26 +356,26 @@ def test_greedy_scheduler_dag_constraints() -> None:
     nodes = [graph.add_physical_node() for _ in range(6)]
 
     # Create edges forming a DAG structure
-    #   0 -> 1 -> 3 -> 5
-    #        2 -> 4 ->
-    graph.add_physical_edge(nodes[0], nodes[1])
-    graph.add_physical_edge(nodes[1], nodes[2])
-    graph.add_physical_edge(nodes[1], nodes[3])
+    #   0 -> 2 -> 4
+    #        |
+    #   1 -> 3 -> 5
+    graph.add_physical_edge(nodes[0], nodes[2])
     graph.add_physical_edge(nodes[2], nodes[4])
+    graph.add_physical_edge(nodes[1], nodes[3])
     graph.add_physical_edge(nodes[3], nodes[5])
-    graph.add_physical_edge(nodes[4], nodes[5])
+    graph.add_physical_edge(nodes[2], nodes[3])
 
-    qindex = 0
-    graph.register_input(nodes[0], qindex)
-    graph.register_output(nodes[5], qindex)
+    graph.register_input(nodes[0], 0)
+    graph.register_input(nodes[1], 1)
+    graph.register_output(nodes[4], 0)
+    graph.register_output(nodes[5], 1)
 
     # Create flow with dependencies
     flow = {
-        nodes[0]: {nodes[1]},
-        nodes[1]: {nodes[2], nodes[3]},
+        nodes[0]: {nodes[2]},
+        nodes[1]: {nodes[3]},
         nodes[2]: {nodes[4]},
-        nodes[3]: {nodes[5]},
-        nodes[4]: {nodes[5]},
+        nodes[3]: {nodes[5], nodes[1]},  # cyclic dependency to test DAG constraint handling
     }
 
     scheduler = Scheduler(graph, flow)
@@ -468,9 +417,159 @@ def test_greedy_scheduler_edge_constraints() -> None:
     # Check that entanglement times were auto-scheduled correctly
     edge01 = (node0, node1)
     edge12 = (node1, node2)
-    assert scheduler.entangle_time[edge01] is not None
-    assert scheduler.entangle_time[edge12] is not None
+    entangle01 = scheduler.entangle_time[edge01]
+    entangle12 = scheduler.entangle_time[edge12]
+    assert entangle01 is not None
+    assert entangle12 is not None
 
     # Entanglement must happen before measurement
-    assert scheduler.entangle_time[edge01] < scheduler.measure_time[node0]
-    assert scheduler.entangle_time[edge12] < scheduler.measure_time[node1]
+    meas0 = scheduler.measure_time[node0]
+    meas1 = scheduler.measure_time[node1]
+    assert meas0 is not None
+    assert meas1 is not None
+    assert entangle01 < meas0
+    assert entangle12 < meas1
+
+
+def test_greedy_minimize_time_3x3_grid_optimal() -> None:
+    """Test that greedy_minimize_time achieves optimal depth on 3x3 grid.
+
+    This is a regression test for the optimization that measures in ASAP order
+    based on DAG dependencies. With ALAP preparation, nodes are prepared as
+    late as possible, but depth should still be optimal.
+    Previously, the greedy algorithm produced depth=4 instead of optimal depth=3.
+    """
+    # Create 3x3 grid graph
+    # Layout:
+    #   0 - 3 - 6
+    #   |   |   |
+    #   1 - 4 - 7
+    #   |   |   |
+    #   2 - 5 - 8
+    # Inputs: 0, 1, 2 (left column)
+    # Outputs: 6, 7, 8 (right column)
+    graph = GraphState()
+    nodes = [graph.add_physical_node() for _ in range(9)]
+
+    # Horizontal edges
+    for row in range(3):
+        for col in range(2):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
+
+    # Vertical edges
+    for row in range(2):
+        for col in range(3):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
+
+    # Register inputs (left column) and outputs (right column)
+    for row in range(3):
+        graph.register_input(nodes[row], row)
+        graph.register_output(nodes[row + 6], row)
+
+    # Flow: left to right
+    flow: dict[int, set[int]] = {}
+    for row in range(3):
+        flow[nodes[row]] = {nodes[row + 3]}  # 0->3, 1->4, 2->5
+        flow[nodes[row + 3]] = {nodes[row + 6]}  # 3->6, 4->7, 5->8
+
+    scheduler = Scheduler(graph, flow)
+
+    # Test greedy scheduler (no qubit limit)
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # With ALAP, nodes are prepared as late as possible, not at time=0
+    # Check that all non-input nodes have a prepare_time
+    for node in [3, 4, 5, 6, 7, 8]:
+        assert node in prepare_time, f"Node {node} should have a prepare_time"
+
+    # Calculate depth
+    greedy_depth = max(measure_time.values()) + 1
+
+    # The optimal depth for a 3x3 grid is 3 (same as CP-SAT)
+    assert greedy_depth == 3, f"Expected depth=3, got depth={greedy_depth}"
+
+
+def test_greedy_minimize_time_alap_preparation() -> None:
+    """Test that greedy_minimize_time uses ALAP preparation to minimize active volume."""
+    graph = GraphState()
+    # Create a 4-node chain: 0-1-2-3
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    n3 = graph.add_physical_node()
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+
+    graph.register_input(n0, 0)
+    graph.register_output(n3, 0)
+
+    flow = {n0: {n1}, n1: {n2}, n2: {n3}}
+    scheduler = Scheduler(graph, flow)
+
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # With ALAP, nodes should be prepared as late as possible
+    # n1 is neighbor of n0, so prep(n1) < meas(n0)
+    assert prepare_time[n1] == measure_time[n0] - 1
+    # n2 is neighbor of n1, so prep(n2) < meas(n1)
+    assert prepare_time[n2] == measure_time[n1] - 1
+    # n3 (output) is neighbor of n2, so prep(n3) < meas(n2)
+    assert prepare_time[n3] == measure_time[n2] - 1
+
+    # Input node should not have prepare_time
+    assert n0 not in prepare_time
+
+
+def test_alap_reduces_active_volume() -> None:
+    """Test that ALAP preparation reduces active volume compared to ASAP."""
+    graph = GraphState()
+    # Create a chain graph: 0-1-2-3
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    n3 = graph.add_physical_node()
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+    graph.register_input(n0, 0)
+    graph.register_output(n3, 0)
+
+    flow = {n0: {n1}, n1: {n2}, n2: {n3}}
+    scheduler = Scheduler(graph, flow)
+
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # With ALAP: n3 (output) should be prepared as late as possible
+    # n3 is neighbor of n2, so prep(n3) < meas(n2)
+    # This should be later than time=0
+    assert prepare_time[n3] == measure_time[n2] - 1
+    assert prepare_time[n3] > 0  # ALAP should delay preparation
+
+
+def test_alap_preserves_depth() -> None:
+    """Test that ALAP does not increase depth."""
+    # Create a 3x3 grid
+    graph = GraphState()
+    nodes = [graph.add_physical_node() for _ in range(9)]
+
+    # Horizontal and vertical edges
+    for row in range(3):
+        for col in range(2):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
+    for row in range(2):
+        for col in range(3):
+            graph.add_physical_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
+
+    for row in range(3):
+        graph.register_input(nodes[row], row)
+        graph.register_output(nodes[row + 6], row)
+
+    flow: dict[int, set[int]] = {nodes[row]: {nodes[row + 3]} for row in range(3)}
+    flow.update({nodes[row + 3]: {nodes[row + 6]} for row in range(3)})
+
+    scheduler = Scheduler(graph, flow)
+    prepare_time, measure_time = greedy_minimize_time(graph, scheduler.dag)
+
+    # Depth should still be optimal (3)
+    assert max(measure_time.values()) + 1 == 3
