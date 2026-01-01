@@ -38,12 +38,17 @@ class Pattern(Sequence[Command]):
         Commands of the pattern
     pauli_frame : `PauliFrame`
         Pauli frame of the pattern to track the Pauli state of each node
+    input_coordinates : `dict`\[`int`, `tuple`\[`float`, ...\]\]
+        Coordinates for input nodes (2D or 3D)
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(
+        default_factory=dict
+    )
 
     def __len__(self) -> int:
         return len(self.commands)
@@ -100,6 +105,21 @@ class Pattern(Sequence[Command]):
             Depth of the pattern
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
+
+    @functools.cached_property
+    def coordinates(self) -> dict[int, tuple[float, ...]]:
+        r"""Get all node coordinates from N commands and input coordinates.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`float`, ...\]\]
+            mapping from node index to coordinate tuple (2D or 3D)
+        """
+        coords = dict(self.input_coordinates)
+        for cmd in self.commands:
+            if isinstance(cmd, N) and cmd.coordinate is not None:
+                coords[cmd.node] = cmd.coordinate
+        return coords
 
 
 def is_runnable(pattern: Pattern) -> None:

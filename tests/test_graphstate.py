@@ -285,3 +285,72 @@ def test_odd_neighbors(graph: GraphState) -> None:
 
     assert odd_neighbors({node1}, graph) == {node2, node3}
     assert odd_neighbors({node1, node2}, graph) == {node1, node2}
+
+
+# ---- Coordinate Tests ----
+
+
+def test_set_coordinate(graph: GraphState) -> None:
+    """Test setting coordinates for a node."""
+    node = graph.add_physical_node()
+    graph.set_coordinate(node, (1.0, 2.0))
+    assert graph.coordinates == {node: (1.0, 2.0)}
+
+
+def test_set_coordinate_3d(graph: GraphState) -> None:
+    """Test setting 3D coordinates for a node."""
+    node = graph.add_physical_node()
+    graph.set_coordinate(node, (1.0, 2.0, 3.0))
+    assert graph.coordinates == {node: (1.0, 2.0, 3.0)}
+
+
+def test_add_physical_node_with_coordinate() -> None:
+    """Test adding a node with coordinates."""
+    graph = GraphState()
+    node = graph.add_physical_node(coordinate=(1.5, 2.5))
+    assert graph.coordinates == {node: (1.5, 2.5)}
+
+
+def test_remove_physical_node_removes_coordinate() -> None:
+    """Test that removing a node also removes its coordinate."""
+    graph = GraphState()
+    node1 = graph.add_physical_node(coordinate=(1.0, 2.0))
+    node2 = graph.add_physical_node(coordinate=(3.0, 4.0))
+    graph.add_physical_edge(node1, node2)
+    graph.register_output(node2, 0)
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    graph.remove_physical_node(node1)
+    assert node1 not in graph.coordinates
+    assert graph.coordinates == {node2: (3.0, 4.0)}
+
+
+def test_from_graph_with_coordinates() -> None:
+    """Test from_graph with coordinates parameter."""
+    nodes = ["a", "b", "c"]
+    edges = [("a", "b"), ("b", "c")]
+    coordinates = {"a": (0.0, 0.0), "b": (1.0, 0.0), "c": (2.0, 0.0)}
+
+    graph, node_map = GraphState.from_graph(
+        nodes, edges, inputs=["a"], outputs=["c"], coordinates=coordinates
+    )
+
+    assert graph.coordinates[node_map["a"]] == (0.0, 0.0)
+    assert graph.coordinates[node_map["b"]] == (1.0, 0.0)
+    assert graph.coordinates[node_map["c"]] == (2.0, 0.0)
+
+
+def test_from_base_graph_state_copies_coordinates() -> None:
+    """Test that from_base_graph_state copies coordinates."""
+    graph1 = GraphState()
+    node1 = graph1.add_physical_node(coordinate=(1.0, 2.0))
+    node2 = graph1.add_physical_node(coordinate=(3.0, 4.0))
+    graph1.add_physical_edge(node1, node2)
+    graph1.register_input(node1, 0)
+    graph1.register_output(node2, 0)
+    graph1.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    graph2, node_map = GraphState.from_base_graph_state(graph1)
+
+    assert graph2.coordinates[node_map[node1]] == (1.0, 2.0)
+    assert graph2.coordinates[node_map[node2]] == (3.0, 4.0)

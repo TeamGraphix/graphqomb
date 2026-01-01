@@ -23,17 +23,22 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class N:
-    """Preparation command.
+    r"""Preparation command.
 
     Attributes
     ----------
     node : `int`
         The node index to be prepared.
+    coordinate : `tuple`\[`float`, ...\] | `None`
+        Optional coordinate for the node (2D or 3D).
     """
 
     node: int
+    coordinate: tuple[float, ...] | None = None
 
     def __str__(self) -> str:
+        if self.coordinate is not None:
+            return f"N: node={self.node}, coord={self.coordinate}"
         return f"N: node={self.node}"
 
 
