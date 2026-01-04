@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
     from graphqomb.graphstate import BaseGraphState
 
+# Minimum number of coordinate dimensions required for 2D visualization
+_MIN_2D_COORDS = 2
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -94,6 +96,12 @@ def visualize(  # noqa: PLR0913
     -------
     `matplotlib.axes.Axes`
         The Axes object containing the visualization
+
+    Notes
+    -----
+    Currently only 2D visualization is supported. For 3D coordinates, only the
+    x and y components are used; the z component is ignored. 3D visualization
+    support is planned for a future release.
     """
     node_pos = _get_node_positions(graph, use_graph_coordinates)
 
@@ -251,8 +259,8 @@ def _get_node_positions(
         # Use graph coordinates (project 3D to 2D by using x, y only)
         node_pos: dict[int, tuple[float, float]] = {}
         for node, coord in graph.coordinates.items():
-            # Take first two coordinates for 2D projection
-            node_pos[node] = (coord[0], coord[1])
+            # Take first two coordinates for 2D projection (1D uses y=0.0)
+            node_pos[node] = (coord[0], coord[1] if len(coord) >= _MIN_2D_COORDS else 0.0)
 
         # For nodes without coordinates, calculate positions
         missing_nodes = graph.physical_nodes - node_pos.keys()

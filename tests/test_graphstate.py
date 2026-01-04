@@ -297,6 +297,12 @@ def test_set_coordinate(graph: GraphState) -> None:
     assert graph.coordinates == {node: (1.0, 2.0)}
 
 
+def test_set_coordinate_invalid_node(graph: GraphState) -> None:
+    """Test that set_coordinate raises error for non-existent node."""
+    with pytest.raises(ValueError):
+        graph.set_coordinate(999, (1.0, 2.0))
+
+
 def test_set_coordinate_3d(graph: GraphState) -> None:
     """Test setting 3D coordinates for a node."""
     node = graph.add_physical_node()

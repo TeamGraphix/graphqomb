@@ -94,6 +94,24 @@ def test_visualize_with_3d_coordinates() -> None:
     plt.close("all")
 
 
+def test_visualize_with_1d_coordinates() -> None:
+    """Test that visualize handles 1D coordinates by using y=0."""
+    graph = GraphState()
+    node1 = graph.add_physical_node(coordinate=(0.0,))
+    node2 = graph.add_physical_node(coordinate=(1.0,))
+
+    graph.add_physical_edge(node1, node2)
+
+    graph.register_input(node1, 0)
+    graph.register_output(node2, 0)
+
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    ax = visualize(graph, use_graph_coordinates=True)
+    assert ax is not None
+    plt.close("all")
+
+
 def test_visualize_empty_coordinates() -> None:
     """Test that visualize works with empty graph coordinates."""
     graph = GraphState()
