@@ -103,7 +103,7 @@ def visualize(  # noqa: PLR0913
     x and y components are used; the z component is ignored. 3D visualization
     support is planned for a future release.
     """
-    node_pos = _get_node_positions(graph, use_graph_coordinates)
+    node_pos = _determine_node_positions(graph, use_graph_coordinates)
 
     node_colors = _determine_node_colors(graph)
 
@@ -237,7 +237,7 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
     )
 
 
-def _get_node_positions(
+def _determine_node_positions(
     graph: BaseGraphState,
     use_graph_coordinates: bool,
 ) -> dict[int, tuple[float, float]]:

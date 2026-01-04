@@ -93,13 +93,18 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def add_physical_node(self) -> int:
-        """Add a physical node to the graph state.
+    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
+        r"""Add a physical node to the graph state.
+
+        Parameters
+        ----------
+        coordinate : `tuple`\[`float`, ...\] | `None`, optional
+            coordinate tuple (2D or 3D), by default None
 
         Returns
         -------
         `int`
-            The node index intenally generated
+            The node index internally generated
         """
 
     @abc.abstractmethod
