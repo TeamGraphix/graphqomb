@@ -84,12 +84,12 @@ class BaseGraphState(ABC):
 
     @property
     @abc.abstractmethod
-    def meas_bases(self) -> dict[int, MeasBasis]:
+    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
         r"""Return measurement bases.
 
         Returns
         -------
-        `dict`\[`int`, `MeasBasis`\]
+        `MappingProxyType`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
 
