@@ -299,7 +299,7 @@ def test_set_coordinate(graph: GraphState) -> None:
 
 def test_set_coordinate_invalid_node(graph: GraphState) -> None:
     """Test that set_coordinate raises error for non-existent node."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Node does not exist"):
         graph.set_coordinate(999, (1.0, 2.0))
 
 
