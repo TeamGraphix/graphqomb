@@ -89,7 +89,7 @@ class BaseGraphState(ABC):
 
         Returns
         -------
-        `MappingProxyType`\[`int`, `MeasBasis`\]
+        `types.MappingProxyType`\[`int`, `MeasBasis`\]
             measurement bases of each physical node.
         """
 
