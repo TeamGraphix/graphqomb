@@ -309,7 +309,7 @@ def test_signal_shifting_circuit_integration() -> None:
     circuit.cz(1, 2)
 
     # Convert circuit to graph and gflow
-    graphstate, gflow = circuit2graph(circuit)
+    graphstate, gflow, _ = circuit2graph(circuit)
 
     # Apply signal shifting
     xflow, zflow = signal_shifting(graphstate, gflow)

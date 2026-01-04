@@ -80,7 +80,7 @@ circuit = Circuit(2)
 circuit.apply_macro_gate(H(0))
 circuit.apply_macro_gate(CNOT((0, 1)))
 
-graph, feedforward = circuit2graph(circuit)
+graph, feedforward, scheduler = circuit2graph(circuit)
 
 # Compile into pattern
 pattern = qompile(graph, feedforward)

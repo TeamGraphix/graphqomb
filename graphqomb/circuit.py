@@ -5,8 +5,7 @@ This module provides:
 - `BaseCircuit`: An abstract base class for quantum circuits.
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
 - `Circuit`: A class for circuits that include macro instructions.
-- `circuit2graph`: A function that converts a circuit to a graph state and gflow.
-- `circuit2graph_with_preschedule`: A function that converts a circuit to a graph state and gflow with manual scheduling
+- `circuit2graph`: A function that converts a circuit to a graph state, gflow, and scheduler.
 """
 
 from __future__ import annotations
@@ -210,71 +209,8 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions.append(gate)
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]]:
-    r"""Convert a circuit to a graph state and gflow.
-
-    Parameters
-    ----------
-    circuit : `BaseCircuit`
-        The quantum circuit to convert.
-
-    Returns
-    -------
-    `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\]\]
-        The graph state and gflow converted from the circuit.
-
-    Raises
-    ------
-    TypeError
-        If the circuit contains an invalid instruction.
-    """
-    graph = GraphState()
-    gflow: dict[int, set[int]] = {}
-
-    qindex2front_nodes: dict[int, int] = {}
-
-    # input nodes
-    for i in range(circuit.num_qubits):
-        node = graph.add_physical_node()
-        graph.register_input(node, i)
-        qindex2front_nodes[i] = node
-
-    for instruction in circuit.unit_instructions():
-        if isinstance(instruction, J):
-            new_node = graph.add_physical_node()
-            graph.add_physical_edge(qindex2front_nodes[instruction.qubit], new_node)
-            graph.assign_meas_basis(
-                qindex2front_nodes[instruction.qubit],
-                PlannerMeasBasis(Plane.XY, -instruction.angle),
-            )
-
-            gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
-            qindex2front_nodes[instruction.qubit] = new_node
-
-        elif isinstance(instruction, CZ):
-            graph.add_physical_edge(
-                qindex2front_nodes[instruction.qubits[0]],
-                qindex2front_nodes[instruction.qubits[1]],
-            )
-        elif isinstance(instruction, PhaseGadget):
-            new_node = graph.add_physical_node()
-            graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
-            for qubit in instruction.qubits:
-                graph.add_physical_edge(qindex2front_nodes[qubit], new_node)
-
-            gflow[new_node] = {new_node}
-        else:
-            msg = f"Invalid instruction: {instruction}"
-            raise TypeError(msg)
-
-    for qindex, node in qindex2front_nodes.items():
-        graph.register_output(node, qindex)
-
-    return graph, gflow
-
-
-def circuit2graph_with_preschedule(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
-    r"""Convert a circuit to a graph state and gflow.
+def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
+    r"""Convert a circuit to a graph state, gflow, and scheduler.
 
     Parameters
     ----------
@@ -284,8 +220,8 @@ def circuit2graph_with_preschedule(circuit: BaseCircuit) -> tuple[GraphState, di
     Returns
     -------
     `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\], `Scheduler`\]
-        The graph state and gflow converted from the circuit.
-        The scheduler configured with automatic time scheduling.
+        The graph state, gflow, and scheduler converted from the circuit.
+        The scheduler is configured with automatic time scheduling derived from circuit structure.
 
     Raises
     ------
