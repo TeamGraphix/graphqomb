@@ -11,21 +11,15 @@ This module provides:
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from graphlib import TopologicalSorter
-from typing import Any
+from typing import Any, TypeGuard
 
 import typing_extensions
 
 from graphqomb.common import Axis, Plane, determine_pauli_axis
 from graphqomb.graphstate import BaseGraphState, odd_neighbors
-
-if sys.version_info >= (3, 10):
-    from typing import TypeGuard
-else:
-    from typing_extensions import TypeGuard
 
 
 def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Mapping[int, int]]:

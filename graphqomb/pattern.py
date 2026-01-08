@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING
 from graphqomb.command import TICK, Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from typing import Callable
+    from collections.abc import Callable, Iterator
 
     from graphqomb.pauli_frame import PauliFrame
 

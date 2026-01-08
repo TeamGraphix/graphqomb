@@ -7,7 +7,7 @@ name = "graphqomb"
 version = "0.2.0"
 description = "A modular Graph State qompiler for measurement-based quantum computing."
 readme = "README.md"
-requires-python = ">=3.9, <3.14"
+requires-python = ">=3.10, <3.15"
 license = {text = "MIT"}
 authors = [
     {name = "Masato Fukushima", email = "masa1063fuk@gmail.com"},
@@ -32,11 +32,11 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Quantum Computing",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -58,7 +58,7 @@ dev = { file = ["requirements-dev.txt"] }
 doc = { file = ["docs/requirements.txt"] }
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint]

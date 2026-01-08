@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Python Support**: Dropped Python 3.9 support, added Python 3.14 support. Now requires Python >=3.10, <3.15.
+
 ## [0.2.0] - 2025-12-26
 
 ### Added
