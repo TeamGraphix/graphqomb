@@ -117,7 +117,7 @@ class Pattern(Sequence[Command]):
         for cmd in self.commands:
             if isinstance(cmd, N) and cmd.coordinate is not None:
                 coords[cmd.node] = cmd.coordinate
-        return coord
+        return coords
 
     @property
     def active_volume(self) -> int:
