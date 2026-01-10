@@ -117,7 +117,77 @@ class Pattern(Sequence[Command]):
         for cmd in self.commands:
             if isinstance(cmd, N) and cmd.coordinate is not None:
                 coords[cmd.node] = cmd.coordinate
-        return coords
+        return coord
+
+    @property
+    def active_volume(self) -> int:
+        """Calculate tha active volume, summation of space for each timeslice.
+
+        Returns
+        -------
+        `int`
+            Active volume of the pattern
+        """
+        return sum(self.space)
+
+    @property
+    def volume(self) -> int:
+        """Calculate the volume, defined as max_space * depth.
+
+        Returns
+        -------
+        `int`
+            Volume of the pattern
+        """
+        return self.max_space * self.depth
+
+    @property
+    def idle_times(self) -> dict[int, int]:
+        r"""Calculate the idle times for each qubit in the pattern.
+
+        Returns
+        -------
+        `dict`\[`int`, `int`\]
+            A dictionary mapping each qubit index to its idle time.
+        """
+        idle_times: dict[int, int] = {}
+        prepared_time: dict[int, int] = dict.fromkeys(self.input_node_indices, 0)
+
+        current_time = 0
+        for cmd in self.commands:
+            if isinstance(cmd, TICK):
+                current_time += 1
+            elif isinstance(cmd, N):
+                prepared_time[cmd.node] = current_time
+            elif isinstance(cmd, M):
+                idle_times[cmd.node] = current_time - prepared_time[cmd.node]
+
+        for output_node in self.output_node_indices:
+            if output_node in prepared_time:
+                idle_times[output_node] = current_time - prepared_time[output_node]
+
+        return idle_times
+
+    @property
+    def throughput(self) -> float:
+        """Calculate the number of measurements per TICK in the pattern.
+
+        Returns
+        -------
+        `float`
+            Number of measurements per TICK
+
+        Raises
+        ------
+        ValueError
+            If the pattern has zero depth (no TICK commands)
+        """
+        num_measurements = sum(1 for cmd in self.commands if isinstance(cmd, M))
+        num_ticks = self.depth
+        if num_ticks == 0:
+            msg = "Cannot calculate throughput for a pattern with zero depth (no TICK commands)."
+            raise ValueError(msg)
+        return num_measurements / num_ticks
 
 
 def is_runnable(pattern: Pattern) -> None:
