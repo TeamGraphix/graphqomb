@@ -31,10 +31,9 @@ This module provides:
 from __future__ import annotations
 
 import math
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 import numpy as np
 
@@ -224,7 +223,7 @@ class PhaseGadget(MultiGate):
 
         def count_ones_in_binary(array: NDArray[np.int64]) -> NDArray[np.int64]:
             def count_ones_single(x: np.int64) -> int:
-                return bin(int(x)).count("1")
+                return int(x).bit_count()
 
             count_ones = np.vectorize(count_ones_single)
             return np.asarray(count_ones(array), dtype=np.int64)
@@ -234,18 +233,8 @@ class PhaseGadget(MultiGate):
         return np.diag(np.exp(-1j * self.angle / 2 * z_sign))
 
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-
-    UnitGate: TypeAlias = J | CZ | PhaseGadget
-    """Unit gate type"""
-else:
-    from typing import Union
-
-    from typing_extensions import TypeAlias
-
-    UnitGate: TypeAlias = Union[J, CZ, PhaseGadget]
-    """Unit gate type"""
+UnitGate: TypeAlias = J | CZ | PhaseGadget
+"""Unit gate type"""
 
 
 @dataclass(frozen=True)

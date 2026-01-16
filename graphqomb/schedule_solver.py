@@ -59,14 +59,14 @@ def _add_constraints(
     for node, children in dag.items():
         for child in children:
             if node in node2meas and child in node2meas:
-                model.Add(node2meas[node] < node2meas[child])
+                model.add(node2meas[node] < node2meas[child])
 
     # Edge constraints
     for node in graph.physical_nodes - set(graph.output_node_indices):
         for neighbor in graph.neighbors(node):
             if neighbor in graph.input_node_indices:
                 continue
-            model.Add(node2prep[neighbor] < node2meas[node])
+            model.add(node2prep[neighbor] < node2meas[node])
 
 
 def _set_objective(
@@ -107,26 +107,26 @@ def _compute_alive_nodes_at_time(
     """
     alive_at_t: list[cp_model.IntVar] = []
     for node in ctx.graph.physical_nodes:
-        a_pre = ctx.model.NewBoolVar(f"alive_pre_{node}_{t}")
+        a_pre = ctx.model.new_bool_var(f"alive_pre_{node}_{t}")
         if node in ctx.graph.input_node_indices:
-            ctx.model.Add(a_pre == 1)
+            ctx.model.add(a_pre == 1)
         else:
             p = node2prep[node]
-            ctx.model.Add(p <= t).OnlyEnforceIf(a_pre)
-            ctx.model.Add(p > t).OnlyEnforceIf(a_pre.Not())
+            ctx.model.add(p <= t).only_enforce_if(a_pre)
+            ctx.model.add(p > t).only_enforce_if(a_pre.negated())
 
-        a_meas = ctx.model.NewBoolVar(f"alive_meas_{node}_{t}")
+        a_meas = ctx.model.new_bool_var(f"alive_meas_{node}_{t}")
         if node in ctx.graph.output_node_indices:
-            ctx.model.Add(a_meas == 0)
+            ctx.model.add(a_meas == 0)
         else:
             q = node2meas[node]
-            ctx.model.Add(q <= t).OnlyEnforceIf(a_meas)
-            ctx.model.Add(q > t).OnlyEnforceIf(a_meas.Not())
+            ctx.model.add(q <= t).only_enforce_if(a_meas)
+            ctx.model.add(q > t).only_enforce_if(a_meas.negated())
 
-        alive = ctx.model.NewBoolVar(f"alive_{node}_{t}")
-        ctx.model.AddImplication(alive, a_pre)
-        ctx.model.AddImplication(alive, a_meas.Not())
-        ctx.model.Add(a_pre - a_meas <= alive)
+        alive = ctx.model.new_bool_var(f"alive_{node}_{t}")
+        ctx.model.add_implication(alive, a_pre)
+        ctx.model.add_implication(alive, a_meas.negated())
+        ctx.model.add(a_pre - a_meas <= alive)
         alive_at_t.append(alive)
 
     return alive_at_t
@@ -139,11 +139,11 @@ def _set_minimize_space_objective(
     max_time: int,
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
-    max_space = ctx.model.NewIntVar(0, len(ctx.graph.physical_nodes), "max_space")
+    max_space = ctx.model.new_int_var(0, len(ctx.graph.physical_nodes), "max_space")
     for t in range(max_time):
         alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-        ctx.model.Add(max_space >= sum(alive_at_t))
-    ctx.model.Minimize(max_space)
+        ctx.model.add(max_space >= sum(alive_at_t))
+    ctx.model.minimize(max_space)
 
 
 def _set_minimize_time_objective(
@@ -158,13 +158,13 @@ def _set_minimize_time_objective(
     if max_qubit_count is not None:
         for t in range(max_time):
             alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
-            ctx.model.Add(sum(alive_at_t) <= max_qubit_count)
+            ctx.model.add(sum(alive_at_t) <= max_qubit_count)
 
     # Time objective: minimize makespan
     meas_vars = list(node2meas.values())
-    makespan = ctx.model.NewIntVar(0, max_time, "makespan")
-    ctx.model.AddMaxEquality(makespan, meas_vars)
-    ctx.model.Minimize(makespan)
+    makespan = ctx.model.new_int_var(0, max_time, "makespan")
+    ctx.model.add_max_equality(makespan, meas_vars)
+    ctx.model.minimize(makespan)
 
 
 def solve_schedule(
@@ -203,9 +203,9 @@ def solve_schedule(
     node2meas: dict[int, cp_model.IntVar] = {}
     for node in graph.physical_nodes:
         if node not in graph.input_node_indices:
-            node2prep[node] = model.NewIntVar(0, max_time, f"prep_{node}")
+            node2prep[node] = model.new_int_var(0, max_time, f"prep_{node}")
         if node not in graph.output_node_indices:
-            node2meas[node] = model.NewIntVar(0, max_time, f"meas_{node}")
+            node2meas[node] = model.new_int_var(0, max_time, f"meas_{node}")
 
     # Add constraints
     _add_constraints(model, graph, dag, node2prep, node2meas)
@@ -217,14 +217,11 @@ def solve_schedule(
     # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = timeout
-    status = solver.Solve(model)
+    status: cp_model.CpSolverStatus = solver.Solve(model)
 
-    # Note: type: ignore is needed due to a bug in or-tools type annotations
-    # The actual runtime type of status is cp_model_pb2.ValueType, but it's incorrectly
-    # annotated as CpSolverStatus, causing mypy to report a false positive comparison-overlap error
-    if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:  # type: ignore[comparison-overlap]
-        prepare_time = {node: solver.Value(var) for node, var in node2prep.items()}
-        measure_time = {node: solver.Value(var) for node, var in node2meas.items()}
+    if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
+        prepare_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2prep.items()}
+        measure_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2meas.items()}
         return prepare_time, measure_time
 
     return None
