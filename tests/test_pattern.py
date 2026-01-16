@@ -11,6 +11,18 @@ from graphqomb.pattern import Pattern
 from graphqomb.pauli_frame import PauliFrame
 
 
+def test_n_command_str_with_coordinate() -> None:
+    """Test N command string representation with coordinate."""
+    cmd = N(node=5, coordinate=(1.0, 2.0))
+    assert str(cmd) == "N: node=5, coord=(1.0, 2.0)"
+
+
+def test_n_command_str_without_coordinate() -> None:
+    """Test N command string representation without coordinate."""
+    cmd = N(node=3)
+    assert str(cmd) == "N: node=3"
+
+
 @pytest.fixture
 def pattern_components() -> tuple[dict[int, int], dict[int, int], PauliFrame, list[int]]:
     """Create shared components for building Pattern instances.
