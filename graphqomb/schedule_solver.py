@@ -217,11 +217,11 @@ def solve_schedule(
     # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = timeout
-    status = solver.Solve(model)
+    status: cp_model.CpSolverStatus = solver.Solve(model)
 
     if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
-        prepare_time = {node: solver.Value(var) for node, var in node2prep.items()}
-        measure_time = {node: solver.Value(var) for node, var in node2meas.items()}
+        prepare_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2prep.items()}
+        measure_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2meas.items()}
         return prepare_time, measure_time
 
     return None
