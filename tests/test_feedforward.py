@@ -4,13 +4,14 @@ import numpy as np
 import pytest
 
 from graphqomb.circuit import MBQCCircuit, circuit2graph
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.feedforward import (
     _is_flow,
     _is_gflow,
     check_dag,
     check_flow,
     dag_from_flow,
+    pauli_simplification,
     propagate_correction_map,
     signal_shifting,
 )
@@ -321,6 +322,220 @@ def test_signal_shifting_circuit_integration() -> None:
     assert pattern is not None
     assert pattern.max_space >= 0
     assert pattern.depth >= 0
+
+    # Simulate the pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.state
+    statevec = state.state()
+
+    # Compare with circuit simulator
+    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    circ_state = circ_simulator.state.state()
+    inner_product = np.vdot(statevec, circ_state)
+
+    # Verify that the results match (inner product should be close to 1)
+    assert np.isclose(np.abs(inner_product), 1.0)
+
+
+# Tests for pauli_simplification
+
+
+def test_pauli_simplification_x_axis_removes_x_correction() -> None:
+    """Test that X-axis measurement removes X corrections from the flow."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set X-axis measurement basis for target
+    graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graphstate.assign_meas_basis(parent, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows where parent's X correction depends on target
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+
+    new_xflow, new_zflow = pauli_simplification(graphstate, xflow, zflow)
+
+    # X-axis measurement should remove target from parent's X corrections
+    assert target not in new_xflow[parent]
+    # Z corrections should remain unchanged
+    assert target in new_zflow[parent]
+
+
+def test_pauli_simplification_z_axis_removes_z_correction() -> None:
+    """Test that Z-axis measurement removes Z corrections from the flow."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set Z-axis measurement basis for target
+    graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Z, Sign.PLUS))
+    graphstate.assign_meas_basis(parent, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows where parent's Z correction depends on target
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+
+    new_xflow, new_zflow = pauli_simplification(graphstate, xflow, zflow)
+
+    # Z-axis measurement should remove target from parent's Z corrections
+    assert target not in new_zflow[parent]
+    # X corrections should remain unchanged
+    assert target in new_xflow[parent]
+
+
+def test_pauli_simplification_y_axis_removes_both_corrections() -> None:
+    """Test that Y-axis measurement removes both X and Z corrections from the flow."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set Y-axis measurement basis for target
+    graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    graphstate.assign_meas_basis(parent, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows where parent's corrections depend on target
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+
+    new_xflow, new_zflow = pauli_simplification(graphstate, xflow, zflow)
+
+    # Y-axis measurement should remove target from both X and Z corrections
+    assert target not in new_xflow[parent]
+    assert target not in new_zflow[parent]
+
+
+def test_pauli_simplification_y_axis_skip() -> None:
+    """Test that Y-axis measurement skips if not both corrections are present."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set Y-axis measurement basis for target
+    graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    graphstate.assign_meas_basis(parent, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows where parent's corrections depend on target
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {output}, target: {output}}
+
+    # Skip removing X correction
+    new_xflow, _ = pauli_simplification(graphstate, xflow, zflow)
+
+    assert target in new_xflow[parent]  # X correction remains
+
+    xflow = {parent: {output}, target: {output}}
+    zflow = {parent: {target}, target: {output}}
+    # Skip removing Z correction
+    _, new_zflow = pauli_simplification(graphstate, xflow, zflow)
+
+    assert target in new_zflow[parent]  # Z correction remains
+
+
+def test_pauli_simplification_non_pauli_leaves_unchanged() -> None:
+    """Test that non-Pauli measurement angles leave corrections unchanged."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set non-Pauli measurement basis for target (XY plane, angle=pi/4)
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.25 * np.pi))
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.XY, 0.0))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+
+    new_xflow, new_zflow = pauli_simplification(graphstate, xflow, zflow)
+
+    # Non-Pauli angle should leave corrections unchanged
+    assert target in new_xflow[parent]
+    assert target in new_zflow[parent]
+
+
+def test_pauli_simplification_preserves_original_flows() -> None:
+    """Test that original xflow and zflow are not modified."""
+    # Create a 3-node graph: parent -> target -> output
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, output)
+
+    # Set X-axis measurement basis for target
+    graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graphstate.assign_meas_basis(parent, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    graphstate.register_output(output, 0)
+
+    # Define flows
+    xflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+    zflow: dict[int, set[int]] = {parent: {target}, target: {output}}
+
+    # Store original values
+    original_xflow_parent = set(xflow[parent])
+    original_zflow_parent = set(zflow[parent])
+
+    pauli_simplification(graphstate, xflow, zflow)
+
+    # Original flows should be unchanged
+    assert xflow[parent] == original_xflow_parent
+    assert zflow[parent] == original_zflow_parent
+
+
+def test_pauli_simplification_circuit_integration() -> None:
+    """Test pauli_simplification integration with circuit compilation and simulation."""
+    # Create a quantum circuit (using j for rotations, cz for entanglement)
+    circuit = MBQCCircuit(2)
+    circuit.j(0, 0.5 * np.pi)  # Rotation on qubit 0
+    circuit.cz(0, 1)
+    circuit.j(1, 0.25 * np.pi)  # Rotation on qubit 1
+
+    # Convert circuit to graph and gflow
+    graphstate, gflow = circuit2graph(circuit)
+
+    # Apply pauli simplification
+    xflow, zflow = pauli_simplification(graphstate, gflow)
+
+    # Compile to pattern
+    pattern = qompile(graphstate, xflow, zflow)
+
+    # Verify pattern is runnable
+    assert pattern is not None
+    assert pattern.max_space >= 0
 
     # Simulate the pattern
     simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
