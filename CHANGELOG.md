@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Type Hints**: Added `py.typed` marker for PEP 561 compliance, enabling type checkers (mypy, pyright) to recognize the package as typed when installed from PyPI.
+
 ### Changed
 
 - **Python Support**: Dropped Python 3.9 support, added Python 3.14 support. Now requires Python >=3.10, <3.15.
