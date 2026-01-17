@@ -241,7 +241,29 @@ def test_stim_compile_with_detectors() -> None:
 
 def test_stim_compile_with_logical_observables() -> None:
     """Test OBSERVABLE_INCLUDE generation."""
-    pattern, meas_node, _ = create_simple_pattern_x_measurement()
+    # Create pattern with parity_check_group for logical observables support
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    meas_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = 0
+    graph.register_input(in_node, q_idx)
+    graph.register_output(out_node, q_idx)
+
+    graph.add_physical_edge(in_node, meas_node)
+    graph.add_physical_edge(meas_node, out_node)
+
+    # X measurement: XY plane with angle 0
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {in_node: {meas_node}, meas_node: {out_node}}
+    # Provide parity_check_group to enable _pauli_axis_cache for logical observables
+    # Only include measured nodes (exclude output nodes which don't have measurement bases)
+    measured_nodes = {in_node, meas_node}
+    parity_check_group = [measured_nodes]
+    pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
 
     # Define logical observables
     logical_observables = {0: [meas_node]}
