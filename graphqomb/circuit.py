@@ -5,7 +5,7 @@ This module provides:
 - `BaseCircuit`: An abstract base class for quantum circuits.
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
 - `Circuit`: A class for circuits that include macro instructions.
-- `circuit2graph`: A function that converts a circuit to a graph state and gflow.
+- `circuit2graph`: A function that converts a circuit to a graph state, gflow, and scheduler.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import typing_extensions
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphqomb.graphstate import GraphState
+from graphqomb.scheduler import Scheduler
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -208,8 +209,8 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions.append(gate)
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]]:
-    r"""Convert a circuit to a graph state and gflow.
+def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
+    r"""Convert a circuit to a graph state, gflow, and scheduler.
 
     Parameters
     ----------
@@ -218,8 +219,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
 
     Returns
     -------
-    `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\]\]
-        The graph state and gflow converted from the circuit.
+    `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\], `Scheduler`\]
+        The graph state, gflow, and scheduler converted from the circuit.
+        The scheduler is configured with automatic time scheduling derived from circuit structure.
 
     Raises
     ------
@@ -230,12 +232,17 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     gflow: dict[int, set[int]] = {}
 
     qindex2front_nodes: dict[int, int] = {}
+    qindex2timestep: dict[int, int] = {}
+
+    prepare_time: dict[int, int] = {}
+    measure_time: dict[int, int] = {}
 
     # input nodes
     for i in range(circuit.num_qubits):
         node = graph.add_physical_node()
         graph.register_input(node, i)
         qindex2front_nodes[i] = node
+        qindex2timestep[i] = 0
 
     for instruction in circuit.unit_instructions():
         if isinstance(instruction, J):
@@ -246,6 +253,11 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
                 PlannerMeasBasis(Plane.XY, -instruction.angle),
             )
 
+            # time scheduling
+            prepare_time[new_node] = qindex2timestep[instruction.qubit]
+            measure_time[qindex2front_nodes[instruction.qubit]] = qindex2timestep[instruction.qubit] + 1
+            qindex2timestep[instruction.qubit] += 1
+
             gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
             qindex2front_nodes[instruction.qubit] = new_node
 
@@ -254,6 +266,12 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
                 qindex2front_nodes[instruction.qubits[0]],
                 qindex2front_nodes[instruction.qubits[1]],
             )
+
+            # align timesteps
+            if qindex2timestep[instruction.qubits[0]] > qindex2timestep[instruction.qubits[1]]:
+                qindex2timestep[instruction.qubits[1]] = qindex2timestep[instruction.qubits[0]]
+            else:
+                qindex2timestep[instruction.qubits[0]] = qindex2timestep[instruction.qubits[1]]
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
             graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
@@ -261,6 +279,13 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
                 graph.add_physical_edge(qindex2front_nodes[qubit], new_node)
 
             gflow[new_node] = {new_node}
+
+            # time scheduling
+            max_timestep = max(qindex2timestep[qubit] for qubit in instruction.qubits)
+            prepare_time[new_node] = max_timestep
+            measure_time[new_node] = max_timestep + 1
+            for qubit in instruction.qubits:
+                qindex2timestep[qubit] = max_timestep + 1
         else:
             msg = f"Invalid instruction: {instruction}"
             raise TypeError(msg)
@@ -268,4 +293,8 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     for qindex, node in qindex2front_nodes.items():
         graph.register_output(node, qindex)
 
-    return graph, gflow
+    # manually schedule
+    scheduler = Scheduler(graph, gflow)
+    scheduler.manual_schedule(prepare_time, measure_time)
+
+    return graph, gflow, scheduler
