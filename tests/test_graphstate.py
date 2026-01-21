@@ -7,7 +7,7 @@ import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.euler import LocalClifford
-from graphqomb.graphstate import GraphState, bipartite_edges, odd_neighbors
+from graphqomb.graphstate import GraphState, bipartite_edges, compose, odd_neighbors
 
 
 @pytest.fixture
@@ -285,3 +285,107 @@ def test_odd_neighbors(graph: GraphState) -> None:
 
     assert odd_neighbors({node1}, graph) == {node2, node3}
     assert odd_neighbors({node1, node2}, graph) == {node1, node2}
+
+
+# ---- Coordinate Tests ----
+
+
+def test_set_coordinate(graph: GraphState) -> None:
+    """Test setting coordinates for a node."""
+    node = graph.add_physical_node()
+    graph.set_coordinate(node, (1.0, 2.0))
+    assert graph.coordinates == {node: (1.0, 2.0)}
+
+
+def test_set_coordinate_invalid_node(graph: GraphState) -> None:
+    """Test that set_coordinate raises error for non-existent node."""
+    with pytest.raises(ValueError, match="Node does not exist"):
+        graph.set_coordinate(999, (1.0, 2.0))
+
+
+def test_set_coordinate_3d(graph: GraphState) -> None:
+    """Test setting 3D coordinates for a node."""
+    node = graph.add_physical_node()
+    graph.set_coordinate(node, (1.0, 2.0, 3.0))
+    assert graph.coordinates == {node: (1.0, 2.0, 3.0)}
+
+
+def test_add_physical_node_with_coordinate() -> None:
+    """Test adding a node with coordinates."""
+    graph = GraphState()
+    node = graph.add_physical_node(coordinate=(1.5, 2.5))
+    assert graph.coordinates == {node: (1.5, 2.5)}
+
+
+def test_remove_physical_node_removes_coordinate() -> None:
+    """Test that removing a node also removes its coordinate."""
+    graph = GraphState()
+    node1 = graph.add_physical_node(coordinate=(1.0, 2.0))
+    node2 = graph.add_physical_node(coordinate=(3.0, 4.0))
+    graph.add_physical_edge(node1, node2)
+    graph.register_output(node2, 0)
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    graph.remove_physical_node(node1)
+    assert node1 not in graph.coordinates
+    assert graph.coordinates == {node2: (3.0, 4.0)}
+
+
+def test_from_graph_with_coordinates() -> None:
+    """Test from_graph with coordinates parameter."""
+    nodes = ["a", "b", "c"]
+    edges = [("a", "b"), ("b", "c")]
+    coordinates = {"a": (0.0, 0.0), "b": (1.0, 0.0), "c": (2.0, 0.0)}
+
+    graph, node_map = GraphState.from_graph(nodes, edges, inputs=["a"], outputs=["c"], coordinates=coordinates)
+
+    assert graph.coordinates[node_map["a"]] == (0.0, 0.0)
+    assert graph.coordinates[node_map["b"]] == (1.0, 0.0)
+    assert graph.coordinates[node_map["c"]] == (2.0, 0.0)
+
+
+def test_from_base_graph_state_copies_coordinates() -> None:
+    """Test that from_base_graph_state copies coordinates."""
+    graph1 = GraphState()
+    node1 = graph1.add_physical_node(coordinate=(1.0, 2.0))
+    node2 = graph1.add_physical_node(coordinate=(3.0, 4.0))
+    graph1.add_physical_edge(node1, node2)
+    graph1.register_input(node1, 0)
+    graph1.register_output(node2, 0)
+    graph1.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    graph2, node_map = GraphState.from_base_graph_state(graph1)
+
+    assert graph2.coordinates[node_map[node1]] == (1.0, 2.0)
+    assert graph2.coordinates[node_map[node2]] == (3.0, 4.0)
+
+
+def test_compose_copies_coordinates() -> None:
+    """Test that compose copies coordinates from both graphs."""
+    # Create first graph with coordinates
+    graph1 = GraphState()
+    g1_in = graph1.add_physical_node(coordinate=(0.0, 0.0))
+    g1_out = graph1.add_physical_node(coordinate=(1.0, 0.0))
+    graph1.add_physical_edge(g1_in, g1_out)
+    graph1.register_input(g1_in, 0)
+    graph1.register_output(g1_out, 0)
+    graph1.assign_meas_basis(g1_in, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Create second graph with coordinates
+    graph2 = GraphState()
+    g2_in = graph2.add_physical_node(coordinate=(2.0, 0.0))
+    g2_out = graph2.add_physical_node(coordinate=(3.0, 0.0))
+    graph2.add_physical_edge(g2_in, g2_out)
+    graph2.register_input(g2_in, 0)
+    graph2.register_output(g2_out, 0)
+    graph2.assign_meas_basis(g2_in, PlannerMeasBasis(Plane.XY, 0.0))
+
+    # Compose graphs
+    composed, node_map1, node_map2 = compose(graph1, graph2)
+
+    # Verify coordinates from graph1 (input node only, output is connected)
+    assert composed.coordinates[node_map1[g1_in]] == (0.0, 0.0)
+
+    # Verify coordinates from graph2
+    assert composed.coordinates[node_map2[g2_in]] == (2.0, 0.0)
+    assert composed.coordinates[node_map2[g2_out]] == (3.0, 0.0)

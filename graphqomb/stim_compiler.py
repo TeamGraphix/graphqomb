@@ -16,53 +16,67 @@ from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping, Sequence
+    from collections.abc import Collection, Iterable, Mapping, Sequence
 
     from graphqomb.pattern import Pattern
     from graphqomb.pauli_frame import PauliFrame
 
 
-def _initialize_nodes(
-    stim_io: StringIO,
-    node_indices: Mapping[int, int],
-    p_depol_after_clifford: float,
-) -> None:
-    r"""Initialize nodes in the stim circuit.
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    node_indices : `collections.abc.Mapping`\[`int`, `int`\]
-        The node indices mapping to initialize.
-    p_depol_after_clifford : `float`
-        The probability of depolarization after Clifford gates.
-    """
-    for node in node_indices:
-        stim_io.write(f"RX {node}\n")
-        if p_depol_after_clifford > 0.0:
-            stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
-
-
-def _prepare_node(
+def _emit_qubit_coords(
     stim_io: StringIO,
     node: int,
-    p_depol_after_clifford: float,
+    coordinate: tuple[float, ...] | None,
 ) -> None:
-    r"""Prepare a node in |+> state (N command).
+    r"""Emit QUBIT_COORDS instruction if coordinate is available.
 
     Parameters
     ----------
     stim_io : `StringIO`
         The output stream to write to.
     node : `int`
-        The node to prepare in |+> state.
+        The qubit index.
+    coordinate : `tuple`\[`float`, ...\] | `None`
+        The coordinate tuple (2D or 3D), or None if no coordinate.
+    """
+    if coordinate is not None:
+        coords_str = ", ".join(str(c) for c in coordinate)
+        stim_io.write(f"QUBIT_COORDS({coords_str}) {node}\n")
+
+
+def _prepare_nodes(
+    stim_io: StringIO,
+    nodes: int | Iterable[int],
+    p_depol_after_clifford: float,
+    coordinates: Mapping[int, tuple[float, ...]] | None = None,
+    emit_qubit_coords: bool = True,
+) -> None:
+    r"""Prepare nodes in |+> state.
+
+    This function handles both single nodes (N command) and multiple nodes
+    (input nodes initialization).
+
+    Parameters
+    ----------
+    stim_io : `StringIO`
+        The output stream to write to.
+    nodes : `int` | `collections.abc.Iterable`\[`int`\]
+        A single node index or an iterable of node indices to prepare.
     p_depol_after_clifford : `float`
         The probability of depolarization after Clifford gates.
+    coordinates : `collections.abc.Mapping`\[`int`, `tuple`\[`float`, ...\]\] | `None`, optional
+        Coordinates for nodes, by default None.
+    emit_qubit_coords : `bool`, optional
+        Whether to emit QUBIT_COORDS instructions, by default True.
     """
-    stim_io.write(f"RX {node}\n")
-    if p_depol_after_clifford > 0.0:
-        stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
+    if isinstance(nodes, int):
+        nodes = [nodes]
+    for node in nodes:
+        coord = coordinates.get(node) if coordinates else None
+        if emit_qubit_coords:
+            _emit_qubit_coords(stim_io, node, coord)
+        stim_io.write(f"RX {node}\n")
+        if p_depol_after_clifford > 0.0:
+            stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
 
 
 def _entangle_nodes(
@@ -191,6 +205,7 @@ def stim_compile(
     *,
     p_depol_after_clifford: float = 0.0,
     p_before_meas_flip: float = 0.0,
+    emit_qubit_coords: bool = True,
 ) -> str:
     r"""Compile a pattern to stim format.
 
@@ -204,6 +219,9 @@ def stim_compile(
         The probability of depolarization after a Clifford gate, by default 0.0.
     p_before_meas_flip : `float`, optional
         The probability of flipping a measurement result before measurement, by default 0.0.
+    emit_qubit_coords : `bool`, optional
+        Whether to emit QUBIT_COORDS instructions for nodes with coordinates,
+        by default True.
 
     Returns
     -------
@@ -228,13 +246,25 @@ def stim_compile(
             meas_idx += 1
     total_measurements = meas_idx
 
-    # Initialize input nodes
-    _initialize_nodes(stim_io, pattern.input_node_indices, p_depol_after_clifford)
+    # Initialize input nodes (with coordinates if available)
+    _prepare_nodes(
+        stim_io,
+        pattern.input_node_indices,
+        p_depol_after_clifford,
+        coordinates=pattern.input_coordinates if emit_qubit_coords else None,
+        emit_qubit_coords=emit_qubit_coords,
+    )
 
     # Process pattern commands
     for cmd in pattern:
         if isinstance(cmd, N):
-            _prepare_node(stim_io, cmd.node, p_depol_after_clifford)
+            _prepare_nodes(
+                stim_io,
+                cmd.node,
+                p_depol_after_clifford,
+                coordinates={cmd.node: cmd.coordinate} if cmd.coordinate else None,
+                emit_qubit_coords=emit_qubit_coords,
+            )
         elif isinstance(cmd, E):
             _entangle_nodes(stim_io, cmd.nodes, p_depol_after_clifford)
         elif isinstance(cmd, M):
