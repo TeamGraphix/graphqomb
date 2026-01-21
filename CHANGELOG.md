@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Greedy Scheduler**: Fast greedy scheduling algorithms as an alternative to CP-SAT optimization
+  - Added `greedy_minimize_time()` for minimal execution time scheduling with ALAP preparation optimization
+  - Added `greedy_minimize_space()` for minimal qubit usage scheduling
+
 - **TICK Command**: Time slice boundary marker for temporal scheduling in MBQC patterns
   - Added TICK command type to mark boundaries between time slices
   - Integrated TICK command handling in PatternSimulator
@@ -44,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scheduler**: Accept `entangle_time` edges in either order in `Scheduler.manual_schedule()`.
 
 ### Tests
+
+- **Greedy Scheduler**: Added tests for greedy scheduling algorithms
 
 - **Stim Compiler**: Add coverage that manual `entangle_time` determines CZ time slices in both Pattern and Stim output.
 
