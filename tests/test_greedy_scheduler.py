@@ -573,3 +573,41 @@ def test_alap_preserves_depth() -> None:
 
     # Depth should still be optimal (3)
     assert max(measure_time.values()) + 1 == 3
+
+
+def test_greedy_minimize_space_non_input_dag_root() -> None:
+    """Test greedy_minimize_space handles non-input nodes that are DAG roots.
+
+    This is a regression test for a bug where non-input nodes with no DAG
+    dependencies and all input neighbors would not be prepared before measurement,
+    causing a KeyError when removing from the alive set.
+    """
+    graph = GraphState()
+    n0 = graph.add_physical_node()  # input
+    n1 = graph.add_physical_node()  # non-input, DAG root (no feedforward dependency)
+    n2 = graph.add_physical_node()  # input
+    n3 = graph.add_physical_node()  # output
+
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+
+    graph.register_input(n0, 0)
+    graph.register_input(n2, 1)
+    graph.register_output(n3, 0)
+
+    # Empty DAG: no feedforward dependencies
+    dag: dict[int, set[int]] = {}
+
+    # This should not raise KeyError
+    prepare_time, measure_time = greedy_minimize_space(graph, dag)
+
+    # Verify that n1 (non-input) was prepared
+    assert n1 in prepare_time
+    # Verify that n1 was measured
+    assert n1 in measure_time
+    # Verify prepare happens before measure
+    assert prepare_time[n1] < measure_time[n1]
+    # Input nodes should not be in prepare_time
+    assert n0 not in prepare_time
+    assert n2 not in prepare_time

@@ -342,7 +342,7 @@ def _determine_measure_nodes(
     return to_measure, to_prepare
 
 
-def greedy_minimize_space(  # noqa: C901, PLR0914
+def greedy_minimize_space(  # noqa: C901, PLR0914, PLR0915
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:
@@ -391,8 +391,9 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
         for child in children:
             inv_dag[child].add(parent)
 
-    prepared: set[int] = set(graph.input_node_indices.keys())
-    alive: set[int] = set(graph.input_node_indices.keys())
+    input_nodes = set(graph.input_node_indices.keys())
+    prepared: set[int] = set(input_nodes)
+    alive: set[int] = set(input_nodes)
     current_time = 0
 
     # Cache neighbors once as the graph is static during scheduling
@@ -409,24 +410,26 @@ def greedy_minimize_space(  # noqa: C901, PLR0914
         default_rank = len(topo_rank)
         candidates = iter(measure_candidates)
         best_node = next(candidates)
-        best_cost = _calc_activate_cost(best_node, neighbors_map, prepared, alive)
+        best_cost = _calc_activate_cost(best_node, neighbors_map, prepared, alive, input_nodes)
         best_rank = topo_rank.get(best_node, default_rank)
         for node in candidates:
-            cost = _calc_activate_cost(node, neighbors_map, prepared, alive)
+            cost = _calc_activate_cost(node, neighbors_map, prepared, alive, input_nodes)
             rank = topo_rank.get(node, default_rank)
             if cost < best_cost or (cost == best_cost and rank < best_rank):
                 best_cost = cost
                 best_rank = rank
                 best_node = node
 
-        # Prepare neighbors at current_time
+        # Prepare neighbors and the node itself (if non-input) at current_time
         new_neighbors = neighbors_map[best_node] - prepared
-        needs_prep = bool(new_neighbors)
+        needs_self_prep = best_node not in input_nodes and best_node not in prepared
+        to_prepare = new_neighbors | ({best_node} if needs_self_prep else set())
+        needs_prep = bool(to_prepare)
         if needs_prep:
-            for neighbor in new_neighbors:
-                prepare_time[neighbor] = current_time
-            prepared.update(new_neighbors)
-            alive.update(new_neighbors)
+            for node_to_prep in to_prepare:
+                prepare_time[node_to_prep] = current_time
+            prepared.update(to_prepare)
+            alive.update(to_prepare)
 
         # Measure at current_time if no prep needed, otherwise at current_time + 1
         meas_time = current_time + 1 if needs_prep else current_time
@@ -452,12 +455,13 @@ def _calc_activate_cost(
     neighbors_map: Mapping[int, AbstractSet[int]],
     prepared: AbstractSet[int],
     alive: AbstractSet[int],
+    input_nodes: AbstractSet[int],
 ) -> int:
     r"""Calculate the projected number of alive qubits if measuring this node next.
 
-    If neighbors must be prepared, they become alive at the current time slice
-    while the node itself remains alive until the next slice. If no preparation
-    is needed, the node is measured in the current slice and removed.
+    If neighbors or the node itself must be prepared, they become alive at the
+    current time slice while the node itself remains alive until the next slice.
+    If no preparation is needed, the node is measured in the current slice and removed.
 
     Parameters
     ----------
@@ -469,6 +473,8 @@ def _calc_activate_cost(
         The set of currently prepared nodes.
     alive : `collections.abc.Set`\[`int`\]
         The set of currently active (prepared but not yet measured) nodes.
+    input_nodes : `collections.abc.Set`\[`int`\]
+        The set of input nodes (already prepared at the start).
 
     Returns
     -------
@@ -476,8 +482,10 @@ def _calc_activate_cost(
         The activation cost for the node.
     """
     new_neighbors = neighbors_map[node] - prepared
-    if new_neighbors:
-        return len(alive) + len(new_neighbors)
+    needs_self_prep = node not in input_nodes and node not in prepared
+    num_to_prepare = len(new_neighbors) + (1 if needs_self_prep else 0)
+    if num_to_prepare > 0:
+        return len(alive) + num_to_prepare
     # No preparation needed -> node is measured in the current slice, so alive decreases by 1.
     return max(len(alive) - 1, 0)
 
