@@ -63,9 +63,7 @@ def greedy_minimize_time(
 
     if max_qubit_count is None:
         # Optimal strategy: prepare all nodes at time=0, measure in ASAP order
-        return _greedy_minimize_time_unlimited(
-            graph, inv_dag, neighbors_map, input_nodes, output_nodes
-        )
+        return _greedy_minimize_time_unlimited(graph, inv_dag, neighbors_map, input_nodes, output_nodes)
 
     # With qubit limit: use slice-by-slice scheduling with slack-filling
     return _greedy_minimize_time_limited(
@@ -105,9 +103,7 @@ def _greedy_minimize_time_unlimited(
         parent_times = [measure_time[p] for p in inv_dag[node] if p in measure_time]
         # Neighbor constraint: all neighbors must be prepared before measurement
         # Input nodes are prepared at time -1, others at time 0 (earliest possible)
-        neighbor_prep_times = [
-            -1 if n in input_nodes else 0 for n in neighbors_map[node]
-        ]
+        neighbor_prep_times = [-1 if n in input_nodes else 0 for n in neighbors_map[node]]
         # Measure at the next time slot after all parents are measured
         # AND after all neighbors are prepared
         measure_time[node] = max(
@@ -135,9 +131,7 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
     measure_time: dict[int, int] = {}
 
     # Make mutable copies
-    inv_dag_mut: dict[int, set[int]] = {
-        node: set(parents) for node, parents in inv_dag.items()
-    }
+    inv_dag_mut: dict[int, set[int]] = {node: set(parents) for node, parents in inv_dag.items()}
     unmeasured_mut: set[int] = set(unmeasured)
 
     prepared: set[int] = set(input_nodes)
@@ -203,8 +197,7 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
         if not ready_to_measure and free_capacity == 0 and unmeasured_mut:
             # No measurements and no room to prepare - stuck
             msg = (
-                "Cannot schedule more measurements without exceeding max qubit count. "
-                "Please increase max_qubit_count."
+                "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
             )
             raise RuntimeError(msg)
 
