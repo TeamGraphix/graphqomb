@@ -104,7 +104,7 @@ class Pattern(Sequence[Command]):
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
 
-    @functools.cached_property
+    @property
     def coordinates(self) -> dict[int, tuple[float, ...]]:
         r"""Get all node coordinates from N commands and input coordinates.
 
