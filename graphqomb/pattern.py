@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING
 from graphqomb.command import TICK, Command, E, M, N, X, Z
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from typing import Callable
+    from collections.abc import Callable, Iterator
 
     from graphqomb.pauli_frame import PauliFrame
 
@@ -38,12 +37,15 @@ class Pattern(Sequence[Command]):
         Commands of the pattern
     pauli_frame : `PauliFrame`
         Pauli frame of the pattern to track the Pauli state of each node
+    input_coordinates : `dict`\[`int`, `tuple`\[`float`, ...\]\]
+        Coordinates for input nodes (2D or 3D)
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.commands)
@@ -100,6 +102,91 @@ class Pattern(Sequence[Command]):
             Depth of the pattern
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
+
+    @property
+    def coordinates(self) -> dict[int, tuple[float, ...]]:
+        r"""Get all node coordinates from N commands and input coordinates.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`float`, ...\]\]
+            mapping from node index to coordinate tuple (2D or 3D)
+        """
+        coords = dict(self.input_coordinates)
+        for cmd in self.commands:
+            if isinstance(cmd, N) and cmd.coordinate is not None:
+                coords[cmd.node] = cmd.coordinate
+        return coords
+
+    @property
+    def active_volume(self) -> int:
+        """Calculate tha active volume, summation of space for each timeslice.
+
+        Returns
+        -------
+        `int`
+            Active volume of the pattern
+        """
+        return sum(self.space)
+
+    @property
+    def volume(self) -> int:
+        """Calculate the volume, defined as max_space * depth.
+
+        Returns
+        -------
+        `int`
+            Volume of the pattern
+        """
+        return self.max_space * self.depth
+
+    @property
+    def idle_times(self) -> dict[int, int]:
+        r"""Calculate the idle times for each qubit in the pattern.
+
+        Returns
+        -------
+        `dict`\[`int`, `int`\]
+            A dictionary mapping each qubit index to its idle time.
+        """
+        idle_times: dict[int, int] = {}
+        prepared_time: dict[int, int] = dict.fromkeys(self.input_node_indices, 0)
+
+        current_time = 0
+        for cmd in self.commands:
+            if isinstance(cmd, TICK):
+                current_time += 1
+            elif isinstance(cmd, N):
+                prepared_time[cmd.node] = current_time
+            elif isinstance(cmd, M):
+                idle_times[cmd.node] = current_time - prepared_time[cmd.node]
+
+        for output_node in self.output_node_indices:
+            if output_node in prepared_time:
+                idle_times[output_node] = current_time - prepared_time[output_node]
+
+        return idle_times
+
+    @property
+    def throughput(self) -> float:
+        """Calculate the number of measurements per TICK in the pattern.
+
+        Returns
+        -------
+        `float`
+            Number of measurements per TICK
+
+        Raises
+        ------
+        ValueError
+            If the pattern has zero depth (no TICK commands)
+        """
+        num_measurements = sum(1 for cmd in self.commands if isinstance(cmd, M))
+        num_ticks = self.depth
+        if num_ticks == 0:
+            msg = "Cannot calculate throughput for a pattern with zero depth (no TICK commands)."
+            raise ValueError(msg)
+        return num_measurements / num_ticks
 
 
 def is_runnable(pattern: Pattern) -> None:

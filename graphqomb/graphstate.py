@@ -94,13 +94,18 @@ class BaseGraphState(ABC):
         """
 
     @abc.abstractmethod
-    def add_physical_node(self) -> int:
-        """Add a physical node to the graph state.
+    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
+        r"""Add a physical node to the graph state.
+
+        Parameters
+        ----------
+        coordinate : `tuple`\[`float`, ...\] | `None`, optional
+            coordinate tuple (2D or 3D), by default None
 
         Returns
         -------
         `int`
-            The node index intenally generated
+            The node index internally generated
         """
 
     @abc.abstractmethod
@@ -170,6 +175,17 @@ class BaseGraphState(ABC):
     def check_canonical_form(self) -> None:
         r"""Check if the graph state is in canonical form."""
 
+    @property
+    @abc.abstractmethod
+    def coordinates(self) -> dict[int, tuple[float, ...]]:
+        r"""Return node coordinates.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`float`, ...\]\]
+            mapping from node index to coordinate tuple (2D or 3D)
+        """
+
 
 class GraphState(BaseGraphState):
     """Minimal implementation of GraphState."""
@@ -180,6 +196,7 @@ class GraphState(BaseGraphState):
     __physical_edges: dict[int, set[int]]
     __meas_bases: dict[int, MeasBasis]
     __local_cliffords: dict[int, LocalClifford]
+    __coordinates: dict[int, tuple[float, ...]]
 
     __node_counter: int
 
@@ -192,6 +209,7 @@ class GraphState(BaseGraphState):
         self.__physical_edges = {}
         self.__meas_bases = {}
         self.__local_cliffords = {}
+        self.__coordinates = {}
 
         self.__node_counter = 0
 
@@ -273,6 +291,31 @@ class GraphState(BaseGraphState):
         """
         return self.__local_cliffords.copy()
 
+    @property
+    @typing_extensions.override
+    def coordinates(self) -> dict[int, tuple[float, ...]]:
+        r"""Return node coordinates.
+
+        Returns
+        -------
+        `dict`\[`int`, `tuple`\[`float`, ...\]\]
+            mapping from node index to coordinate tuple (2D or 3D)
+        """
+        return self.__coordinates.copy()
+
+    def set_coordinate(self, node: int, coord: tuple[float, ...]) -> None:
+        r"""Set coordinate for a node.
+
+        Parameters
+        ----------
+        node : `int`
+            node index
+        coord : `tuple`\[`float`, ...\]
+            coordinate tuple (2D or 3D)
+        """
+        self._ensure_node_exists(node)
+        self.__coordinates[node] = coord
+
     def _check_meas_basis(self) -> None:
         """Check if the measurement basis is set for all physical nodes except output nodes.
 
@@ -299,8 +342,13 @@ class GraphState(BaseGraphState):
             raise ValueError(msg)
 
     @typing_extensions.override
-    def add_physical_node(self) -> int:
-        """Add a physical node to the graph state.
+    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
+        r"""Add a physical node to the graph state.
+
+        Parameters
+        ----------
+        coordinate : `tuple`\[`float`, ...\] | `None`, optional
+            coordinate tuple (2D or 3D), by default None
 
         Returns
         -------
@@ -310,6 +358,8 @@ class GraphState(BaseGraphState):
         node = self.__node_counter
         self.__physical_nodes |= {node}
         self.__physical_edges[node] = set()
+        if coordinate is not None:
+            self.__coordinates[node] = coordinate
         self.__node_counter += 1
         self._cached_physical_nodes = None
 
@@ -370,6 +420,7 @@ class GraphState(BaseGraphState):
             del self.__output_node_indices[node]
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
+        self.__coordinates.pop(node, None)
 
         self._cached_physical_nodes = None
 
@@ -629,13 +680,14 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
     @classmethod
-    def from_graph(  # noqa: C901, PLR0912
+    def from_graph(  # noqa: C901, PLR0912, PLR0913, PLR0917
         cls,
         nodes: Iterable[NodeT],
         edges: Iterable[tuple[NodeT, NodeT]],
         inputs: Sequence[NodeT] | None = None,
         outputs: Sequence[NodeT] | None = None,
         meas_bases: Mapping[NodeT, MeasBasis] | None = None,
+        coordinates: Mapping[NodeT, tuple[float, ...]] | None = None,
     ) -> tuple[GraphState, dict[NodeT, int]]:
         r"""Create a graph state from nodes and edges with arbitrary node types.
 
@@ -658,6 +710,8 @@ class GraphState(BaseGraphState):
         meas_bases : `collections.abc.Mapping`\[NodeT, `MeasBasis`\] | `None`, optional
             Measurement bases for nodes. Nodes not specified can be set later.
             Default is None (no bases assigned initially).
+        coordinates : `collections.abc.Mapping`\[NodeT, `tuple`\[`float`, ...\]\] | `None`, optional
+            Coordinates for nodes (2D or 3D). Default is None (no coordinates).
 
         Returns
         -------
@@ -737,6 +791,12 @@ class GraphState(BaseGraphState):
                 if node in node_set:
                     graph_state.assign_meas_basis(node_map[node], meas_basis)
 
+        # Assign coordinates
+        if coordinates is not None:
+            for node, coord in coordinates.items():
+                if node in node_set:
+                    graph_state.set_coordinate(node_map[node], coord)
+
         return graph_state, node_map
 
     @classmethod
@@ -798,6 +858,10 @@ class GraphState(BaseGraphState):
                 # Access private attribute to copy local cliffords
                 graph_state.apply_local_clifford(node_map[node], lc)
 
+        # Copy coordinates
+        for node, coord in base.coordinates.items():
+            graph_state.set_coordinate(node_map[node], coord)
+
         return graph_state, node_map
 
 
@@ -816,7 +880,7 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose(  # noqa: C901
+def compose(  # noqa: C901, PLR0912
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[GraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.
@@ -906,6 +970,16 @@ def compose(  # noqa: C901
         composed_graph.add_physical_edge(node_map1[u], node_map1[v])
     for u, v in graph2.physical_edges:
         composed_graph.add_physical_edge(node_map2[u], node_map2[v])
+
+    # Copy coordinates from graph1
+    for node, coord in graph1.coordinates.items():
+        if node in node_map1:
+            composed_graph.set_coordinate(node_map1[node], coord)
+
+    # Copy coordinates from graph2
+    for node, coord in graph2.coordinates.items():
+        if node in node_map2:
+            composed_graph.set_coordinate(node_map2[node], coord)
 
     return composed_graph, node_map1, node_map2
 

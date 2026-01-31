@@ -193,7 +193,7 @@ def test_circuit_instructions_matches_manual_expansion() -> None:
 
     assert len(instructions) == len(expected_instructions)
     # Compare each instruction
-    for inst, expected in zip(instructions, expected_instructions):
+    for inst, expected in zip(instructions, expected_instructions, strict=False):
         assert type(inst) is type(expected)
         if isinstance(inst, J) and isinstance(expected, J):
             assert inst.qubit == expected.qubit
@@ -227,7 +227,7 @@ def test_circuit_instructions_returns_copy() -> None:
     assert macro1 is not macro2
     # But with same contents
     assert len(macro1) == len(macro2)
-    for g1, g2 in zip(macro1, macro2):
+    for g1, g2 in zip(macro1, macro2, strict=False):
         assert type(g1) is type(g2)
 
 

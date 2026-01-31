@@ -94,6 +94,7 @@ def _qompile(
         compiled pattern
     """
     meas_bases = graph.meas_bases
+    graph_coords = graph.coordinates
 
     dag = dag_from_flow(graph, xflow=pauli_frame.xflow, zflow=pauli_frame.zflow)
     topo_order = list(TopologicalSorter(dag).static_order())
@@ -110,7 +111,10 @@ def _qompile(
         prepare_nodes, entangle_edges, measure_nodes = timeline[time_idx]
 
         # Order within time slice: N -> E -> M
-        commands.extend(N(node) for node in prepare_nodes)
+        # N commands include coordinates if available
+        for node in prepare_nodes:
+            coord = graph_coords.get(node)
+            commands.append(N(node, coordinate=coord))
         for edge in entangle_edges:
             a, b = edge
             commands.append(E(nodes=(a, b)))
@@ -125,9 +129,13 @@ def _qompile(
         else:
             commands.extend((X(node=node), Z(node=node)))
 
+    # Collect input node coordinates
+    input_coords = {node: graph_coords[node] for node in graph.input_node_indices if node in graph_coords}
+
     return Pattern(
         input_node_indices=graph.input_node_indices,
         output_node_indices=graph.output_node_indices,
         commands=tuple(commands),
         pauli_frame=pauli_frame,
+        input_coordinates=input_coords,
     )

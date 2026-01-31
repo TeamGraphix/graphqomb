@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.2.1] - 2026-01-16
+
+### Added
+
+- **Type Hints**: Added `py.typed` marker for PEP 561 compliance, enabling type checkers (mypy, pyright) to recognize the package as typed when installed from PyPI.
+
+### Changed
+
+- **Python Support**: Dropped Python 3.9 support, added Python 3.14 support. Now requires Python >=3.10, <3.15.
+
+## [0.2.0] - 2025-12-26
 
 ### Added
 
@@ -23,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Pattern**: Added the `depth` attribute into `Pattern`, which represents the depth of parallel execution.
 
+- **Pattern**: Added pattern resource/throughput metrics (`active_volume`, `volume`, `idle_times`, `throughput`).
+
 - **Scheduler Integration**: Enhanced qompile() to support temporal scheduling with TICK commands
   - Added `scheduler` parameter to qompile() for custom scheduling
   - Automatically inserts TICK commands between time slices
@@ -32,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Feedforward Optimization**: Added a `signal_shifting` method as a feedforward optimization.
   - This optimization is equivalent to the operation of the same name in the measurement calculus, and makes the measurement pattern as parallel as possible.
   - The optimization is now self-contained within the feedforward module.
+
+- **Feedforward Optimization**: Added `pauli_simplification()` to remove redundant Pauli corrections in correction maps when measuring in Pauli bases.
 
 ### Changed
 

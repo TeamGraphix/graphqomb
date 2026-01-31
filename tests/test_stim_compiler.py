@@ -481,3 +481,92 @@ def test_stim_compile_respects_manual_entangle_time() -> None:
 
     assert cz_slice[in_node, mid_node] == 2
     assert cz_slice[mid_node, out_node] == 1
+
+
+# ---- Coordinate Tests ----
+
+
+def test_stim_compile_with_coordinates() -> None:
+    """Test that QUBIT_COORDS instructions are emitted for nodes with coordinates."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
+    mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(2.0, 0.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+
+    graph.add_physical_edge(in_node, mid_node)
+    graph.add_physical_edge(mid_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}})
+    stim_str = stim_compile(pattern)
+
+    # Check QUBIT_COORDS instructions are present
+    assert f"QUBIT_COORDS(0.0, 0.0) {in_node}" in stim_str
+    assert f"QUBIT_COORDS(1.0, 0.0) {mid_node}" in stim_str
+    assert f"QUBIT_COORDS(2.0, 0.0) {out_node}" in stim_str
+
+
+def test_stim_compile_with_3d_coordinates() -> None:
+    """Test that 3D coordinates are correctly emitted."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(0.0, 0.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(1.0, 1.0, 1.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {out_node}})
+    stim_str = stim_compile(pattern)
+
+    assert f"QUBIT_COORDS(0.0, 0.0, 0.0) {in_node}" in stim_str
+    assert f"QUBIT_COORDS(1.0, 1.0, 1.0) {out_node}" in stim_str
+
+
+def test_stim_compile_without_coordinates() -> None:
+    """Test that no QUBIT_COORDS are emitted when emit_qubit_coords is False."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(1.0, 0.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {out_node}})
+    stim_str = stim_compile(pattern, emit_qubit_coords=False)
+
+    assert "QUBIT_COORDS" not in stim_str
+
+
+def test_pattern_coordinates_property() -> None:
+    """Test that Pattern.coordinates aggregates coordinates from N commands and input nodes."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
+    mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(2.0, 0.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+
+    graph.add_physical_edge(in_node, mid_node)
+    graph.add_physical_edge(mid_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}})
+
+    # Check pattern coordinates
+    assert pattern.coordinates[in_node] == (0.0, 0.0)
+    assert pattern.coordinates[mid_node] == (1.0, 0.0)
+    assert pattern.coordinates[out_node] == (2.0, 0.0)

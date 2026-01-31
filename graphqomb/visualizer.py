@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 
     from graphqomb.graphstate import BaseGraphState
 
+# Minimum number of coordinate dimensions required for 2D visualization
+_MIN_2D_COORDS = 2
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -61,13 +63,14 @@ class FigureSetup(NamedTuple):
     fig_height: float
 
 
-def visualize(
+def visualize(  # noqa: PLR0913
     graph: BaseGraphState,
     *,
     ax: Axes | None = None,
     show_node_labels: bool = True,
     node_size: float = 300,
     show_legend: bool = True,
+    use_graph_coordinates: bool = True,
 ) -> Axes:
     r"""Visualize the GraphState.
 
@@ -83,13 +86,24 @@ def visualize(
         Size of nodes (scatter size), by default 300
     show_legend : `bool`, optional
         Whether to show color legend, by default True
+    use_graph_coordinates : `bool`, optional
+        Whether to use coordinates stored in the graph. If True and the graph
+        has coordinates, those coordinates are used (projected to 2D for 3D
+        coordinates). Nodes without coordinates will use auto-calculated
+        positions. By default True.
 
     Returns
     -------
     `matplotlib.axes.Axes`
         The Axes object containing the visualization
+
+    Notes
+    -----
+    Currently only 2D visualization is supported. For 3D coordinates, only the
+    x and y components are used; the z component is ignored. 3D visualization
+    support is planned for a future release.
     """
-    node_pos = _calc_node_positions(graph)
+    node_pos = _determine_node_positions(graph, use_graph_coordinates)
 
     node_colors = _determine_node_colors(graph)
 
@@ -221,6 +235,46 @@ def _setup_figure(node_pos: Mapping[int, tuple[float, float]]) -> FigureSetup:
         fig_width=fig_width,
         fig_height=fig_height,
     )
+
+
+def _determine_node_positions(
+    graph: BaseGraphState,
+    use_graph_coordinates: bool,
+) -> dict[int, tuple[float, float]]:
+    """Get node positions, using graph coordinates if available and requested.
+
+    Parameters
+    ----------
+    graph : BaseGraphState
+        GraphState to visualize.
+    use_graph_coordinates : bool
+        Whether to use coordinates stored in the graph.
+
+    Returns
+    -------
+    dict[int, tuple[float, float]]
+        Mapping of node indices to their (x, y) positions.
+    """
+    if use_graph_coordinates and graph.coordinates:
+        # Use graph coordinates (project 3D to 2D by using x, y only)
+        node_pos: dict[int, tuple[float, float]] = {}
+        for node, coord in graph.coordinates.items():
+            # Take first two coordinates for 2D projection (1D uses y=0.0)
+            node_pos[node] = (coord[0], coord[1] if len(coord) >= _MIN_2D_COORDS else 0.0)
+
+        # For nodes without coordinates, calculate positions
+        missing_nodes = graph.physical_nodes - node_pos.keys()
+        if missing_nodes:
+            # Calculate auto positions for all nodes
+            auto_pos = _calc_node_positions(graph)
+            # Add only the missing nodes' positions
+            for node in missing_nodes:
+                node_pos[node] = auto_pos[node]
+
+        return node_pos
+
+    # Fall back to auto-calculated positions
+    return _calc_node_positions(graph)
 
 
 def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]]:

@@ -18,7 +18,7 @@ from graphqomb.euler import (
 from graphqomb.matrix import is_unitary
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
 
 @pytest.fixture

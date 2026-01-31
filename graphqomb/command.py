@@ -14,8 +14,7 @@ This module provides:
 from __future__ import annotations
 
 import dataclasses
-import sys
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from graphqomb.common import MeasBasis
@@ -23,17 +22,22 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass
 class N:
-    """Preparation command.
+    r"""Preparation command.
 
     Attributes
     ----------
     node : `int`
         The node index to be prepared.
+    coordinate : `tuple`\[`float`, ...\] | `None`
+        Optional coordinate for the node (2D or 3D).
     """
 
     node: int
+    coordinate: tuple[float, ...] | None = None
 
     def __str__(self) -> str:
+        if self.coordinate is not None:
+            return f"N: node={self.node}, coord={self.coordinate}"
         return f"N: node={self.node}"
 
 
@@ -117,7 +121,4 @@ class TICK:
         return "TICK"
 
 
-if sys.version_info >= (3, 10):
-    Command = N | E | M | X | Z | TICK
-else:
-    Command = Union[N, E, M, X, Z, TICK]
+Command = N | E | M | X | Z | TICK
