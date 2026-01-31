@@ -480,7 +480,9 @@ def test_collect_dependent_chain_diamond_cancellation() -> None:
     xflow = {n0: {n1, n2}, n1: {n3}, n2: {n3}, n3: {n4}}
     zflow: dict[int, set[int]] = {}
 
-    pframe = PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # Verify the chain for n3
     chain_n3 = pframe._collect_dependent_chain(n3)
