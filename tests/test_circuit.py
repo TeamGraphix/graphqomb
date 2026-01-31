@@ -9,6 +9,7 @@ import pytest
 
 from graphqomb.circuit import BaseCircuit, Circuit, CircuitScheduleStrategy, MBQCCircuit, circuit2graph
 from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.feedforward import pauli_simplification, signal_shifting
 from graphqomb.gates import (
     CNOT,
     CZ,
@@ -23,8 +24,10 @@ from graphqomb.gates import (
     Y,
     Z,
 )
+from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
+from graphqomb.simulator import CircuitSimulator, PatternSimulator, SimulatorBackend
 
 # MBQCCircuit tests
 
@@ -432,11 +435,15 @@ def test_circuit2graph_minimize_qubits_strategy_serializes() -> None:
 
     parallel_input_nodes = list(graph_parallel.input_node_indices.keys())
     parallel_meas_times = [scheduler_parallel.measure_time[node] for node in parallel_input_nodes]
-    assert sorted(parallel_meas_times) == [1, 1]
+    assert all(time is not None for time in parallel_meas_times)
+    parallel_meas_times_int = [time for time in parallel_meas_times if time is not None]
+    assert sorted(parallel_meas_times_int) == [1, 1]
 
     min_input_nodes = list(graph_min.input_node_indices.keys())
     min_meas_times = [scheduler_min.measure_time[node] for node in min_input_nodes]
-    assert sorted(min_meas_times) == [1, 2]
+    assert all(time is not None for time in min_meas_times)
+    min_meas_times_int = [time for time in min_meas_times if time is not None]
+    assert sorted(min_meas_times_int) == [1, 2]
 
     scheduler_min.validate_schedule()
 
@@ -487,6 +494,85 @@ def test_circuit2graph_schedule_is_valid() -> None:
 
     # This should not raise any exceptions
     scheduler.validate_schedule()
+
+
+def test_signal_shifting_circuit_integration() -> None:
+    """Test signal_shifting integration with circuit compilation and simulation."""
+    # Create a simple quantum circuit
+    circuit = MBQCCircuit(3)
+    circuit.j(0, 0.5 * np.pi)
+    circuit.cz(0, 1)
+    circuit.cz(0, 2)
+    circuit.j(1, 0.75 * np.pi)
+    circuit.j(2, 0.25 * np.pi)
+    circuit.cz(0, 2)
+    circuit.cz(1, 2)
+
+    # Convert circuit to graph and gflow
+    graphstate, gflow, _ = circuit2graph(circuit)
+
+    # Apply signal shifting
+    xflow, zflow = signal_shifting(graphstate, gflow)
+
+    # Compile to pattern
+    pattern = qompile(graphstate, xflow, zflow)
+
+    # Verify pattern is runnable
+    assert pattern is not None
+    assert pattern.max_space >= 0
+    assert pattern.depth >= 0
+
+    # Simulate the pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.state
+    statevec = state.state()
+
+    # Compare with circuit simulator
+    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    circ_state = circ_simulator.state.state()
+    inner_product = np.vdot(statevec, circ_state)
+
+    # Verify that the results match (inner product should be close to 1)
+    assert np.isclose(np.abs(inner_product), 1.0)
+
+
+def test_pauli_simplification_circuit_integration() -> None:
+    """Test pauli_simplification integration with circuit compilation and simulation."""
+    # Create a quantum circuit (using j for rotations, cz for entanglement)
+    circuit = MBQCCircuit(2)
+    circuit.j(0, 0.5 * np.pi)  # Rotation on qubit 0
+    circuit.cz(0, 1)
+    circuit.j(1, 0.25 * np.pi)  # Rotation on qubit 1
+
+    # Convert circuit to graph and gflow
+    graphstate, gflow, _ = circuit2graph(circuit)
+
+    # Apply pauli simplification
+    xflow, zflow = pauli_simplification(graphstate, gflow)
+
+    # Compile to pattern
+    pattern = qompile(graphstate, xflow, zflow)
+
+    # Verify pattern is runnable
+    assert pattern is not None
+    assert pattern.max_space >= 0
+
+    # Simulate the pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.simulate()
+    state = simulator.state
+    statevec = state.state()
+
+    # Compare with circuit simulator
+    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    circ_state = circ_simulator.state.state()
+    inner_product = np.vdot(statevec, circ_state)
+
+    # Verify that the results match (inner product should be close to 1)
+    assert np.isclose(np.abs(inner_product), 1.0)
 
 
 def test_circuit2graph_single_qubit_no_gates() -> None:
