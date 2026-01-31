@@ -5,14 +5,17 @@ This module provides:
 - `BaseCircuit`: An abstract base class for quantum circuits.
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
 - `Circuit`: A class for circuits that include macro instructions.
+- `CircuitScheduleStrategy`: Scheduling strategies for circuit conversion.
 - `circuit2graph`: A function that converts a circuit to a graph state, gflow, and scheduler.
 """
 
 from __future__ import annotations
 
 import copy
+import enum
 import itertools
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import typing_extensions
@@ -24,6 +27,13 @@ from graphqomb.scheduler import Scheduler
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+class CircuitScheduleStrategy(Enum):
+    """Enumeration for manual scheduling strategies derived from circuit structure."""
+
+    PARALLEL = enum.auto()
+    MINIMIZE_SPACE = enum.auto()
 
 
 class BaseCircuit(ABC):
@@ -209,13 +219,23 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions.append(gate)
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
+def circuit2graph(
+    circuit: BaseCircuit,
+    schedule_strategy: CircuitScheduleStrategy = CircuitScheduleStrategy.PARALLEL,
+) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
     r"""Convert a circuit to a graph state, gflow, and scheduler.
 
     Parameters
     ----------
     circuit : `BaseCircuit`
         The quantum circuit to convert.
+    schedule_strategy : `CircuitScheduleStrategy`, optional
+        Strategy for scheduling preparation and measurement times derived from the circuit,
+        by default `CircuitScheduleStrategy.PARALLEL`.
+        The strategies are:
+
+        - `CircuitScheduleStrategy.PARALLEL`: schedule each qubit independently to reduce depth
+        - `CircuitScheduleStrategy.MINIMIZE_SPACE`: serialize operations to reduce prepared qubits
 
     Returns
     -------
@@ -227,6 +247,8 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
     ------
     TypeError
         If the circuit contains an invalid instruction.
+    ValueError
+        If an invalid scheduling strategy is provided.
     """
     graph = GraphState()
     gflow: dict[int, set[int]] = {}
@@ -236,6 +258,17 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
 
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
+
+    if schedule_strategy == CircuitScheduleStrategy.PARALLEL:
+        minimize_qubits = False
+    elif schedule_strategy == CircuitScheduleStrategy.MINIMIZE_SPACE:
+        minimize_qubits = True
+    else:
+        typing_extensions.assert_never(schedule_strategy)
+        msg = f"Invalid schedule strategy: {schedule_strategy}"
+        raise ValueError(msg)
+
+    current_time = 0
 
     # input nodes
     for i in range(circuit.num_qubits):
@@ -254,9 +287,14 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
             )
 
             # time scheduling
-            prepare_time[new_node] = qindex2timestep[instruction.qubit]
-            measure_time[qindex2front_nodes[instruction.qubit]] = qindex2timestep[instruction.qubit] + 1
-            qindex2timestep[instruction.qubit] += 1
+            timestep = qindex2timestep[instruction.qubit]
+            if minimize_qubits:
+                timestep = max(current_time, timestep)
+            prepare_time[new_node] = timestep
+            measure_time[qindex2front_nodes[instruction.qubit]] = timestep + 1
+            qindex2timestep[instruction.qubit] = timestep + 1
+            if minimize_qubits:
+                current_time = timestep + 1
 
             gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
             qindex2front_nodes[instruction.qubit] = new_node
@@ -268,10 +306,12 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
             )
 
             # align timesteps
-            if qindex2timestep[instruction.qubits[0]] > qindex2timestep[instruction.qubits[1]]:
-                qindex2timestep[instruction.qubits[1]] = qindex2timestep[instruction.qubits[0]]
-            else:
-                qindex2timestep[instruction.qubits[0]] = qindex2timestep[instruction.qubits[1]]
+            aligned_time = max(qindex2timestep[instruction.qubits[0]], qindex2timestep[instruction.qubits[1]])
+            if minimize_qubits:
+                aligned_time = max(current_time, aligned_time)
+                current_time = aligned_time
+            qindex2timestep[instruction.qubits[0]] = aligned_time
+            qindex2timestep[instruction.qubits[1]] = aligned_time
         elif isinstance(instruction, PhaseGadget):
             new_node = graph.add_physical_node()
             graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
@@ -282,6 +322,9 @@ def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]
 
             # time scheduling
             max_timestep = max(qindex2timestep[qubit] for qubit in instruction.qubits)
+            if minimize_qubits:
+                max_timestep = max(current_time, max_timestep)
+                current_time = max_timestep + 1
             prepare_time[new_node] = max_timestep
             measure_time[new_node] = max_timestep + 1
             for qubit in instruction.qubits:

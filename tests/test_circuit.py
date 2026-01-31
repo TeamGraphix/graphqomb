@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 import pytest
 
-from graphqomb.circuit import BaseCircuit, Circuit, MBQCCircuit, circuit2graph
+from graphqomb.circuit import BaseCircuit, Circuit, CircuitScheduleStrategy, MBQCCircuit, circuit2graph
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.gates import (
     CNOT,
@@ -416,6 +416,29 @@ def test_circuit2graph_j_gate_timing() -> None:
     measure_times = [t for t in scheduler.measure_time.values() if t is not None]
     assert measure_times == sorted(measure_times)
     assert len(set(measure_times)) == len(measure_times)  # All unique
+
+
+def test_circuit2graph_minimize_qubits_strategy_serializes() -> None:
+    """Test that MINIMIZE_SPACE strategy serializes independent J gates."""
+    circuit = MBQCCircuit(num_qubits=2)
+    circuit.j(qubit=0, angle=0.1)
+    circuit.j(qubit=1, angle=0.2)
+
+    graph_parallel, _gflow_parallel, scheduler_parallel = circuit2graph(circuit)
+    graph_min, _gflow_min, scheduler_min = circuit2graph(
+        circuit,
+        schedule_strategy=CircuitScheduleStrategy.MINIMIZE_SPACE,
+    )
+
+    parallel_input_nodes = list(graph_parallel.input_node_indices.keys())
+    parallel_meas_times = [scheduler_parallel.measure_time[node] for node in parallel_input_nodes]
+    assert sorted(parallel_meas_times) == [1, 1]
+
+    min_input_nodes = list(graph_min.input_node_indices.keys())
+    min_meas_times = [scheduler_min.measure_time[node] for node in min_input_nodes]
+    assert sorted(min_meas_times) == [1, 2]
+
+    scheduler_min.validate_schedule()
 
 
 def test_circuit2graph_cz_timestep_alignment() -> None:
