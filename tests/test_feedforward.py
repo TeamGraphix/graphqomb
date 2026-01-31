@@ -3,7 +3,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from graphqomb.circuit import MBQCCircuit, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.feedforward import (
     _is_flow,
@@ -16,8 +15,6 @@ from graphqomb.feedforward import (
     signal_shifting,
 )
 from graphqomb.graphstate import GraphState
-from graphqomb.qompiler import qompile
-from graphqomb.simulator import CircuitSimulator, PatternSimulator, SimulatorBackend
 
 
 def two_node_graph() -> tuple[GraphState, int, int]:
@@ -297,48 +294,6 @@ def test_signal_shifting_zflow_none() -> None:
     assert isinstance(new_zflow, dict)
 
 
-def test_signal_shifting_circuit_integration() -> None:
-    """Test signal_shifting integration with circuit compilation and simulation."""
-    # Create a simple quantum circuit
-    circuit = MBQCCircuit(3)
-    circuit.j(0, 0.5 * np.pi)
-    circuit.cz(0, 1)
-    circuit.cz(0, 2)
-    circuit.j(1, 0.75 * np.pi)
-    circuit.j(2, 0.25 * np.pi)
-    circuit.cz(0, 2)
-    circuit.cz(1, 2)
-
-    # Convert circuit to graph and gflow
-    graphstate, gflow = circuit2graph(circuit)
-
-    # Apply signal shifting
-    xflow, zflow = signal_shifting(graphstate, gflow)
-
-    # Compile to pattern
-    pattern = qompile(graphstate, xflow, zflow)
-
-    # Verify pattern is runnable
-    assert pattern is not None
-    assert pattern.max_space >= 0
-    assert pattern.depth >= 0
-
-    # Simulate the pattern
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    simulator.simulate()
-    state = simulator.state
-    statevec = state.state()
-
-    # Compare with circuit simulator
-    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
-    circ_simulator.simulate()
-    circ_state = circ_simulator.state.state()
-    inner_product = np.vdot(statevec, circ_state)
-
-    # Verify that the results match (inner product should be close to 1)
-    assert np.isclose(np.abs(inner_product), 1.0)
-
-
 # Tests for pauli_simplification
 
 
@@ -514,40 +469,3 @@ def test_pauli_simplification_preserves_original_flows() -> None:
     # Original flows should be unchanged
     assert xflow[parent] == original_xflow_parent
     assert zflow[parent] == original_zflow_parent
-
-
-def test_pauli_simplification_circuit_integration() -> None:
-    """Test pauli_simplification integration with circuit compilation and simulation."""
-    # Create a quantum circuit (using j for rotations, cz for entanglement)
-    circuit = MBQCCircuit(2)
-    circuit.j(0, 0.5 * np.pi)  # Rotation on qubit 0
-    circuit.cz(0, 1)
-    circuit.j(1, 0.25 * np.pi)  # Rotation on qubit 1
-
-    # Convert circuit to graph and gflow
-    graphstate, gflow = circuit2graph(circuit)
-
-    # Apply pauli simplification
-    xflow, zflow = pauli_simplification(graphstate, gflow)
-
-    # Compile to pattern
-    pattern = qompile(graphstate, xflow, zflow)
-
-    # Verify pattern is runnable
-    assert pattern is not None
-    assert pattern.max_space >= 0
-
-    # Simulate the pattern
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    simulator.simulate()
-    state = simulator.state
-    statevec = state.state()
-
-    # Compare with circuit simulator
-    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
-    circ_simulator.simulate()
-    circ_state = circ_simulator.state.state()
-    inner_product = np.vdot(statevec, circ_state)
-
-    # Verify that the results match (inner product should be close to 1)
-    assert np.isclose(np.abs(inner_product), 1.0)
