@@ -102,41 +102,37 @@ def _entangle_nodes(
         stim_io.write(f"DEPOLARIZE2({p_depol_after_clifford}) {q1} {q2}\n")
 
 
-def _emit_measurement_noise(
-    stim_io: StringIO,
-    axis: Axis,
-    node: int,
-    p_before_meas_flip: float,
-) -> None:
-    r"""Emit measurement noise before a measurement operation."""
-    if axis == Axis.X:
-        if p_before_meas_flip > 0.0:
-            stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
-    elif axis == Axis.Y:
-        if p_before_meas_flip > 0.0:
-            stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
-            stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
-    elif axis == Axis.Z:
-        if p_before_meas_flip > 0.0:
-            stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
-    else:
-        typing_extensions.assert_never(axis)
-
-
 def _emit_measurement(
     stim_io: StringIO,
     axis: Axis,
     node: int,
+    p_meas_flip: float,
 ) -> None:
-    r"""Emit a measurement operation."""
+    r"""Emit a measurement operation with optional measurement error.
+
+    Parameters
+    ----------
+    stim_io : `StringIO`
+        The output stream to write to.
+    axis : `Axis`
+        The measurement axis (X, Y, or Z).
+    node : `int`
+        The qubit index to measure.
+    p_meas_flip : `float`
+        The probability of a measurement bit flip error.
+    """
     if axis == Axis.X:
-        stim_io.write(f"MX {node}\n")
+        meas_instr = "MX"
     elif axis == Axis.Y:
-        stim_io.write(f"MY {node}\n")
+        meas_instr = "MY"
     elif axis == Axis.Z:
-        stim_io.write(f"MZ {node}\n")
+        meas_instr = "MZ"
     else:
         typing_extensions.assert_never(axis)
+    if p_meas_flip > 0.0:
+        stim_io.write(f"{meas_instr}({p_meas_flip}) {node}\n")
+    else:
+        stim_io.write(f"{meas_instr} {node}\n")
 
 
 def _emit_noise(
@@ -326,7 +322,6 @@ class _StimCompiler:
         if axis is None:
             msg = f"Unsupported measurement basis: {meas_basis.plane, meas_basis.angle}"
             raise ValueError(msg)
-        _emit_measurement_noise(self._stim_io, axis, node, self._p_before_meas_flip)
         self._apply_noise(
             NoiseEvent(
                 kind=NoiseKind.MEASURE,
@@ -337,7 +332,7 @@ class _StimCompiler:
                 axis=axis,
             ),
         )
-        _emit_measurement(self._stim_io, axis, node)
+        _emit_measurement(self._stim_io, axis, node, self._p_before_meas_flip)
         self._meas_order[node] = self._rec_index
         self._rec_index += 1
         self._alive_nodes.discard(node)

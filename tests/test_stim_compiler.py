@@ -173,14 +173,8 @@ def test_stim_compile_with_measurement_errors_x() -> None:
 
     stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
-    # For X measurement, Z_ERROR should be inserted before MX
-    assert "Z_ERROR(0.01)" in stim_str
-    lines = stim_str.split("\n")
-    for i, line in enumerate(lines):
-        if "Z_ERROR(0.01)" in line and i + 1 < len(lines):
-            # Next non-empty line should be MX
-            next_line = lines[i + 1]
-            assert "MX" in next_line
+    # For X measurement, error probability is attached to MX instruction
+    assert "MX(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_y() -> None:
@@ -189,9 +183,8 @@ def test_stim_compile_with_measurement_errors_y() -> None:
 
     stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
-    # For Y measurement, both X_ERROR and Z_ERROR should be inserted before MY
-    assert "X_ERROR(0.01)" in stim_str
-    assert "Z_ERROR(0.01)" in stim_str
+    # For Y measurement, error probability is attached to MY instruction
+    assert "MY(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_z() -> None:
@@ -200,14 +193,8 @@ def test_stim_compile_with_measurement_errors_z() -> None:
 
     stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
 
-    # For Z measurement, X_ERROR should be inserted before MZ
-    assert "X_ERROR(0.01)" in stim_str
-    lines = stim_str.split("\n")
-    for i, line in enumerate(lines):
-        if "X_ERROR(0.01)" in line and i + 1 < len(lines):
-            # Next non-empty line should be MZ
-            next_line = lines[i + 1]
-            assert "MZ" in next_line
+    # For Z measurement, error probability is attached to MZ instruction
+    assert "MZ(0.01)" in stim_str
 
 
 def test_stim_compile_with_detectors() -> None:
