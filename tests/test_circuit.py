@@ -301,10 +301,10 @@ def test_circuit2graph_invalid_instruction() -> None:
         def num_qubits(self) -> int:
             return 1
 
-        def instructions(self) -> list[Gate]:  # noqa: PLR6301
+        def instructions(self) -> list[Gate]:
             return [X(qubit=0)]
 
-        def unit_instructions(self) -> list[UnitGate]:  # noqa: PLR6301
+        def unit_instructions(self) -> list[UnitGate]:
             # Return a non-UnitGate object to trigger error
             return [X(qubit=0)]  # type: ignore[list-item]
 

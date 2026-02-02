@@ -14,6 +14,7 @@ import typing_extensions
 
 from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
+from graphqomb.noise_model import NoiseEvent, NoiseKind, NoiseModel
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Mapping, Sequence
@@ -101,50 +102,65 @@ def _entangle_nodes(
         stim_io.write(f"DEPOLARIZE2({p_depol_after_clifford}) {q1} {q2}\n")
 
 
-def _measure_node(
+def _emit_measurement_noise(
     stim_io: StringIO,
-    meas_basis: MeasBasis,
+    axis: Axis,
     node: int,
     p_before_meas_flip: float,
 ) -> None:
-    r"""Measure a node in the specified basis (M command).
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    meas_basis : `MeasBasis`
-        The measurement basis.
-    node : `int`
-        The node to measure.
-    p_before_meas_flip : `float`
-        The probability of flipping a measurement result before measurement.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported measurement basis is encountered.
-    """
-    axis = determine_pauli_axis(meas_basis)
-    if axis is None:
-        msg = f"Unsupported measurement basis: {meas_basis.plane, meas_basis.angle}"
-        raise ValueError(msg)
-
+    r"""Emit measurement noise before a measurement operation."""
     if axis == Axis.X:
         if p_before_meas_flip > 0.0:
             stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
-        stim_io.write(f"MX {node}\n")
     elif axis == Axis.Y:
         if p_before_meas_flip > 0.0:
             stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
             stim_io.write(f"Z_ERROR({p_before_meas_flip}) {node}\n")
-        stim_io.write(f"MY {node}\n")
     elif axis == Axis.Z:
         if p_before_meas_flip > 0.0:
             stim_io.write(f"X_ERROR({p_before_meas_flip}) {node}\n")
+    else:
+        typing_extensions.assert_never(axis)
+
+
+def _emit_measurement(
+    stim_io: StringIO,
+    axis: Axis,
+    node: int,
+) -> None:
+    r"""Emit a measurement operation."""
+    if axis == Axis.X:
+        stim_io.write(f"MX {node}\n")
+    elif axis == Axis.Y:
+        stim_io.write(f"MY {node}\n")
+    elif axis == Axis.Z:
         stim_io.write(f"MZ {node}\n")
     else:
         typing_extensions.assert_never(axis)
+
+
+def _emit_noise(
+    stim_io: StringIO,
+    noise_model: NoiseModel | None,
+    event: NoiseEvent,
+) -> int:
+    if noise_model is None:
+        return 0
+    record_delta = 0
+    for op in noise_model.emit(event):
+        if op.text:
+            stim_io.write(f"{op.text}\n")
+        record_delta += op.record_delta
+    return record_delta
+
+
+_MIN_COORD_DIMS = 2
+
+
+def _xy_coords(coordinate: tuple[float, ...] | None) -> tuple[float, float] | None:
+    if coordinate is None or len(coordinate) < _MIN_COORD_DIMS:
+        return None
+    return (coordinate[0], coordinate[1])
 
 
 def _add_detectors(
@@ -199,13 +215,169 @@ def _add_observables(
         stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
 
 
-def stim_compile(
+class _StimCompiler:
+    def __init__(  # noqa: PLR0913
+        self,
+        pattern: Pattern,
+        *,
+        p_depol_after_clifford: float,
+        p_before_meas_flip: float,
+        emit_qubit_coords: bool,
+        noise_model: NoiseModel | None,
+        tick_duration: float,
+    ) -> None:
+        self._pattern = pattern
+        self._pframe = pattern.pauli_frame
+        self._coord_lookup = pattern.coordinates
+        self._p_depol_after_clifford = p_depol_after_clifford
+        self._p_before_meas_flip = p_before_meas_flip
+        self._emit_qubit_coords = emit_qubit_coords
+        self._noise_model = noise_model
+        self._tick_duration = tick_duration
+        self._stim_io = StringIO()
+        self._meas_order: dict[int, int] = {}
+        self._rec_index = 0
+        self._alive_nodes: set[int] = set(pattern.input_node_indices)
+        self._touched_nodes: set[int] = set()
+        self._tick = 0
+
+    def compile(self, logical_observables: Mapping[int, Collection[int]] | None) -> str:
+        self._emit_input_nodes()
+        self._process_commands()
+        total_measurements = self._rec_index
+        _add_detectors(self._stim_io, self._pframe.detector_groups(), self._meas_order, total_measurements)
+        if logical_observables is not None:
+            _add_observables(
+                self._stim_io,
+                logical_observables,
+                self._pframe,
+                self._meas_order,
+                total_measurements,
+            )
+        return self._stim_io.getvalue().strip()
+
+    def _emit_input_nodes(self) -> None:
+        coordinates = self._pattern.input_coordinates if self._emit_qubit_coords else None
+        for node in self._pattern.input_node_indices:
+            _prepare_nodes(
+                self._stim_io,
+                node,
+                self._p_depol_after_clifford,
+                coordinates=coordinates,
+                emit_qubit_coords=self._emit_qubit_coords,
+            )
+            self._after_prepare(node, is_input=True)
+
+    def _process_commands(self) -> None:
+        for cmd in self._pattern:
+            if isinstance(cmd, N):
+                self._handle_prepare(cmd.node, cmd.coordinate)
+            elif isinstance(cmd, E):
+                self._handle_entangle(cmd.nodes)
+            elif isinstance(cmd, M):
+                self._handle_measure(cmd.node, cmd.meas_basis)
+            elif isinstance(cmd, TICK):
+                self._handle_tick()
+
+    def _handle_prepare(self, node: int, coordinate: tuple[float, ...] | None) -> None:
+        coordinates = {node: coordinate} if self._emit_qubit_coords and coordinate is not None else None
+        _prepare_nodes(
+            self._stim_io,
+            node,
+            self._p_depol_after_clifford,
+            coordinates=coordinates,
+            emit_qubit_coords=self._emit_qubit_coords,
+        )
+        self._after_prepare(node, is_input=False)
+
+    def _after_prepare(self, node: int, *, is_input: bool) -> None:
+        self._alive_nodes.add(node)
+        self._touched_nodes.add(node)
+        self._apply_noise(
+            NoiseEvent(
+                kind=NoiseKind.PREPARE,
+                tick=self._tick,
+                nodes=(node,),
+                edge=None,
+                coords=(self._coords_for(node),),
+                axis=None,
+                is_input=is_input,
+            ),
+        )
+
+    def _handle_entangle(self, nodes: tuple[int, int]) -> None:
+        _entangle_nodes(self._stim_io, nodes, self._p_depol_after_clifford)
+        self._touched_nodes.update(nodes)
+        n0, n1 = nodes
+        edge: tuple[int, int] = (n0, n1) if n0 < n1 else (n1, n0)
+        self._apply_noise(
+            NoiseEvent(
+                kind=NoiseKind.ENTANGLE,
+                tick=self._tick,
+                nodes=nodes,
+                edge=edge,
+                coords=(self._coords_for(nodes[0]), self._coords_for(nodes[1])),
+                axis=None,
+            ),
+        )
+
+    def _handle_measure(self, node: int, meas_basis: MeasBasis) -> None:
+        axis = determine_pauli_axis(meas_basis)
+        if axis is None:
+            msg = f"Unsupported measurement basis: {meas_basis.plane, meas_basis.angle}"
+            raise ValueError(msg)
+        _emit_measurement_noise(self._stim_io, axis, node, self._p_before_meas_flip)
+        self._apply_noise(
+            NoiseEvent(
+                kind=NoiseKind.MEASURE,
+                tick=self._tick,
+                nodes=(node,),
+                edge=None,
+                coords=(self._coords_for(node),),
+                axis=axis,
+            ),
+        )
+        _emit_measurement(self._stim_io, axis, node)
+        self._meas_order[node] = self._rec_index
+        self._rec_index += 1
+        self._alive_nodes.discard(node)
+        self._touched_nodes.add(node)
+
+    def _handle_tick(self) -> None:
+        if self._noise_model is not None:
+            idle_nodes = sorted(self._alive_nodes - self._touched_nodes)
+            if idle_nodes:
+                self._apply_noise(
+                    NoiseEvent(
+                        kind=NoiseKind.IDLE,
+                        tick=self._tick,
+                        nodes=tuple(idle_nodes),
+                        edge=None,
+                        coords=tuple(self._coords_for(node) for node in idle_nodes),
+                        axis=None,
+                        duration=self._tick_duration,
+                    ),
+                )
+        self._stim_io.write("TICK\n")
+        self._touched_nodes.clear()
+        self._tick += 1
+
+    def _apply_noise(self, event: NoiseEvent) -> None:
+        self._rec_index += _emit_noise(self._stim_io, self._noise_model, event)
+
+    def _coords_for(self, node: int) -> tuple[float, float] | None:
+        return _xy_coords(self._coord_lookup.get(node))
+
+
+def stim_compile(  # noqa: PLR0913
     pattern: Pattern,
     logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
     p_depol_after_clifford: float = 0.0,
     p_before_meas_flip: float = 0.0,
     emit_qubit_coords: bool = True,
+    noise_model: NoiseModel | None = None,
+    tick_duration: float = 1.0,
 ) -> str:
     r"""Compile a pattern to stim format.
 
@@ -222,6 +394,10 @@ def stim_compile(
     emit_qubit_coords : `bool`, optional
         Whether to emit QUBIT_COORDS instructions for nodes with coordinates,
         by default True.
+    noise_model : `NoiseModel` | `None`, optional
+        Custom noise model for injecting Stim noise instructions, by default None.
+    tick_duration : `float`, optional
+        Duration associated with each TICK for idle noise, by default 1.0.
 
     Returns
     -------
@@ -234,50 +410,12 @@ def stim_compile(
     Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
     Non-Pauli measurements will raise a ValueError.
     """
-    stim_io = StringIO()
-    pframe = pattern.pauli_frame
-
-    # Build measurement order lookup dict
-    meas_order: dict[int, int] = {}
-    meas_idx = 0
-    for cmd in pattern:
-        if isinstance(cmd, M):
-            meas_order[cmd.node] = meas_idx
-            meas_idx += 1
-    total_measurements = meas_idx
-
-    # Initialize input nodes (with coordinates if available)
-    _prepare_nodes(
-        stim_io,
-        pattern.input_node_indices,
-        p_depol_after_clifford,
-        coordinates=pattern.input_coordinates if emit_qubit_coords else None,
+    compiler = _StimCompiler(
+        pattern,
+        p_depol_after_clifford=p_depol_after_clifford,
+        p_before_meas_flip=p_before_meas_flip,
         emit_qubit_coords=emit_qubit_coords,
+        noise_model=noise_model,
+        tick_duration=tick_duration,
     )
-
-    # Process pattern commands
-    for cmd in pattern:
-        if isinstance(cmd, N):
-            _prepare_nodes(
-                stim_io,
-                cmd.node,
-                p_depol_after_clifford,
-                coordinates={cmd.node: cmd.coordinate} if cmd.coordinate else None,
-                emit_qubit_coords=emit_qubit_coords,
-            )
-        elif isinstance(cmd, E):
-            _entangle_nodes(stim_io, cmd.nodes, p_depol_after_clifford)
-        elif isinstance(cmd, M):
-            _measure_node(stim_io, cmd.meas_basis, cmd.node, p_before_meas_flip)
-        elif isinstance(cmd, TICK):
-            stim_io.write("TICK\n")
-
-    # Add detectors
-    check_groups = pframe.detector_groups()
-    _add_detectors(stim_io, check_groups, meas_order, total_measurements)
-
-    # Add logical observables
-    if logical_observables is not None:
-        _add_observables(stim_io, logical_observables, pframe, meas_order, total_measurements)
-
-    return stim_io.getvalue().strip()
+    return compiler.compile(logical_observables)

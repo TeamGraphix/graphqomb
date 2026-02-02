@@ -10,6 +10,7 @@ import pytest
 from graphqomb.command import TICK, E
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
+from graphqomb.noise_model import NoiseEvent, NoiseKind, NoiseModel, NoiseOp
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
@@ -237,6 +238,79 @@ def test_stim_compile_with_detectors() -> None:
     assert "DETECTOR" in stim_str
     # DETECTOR may be empty if the dependent chain resolves to empty set
     # This is valid behavior for certain graph configurations
+
+
+class _HeraldedNoise(NoiseModel):
+    """Test noise model that adds heralded Pauli channel on measurements."""
+
+    def emit(self, event: NoiseEvent) -> list[NoiseOp]:
+        if event.kind == NoiseKind.MEASURE:
+            node = event.nodes[0]
+            return [NoiseOp(f"HERALDED_PAULI_CHANNEL_1(0,0,0,0.1) {node}", record_delta=1)]
+        return []
+
+
+def _parse_stim_measurements(stim_str: str) -> tuple[dict[int, int], int]:
+    """Parse stim string to extract measurement order and total record count."""
+    rec_index = 0
+    actual_meas_order: dict[int, int] = {}
+    for raw_line in stim_str.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("HERALDED_PAULI_CHANNEL_1"):
+            targets = stripped.split(")", 1)[1].strip().split()
+            rec_index += len(targets)
+        elif stripped.startswith(("MX ", "MY ", "MZ ")):
+            node = int(stripped.split()[1])
+            actual_meas_order[node] = rec_index
+            rec_index += 1
+    return actual_meas_order, rec_index
+
+
+def _normalize_detector(line: str) -> str:
+    """Normalize detector line by sorting targets."""
+    parts = line.strip().split()
+    if len(parts) <= 1:
+        return "DETECTOR"
+    targets = sorted(parts[1:])
+    return f"DETECTOR {' '.join(targets)}"
+
+
+def test_stim_compile_with_heralded_noise_updates_detectors() -> None:
+    """Heralded noise should shift rec indices used by detectors."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    meas_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = 0
+    graph.register_input(in_node, q_idx)
+    graph.register_output(out_node, q_idx)
+
+    graph.add_physical_edge(in_node, meas_node)
+    graph.add_physical_edge(meas_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {in_node: {meas_node}, meas_node: {out_node}}
+    parity_check_group = [{in_node}]
+    pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
+
+    stim_str = stim_compile(pattern, noise_model=_HeraldedNoise())
+
+    actual_meas_order, total_measurements = _parse_stim_measurements(stim_str)
+
+    check_groups = pattern.pauli_frame.detector_groups()
+    expected_detectors = {
+        _normalize_detector(
+            f"DETECTOR {' '.join(f'rec[{actual_meas_order[check] - total_measurements}]' for check in checks)}"
+        )
+        for checks in check_groups
+    }
+    actual_detectors = {_normalize_detector(line) for line in stim_str.splitlines() if line.startswith("DETECTOR")}
+    assert expected_detectors == actual_detectors
 
 
 def test_stim_compile_with_logical_observables() -> None:
