@@ -13,7 +13,7 @@ This module provides:
 - `NoiseModel`: Base class for noise models.
 - `DepolarizingNoiseModel`, `MeasurementFlipNoiseModel`: Built-in noise models.
 - `noise_op_to_stim`: Conversion function.
-- `PAULI_CHANNEL_2_ORDER`: Constant for Pauli channel order.
+- :data:`PAULI_CHANNEL_2_ORDER`: Constant for Pauli channel order.
 
 Examples
 --------
@@ -59,9 +59,9 @@ Use heralded noise that adds measurement records:
 
 Notes
 -----
-- **Placement control**: Each `NoiseOp` has a `placement` attribute.
-  `AUTO` defers to :meth:`NoiseModel.default_placement`, while
-  `BEFORE`/`AFTER` force insertion side.
+- **Placement control**: Each `NoiseOp` has a ``placement`` attribute.
+  ``AUTO`` defers to :meth:`NoiseModel.default_placement`, while
+  ``BEFORE``/``AFTER`` force insertion side.
 
 - **Record delta**: Heralded instructions (`HeraldedPauliChannel1`,
   `HeraldedErase`) add measurement records. The compiler automatically
@@ -197,7 +197,7 @@ class EntangleEvent:
     node1 : NodeInfo
         Information about the second node in the entanglement.
     edge : tuple[int, int]
-        The edge as `(min_node_id, max_node_id)`.
+        The edge as ``(min_node_id, max_node_id)``.
     """
 
     time: int
@@ -236,7 +236,7 @@ class IdleEvent:
     nodes : Sequence[NodeInfo]
         Information about all nodes that are idle during this tick.
     duration : float
-        The duration of the idle period (from `tick_duration` parameter).
+        The duration of the idle period (from ``tick_duration`` parameter).
     """
 
     time: int
@@ -253,7 +253,7 @@ class PauliChannel1:
     """Single-qubit Pauli channel noise operation.
 
     Applies independent X, Y, Z errors with given probabilities.
-    Corresponds to Stim's `PAULI_CHANNEL_1` instruction.
+    Corresponds to Stim's ``PAULI_CHANNEL_1`` instruction.
 
     Parameters
     ----------
@@ -267,7 +267,7 @@ class PauliChannel1:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        `AUTO` defers to the model's default placement for the event.
+        ``AUTO`` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -291,7 +291,7 @@ class PauliChannel2:
     """Two-qubit Pauli channel noise operation.
 
     Applies correlated two-qubit Pauli errors.
-    Corresponds to Stim's `PAULI_CHANNEL_2` instruction.
+    Corresponds to Stim's ``PAULI_CHANNEL_2`` instruction.
 
     Parameters
     ----------
@@ -301,10 +301,10 @@ class PauliChannel2:
         or a mapping from Pauli string keys to probabilities.
         Missing keys default to 0.
     targets : Sequence[tuple[int, int]]
-        Target qubit pairs as `[(q0, q1), ...]`.
+        Target qubit pairs as ``[(q0, q1), ...]``.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        `AUTO` defers to the model's default placement for the event.
+        ``AUTO`` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -335,8 +335,8 @@ class HeraldedPauliChannel1:
 
     Similar to `PauliChannel1` but produces a herald measurement record
     indicating whether an error occurred. The herald outcome is 1 if any
-    error occurred (including identity with probability `pi`).
-    Corresponds to Stim's `HERALDED_PAULI_CHANNEL_1` instruction.
+    error occurred (including identity with probability ``pi``).
+    Corresponds to Stim's ``HERALDED_PAULI_CHANNEL_1`` instruction.
 
     Parameters
     ----------
@@ -352,7 +352,7 @@ class HeraldedPauliChannel1:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        `AUTO` defers to the model's default placement for the event.
+        ``AUTO`` defers to the model's default placement for the event.
 
     Notes
     -----
@@ -385,7 +385,7 @@ class HeraldedErase:
     """Heralded erasure noise operation.
 
     Models photon loss or erasure errors with a herald signal.
-    Corresponds to Stim's `HERALDED_ERASE` instruction.
+    Corresponds to Stim's ``HERALDED_ERASE`` instruction.
 
     Parameters
     ----------
@@ -395,7 +395,7 @@ class HeraldedErase:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        `AUTO` defers to the model's default placement for the event.
+        ``AUTO`` defers to the model's default placement for the event.
 
     Notes
     -----
@@ -436,7 +436,7 @@ class RawStimOp:
         Most noise instructions do not add records (default 0).
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        `AUTO` defers to the model's default placement for the event.
+        ``AUTO`` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -604,14 +604,14 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     Returns
     -------
     tuple[str, int]
-        A tuple of `(stim_instruction, record_delta)` where
-        `stim_instruction` is a single line of Stim code and
-        `record_delta` is the number of measurement records added.
+        A tuple of ``(stim_instruction, record_delta)`` where
+        ``stim_instruction`` is a single line of Stim code and
+        ``record_delta`` is the number of measurement records added.
 
     Raises
     ------
     TypeError
-        If `op` is not a recognized NoiseOp type.
+        If ``op`` is not a recognized NoiseOp type.
 
     Examples
     --------
