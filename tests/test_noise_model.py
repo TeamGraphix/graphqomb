@@ -8,11 +8,14 @@ from graphqomb.common import Axis
 from graphqomb.noise_model import (
     PAULI_CHANNEL_2_ORDER,
     Coordinate,
+    DepolarizingNoiseModel,
     EntangleEvent,
     HeraldedErase,
     HeraldedPauliChannel1,
     IdleEvent,
     MeasureEvent,
+    MeasurementFlip,
+    MeasurementFlipNoiseModel,
     NodeInfo,
     NoiseModel,
     NoisePlacement,
@@ -20,6 +23,7 @@ from graphqomb.noise_model import (
     PauliChannel2,
     PrepareEvent,
     RawStimOp,
+    depolarize2_probs,
     noise_op_to_stim,
 )
 
@@ -229,6 +233,37 @@ class TestPauliChannel2:
     def test_pauli_channel_2_order_has_15_elements(self) -> None:
         """Test that PAULI_CHANNEL_2_ORDER has exactly 15 elements."""
         assert len(PAULI_CHANNEL_2_ORDER) == 15
+
+
+class TestDepolarize2Probs:
+    """Tests for depolarize2_probs utility function."""
+
+    def test_returns_15_elements(self) -> None:
+        """Test that depolarize2_probs returns 15 Pauli pairs."""
+        probs = depolarize2_probs(0.15)
+        assert len(probs) == 15
+
+    def test_each_probability_is_p_over_15(self) -> None:
+        """Test that each probability is p/15."""
+        p = 0.15
+        probs = depolarize2_probs(p)
+        expected = p / 15
+        for pauli, prob in probs.items():
+            assert prob == expected, f"Expected {expected} for {pauli}, got {prob}"
+
+    def test_contains_all_pauli_pairs(self) -> None:
+        """Test that all 15 Pauli pairs are present."""
+        probs = depolarize2_probs(0.1)
+        for pauli in PAULI_CHANNEL_2_ORDER:
+            assert pauli in probs
+
+    def test_can_be_used_with_pauli_channel_2(self) -> None:
+        """Test that depolarize2_probs works with PauliChannel2."""
+        probs = depolarize2_probs(0.15)
+        op = PauliChannel2(probabilities=probs, targets=[(0, 1)])
+        text, delta = noise_op_to_stim(op)
+        assert "PAULI_CHANNEL_2" in text
+        assert delta == 0
 
 
 class TestHeraldedPauliChannel1:
@@ -482,3 +517,129 @@ class TestCustomNoiseModel:
         assert len(ops) == 1
         assert isinstance(ops[0], PauliChannel1)
         assert ops[0].px == 0.002  # p * duration
+
+
+# ---- MeasurementFlip Tests ----
+
+
+class TestMeasurementFlip:
+    """Tests for MeasurementFlip noise operation."""
+
+    def test_basic(self) -> None:
+        """Test basic MeasurementFlip creation."""
+        op = MeasurementFlip(p=0.01, target=5)
+        assert op.p == 0.01
+        assert op.target == 5
+        assert op.placement == NoisePlacement.AUTO
+
+    def test_to_stim_returns_empty(self) -> None:
+        """Test that noise_op_to_stim returns empty string for MeasurementFlip.
+
+        MeasurementFlip is handled specially by modifying the measurement
+        instruction itself, so it should not emit a separate instruction.
+        """
+        op = MeasurementFlip(p=0.01, target=0)
+        text, delta = noise_op_to_stim(op)
+        assert text == ""
+        assert delta == 0
+
+
+# ---- DepolarizingNoiseModel Tests ----
+
+
+class TestDepolarizingNoiseModel:
+    """Tests for DepolarizingNoiseModel built-in noise model."""
+
+    def test_on_prepare_emits_depolarize1(self) -> None:
+        """Test that on_prepare returns DEPOLARIZE1 instruction."""
+        model = DepolarizingNoiseModel(p1=0.01)
+        node = NodeInfo(id=5, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=False)
+        ops = list(model.on_prepare(event))
+        assert len(ops) == 1
+        text, _ = noise_op_to_stim(ops[0])
+        assert text == "DEPOLARIZE1(0.01) 5"
+
+    def test_on_entangle_emits_depolarize2(self) -> None:
+        """Test that on_entangle returns DEPOLARIZE2 instruction."""
+        model = DepolarizingNoiseModel(p1=0.01)
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        event = EntangleEvent(time=1, node0=node0, node1=node1, edge=(0, 1))
+        ops = list(model.on_entangle(event))
+        assert len(ops) == 1
+        text, _ = noise_op_to_stim(ops[0])
+        assert text == "DEPOLARIZE2(0.01) 0 1"
+
+    def test_p2_defaults_to_p1(self) -> None:
+        """Test that p2 defaults to p1 when not specified."""
+        model = DepolarizingNoiseModel(p1=0.02)
+        node0 = NodeInfo(id=2, coord=None)
+        node1 = NodeInfo(id=3, coord=None)
+        event = EntangleEvent(time=1, node0=node0, node1=node1, edge=(2, 3))
+        ops = list(model.on_entangle(event))
+        text, _ = noise_op_to_stim(ops[0])
+        assert "DEPOLARIZE2(0.02)" in text
+
+    def test_different_p1_and_p2(self) -> None:
+        """Test DepolarizingNoiseModel with different p1 and p2."""
+        model = DepolarizingNoiseModel(p1=0.001, p2=0.01)
+        # Check prepare uses p1
+        node = NodeInfo(id=0, coord=None)
+        prepare_event = PrepareEvent(time=0, node=node, is_input=False)
+        ops = list(model.on_prepare(prepare_event))
+        text, _ = noise_op_to_stim(ops[0])
+        assert "DEPOLARIZE1(0.001)" in text
+
+        # Check entangle uses p2
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        entangle_event = EntangleEvent(time=1, node0=node0, node1=node1, edge=(0, 1))
+        ops = list(model.on_entangle(entangle_event))
+        text, _ = noise_op_to_stim(ops[0])
+        assert "DEPOLARIZE2(0.01)" in text
+
+    def test_zero_probability_returns_empty(self) -> None:
+        """Test that zero probability returns empty sequence."""
+        model = DepolarizingNoiseModel(p1=0.0)
+        node = NodeInfo(id=0, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=False)
+        ops = list(model.on_prepare(event))
+        assert len(ops) == 0
+
+
+# ---- MeasurementFlipNoiseModel Tests ----
+
+
+class TestMeasurementFlipNoiseModel:
+    """Tests for MeasurementFlipNoiseModel built-in noise model."""
+
+    def test_on_measure_returns_measurement_flip(self) -> None:
+        """Test that on_measure returns MeasurementFlip operation."""
+        model = MeasurementFlipNoiseModel(p=0.01)
+        node = NodeInfo(id=5, coord=None)
+        event = MeasureEvent(time=0, node=node, axis=Axis.X)
+        ops = list(model.on_measure(event))
+        assert len(ops) == 1
+        assert isinstance(ops[0], MeasurementFlip)
+        assert ops[0].p == 0.01
+        assert ops[0].target == 5
+
+    def test_zero_probability_returns_empty(self) -> None:
+        """Test that zero probability returns empty sequence."""
+        model = MeasurementFlipNoiseModel(p=0.0)
+        node = NodeInfo(id=0, coord=None)
+        event = MeasureEvent(time=0, node=node, axis=Axis.Z)
+        ops = list(model.on_measure(event))
+        assert len(ops) == 0
+
+    def test_different_axes(self) -> None:
+        """Test MeasurementFlipNoiseModel works with all measurement axes."""
+        model = MeasurementFlipNoiseModel(p=0.005)
+        for axis in [Axis.X, Axis.Y, Axis.Z]:
+            node = NodeInfo(id=0, coord=None)
+            event = MeasureEvent(time=0, node=node, axis=axis)
+            ops = list(model.on_measure(event))
+            assert len(ops) == 1
+            assert isinstance(ops[0], MeasurementFlip)
+            assert ops[0].p == 0.005
