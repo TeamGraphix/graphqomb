@@ -10,8 +10,6 @@ from __future__ import annotations
 from io import StringIO
 from typing import TYPE_CHECKING
 
-import typing_extensions
-
 from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
 from graphqomb.noise_model import (
@@ -19,6 +17,7 @@ from graphqomb.noise_model import (
     EntangleEvent,
     IdleEvent,
     MeasureEvent,
+    MeasurementFlip,
     NodeInfo,
     NoiseModel,
     NoiseOp,
@@ -32,180 +31,13 @@ if TYPE_CHECKING:
 
     from graphqomb.noise_model import NoiseEvent
     from graphqomb.pattern import Pattern
-    from graphqomb.pauli_frame import PauliFrame
-
-
-def _emit_qubit_coords(
-    stim_io: StringIO,
-    node: int,
-    coordinate: tuple[float, ...] | None,
-) -> None:
-    r"""Emit QUBIT_COORDS instruction if coordinate is available.
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    node : `int`
-        The qubit index.
-    coordinate : `tuple`\[`float`, ...\] | `None`
-        The coordinate tuple (2D or 3D), or None if no coordinate.
-    """
-    if coordinate is not None:
-        coords_str = ", ".join(str(c) for c in coordinate)
-        stim_io.write(f"QUBIT_COORDS({coords_str}) {node}\n")
-
-
-def _prepare_nodes(
-    stim_io: StringIO,
-    nodes: int | Iterable[int],
-    p_depol_after_clifford: float,
-    coordinates: Mapping[int, tuple[float, ...]] | None = None,
-    emit_qubit_coords: bool = True,
-) -> None:
-    r"""Prepare nodes in |+> state.
-
-    This function handles both single nodes (N command) and multiple nodes
-    (input nodes initialization).
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    nodes : `int` | `collections.abc.Iterable`\[`int`\]
-        A single node index or an iterable of node indices to prepare.
-    p_depol_after_clifford : `float`
-        The probability of depolarization after Clifford gates.
-    coordinates : `collections.abc.Mapping`\[`int`, `tuple`\[`float`, ...\]\] | `None`, optional
-        Coordinates for nodes, by default None.
-    emit_qubit_coords : `bool`, optional
-        Whether to emit QUBIT_COORDS instructions, by default True.
-    """
-    if isinstance(nodes, int):
-        nodes = [nodes]
-    for node in nodes:
-        coord = coordinates.get(node) if coordinates else None
-        if emit_qubit_coords:
-            _emit_qubit_coords(stim_io, node, coord)
-        stim_io.write(f"RX {node}\n")
-        if p_depol_after_clifford > 0.0:
-            stim_io.write(f"DEPOLARIZE1({p_depol_after_clifford}) {node}\n")
-
-
-def _entangle_nodes(
-    stim_io: StringIO,
-    nodes: tuple[int, int],
-    p_depol_after_clifford: float,
-) -> None:
-    r"""Entangle two nodes with CZ gate (E command).
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    nodes : `tuple`\[`int`, `int`\]
-        The pair of nodes to entangle.
-    p_depol_after_clifford : `float`
-        The probability of depolarization after Clifford gates.
-    """
-    q1, q2 = nodes
-    stim_io.write(f"CZ {q1} {q2}\n")
-    if p_depol_after_clifford > 0.0:
-        stim_io.write(f"DEPOLARIZE2({p_depol_after_clifford}) {q1} {q2}\n")
-
-
-def _emit_measurement(
-    stim_io: StringIO,
-    axis: Axis,
-    node: int,
-    p_meas_flip: float,
-) -> None:
-    r"""Emit a measurement operation with optional measurement error.
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    axis : `Axis`
-        The measurement axis (X, Y, or Z).
-    node : `int`
-        The qubit index to measure.
-    p_meas_flip : `float`
-        The probability of a measurement bit flip error.
-    """
-    if axis == Axis.X:
-        meas_instr = "MX"
-    elif axis == Axis.Y:
-        meas_instr = "MY"
-    elif axis == Axis.Z:
-        meas_instr = "MZ"
-    else:
-        typing_extensions.assert_never(axis)
-    if p_meas_flip > 0.0:
-        stim_io.write(f"{meas_instr}({p_meas_flip}) {node}\n")
-    else:
-        stim_io.write(f"{meas_instr} {node}\n")
-
-
-def _add_detectors(
-    stim_io: StringIO,
-    check_groups: Sequence[Collection[int]],
-    meas_order: Mapping[int, int],
-    total_measurements: int,
-) -> None:
-    r"""Add detector declarations to the circuit.
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    check_groups : `collections.abc.Sequence`\[`collections.abc.Collection`\[`int`\]\]
-        The parity check groups for detectors.
-    meas_order : `collections.abc.Mapping`\[`int`, `int`\]
-        The measurement order lookup dict mapping node to measurement index.
-    total_measurements : `int`
-        The total number of measurements.
-    """
-    for checks in check_groups:
-        targets = [f"rec[{meas_order[check] - total_measurements}]" for check in checks]
-        stim_io.write(f"DETECTOR {' '.join(targets)}\n")
-
-
-def _add_observables(
-    stim_io: StringIO,
-    logical_observables: Mapping[int, Collection[int]],
-    pframe: PauliFrame,
-    meas_order: Mapping[int, int],
-    total_measurements: int,
-) -> None:
-    r"""Add logical observable declarations to the circuit.
-
-    Parameters
-    ----------
-    stim_io : `StringIO`
-        The output stream to write to.
-    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\]
-        A mapping from logical observable index to a collection of node indices.
-    pframe : `PauliFrame`
-        The Pauli frame object.
-    meas_order : `collections.abc.Mapping`\[`int`, `int`\]
-        The measurement order lookup dict mapping node to measurement index.
-    total_measurements : `int`
-        The total number of measurements.
-    """
-    for log_idx, obs in logical_observables.items():
-        logical_observables_group = pframe.logical_observables_group(obs)
-        targets = [f"rec[{meas_order[node] - total_measurements}]" for node in logical_observables_group]
-        stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
 
 
 class _StimCompiler:
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         pattern: Pattern,
         *,
-        p_depol_after_clifford: float,
-        p_before_meas_flip: float,
         emit_qubit_coords: bool,
         noise_models: Sequence[NoiseModel],
         tick_duration: float,
@@ -213,8 +45,6 @@ class _StimCompiler:
         self._pattern = pattern
         self._pframe = pattern.pauli_frame
         self._coord_lookup = pattern.coordinates
-        self._p_depol_after_clifford = p_depol_after_clifford
-        self._p_before_meas_flip = p_before_meas_flip
         self._emit_qubit_coords = emit_qubit_coords
         self._noise_models = noise_models
         self._tick_duration = tick_duration
@@ -228,17 +58,24 @@ class _StimCompiler:
     def compile(self, logical_observables: Mapping[int, Collection[int]] | None) -> str:
         self._emit_input_nodes()
         self._process_commands()
-        total_measurements = self._rec_index
-        _add_detectors(self._stim_io, self._pframe.detector_groups(), self._meas_order, total_measurements)
+        total = self._rec_index
+        self._emit_detectors(total)
         if logical_observables is not None:
-            _add_observables(
-                self._stim_io,
-                logical_observables,
-                self._pframe,
-                self._meas_order,
-                total_measurements,
-            )
+            self._emit_observables(logical_observables, total)
         return self._stim_io.getvalue().strip()
+
+    def _emit_detectors(self, total_measurements: int) -> None:
+        for checks in self._pframe.detector_groups():
+            targets = [f"rec[{self._meas_order[c] - total_measurements}]" for c in checks]
+            self._stim_io.write(f"DETECTOR {' '.join(targets)}\n")
+
+    def _emit_observables(
+        self, logical_observables: Mapping[int, Collection[int]], total_measurements: int
+    ) -> None:
+        for log_idx, obs in logical_observables.items():
+            group = self._pframe.logical_observables_group(obs)
+            targets = [f"rec[{self._meas_order[n] - total_measurements}]" for n in group]
+            self._stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
 
     def _emit_input_nodes(self) -> None:
         coordinates = self._pattern.input_coordinates if self._emit_qubit_coords else None
@@ -263,14 +100,10 @@ class _StimCompiler:
         default_placement = self._get_default_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
-        coordinates = {node: coordinate} if self._emit_qubit_coords and coordinate is not None else None
-        _prepare_nodes(
-            self._stim_io,
-            node,
-            self._p_depol_after_clifford,
-            coordinates=coordinates,
-            emit_qubit_coords=self._emit_qubit_coords,
-        )
+        coord = coordinate if self._emit_qubit_coords else None
+        if coord is not None:
+            self._stim_io.write(f"QUBIT_COORDS({', '.join(str(c) for c in coord)}) {node}\n")
+        self._stim_io.write(f"RX {node}\n")
 
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.AFTER, default_placement)
         self._alive_nodes.add(node)
@@ -284,7 +117,7 @@ class _StimCompiler:
         default_placement = self._get_default_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
-        _entangle_nodes(self._stim_io, nodes, self._p_depol_after_clifford)
+        self._stim_io.write(f"CZ {n0} {n1}\n")
         self._touched_nodes.update(nodes)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.AFTER, default_placement)
 
@@ -295,14 +128,31 @@ class _StimCompiler:
             raise ValueError(msg)
         event = MeasureEvent(time=self._tick, node=self._node_info(node), axis=axis)
         ops = self._collect_noise_ops_from_models(lambda m: m.on_measure(event))
+
+        # Separate MeasurementFlip from other noise ops
+        meas_flip_p = 0.0
+        other_ops: list[NoiseOp] = []
+        for op in ops:
+            if isinstance(op, MeasurementFlip) and op.target == node:
+                meas_flip_p = max(meas_flip_p, op.p)
+            else:
+                other_ops.append(op)
+
         default_placement = self._get_default_placement(event)
-        self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
-        _emit_measurement(self._stim_io, axis, node, self._p_before_meas_flip)
+        self._rec_index += self._emit_noise_ops(other_ops, NoisePlacement.BEFORE, default_placement)
+
+        # Emit measurement with optional flip probability
+        meas_instr = {Axis.X: "MX", Axis.Y: "MY", Axis.Z: "MZ"}[axis]
+        if meas_flip_p > 0.0:
+            self._stim_io.write(f"{meas_instr}({meas_flip_p}) {node}\n")
+        else:
+            self._stim_io.write(f"{meas_instr} {node}\n")
+
         self._meas_order[node] = self._rec_index
         self._rec_index += 1
         self._alive_nodes.discard(node)
         self._touched_nodes.add(node)
-        self._rec_index += self._emit_noise_ops(ops, NoisePlacement.AFTER, default_placement)
+        self._rec_index += self._emit_noise_ops(other_ops, NoisePlacement.AFTER, default_placement)
 
     def _handle_tick(self) -> None:
         idle_nodes = sorted(self._alive_nodes - self._touched_nodes)
@@ -358,12 +208,10 @@ class _StimCompiler:
         return record_delta
 
 
-def stim_compile(  # noqa: PLR0913
+def stim_compile(
     pattern: Pattern,
     logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
-    p_depol_after_clifford: float = 0.0,
-    p_before_meas_flip: float = 0.0,
     emit_qubit_coords: bool = True,
     noise_models: Sequence[NoiseModel] | None = None,
     tick_duration: float = 1.0,
@@ -376,16 +224,13 @@ def stim_compile(  # noqa: PLR0913
         The pattern to compile.
     logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
         A mapping from logical observable index to a collection of node indices, by default None.
-    p_depol_after_clifford : `float`, optional
-        The probability of depolarization after a Clifford gate, by default 0.0.
-    p_before_meas_flip : `float`, optional
-        The probability of flipping a measurement result before measurement, by default 0.0.
     emit_qubit_coords : `bool`, optional
         Whether to emit QUBIT_COORDS instructions for nodes with coordinates,
         by default True.
     noise_models : `collections.abc.Sequence`\[`NoiseModel`\] | `None`, optional
         Custom noise models for injecting Stim noise instructions, by default None.
-        Multiple models are combined using ``CompositeNoiseModel``.
+        Use `DepolarizingNoiseModel` for gate noise and `MeasurementFlipNoiseModel`
+        for measurement errors.
     tick_duration : `float`, optional
         Duration associated with each TICK for idle noise, by default 1.0.
 
@@ -399,11 +244,26 @@ def stim_compile(  # noqa: PLR0913
     Stim only supports Clifford gates, therefore this compiler only supports
     Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
     Non-Pauli measurements will raise a ValueError.
+
+    Examples
+    --------
+    Basic compilation without noise:
+
+    >>> # stim_str = stim_compile(pattern)
+
+    With depolarizing and measurement flip noise:
+
+    >>> from graphqomb.noise_model import DepolarizingNoiseModel, MeasurementFlipNoiseModel
+    >>> # stim_str = stim_compile(
+    >>> #     pattern,
+    >>> #     noise_models=[
+    >>> #         DepolarizingNoiseModel(p1=0.001, p2=0.01),
+    >>> #         MeasurementFlipNoiseModel(p=0.001)
+    >>> #     ]
+    >>> # )
     """
     compiler = _StimCompiler(
         pattern,
-        p_depol_after_clifford=p_depol_after_clifford,
-        p_before_meas_flip=p_before_meas_flip,
         emit_qubit_coords=emit_qubit_coords,
         noise_models=noise_models or (),
         tick_duration=tick_duration,

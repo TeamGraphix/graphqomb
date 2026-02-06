@@ -1,23 +1,19 @@
 r"""Noise model interface for Stim circuit compilation.
 
-This module provides an event-based API for injecting custom noise instructions
-into Stim circuits during pattern compilation. Instead of raw strings, the API
-uses typed dataclass objects that are converted to valid Stim syntax.
+This module provides:
 
-Overview
---------
-The noise model system consists of three main components:
-
-1. **Events**: Dataclasses describing when noise can be injected
-   (``PrepareEvent``, ``EntangleEvent``, ``MeasureEvent``, ``IdleEvent``).
-
-2. **NoiseOp types**: Typed representations of Stim noise instructions
-   (``PauliChannel1``, ``PauliChannel2``, ``HeraldedPauliChannel1``,
-   ``HeraldedErase``, ``RawStimOp``).
-
-3. **NoiseModel base class**: Subclass this to define custom noise behavior
-   by overriding the ``on_prepare``, ``on_entangle``, ``on_measure``, and
-   ``on_idle`` methods.
+- `NoisePlacement`: Enum for noise placement.
+- `Coordinate`: N-dimensional coordinate dataclass.
+- `NodeInfo`: Node identifier with optional coordinate.
+- `PrepareEvent`, `EntangleEvent`, `MeasureEvent`, `IdleEvent`: Event dataclasses.
+- `NoiseEvent`: Union type of all event types.
+- `PauliChannel1`, `PauliChannel2`, `HeraldedPauliChannel1`, `HeraldedErase`, `RawStimOp`,
+  `MeasurementFlip`: NoiseOp types.
+- `NoiseOp`: Union type of all noise operation types.
+- `NoiseModel`: Base class for noise models.
+- `DepolarizingNoiseModel`, `MeasurementFlipNoiseModel`: Built-in noise models.
+- `noise_op_to_stim`: Conversion function.
+- `PAULI_CHANNEL_2_ORDER`: Constant for Pauli channel order.
 
 Examples
 --------
@@ -63,15 +59,15 @@ Use heralded noise that adds measurement records:
 
 Notes
 -----
-- **Placement control**: Each ``NoiseOp`` has a ``placement`` attribute.
-  ``AUTO`` defers to :meth:`NoiseModel.default_placement`, while
-  ``BEFORE``/``AFTER`` force insertion side.
+- **Placement control**: Each `NoiseOp` has a `placement` attribute.
+  `AUTO` defers to :meth:`NoiseModel.default_placement`, while
+  `BEFORE`/`AFTER` force insertion side.
 
-- **Record delta**: Heralded instructions (``HeraldedPauliChannel1``,
-  ``HeraldedErase``) add measurement records. The compiler automatically
+- **Record delta**: Heralded instructions (`HeraldedPauliChannel1`,
+  `HeraldedErase`) add measurement records. The compiler automatically
   tracks these to compute correct detector indices.
 
-- **Coordinate access**: Events provide ``NodeInfo`` objects with optional
+- **Coordinate access**: Events provide `NodeInfo` objects with optional
   coordinates, useful for position-dependent noise models.
 
 See Also
@@ -201,7 +197,7 @@ class EntangleEvent:
     node1 : NodeInfo
         Information about the second node in the entanglement.
     edge : tuple[int, int]
-        The edge as ``(min_node_id, max_node_id)``.
+        The edge as `(min_node_id, max_node_id)`.
     """
 
     time: int
@@ -240,7 +236,7 @@ class IdleEvent:
     nodes : Sequence[NodeInfo]
         Information about all nodes that are idle during this tick.
     duration : float
-        The duration of the idle period (from ``tick_duration`` parameter).
+        The duration of the idle period (from `tick_duration` parameter).
     """
 
     time: int
@@ -257,7 +253,7 @@ class PauliChannel1:
     """Single-qubit Pauli channel noise operation.
 
     Applies independent X, Y, Z errors with given probabilities.
-    Corresponds to Stim's ``PAULI_CHANNEL_1`` instruction.
+    Corresponds to Stim's `PAULI_CHANNEL_1` instruction.
 
     Parameters
     ----------
@@ -271,7 +267,7 @@ class PauliChannel1:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        `AUTO` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -295,7 +291,7 @@ class PauliChannel2:
     """Two-qubit Pauli channel noise operation.
 
     Applies correlated two-qubit Pauli errors.
-    Corresponds to Stim's ``PAULI_CHANNEL_2`` instruction.
+    Corresponds to Stim's `PAULI_CHANNEL_2` instruction.
 
     Parameters
     ----------
@@ -305,10 +301,10 @@ class PauliChannel2:
         or a mapping from Pauli string keys to probabilities.
         Missing keys default to 0.
     targets : Sequence[tuple[int, int]]
-        Target qubit pairs as ``[(q0, q1), ...]``.
+        Target qubit pairs as `[(q0, q1), ...]`.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        `AUTO` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -337,10 +333,10 @@ class PauliChannel2:
 class HeraldedPauliChannel1:
     """Heralded single-qubit Pauli channel noise operation.
 
-    Similar to ``PauliChannel1`` but produces a herald measurement record
+    Similar to `PauliChannel1` but produces a herald measurement record
     indicating whether an error occurred. The herald outcome is 1 if any
-    error occurred (including identity with probability ``pi``).
-    Corresponds to Stim's ``HERALDED_PAULI_CHANNEL_1`` instruction.
+    error occurred (including identity with probability `pi`).
+    Corresponds to Stim's `HERALDED_PAULI_CHANNEL_1` instruction.
 
     Parameters
     ----------
@@ -356,7 +352,7 @@ class HeraldedPauliChannel1:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        `AUTO` defers to the model's default placement for the event.
 
     Notes
     -----
@@ -389,7 +385,7 @@ class HeraldedErase:
     """Heralded erasure noise operation.
 
     Models photon loss or erasure errors with a herald signal.
-    Corresponds to Stim's ``HERALDED_ERASE`` instruction.
+    Corresponds to Stim's `HERALDED_ERASE` instruction.
 
     Parameters
     ----------
@@ -399,7 +395,7 @@ class HeraldedErase:
         Target qubit indices.
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        `AUTO` defers to the model's default placement for the event.
 
     Notes
     -----
@@ -440,7 +436,7 @@ class RawStimOp:
         Most noise instructions do not add records (default 0).
     placement : NoisePlacement
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        `AUTO` defers to the model's default placement for the event.
 
     Examples
     --------
@@ -460,7 +456,31 @@ class RawStimOp:
     placement: NoisePlacement = NoisePlacement.AUTO
 
 
-NoiseOp = PauliChannel1 | PauliChannel2 | HeraldedPauliChannel1 | HeraldedErase | RawStimOp
+@dataclass(frozen=True)
+class MeasurementFlip:
+    """Measurement flip error applied to measurement instruction.
+
+    Unlike other NoiseOp types that insert separate instructions,
+    this modifies the measurement instruction itself to use Stim's
+    built-in measurement error probability: MX(p) instead of MX.
+
+    Parameters
+    ----------
+    p : float
+        Probability of measurement result flip.
+    target : int
+        Target qubit index (must match the measurement target).
+    placement : NoisePlacement
+        Placement attribute for compatibility (ignored, as this modifies
+        the measurement instruction itself).
+    """
+
+    p: float
+    target: int
+    placement: NoisePlacement = NoisePlacement.AUTO
+
+
+NoiseOp = PauliChannel1 | PauliChannel2 | HeraldedPauliChannel1 | HeraldedErase | RawStimOp | MeasurementFlip
 """Union type of all noise operation types."""
 
 
@@ -566,14 +586,14 @@ class NoiseModel:
         Returns
         -------
         NoisePlacement
-            ``BEFORE`` for measurement events, ``AFTER`` for all others.
+            `BEFORE` for measurement events, `AFTER` for all others.
         """
         if isinstance(event, MeasureEvent):
             return NoisePlacement.BEFORE
         return NoisePlacement.AFTER
 
 
-def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911
+def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     """Convert a NoiseOp into a Stim instruction line and record delta.
 
     Parameters
@@ -584,14 +604,14 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911
     Returns
     -------
     tuple[str, int]
-        A tuple of ``(stim_instruction, record_delta)`` where
-        ``stim_instruction`` is a single line of Stim code and
-        ``record_delta`` is the number of measurement records added.
+        A tuple of `(stim_instruction, record_delta)` where
+        `stim_instruction` is a single line of Stim code and
+        `record_delta` is the number of measurement records added.
 
     Raises
     ------
     TypeError
-        If ``op`` is not a recognized NoiseOp type.
+        If `op` is not a recognized NoiseOp type.
 
     Examples
     --------
@@ -632,6 +652,11 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911
         targets = " ".join(str(t) for t in op.targets)
         return f"HERALDED_ERASE({op.p}) {targets}", len(op.targets)
 
+    if isinstance(op, MeasurementFlip):
+        # MeasurementFlip is handled specially in the compiler by modifying
+        # the measurement instruction. It should not be emitted as a separate op.
+        return "", 0
+
     msg = f"Unsupported noise op type: {type(op)!r}"
     raise TypeError(msg)
 
@@ -658,3 +683,92 @@ def _flatten_pairs(pairs: Sequence[tuple[int, int]]) -> tuple[int, ...]:
             raise ValueError(msg)
         flat.extend(pair)
     return tuple(flat)
+
+
+# ---- Built-in NoiseModel implementations ----
+
+
+class DepolarizingNoiseModel(NoiseModel):
+    """Depolarizing noise after single and two-qubit gates.
+
+    This model adds depolarizing noise after qubit preparation (RX) and
+    entanglement (CZ) operations.
+
+    Parameters
+    ----------
+    p1 : float
+        Single-qubit depolarizing probability (after RX preparation).
+    p2 : float | None
+        Two-qubit depolarizing probability (after CZ).
+        If None, defaults to p1.
+
+    Examples
+    --------
+    >>> from graphqomb.noise_model import DepolarizingNoiseModel
+    >>> model = DepolarizingNoiseModel(p1=0.001, p2=0.01)
+    >>> # Use with stim_compile:
+    >>> # stim_compile(pattern, noise_models=[model])
+    """
+
+    def __init__(self, p1: float, p2: float | None = None) -> None:
+        self._p1 = p1
+        self._p2 = p2 if p2 is not None else p1
+
+    def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:
+        """Add single-qubit depolarizing noise after preparation.
+
+        Returns
+        -------
+        Sequence[NoiseOp]
+            A tuple containing DEPOLARIZE1 instruction, or empty if p1 <= 0.
+        """
+        if self._p1 <= 0:
+            return ()
+        return (RawStimOp(f"DEPOLARIZE1({self._p1}) {event.node.id}"),)
+
+    def on_entangle(self, event: EntangleEvent) -> Sequence[NoiseOp]:
+        """Add two-qubit depolarizing noise after entanglement.
+
+        Returns
+        -------
+        Sequence[NoiseOp]
+            A tuple containing DEPOLARIZE2 instruction, or empty if p2 <= 0.
+        """
+        if self._p2 <= 0:
+            return ()
+        return (RawStimOp(f"DEPOLARIZE2({self._p2}) {event.node0.id} {event.node1.id}"),)
+
+
+class MeasurementFlipNoiseModel(NoiseModel):
+    """Measurement bit-flip noise using Stim's built-in measurement error.
+
+    This model produces MX(p), MY(p), MZ(p) instead of MX, MY, MZ,
+    which adds measurement flip error with probability p.
+
+    Parameters
+    ----------
+    p : float
+        Probability of measurement result flip.
+
+    Examples
+    --------
+    >>> from graphqomb.noise_model import MeasurementFlipNoiseModel
+    >>> model = MeasurementFlipNoiseModel(p=0.001)
+    >>> # Use with stim_compile:
+    >>> # stim_compile(pattern, noise_models=[model])
+    """
+
+    def __init__(self, p: float) -> None:
+        self._p = p
+
+    def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:
+        """Add measurement flip error.
+
+        Returns
+        -------
+        Sequence[NoiseOp]
+            A tuple containing MeasurementFlip operation, or empty if p <= 0.
+        """
+        if self._p <= 0:
+            return ()
+        return (MeasurementFlip(p=self._p, target=event.node.id),)
