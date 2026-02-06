@@ -13,6 +13,7 @@ This module provides:
 - `NoiseModel`: Base class for noise models.
 - `DepolarizingNoiseModel`, `MeasurementFlipNoiseModel`: Built-in noise models.
 - `noise_op_to_stim`: Conversion function.
+- `depolarize1_probs`: Utility to create single-qubit depolarizing probabilities.
 - `depolarize2_probs`: Utility to create 2-qubit depolarizing probabilities.
 - :data:`PAULI_CHANNEL_2_ORDER`: Constant for Pauli channel order.
 
@@ -22,7 +23,7 @@ Create a simple depolarizing noise model:
 
 >>> from graphqomb.noise_model import (
 ...     NoiseModel, PrepareEvent, EntangleEvent, PauliChannel1, PauliChannel2,
-...     depolarize2_probs
+...     depolarize1_probs, depolarize2_probs
 ... )
 >>>
 >>> class DepolarizingNoise(NoiseModel):
@@ -31,8 +32,7 @@ Create a simple depolarizing noise model:
 ...         self.p2 = p2  # Two-qubit depolarizing probability
 ...
 ...     def on_prepare(self, event: PrepareEvent) -> list[PauliChannel1]:
-...         p = self.p1 / 3  # Equal probability for X, Y, Z
-...         return [PauliChannel1(px=p, py=p, pz=p, targets=[event.node.id])]
+...         return [PauliChannel1(**depolarize1_probs(self.p1), targets=[event.node.id])]
 ...
 ...     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
 ...         return [PauliChannel2(
@@ -104,6 +104,31 @@ PAULI_CHANNEL_2_ORDER: tuple[str, ...] = (
     "ZY",
     "ZZ",
 )
+
+
+def depolarize1_probs(p: float) -> dict[str, float]:
+    """Create probability dict for single-qubit depolarizing channel.
+
+    Parameters
+    ----------
+    p : float
+        Total depolarizing probability.
+
+    Returns
+    -------
+    dict[str, float]
+        Mapping with keys ``px``, ``py``, ``pz`` each set to ``p/3``.
+
+    Examples
+    --------
+    >>> probs = depolarize1_probs(0.03)
+    >>> probs["px"]
+    0.01
+    >>> probs["py"]
+    0.01
+    """
+    p_each = p / 3
+    return {"px": p_each, "py": p_each, "pz": p_each}
 
 
 def depolarize2_probs(p: float) -> dict[str, float]:

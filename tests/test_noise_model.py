@@ -23,6 +23,7 @@ from graphqomb.noise_model import (
     PauliChannel2,
     PrepareEvent,
     RawStimOp,
+    depolarize1_probs,
     depolarize2_probs,
     noise_op_to_stim,
 )
@@ -233,6 +234,32 @@ class TestPauliChannel2:
     def test_pauli_channel_2_order_has_15_elements(self) -> None:
         """Test that PAULI_CHANNEL_2_ORDER has exactly 15 elements."""
         assert len(PAULI_CHANNEL_2_ORDER) == 15
+
+
+class TestDepolarize1Probs:
+    """Tests for depolarize1_probs utility function."""
+
+    def test_returns_3_elements(self) -> None:
+        """Test that depolarize1_probs returns px, py, pz."""
+        probs = depolarize1_probs(0.03)
+        assert len(probs) == 3
+        assert set(probs.keys()) == {"px", "py", "pz"}
+
+    def test_each_probability_is_p_over_3(self) -> None:
+        """Test that each probability is p/3."""
+        p = 0.03
+        probs = depolarize1_probs(p)
+        expected = p / 3
+        for key, prob in probs.items():
+            assert prob == expected, f"Expected {expected} for {key}, got {prob}"
+
+    def test_can_be_used_with_pauli_channel_1(self) -> None:
+        """Test that depolarize1_probs works with PauliChannel1."""
+        probs = depolarize1_probs(0.03)
+        op = PauliChannel1(**probs, targets=[0])
+        text, delta = noise_op_to_stim(op)
+        assert "PAULI_CHANNEL_1" in text
+        assert delta == 0
 
 
 class TestDepolarize2Probs:
