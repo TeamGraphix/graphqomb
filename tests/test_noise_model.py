@@ -1,0 +1,484 @@
+"""Tests for noise_model module."""
+
+from __future__ import annotations
+
+import pytest
+
+from graphqomb.common import Axis
+from graphqomb.noise_model import (
+    PAULI_CHANNEL_2_ORDER,
+    Coordinate,
+    EntangleEvent,
+    HeraldedErase,
+    HeraldedPauliChannel1,
+    IdleEvent,
+    MeasureEvent,
+    NodeInfo,
+    NoiseModel,
+    NoisePlacement,
+    PauliChannel1,
+    PauliChannel2,
+    PrepareEvent,
+    RawStimOp,
+    noise_op_to_stim,
+)
+
+# ---- Coordinate Tests ----
+
+
+class TestCoordinate:
+    """Tests for Coordinate dataclass."""
+
+    def test_xy_with_2d(self) -> None:
+        """Test xy property with 2D coordinates."""
+        coord = Coordinate((1.0, 2.0))
+        assert coord.xy == (1.0, 2.0)
+
+    def test_xy_with_3d(self) -> None:
+        """Test xy property with 3D coordinates."""
+        coord = Coordinate((1.0, 2.0, 3.0))
+        assert coord.xy == (1.0, 2.0)
+
+    def test_xy_with_1d(self) -> None:
+        """Test xy property with 1D coordinates returns None."""
+        coord = Coordinate((1.0,))
+        assert coord.xy is None
+
+    def test_xyz_with_3d(self) -> None:
+        """Test xyz property with 3D coordinates."""
+        coord = Coordinate((1.0, 2.0, 3.0))
+        assert coord.xyz == (1.0, 2.0, 3.0)
+
+    def test_xyz_with_2d(self) -> None:
+        """Test xyz property with 2D coordinates returns None."""
+        coord = Coordinate((1.0, 2.0))
+        assert coord.xyz is None
+
+    def test_xyz_with_4d(self) -> None:
+        """Test xyz property with 4D coordinates."""
+        coord = Coordinate((1.0, 2.0, 3.0, 4.0))
+        assert coord.xyz == (1.0, 2.0, 3.0)
+
+
+# ---- NodeInfo Tests ----
+
+
+class TestNodeInfo:
+    """Tests for NodeInfo dataclass."""
+
+    def test_with_coordinate(self) -> None:
+        """Test NodeInfo with coordinate."""
+        coord = Coordinate((1.0, 2.0))
+        info = NodeInfo(id=5, coord=coord)
+        assert info.id == 5
+        assert info.coord is not None
+        assert info.coord.xy == (1.0, 2.0)
+
+    def test_without_coordinate(self) -> None:
+        """Test NodeInfo without coordinate."""
+        info = NodeInfo(id=3, coord=None)
+        assert info.id == 3
+        assert info.coord is None
+
+
+# ---- Event Tests ----
+
+
+class TestPrepareEvent:
+    """Tests for PrepareEvent dataclass."""
+
+    def test_basic(self) -> None:
+        """Test basic PrepareEvent creation."""
+        node = NodeInfo(id=0, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=True)
+        assert event.time == 0
+        assert event.node.id == 0
+        assert event.is_input is True
+
+
+class TestEntangleEvent:
+    """Tests for EntangleEvent dataclass."""
+
+    def test_basic(self) -> None:
+        """Test basic EntangleEvent creation."""
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        event = EntangleEvent(time=1, node0=node0, node1=node1, edge=(0, 1))
+        assert event.time == 1
+        assert event.node0.id == 0
+        assert event.node1.id == 1
+        assert event.edge == (0, 1)
+
+
+class TestMeasureEvent:
+    """Tests for MeasureEvent dataclass."""
+
+    def test_basic(self) -> None:
+        """Test basic MeasureEvent creation."""
+        node = NodeInfo(id=2, coord=None)
+        event = MeasureEvent(time=2, node=node, axis=Axis.X)
+        assert event.time == 2
+        assert event.node.id == 2
+        assert event.axis == Axis.X
+
+
+class TestIdleEvent:
+    """Tests for IdleEvent dataclass."""
+
+    def test_basic(self) -> None:
+        """Test basic IdleEvent creation."""
+        nodes = [NodeInfo(id=i, coord=None) for i in range(3)]
+        event = IdleEvent(time=1, nodes=nodes, duration=1.0)
+        assert event.time == 1
+        assert len(event.nodes) == 3
+        assert event.duration == 1.0
+
+
+# ---- NoiseOp Tests ----
+
+
+class TestPauliChannel1:
+    """Tests for PauliChannel1 noise operation."""
+
+    def test_basic(self) -> None:
+        """Test basic PauliChannel1 creation and conversion."""
+        op = PauliChannel1(px=0.01, py=0.02, pz=0.03, targets=[0, 1])
+        text, delta = noise_op_to_stim(op)
+        assert text == "PAULI_CHANNEL_1(0.01,0.02,0.03) 0 1"
+        assert delta == 0
+
+    def test_single_target(self) -> None:
+        """Test PauliChannel1 with single target."""
+        op = PauliChannel1(px=0.1, py=0.0, pz=0.0, targets=[5])
+        text, delta = noise_op_to_stim(op)
+        assert text == "PAULI_CHANNEL_1(0.1,0.0,0.0) 5"
+        assert delta == 0
+
+    def test_empty_targets(self) -> None:
+        """Test PauliChannel1 with empty targets returns empty string."""
+        op = PauliChannel1(px=0.01, py=0.01, pz=0.01, targets=[])
+        text, delta = noise_op_to_stim(op)
+        assert not text
+        assert delta == 0
+
+    def test_placement_before(self) -> None:
+        """Test PauliChannel1 with BEFORE placement."""
+        op = PauliChannel1(px=0.01, py=0.0, pz=0.0, targets=[0], placement=NoisePlacement.BEFORE)
+        assert op.placement == NoisePlacement.BEFORE
+
+    def test_targets_converted_to_tuple(self) -> None:
+        """Test that targets list is converted to tuple."""
+        op = PauliChannel1(px=0.01, py=0.0, pz=0.0, targets=[0, 1, 2])
+        assert isinstance(op.targets, tuple)
+        assert op.targets == (0, 1, 2)
+
+
+class TestPauliChannel2:
+    """Tests for PauliChannel2 noise operation."""
+
+    def test_with_mapping(self) -> None:
+        """Test PauliChannel2 with mapping probabilities."""
+        op = PauliChannel2(probabilities={"ZZ": 0.01, "XX": 0.005}, targets=[(0, 1)])
+        text, delta = noise_op_to_stim(op)
+        assert "PAULI_CHANNEL_2" in text
+        assert "0 1" in text
+        assert delta == 0
+
+    def test_with_sequence(self) -> None:
+        """Test PauliChannel2 with sequence probabilities."""
+        probs = [0.0] * 15
+        probs[14] = 0.01  # ZZ
+        op = PauliChannel2(probabilities=probs, targets=[(2, 3)])
+        text, delta = noise_op_to_stim(op)
+        assert "PAULI_CHANNEL_2" in text
+        assert "2 3" in text
+        assert delta == 0
+
+    def test_multiple_pairs(self) -> None:
+        """Test PauliChannel2 with multiple target pairs."""
+        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
+        text, delta = noise_op_to_stim(op)
+        assert "0 1 2 3" in text
+        assert delta == 0
+
+    def test_empty_targets(self) -> None:
+        """Test PauliChannel2 with empty targets returns empty string."""
+        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[])
+        text, delta = noise_op_to_stim(op)
+        assert not text
+        assert delta == 0
+
+    def test_unknown_key_raises(self) -> None:
+        """Test PauliChannel2 with unknown key raises ValueError."""
+        op = PauliChannel2(probabilities={"ZZZ": 0.01}, targets=[(0, 1)])
+        with pytest.raises(ValueError, match="Unknown PAULI_CHANNEL_2 keys"):
+            noise_op_to_stim(op)
+
+    def test_wrong_sequence_length_raises(self) -> None:
+        """Test PauliChannel2 with wrong sequence length raises ValueError."""
+        op = PauliChannel2(probabilities=[0.01] * 10, targets=[(0, 1)])
+        with pytest.raises(ValueError, match="PAULI_CHANNEL_2 expects 15 probabilities"):
+            noise_op_to_stim(op)
+
+    def test_targets_converted_to_tuple(self) -> None:
+        """Test that targets list is converted to tuple of tuples."""
+        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
+        assert isinstance(op.targets, tuple)
+        assert all(isinstance(pair, tuple) for pair in op.targets)
+
+    def test_pauli_channel_2_order_has_15_elements(self) -> None:
+        """Test that PAULI_CHANNEL_2_ORDER has exactly 15 elements."""
+        assert len(PAULI_CHANNEL_2_ORDER) == 15
+
+
+class TestHeraldedPauliChannel1:
+    """Tests for HeraldedPauliChannel1 noise operation."""
+
+    def test_basic(self) -> None:
+        """Test basic HeraldedPauliChannel1 creation and conversion."""
+        op = HeraldedPauliChannel1(pi=0.0, px=0.01, py=0.0, pz=0.0, targets=[5])
+        text, delta = noise_op_to_stim(op)
+        assert text == "HERALDED_PAULI_CHANNEL_1(0.0,0.01,0.0,0.0) 5"
+        assert delta == 1
+
+    def test_multiple_targets(self) -> None:
+        """Test HeraldedPauliChannel1 with multiple targets."""
+        op = HeraldedPauliChannel1(pi=0.1, px=0.0, py=0.0, pz=0.0, targets=[0, 1, 2])
+        text, delta = noise_op_to_stim(op)
+        assert text == "HERALDED_PAULI_CHANNEL_1(0.1,0.0,0.0,0.0) 0 1 2"
+        assert delta == 3
+
+    def test_empty_targets(self) -> None:
+        """Test HeraldedPauliChannel1 with empty targets returns empty string."""
+        op = HeraldedPauliChannel1(pi=0.0, px=0.01, py=0.0, pz=0.0, targets=[])
+        text, delta = noise_op_to_stim(op)
+        assert not text
+        assert delta == 0
+
+    def test_targets_converted_to_tuple(self) -> None:
+        """Test that targets list is converted to tuple."""
+        op = HeraldedPauliChannel1(pi=0.0, px=0.01, py=0.0, pz=0.0, targets=[0, 1])
+        assert isinstance(op.targets, tuple)
+
+
+class TestHeraldedErase:
+    """Tests for HeraldedErase noise operation."""
+
+    def test_basic(self) -> None:
+        """Test basic HeraldedErase creation and conversion."""
+        op = HeraldedErase(p=0.05, targets=[0])
+        text, delta = noise_op_to_stim(op)
+        assert text == "HERALDED_ERASE(0.05) 0"
+        assert delta == 1
+
+    def test_multiple_targets(self) -> None:
+        """Test HeraldedErase with multiple targets."""
+        op = HeraldedErase(p=0.1, targets=[0, 1, 2])
+        text, delta = noise_op_to_stim(op)
+        assert text == "HERALDED_ERASE(0.1) 0 1 2"
+        assert delta == 3
+
+    def test_empty_targets(self) -> None:
+        """Test HeraldedErase with empty targets returns empty string."""
+        op = HeraldedErase(p=0.05, targets=[])
+        text, delta = noise_op_to_stim(op)
+        assert not text
+        assert delta == 0
+
+    def test_targets_converted_to_tuple(self) -> None:
+        """Test that targets list is converted to tuple."""
+        op = HeraldedErase(p=0.05, targets=[0, 1, 2])
+        assert isinstance(op.targets, tuple)
+
+
+class TestRawStimOp:
+    """Tests for RawStimOp noise operation."""
+
+    def test_basic(self) -> None:
+        """Test basic RawStimOp creation and conversion."""
+        op = RawStimOp(text="X_ERROR(0.001) 0 1 2")
+        text, delta = noise_op_to_stim(op)
+        assert text == "X_ERROR(0.001) 0 1 2"
+        assert delta == 0
+
+    def test_with_record_delta(self) -> None:
+        """Test RawStimOp with custom record delta."""
+        op = RawStimOp(text="MR 5", record_delta=1)
+        text, delta = noise_op_to_stim(op)
+        assert text == "MR 5"
+        assert delta == 1
+
+    def test_empty_text(self) -> None:
+        """Test RawStimOp with empty text."""
+        op = RawStimOp(text="")
+        text, delta = noise_op_to_stim(op)
+        assert not text
+        assert delta == 0
+
+    def test_placement_before(self) -> None:
+        """Test RawStimOp with BEFORE placement."""
+        op = RawStimOp(text="Z_ERROR(0.01) 0", placement=NoisePlacement.BEFORE)
+        assert op.placement == NoisePlacement.BEFORE
+
+
+# ---- NoiseModel Tests ----
+
+
+class TestNoiseModel:
+    """Tests for NoiseModel base class."""
+
+    def test_default_on_prepare_returns_empty(self) -> None:
+        """Test that default on_prepare returns empty list."""
+        model = NoiseModel()
+        node = NodeInfo(id=0, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=False)
+        result = list(model.on_prepare(event))
+        assert result == []
+
+    def test_default_on_entangle_returns_empty(self) -> None:
+        """Test that default on_entangle returns empty list."""
+        model = NoiseModel()
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        event = EntangleEvent(time=0, node0=node0, node1=node1, edge=(0, 1))
+        result = list(model.on_entangle(event))
+        assert result == []
+
+    def test_default_on_measure_returns_empty(self) -> None:
+        """Test that default on_measure returns empty list."""
+        model = NoiseModel()
+        node = NodeInfo(id=0, coord=None)
+        event = MeasureEvent(time=0, node=node, axis=Axis.X)
+        result = list(model.on_measure(event))
+        assert result == []
+
+    def test_default_on_idle_returns_empty(self) -> None:
+        """Test that default on_idle returns empty list."""
+        model = NoiseModel()
+        nodes = [NodeInfo(id=i, coord=None) for i in range(2)]
+        event = IdleEvent(time=0, nodes=nodes, duration=1.0)
+        result = list(model.on_idle(event))
+        assert result == []
+
+    def test_default_placement_for_measure_is_before(self) -> None:
+        """Test that default_placement returns BEFORE for MeasureEvent."""
+        model = NoiseModel()
+        node = NodeInfo(id=0, coord=None)
+        event = MeasureEvent(time=0, node=node, axis=Axis.X)
+        assert model.default_placement(event) == NoisePlacement.BEFORE
+
+    def test_default_placement_for_prepare_is_after(self) -> None:
+        """Test that default_placement returns AFTER for PrepareEvent."""
+        model = NoiseModel()
+        node = NodeInfo(id=0, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=False)
+        assert model.default_placement(event) == NoisePlacement.AFTER
+
+    def test_default_placement_for_entangle_is_after(self) -> None:
+        """Test that default_placement returns AFTER for EntangleEvent."""
+        model = NoiseModel()
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        event = EntangleEvent(time=0, node0=node0, node1=node1, edge=(0, 1))
+        assert model.default_placement(event) == NoisePlacement.AFTER
+
+    def test_default_placement_for_idle_is_after(self) -> None:
+        """Test that default_placement returns AFTER for IdleEvent."""
+        model = NoiseModel()
+        nodes = [NodeInfo(id=i, coord=None) for i in range(2)]
+        event = IdleEvent(time=0, nodes=nodes, duration=1.0)
+        assert model.default_placement(event) == NoisePlacement.AFTER
+
+
+class TestNoisePlacementAuto:
+    """Tests for AUTO placement behavior."""
+
+    def test_auto_is_default_for_pauli_channel_1(self) -> None:
+        """Test that AUTO is the default placement for PauliChannel1."""
+        op = PauliChannel1(px=0.01, py=0.0, pz=0.0, targets=[0])
+        assert op.placement == NoisePlacement.AUTO
+
+    def test_auto_is_default_for_pauli_channel_2(self) -> None:
+        """Test that AUTO is the default placement for PauliChannel2."""
+        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1)])
+        assert op.placement == NoisePlacement.AUTO
+
+    def test_auto_is_default_for_heralded_pauli_channel_1(self) -> None:
+        """Test that AUTO is the default placement for HeraldedPauliChannel1."""
+        op = HeraldedPauliChannel1(pi=0.0, px=0.01, py=0.0, pz=0.0, targets=[0])
+        assert op.placement == NoisePlacement.AUTO
+
+    def test_auto_is_default_for_heralded_erase(self) -> None:
+        """Test that AUTO is the default placement for HeraldedErase."""
+        op = HeraldedErase(p=0.01, targets=[0])
+        assert op.placement == NoisePlacement.AUTO
+
+    def test_auto_is_default_for_raw_stim_op(self) -> None:
+        """Test that AUTO is the default placement for RawStimOp."""
+        op = RawStimOp(text="X_ERROR(0.01) 0")
+        assert op.placement == NoisePlacement.AUTO
+
+
+class _CustomNoiseModel(NoiseModel):
+    """Test noise model that adds noise on all events."""
+
+    def __init__(self, p: float) -> None:
+        self.p = p
+
+    def on_prepare(self, event: PrepareEvent) -> list[PauliChannel1]:
+        return [PauliChannel1(px=self.p, py=0.0, pz=0.0, targets=[event.node.id])]
+
+    def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
+        return [PauliChannel2(probabilities={"ZZ": self.p}, targets=[(event.node0.id, event.node1.id)])]
+
+    def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
+        return [HeraldedPauliChannel1(pi=0.0, px=self.p, py=0.0, pz=0.0, targets=[event.node.id])]
+
+    def on_idle(self, event: IdleEvent) -> list[PauliChannel1]:
+        p = self.p * event.duration
+        targets = [n.id for n in event.nodes]
+        return [PauliChannel1(px=p, py=p, pz=p, targets=targets)]
+
+
+class TestCustomNoiseModel:
+    """Tests for custom NoiseModel subclass."""
+
+    def test_on_prepare(self) -> None:
+        """Test custom on_prepare implementation."""
+        model = _CustomNoiseModel(p=0.01)
+        node = NodeInfo(id=5, coord=None)
+        event = PrepareEvent(time=0, node=node, is_input=False)
+        ops = list(model.on_prepare(event))
+        assert len(ops) == 1
+        assert isinstance(ops[0], PauliChannel1)
+        assert ops[0].px == 0.01
+        assert 5 in ops[0].targets
+
+    def test_on_entangle(self) -> None:
+        """Test custom on_entangle implementation."""
+        model = _CustomNoiseModel(p=0.02)
+        node0 = NodeInfo(id=0, coord=None)
+        node1 = NodeInfo(id=1, coord=None)
+        event = EntangleEvent(time=1, node0=node0, node1=node1, edge=(0, 1))
+        ops = list(model.on_entangle(event))
+        assert len(ops) == 1
+        assert isinstance(ops[0], PauliChannel2)
+
+    def test_on_measure(self) -> None:
+        """Test custom on_measure implementation."""
+        model = _CustomNoiseModel(p=0.03)
+        node = NodeInfo(id=2, coord=None)
+        event = MeasureEvent(time=2, node=node, axis=Axis.Z)
+        ops = list(model.on_measure(event))
+        assert len(ops) == 1
+        assert isinstance(ops[0], HeraldedPauliChannel1)
+
+    def test_on_idle(self) -> None:
+        """Test custom on_idle implementation."""
+        model = _CustomNoiseModel(p=0.001)
+        nodes = [NodeInfo(id=i, coord=None) for i in range(3)]
+        event = IdleEvent(time=1, nodes=nodes, duration=2.0)
+        ops = list(model.on_idle(event))
+        assert len(ops) == 1
+        assert isinstance(ops[0], PauliChannel1)
+        assert ops[0].px == 0.002  # p * duration

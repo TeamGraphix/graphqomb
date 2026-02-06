@@ -10,7 +10,7 @@ import pytest
 from graphqomb.command import TICK, E
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
-from graphqomb.noise_model import NoiseEvent, NoiseKind, NoiseModel, NoiseOp
+from graphqomb.noise_model import HeraldedPauliChannel1, MeasureEvent, NoiseModel
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
@@ -230,11 +230,8 @@ def test_stim_compile_with_detectors() -> None:
 class _HeraldedNoise(NoiseModel):
     """Test noise model that adds heralded Pauli channel on measurements."""
 
-    def emit(self, event: NoiseEvent) -> list[NoiseOp]:
-        if event.kind == NoiseKind.MEASURE:
-            node = event.nodes[0]
-            return [NoiseOp(f"HERALDED_PAULI_CHANNEL_1(0,0,0,0.1) {node}", record_delta=1)]
-        return []
+    def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
+        return [HeraldedPauliChannel1(0.0, 0.0, 0.0, 0.1, targets=[event.node.id])]
 
 
 def _parse_stim_measurements(stim_str: str) -> tuple[dict[int, int], int]:
@@ -285,7 +282,7 @@ def test_stim_compile_with_heralded_noise_updates_detectors() -> None:
     parity_check_group = [{in_node}]
     pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
 
-    stim_str = stim_compile(pattern, noise_model=_HeraldedNoise())
+    stim_str = stim_compile(pattern, noise_models=[_HeraldedNoise()])
 
     actual_meas_order, total_measurements = _parse_stim_measurements(stim_str)
 
