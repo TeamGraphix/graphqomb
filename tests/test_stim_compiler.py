@@ -10,7 +10,13 @@ import pytest
 from graphqomb.command import TICK, E
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
-from graphqomb.noise_model import HeraldedPauliChannel1, MeasureEvent, NoiseModel
+from graphqomb.noise_model import (
+    DepolarizingNoiseModel,
+    HeraldedPauliChannel1,
+    MeasureEvent,
+    MeasurementFlipNoiseModel,
+    NoiseModel,
+)
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
@@ -157,10 +163,10 @@ def test_stim_compile_z_measurement() -> None:
 
 
 def test_stim_compile_with_depolarization() -> None:
-    """Test that depolarization error is correctly inserted."""
+    """Test that depolarization error is correctly inserted using DepolarizingNoiseModel."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, p_depol_after_clifford=0.01)
+    stim_str = stim_compile(pattern, noise_models=[DepolarizingNoiseModel(p1=0.01)])
 
     # Check DEPOLARIZE instructions are present
     assert "DEPOLARIZE1(0.01)" in stim_str
@@ -168,30 +174,30 @@ def test_stim_compile_with_depolarization() -> None:
 
 
 def test_stim_compile_with_measurement_errors_x() -> None:
-    """Test that X measurement errors are correctly inserted."""
+    """Test that X measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
     # For X measurement, error probability is attached to MX instruction
     assert "MX(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_y() -> None:
-    """Test that Y measurement errors are correctly inserted."""
+    """Test that Y measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_y_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
     # For Y measurement, error probability is attached to MY instruction
     assert "MY(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_z() -> None:
-    """Test that Z measurement errors are correctly inserted."""
+    """Test that Z measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_z_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
     # For Z measurement, error probability is attached to MZ instruction
     assert "MZ(0.01)" in stim_str
