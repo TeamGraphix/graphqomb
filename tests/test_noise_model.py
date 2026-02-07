@@ -257,7 +257,7 @@ class TestDepolarize1Probs:
     def test_can_be_used_with_pauli_channel_1(self) -> None:
         """Test that depolarize1_probs works with PauliChannel1."""
         probs = depolarize1_probs(0.03)
-        op = PauliChannel1(**probs, targets=[0])
+        op = PauliChannel1(px=probs["px"], py=probs["py"], pz=probs["pz"], targets=[0])
         text, delta = noise_op_to_stim(op)
         assert "PAULI_CHANNEL_1" in text
         assert delta == 0
