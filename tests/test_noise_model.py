@@ -23,6 +23,7 @@ from graphqomb.noise_model import (
     PauliChannel2,
     PrepareEvent,
     RawStimOp,
+    default_noise_placement,
     depolarize1_probs,
     depolarize2_probs,
     noise_op_to_stim,
@@ -422,34 +423,30 @@ class TestNoiseModel:
         result = list(model.on_idle(event))
         assert result == []
 
-    def test_default_placement_for_measure_is_before(self) -> None:
-        """Test that default_placement returns BEFORE for MeasureEvent."""
-        model = NoiseModel()
+    def test_default_noise_placement_for_measure_is_before(self) -> None:
+        """Test that default_noise_placement returns BEFORE for MeasureEvent."""
         node = NodeInfo(id=0, coord=None)
         event = MeasureEvent(time=0, node=node, axis=Axis.X)
-        assert model.default_placement(event) == NoisePlacement.BEFORE
+        assert default_noise_placement(event) == NoisePlacement.BEFORE
 
-    def test_default_placement_for_prepare_is_after(self) -> None:
-        """Test that default_placement returns AFTER for PrepareEvent."""
-        model = NoiseModel()
+    def test_default_noise_placement_for_prepare_is_after(self) -> None:
+        """Test that default_noise_placement returns AFTER for PrepareEvent."""
         node = NodeInfo(id=0, coord=None)
         event = PrepareEvent(time=0, node=node, is_input=False)
-        assert model.default_placement(event) == NoisePlacement.AFTER
+        assert default_noise_placement(event) == NoisePlacement.AFTER
 
-    def test_default_placement_for_entangle_is_after(self) -> None:
-        """Test that default_placement returns AFTER for EntangleEvent."""
-        model = NoiseModel()
+    def test_default_noise_placement_for_entangle_is_after(self) -> None:
+        """Test that default_noise_placement returns AFTER for EntangleEvent."""
         node0 = NodeInfo(id=0, coord=None)
         node1 = NodeInfo(id=1, coord=None)
         event = EntangleEvent(time=0, node0=node0, node1=node1, edge=(0, 1))
-        assert model.default_placement(event) == NoisePlacement.AFTER
+        assert default_noise_placement(event) == NoisePlacement.AFTER
 
-    def test_default_placement_for_idle_is_after(self) -> None:
-        """Test that default_placement returns AFTER for IdleEvent."""
-        model = NoiseModel()
+    def test_default_noise_placement_for_idle_is_after(self) -> None:
+        """Test that default_noise_placement returns AFTER for IdleEvent."""
         nodes = [NodeInfo(id=i, coord=None) for i in range(2)]
         event = IdleEvent(time=0, nodes=nodes, duration=1.0)
-        assert model.default_placement(event) == NoisePlacement.AFTER
+        assert default_noise_placement(event) == NoisePlacement.AFTER
 
 
 class TestNoisePlacementAuto:
@@ -567,7 +564,7 @@ class TestMeasurementFlip:
         """
         op = MeasurementFlip(p=0.01, target=0)
         text, delta = noise_op_to_stim(op)
-        assert text == ""
+        assert not text
         assert delta == 0
 
 

@@ -23,13 +23,13 @@ from graphqomb.noise_model import (
     NoiseOp,
     NoisePlacement,
     PrepareEvent,
+    default_noise_placement,
     noise_op_to_stim,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 
-    from graphqomb.noise_model import NoiseEvent
     from graphqomb.pattern import Pattern
 
 
@@ -69,9 +69,7 @@ class _StimCompiler:
             targets = [f"rec[{self._meas_order[c] - total_measurements}]" for c in checks]
             self._stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
-    def _emit_observables(
-        self, logical_observables: Mapping[int, Collection[int]], total_measurements: int
-    ) -> None:
+    def _emit_observables(self, logical_observables: Mapping[int, Collection[int]], total_measurements: int) -> None:
         for log_idx, obs in logical_observables.items():
             group = self._pframe.logical_observables_group(obs)
             targets = [f"rec[{self._meas_order[n] - total_measurements}]" for n in group]
@@ -97,7 +95,7 @@ class _StimCompiler:
     def _process_prepare(self, node: int, coordinate: tuple[float, ...] | None, *, is_input: bool) -> None:
         event = PrepareEvent(time=self._tick, node=self._node_info(node), is_input=is_input)
         ops = self._collect_noise_ops_from_models(lambda m: m.on_prepare(event))
-        default_placement = self._get_default_placement(event)
+        default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
         coord = coordinate if self._emit_qubit_coords else None
@@ -114,7 +112,7 @@ class _StimCompiler:
         edge: tuple[int, int] = (n0, n1) if n0 < n1 else (n1, n0)
         event = EntangleEvent(time=self._tick, node0=self._node_info(n0), node1=self._node_info(n1), edge=edge)
         ops = self._collect_noise_ops_from_models(lambda m: m.on_entangle(event))
-        default_placement = self._get_default_placement(event)
+        default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
         self._stim_io.write(f"CZ {n0} {n1}\n")
@@ -138,7 +136,7 @@ class _StimCompiler:
             else:
                 other_ops.append(op)
 
-        default_placement = self._get_default_placement(event)
+        default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(other_ops, NoisePlacement.BEFORE, default_placement)
 
         # Emit measurement with optional flip probability
@@ -163,7 +161,7 @@ class _StimCompiler:
                 duration=self._tick_duration,
             )
             ops = self._collect_noise_ops_from_models(lambda m: m.on_idle(event))
-            default_placement = self._get_default_placement(event)
+            default_placement = default_noise_placement(event)
         else:
             ops = ()
             default_placement = NoisePlacement.AFTER
@@ -178,18 +176,11 @@ class _StimCompiler:
         coord = Coordinate(tuple(coord_raw)) if coord_raw is not None else None
         return NodeInfo(id=node, coord=coord)
 
-    def _collect_noise_ops_from_models(
-        self, get_ops: Callable[[NoiseModel], Iterable[NoiseOp]]
-    ) -> tuple[NoiseOp, ...]:
+    def _collect_noise_ops_from_models(self, get_ops: Callable[[NoiseModel], Iterable[NoiseOp]]) -> tuple[NoiseOp, ...]:
         ops: list[NoiseOp] = []
         for model in self._noise_models:
             ops.extend(get_ops(model))
         return tuple(ops)
-
-    def _get_default_placement(self, event: NoiseEvent) -> NoisePlacement:
-        if self._noise_models:
-            return self._noise_models[0].default_placement(event)
-        return NoisePlacement.AFTER
 
     def _emit_noise_ops(
         self, ops: Iterable[NoiseOp], placement: NoisePlacement, default_placement: NoisePlacement

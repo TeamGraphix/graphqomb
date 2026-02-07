@@ -10,6 +10,7 @@ This module provides:
 - `PauliChannel1`, `PauliChannel2`, `HeraldedPauliChannel1`, `HeraldedErase`, `RawStimOp`,
   `MeasurementFlip`: NoiseOp types.
 - `NoiseOp`: Union type of all noise operation types.
+- `default_noise_placement`: Global default placement policy for AUTO operations.
 - `NoiseModel`: Base class for noise models.
 - `DepolarizingNoiseModel`, `MeasurementFlipNoiseModel`: Built-in noise models.
 - `noise_op_to_stim`: Conversion function.
@@ -22,8 +23,13 @@ Examples
 Create a simple depolarizing noise model:
 
 >>> from graphqomb.noise_model import (
-...     NoiseModel, PrepareEvent, EntangleEvent, PauliChannel1, PauliChannel2,
-...     depolarize1_probs, depolarize2_probs
+...     NoiseModel,
+...     PrepareEvent,
+...     EntangleEvent,
+...     PauliChannel1,
+...     PauliChannel2,
+...     depolarize1_probs,
+...     depolarize2_probs,
 ... )
 >>>
 >>> class DepolarizingNoise(NoiseModel):
@@ -35,16 +41,13 @@ Create a simple depolarizing noise model:
 ...         return [PauliChannel1(**depolarize1_probs(self.p1), targets=[event.node.id])]
 ...
 ...     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
-...         return [PauliChannel2(
-...             probabilities=depolarize2_probs(self.p2),
-...             targets=[(event.node0.id, event.node1.id)]
-...         )]
+...         return [PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])]
 
 Use with stim_compile:
 
 >>> from graphqomb.stim_compiler import stim_compile
 >>> # pattern = ...  # your compiled pattern
->>> # stim_str = stim_compile(pattern, noise_model=DepolarizingNoise(0.001, 0.01))
+>>> # stim_str = stim_compile(pattern, noise_models=[DepolarizingNoise(0.001, 0.01)])
 
 Use heralded noise that adds measurement records:
 
@@ -53,15 +56,12 @@ Use heralded noise that adds measurement records:
 >>> class HeraldedMeasurementNoise(NoiseModel):
 ...     def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
 ...         # Heralded erasure with 10% probability
-...         return [HeraldedPauliChannel1(
-...             pi=0.1, px=0.0, py=0.0, pz=0.0,
-...             targets=[event.node.id]
-...         )]
+...         return [HeraldedPauliChannel1(pi=0.1, px=0.0, py=0.0, pz=0.0, targets=[event.node.id])]
 
 Notes
 -----
 - **Placement control**: Each `NoiseOp` has a ``placement`` attribute.
-  ``AUTO`` defers to :meth:`NoiseModel.default_placement`, while
+  ``AUTO`` defers to :func:`default_noise_placement`, while
   ``BEFORE``/``AFTER`` force insertion side.
 
 - **Record delta**: Heralded instructions (`HeraldedPauliChannel1`,
@@ -107,16 +107,16 @@ PAULI_CHANNEL_2_ORDER: tuple[str, ...] = (
 
 
 def depolarize1_probs(p: float) -> dict[str, float]:
-    """Create probability dict for single-qubit depolarizing channel.
+    r"""Create probability dict for single-qubit depolarizing channel.
 
     Parameters
     ----------
-    p : float
+    p : `float`
         Total depolarizing probability.
 
     Returns
     -------
-    dict[str, float]
+    `dict`\[`str`, `float`\]
         Mapping with keys ``px``, ``py``, ``pz`` each set to ``p/3``.
 
     Examples
@@ -132,16 +132,16 @@ def depolarize1_probs(p: float) -> dict[str, float]:
 
 
 def depolarize2_probs(p: float) -> dict[str, float]:
-    """Create probability dict for 2-qubit depolarizing channel.
+    r"""Create probability dict for 2-qubit depolarizing channel.
 
     Parameters
     ----------
-    p : float
+    p : `float`
         Total depolarizing probability.
 
     Returns
     -------
-    dict[str, float]
+    `dict`\[`str`, `float`\]
         Mapping from Pauli pair to probability ``p/15``.
 
     Examples
@@ -166,11 +166,11 @@ class NoisePlacement(Enum):
 
 @dataclass(frozen=True)
 class Coordinate:
-    """N-dimensional coordinate for a node.
+    r"""N-dimensional coordinate for a node.
 
     Parameters
     ----------
-    values : tuple[float, ...]
+    values : `tuple`\[`float`, ...\]
         The coordinate values as a tuple of floats.
 
     Examples
@@ -205,9 +205,9 @@ class NodeInfo:
 
     Parameters
     ----------
-    id : int
+    id : `int`
         The unique node index in the pattern.
-    coord : Coordinate | None
+    coord : `Coordinate` | `None`
         The spatial coordinate of the node, if available.
     """
 
@@ -221,11 +221,11 @@ class PrepareEvent:
 
     Parameters
     ----------
-    time : int
+    time : `int`
         The current tick (time step) in the pattern execution.
-    node : NodeInfo
+    node : `NodeInfo`
         Information about the node being prepared.
-    is_input : bool
+    is_input : `bool`
         Whether this node is an input node of the pattern.
         Input nodes may require different noise treatment.
     """
@@ -237,17 +237,17 @@ class PrepareEvent:
 
 @dataclass(frozen=True)
 class EntangleEvent:
-    """Event emitted when two qubits are entangled (E command / CZ gate).
+    r"""Event emitted when two qubits are entangled (E command / CZ gate).
 
     Parameters
     ----------
-    time : int
+    time : `int`
         The current tick (time step) in the pattern execution.
-    node0 : NodeInfo
+    node0 : `NodeInfo`
         Information about the first node in the entanglement.
-    node1 : NodeInfo
+    node1 : `NodeInfo`
         Information about the second node in the entanglement.
-    edge : tuple[int, int]
+    edge : `tuple`\[`int`, `int`\]
         The edge as ``(min_node_id, max_node_id)``.
     """
 
@@ -263,11 +263,11 @@ class MeasureEvent:
 
     Parameters
     ----------
-    time : int
+    time : `int`
         The current tick (time step) in the pattern execution.
-    node : NodeInfo
+    node : `NodeInfo`
         Information about the node being measured.
-    axis : Axis
+    axis : `Axis`
         The measurement axis (X, Y, or Z).
     """
 
@@ -278,15 +278,15 @@ class MeasureEvent:
 
 @dataclass(frozen=True)
 class IdleEvent:
-    """Event emitted for qubits that are idle during a TICK.
+    r"""Event emitted for qubits that are idle during a TICK.
 
     Parameters
     ----------
-    time : int
+    time : `int`
         The current tick (time step) in the pattern execution.
-    nodes : Sequence[NodeInfo]
+    nodes : `collections.abc.Sequence`\[`NodeInfo`\]
         Information about all nodes that are idle during this tick.
-    duration : float
+    duration : `float`
         The duration of the idle period (from ``tick_duration`` parameter).
     """
 
@@ -299,26 +299,47 @@ NoiseEvent = PrepareEvent | EntangleEvent | MeasureEvent | IdleEvent
 """Union type of all noise event types."""
 
 
+def default_noise_placement(event: NoiseEvent) -> NoisePlacement:
+    """Return the global default placement for AUTO noise operations.
+
+    Measurement noise is inserted before measurement operations. Noise for all
+    other events is inserted after the corresponding operation.
+
+    Parameters
+    ----------
+    event : `NoiseEvent`
+        The event for which to determine the default placement.
+
+    Returns
+    -------
+    `NoisePlacement`
+        ``BEFORE`` for measurement events, ``AFTER`` for all others.
+    """
+    if isinstance(event, MeasureEvent):
+        return NoisePlacement.BEFORE
+    return NoisePlacement.AFTER
+
+
 @dataclass(frozen=True)
 class PauliChannel1:
-    """Single-qubit Pauli channel noise operation.
+    r"""Single-qubit Pauli channel noise operation.
 
     Applies independent X, Y, Z errors with given probabilities.
     Corresponds to Stim's ``PAULI_CHANNEL_1`` instruction.
 
     Parameters
     ----------
-    px : float
+    px : `float`
         Probability of X error.
-    py : float
+    py : `float`
         Probability of Y error.
-    pz : float
+    pz : `float`
         Probability of Z error.
-    targets : Sequence[int]
+    targets : `collections.abc.Sequence`\[`int`\]
         Target qubit indices.
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        ``AUTO`` defers to :func:`default_noise_placement`.
 
     Examples
     --------
@@ -339,23 +360,23 @@ class PauliChannel1:
 
 @dataclass(frozen=True)
 class PauliChannel2:
-    """Two-qubit Pauli channel noise operation.
+    r"""Two-qubit Pauli channel noise operation.
 
     Applies correlated two-qubit Pauli errors.
     Corresponds to Stim's ``PAULI_CHANNEL_2`` instruction.
 
     Parameters
     ----------
-    probabilities : Sequence[float] | Mapping[str, float]
+    probabilities : `collections.abc.Sequence`\[`float`\] | `collections.abc.Mapping`\[`str`, `float`\]
         Either a sequence of 15 probabilities in the order
         (IX, IY, IZ, XI, XX, XY, XZ, YI, YX, YY, YZ, ZI, ZX, ZY, ZZ),
         or a mapping from Pauli string keys to probabilities.
         Missing keys default to 0.
-    targets : Sequence[tuple[int, int]]
+    targets : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\]
         Target qubit pairs as ``[(q0, q1), ...]``.
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        ``AUTO`` defers to :func:`default_noise_placement`.
 
     Examples
     --------
@@ -382,7 +403,7 @@ class PauliChannel2:
 
 @dataclass(frozen=True)
 class HeraldedPauliChannel1:
-    """Heralded single-qubit Pauli channel noise operation.
+    r"""Heralded single-qubit Pauli channel noise operation.
 
     Similar to `PauliChannel1` but produces a herald measurement record
     indicating whether an error occurred. The herald outcome is 1 if any
@@ -391,19 +412,19 @@ class HeraldedPauliChannel1:
 
     Parameters
     ----------
-    pi : float
+    pi : `float`
         Probability of heralded identity (no error but flagged).
-    px : float
+    px : `float`
         Probability of heralded X error.
-    py : float
+    py : `float`
         Probability of heralded Y error.
-    pz : float
+    pz : `float`
         Probability of heralded Z error.
-    targets : Sequence[int]
+    targets : `collections.abc.Sequence`\[`int`\]
         Target qubit indices.
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        ``AUTO`` defers to :func:`default_noise_placement`.
 
     Notes
     -----
@@ -433,20 +454,20 @@ class HeraldedPauliChannel1:
 
 @dataclass(frozen=True)
 class HeraldedErase:
-    """Heralded erasure noise operation.
+    r"""Heralded erasure noise operation.
 
     Models photon loss or erasure errors with a herald signal.
     Corresponds to Stim's ``HERALDED_ERASE`` instruction.
 
     Parameters
     ----------
-    p : float
+    p : `float`
         Probability of erasure.
-    targets : Sequence[int]
+    targets : `collections.abc.Sequence`\[`int`\]
         Target qubit indices.
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        ``AUTO`` defers to :func:`default_noise_placement`.
 
     Notes
     -----
@@ -480,14 +501,14 @@ class RawStimOp:
 
     Parameters
     ----------
-    text : str
+    text : `str`
         A single Stim instruction line (without trailing newline).
-    record_delta : int
+    record_delta : `int`
         The number of measurement records added by this instruction.
         Most noise instructions do not add records (default 0).
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Whether to insert before or after the main operation.
-        ``AUTO`` defers to the model's default placement for the event.
+        ``AUTO`` defers to :func:`default_noise_placement`.
 
     Examples
     --------
@@ -517,11 +538,11 @@ class MeasurementFlip:
 
     Parameters
     ----------
-    p : float
+    p : `float`
         Probability of measurement result flip.
-    target : int
+    target : `int`
         Target qubit index (must match the measurement target).
-    placement : NoisePlacement
+    placement : `NoisePlacement`
         Placement attribute for compatibility (ignored, as this modifies
         the measurement instruction itself).
     """
@@ -552,11 +573,9 @@ class NoiseModel:
     ...
     ...     def on_measure(self, event: MeasureEvent) -> list[PauliChannel1]:
     ...         # Add bit-flip noise before measurement
-    ...         return [PauliChannel1(
-    ...             px=0.01, py=0.0, pz=0.0,
-    ...             targets=[event.node.id],
-    ...             placement=NoisePlacement.BEFORE
-    ...         )]
+    ...         return [
+    ...             PauliChannel1(px=0.01, py=0.0, pz=0.0, targets=[event.node.id], placement=NoisePlacement.BEFORE)
+    ...         ]
 
     See Also
     --------
@@ -564,97 +583,77 @@ class NoiseModel:
     """
 
     def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
-        """Return noise operations to inject at qubit preparation.
+        r"""Return noise operations to inject at qubit preparation.
 
         Parameters
         ----------
-        event : PrepareEvent
+        event : `PrepareEvent`
             Context about the preparation operation.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             Zero or more noise operations to inject.
         """
         return []
 
     def on_entangle(self, event: EntangleEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
-        """Return noise operations to inject at entanglement.
+        r"""Return noise operations to inject at entanglement.
 
         Parameters
         ----------
-        event : EntangleEvent
+        event : `EntangleEvent`
             Context about the entanglement operation.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             Zero or more noise operations to inject.
         """
         return []
 
     def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
-        """Return noise operations to inject at measurement.
+        r"""Return noise operations to inject at measurement.
 
         Parameters
         ----------
-        event : MeasureEvent
+        event : `MeasureEvent`
             Context about the measurement operation.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             Zero or more noise operations to inject.
         """
         return []
 
     def on_idle(self, event: IdleEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
-        """Return noise operations to inject during idle periods.
+        r"""Return noise operations to inject during idle periods.
 
         Parameters
         ----------
-        event : IdleEvent
+        event : `IdleEvent`
             Context about the idle period.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             Zero or more noise operations to inject.
         """
         return []
 
-    def default_placement(self, event: NoiseEvent) -> NoisePlacement:  # noqa: PLR6301
-        """Return the default placement for AUTO noise operations.
-
-        By default, measurement noise is injected before measurement and all
-        other noise is injected after the main operation.
-
-        Parameters
-        ----------
-        event : NoiseEvent
-            The event for which to determine the default placement.
-
-        Returns
-        -------
-        NoisePlacement
-            `BEFORE` for measurement events, `AFTER` for all others.
-        """
-        if isinstance(event, MeasureEvent):
-            return NoisePlacement.BEFORE
-        return NoisePlacement.AFTER
-
 
 def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
-    """Convert a NoiseOp into a Stim instruction line and record delta.
+    r"""Convert a NoiseOp into a Stim instruction line and record delta.
 
     Parameters
     ----------
-    op : NoiseOp
+    op : `NoiseOp`
         The noise operation to convert.
 
     Returns
     -------
-    tuple[str, int]
+    `tuple`\[`str`, `int`\]
         A tuple of ``(stim_instruction, record_delta)`` where
         ``stim_instruction`` is a single line of Stim code and
         ``record_delta`` is the number of measurement records added.
@@ -747,9 +746,9 @@ class DepolarizingNoiseModel(NoiseModel):
 
     Parameters
     ----------
-    p1 : float
+    p1 : `float`
         Single-qubit depolarizing probability (after RX preparation).
-    p2 : float | None
+    p2 : `float` | `None`
         Two-qubit depolarizing probability (after CZ).
         If None, defaults to p1.
 
@@ -766,11 +765,11 @@ class DepolarizingNoiseModel(NoiseModel):
         self._p2 = p2 if p2 is not None else p1
 
     def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:
-        """Add single-qubit depolarizing noise after preparation.
+        r"""Add single-qubit depolarizing noise after preparation.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             A tuple containing DEPOLARIZE1 instruction, or empty if p1 <= 0.
         """
         if self._p1 <= 0:
@@ -778,11 +777,11 @@ class DepolarizingNoiseModel(NoiseModel):
         return (RawStimOp(f"DEPOLARIZE1({self._p1}) {event.node.id}"),)
 
     def on_entangle(self, event: EntangleEvent) -> Sequence[NoiseOp]:
-        """Add two-qubit depolarizing noise after entanglement.
+        r"""Add two-qubit depolarizing noise after entanglement.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             A tuple containing DEPOLARIZE2 instruction, or empty if p2 <= 0.
         """
         if self._p2 <= 0:
@@ -798,7 +797,7 @@ class MeasurementFlipNoiseModel(NoiseModel):
 
     Parameters
     ----------
-    p : float
+    p : `float`
         Probability of measurement result flip.
 
     Examples
@@ -813,11 +812,11 @@ class MeasurementFlipNoiseModel(NoiseModel):
         self._p = p
 
     def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:
-        """Add measurement flip error.
+        r"""Add measurement flip error.
 
         Returns
         -------
-        Sequence[NoiseOp]
+        `collections.abc.Sequence`\[`NoiseOp`\]
             A tuple containing MeasurementFlip operation, or empty if p <= 0.
         """
         if self._p <= 0:
