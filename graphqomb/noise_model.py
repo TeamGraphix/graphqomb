@@ -106,6 +106,56 @@ PAULI_CHANNEL_2_ORDER: tuple[str, ...] = (
 )
 
 
+def _validate_probability(name: str, value: float) -> float:
+    """Validate a probability value and return it as float.
+
+    Parameters
+    ----------
+    name : `str`
+        Human-readable probability name used in error messages.
+    value : `float`
+        Probability value to validate.
+
+    Returns
+    -------
+    `float`
+        The validated probability value.
+
+    Raises
+    ------
+    ValueError
+        If the probability is outside the range ``[0, 1]``.
+    """
+    p = float(value)
+    if not 0.0 <= p <= 1.0:
+        msg = f"{name} must be within [0, 1], got {value!r}"
+        raise ValueError(msg)
+    return p
+
+
+def _validate_probability_sum(name: str, probabilities: Sequence[float], *, atol: float = 1e-12) -> None:
+    r"""Validate that probabilities sum to at most 1 within tolerance.
+
+    Parameters
+    ----------
+    name : `str`
+        Human-readable name used in error messages.
+    probabilities : `collections.abc.Sequence`\[`float`\]
+        Probability values to validate.
+    atol : `float`, optional
+        Absolute tolerance for sum comparison, by default ``1e-12``.
+
+    Raises
+    ------
+    ValueError
+        If the total probability exceeds ``1 + atol``.
+    """
+    total = float(sum(probabilities))
+    if total > 1.0 + atol:
+        msg = f"{name} probabilities must sum to <= 1, got {total}"
+        raise ValueError(msg)
+
+
 def depolarize1_probs(p: float) -> dict[str, float]:
     r"""Create probability dict for single-qubit depolarizing channel.
 
@@ -127,6 +177,7 @@ def depolarize1_probs(p: float) -> dict[str, float]:
     >>> probs["py"]
     0.01
     """
+    p = _validate_probability("depolarize1_probs.p", p)
     p_each = p / 3
     return {"px": p_each, "py": p_each, "pz": p_each}
 
@@ -152,6 +203,7 @@ def depolarize2_probs(p: float) -> dict[str, float]:
     >>> len(probs)
     15
     """
+    p = _validate_probability("depolarize2_probs.p", p)
     p_each = p / 15
     return dict.fromkeys(PAULI_CHANNEL_2_ORDER, p_each)
 
@@ -527,6 +579,21 @@ class RawStimOp:
     record_delta: int = 0
     placement: NoisePlacement = NoisePlacement.AUTO
 
+    def __post_init__(self) -> None:
+        if "\n" in self.text or "\r" in self.text:
+            msg = "RawStimOp.text must be a single Stim instruction line without newlines"
+            raise ValueError(msg)
+        if self.record_delta < 0:
+            msg = f"RawStimOp.record_delta must be non-negative, got {self.record_delta}"
+            raise ValueError(msg)
+        expected_delta = _infer_raw_record_delta(self.text)
+        if expected_delta is not None and self.record_delta != expected_delta:
+            msg = (
+                f"RawStimOp.record_delta mismatch for instruction {self.text!r}: "
+                f"expected {expected_delta}, got {self.record_delta}"
+            )
+            raise ValueError(msg)
+
 
 @dataclass(frozen=True)
 class MeasurementFlip:
@@ -675,8 +742,12 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     if isinstance(op, PauliChannel1):
         if not op.targets:
             return "", 0
+        px = _validate_probability("PauliChannel1.px", op.px)
+        py = _validate_probability("PauliChannel1.py", op.py)
+        pz = _validate_probability("PauliChannel1.pz", op.pz)
+        _validate_probability_sum("PauliChannel1", (px, py, pz))
         targets = " ".join(str(t) for t in op.targets)
-        return f"PAULI_CHANNEL_1({op.px},{op.py},{op.pz}) {targets}", 0
+        return f"PAULI_CHANNEL_1({px},{py},{pz}) {targets}", 0
 
     if isinstance(op, PauliChannel2):
         if not op.targets:
@@ -690,19 +761,26 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     if isinstance(op, HeraldedPauliChannel1):
         if not op.targets:
             return "", 0
+        pi = _validate_probability("HeraldedPauliChannel1.pi", op.pi)
+        px = _validate_probability("HeraldedPauliChannel1.px", op.px)
+        py = _validate_probability("HeraldedPauliChannel1.py", op.py)
+        pz = _validate_probability("HeraldedPauliChannel1.pz", op.pz)
+        _validate_probability_sum("HeraldedPauliChannel1", (pi, px, py, pz))
         targets = " ".join(str(t) for t in op.targets)
         return (
-            f"HERALDED_PAULI_CHANNEL_1({op.pi},{op.px},{op.py},{op.pz}) {targets}",
+            f"HERALDED_PAULI_CHANNEL_1({pi},{px},{py},{pz}) {targets}",
             len(op.targets),
         )
 
     if isinstance(op, HeraldedErase):
         if not op.targets:
             return "", 0
+        p = _validate_probability("HeraldedErase.p", op.p)
         targets = " ".join(str(t) for t in op.targets)
-        return f"HERALDED_ERASE({op.p}) {targets}", len(op.targets)
+        return f"HERALDED_ERASE({p}) {targets}", len(op.targets)
 
     if isinstance(op, MeasurementFlip):
+        _validate_probability("MeasurementFlip.p", op.p)
         # MeasurementFlip is handled specially in the compiler by modifying
         # the measurement instruction. It should not be emitted as a separate op.
         return "", 0
@@ -717,11 +795,18 @@ def _pauli_channel_2_args(probabilities: Sequence[float] | Mapping[str, float]) 
         if unknown:
             msg = f"Unknown PAULI_CHANNEL_2 keys: {sorted(unknown)}"
             raise ValueError(msg)
-        return tuple(float(probabilities.get(key, 0.0)) for key in PAULI_CHANNEL_2_ORDER)
+        values = tuple(float(probabilities.get(key, 0.0)) for key in PAULI_CHANNEL_2_ORDER)
+        for key, value in zip(PAULI_CHANNEL_2_ORDER, values, strict=True):
+            _validate_probability(f"PauliChannel2.probabilities[{key}]", value)
+        _validate_probability_sum("PauliChannel2", values)
+        return values
     values = tuple(float(v) for v in probabilities)
     if len(values) != len(PAULI_CHANNEL_2_ORDER):
         msg = f"PAULI_CHANNEL_2 expects {len(PAULI_CHANNEL_2_ORDER)} probabilities, got {len(values)}"
         raise ValueError(msg)
+    for index, value in enumerate(values):
+        _validate_probability(f"PauliChannel2.probabilities[{index}]", value)
+    _validate_probability_sum("PauliChannel2", values)
     return values
 
 
@@ -733,6 +818,40 @@ def _flatten_pairs(pairs: Sequence[tuple[int, int]]) -> tuple[int, ...]:
             raise ValueError(msg)
         flat.extend(pair)
     return tuple(flat)
+
+
+_PER_TARGET_RECORD_DELTA_INSTRUCTIONS: frozenset[str] = frozenset(
+    {
+        "M",
+        "MX",
+        "MY",
+        "MZ",
+        "MR",
+        "MRX",
+        "MRY",
+        "MRZ",
+        "HERALDED_ERASE",
+        "HERALDED_PAULI_CHANNEL_1",
+    }
+)
+
+
+def _infer_raw_record_delta(text: str) -> int | None:
+    """Infer record delta from a raw instruction when the rule is unambiguous.
+
+    Returns
+    -------
+    int | None
+        Number of records produced if it can be inferred, otherwise None.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return 0
+    parts = stripped.split()
+    instruction = parts[0].split("(", 1)[0]
+    if instruction in _PER_TARGET_RECORD_DELTA_INSTRUCTIONS:
+        return len(parts) - 1
+    return None
 
 
 # ---- Built-in NoiseModel implementations ----

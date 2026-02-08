@@ -178,6 +178,18 @@ class TestPauliChannel1:
         assert isinstance(op.targets, tuple)
         assert op.targets == (0, 1, 2)
 
+    def test_negative_probability_raises(self) -> None:
+        """Test PauliChannel1 with negative probability raises ValueError."""
+        op = PauliChannel1(px=-0.01, py=0.0, pz=0.0, targets=[0])
+        with pytest.raises(ValueError, match=r"PauliChannel1\.px must be within \[0, 1\]"):
+            noise_op_to_stim(op)
+
+    def test_probability_sum_greater_than_one_raises(self) -> None:
+        """Test PauliChannel1 with probabilities summing to >1 raises ValueError."""
+        op = PauliChannel1(px=0.5, py=0.4, pz=0.2, targets=[0])
+        with pytest.raises(ValueError, match=r"PauliChannel1 probabilities must sum to <= 1"):
+            noise_op_to_stim(op)
+
 
 class TestPauliChannel2:
     """Tests for PauliChannel2 noise operation."""
@@ -236,6 +248,18 @@ class TestPauliChannel2:
         """Test that PAULI_CHANNEL_2_ORDER has exactly 15 elements."""
         assert len(PAULI_CHANNEL_2_ORDER) == 15
 
+    def test_probability_out_of_range_raises(self) -> None:
+        """Test PauliChannel2 with out-of-range probability raises ValueError."""
+        op = PauliChannel2(probabilities={"ZZ": 1.1}, targets=[(0, 1)])
+        with pytest.raises(ValueError, match=r"PauliChannel2\.probabilities\[ZZ\] must be within \[0, 1\]"):
+            noise_op_to_stim(op)
+
+    def test_probability_sum_greater_than_one_raises(self) -> None:
+        """Test PauliChannel2 with probabilities summing to >1 raises ValueError."""
+        op = PauliChannel2(probabilities={"ZZ": 0.8, "XX": 0.3}, targets=[(0, 1)])
+        with pytest.raises(ValueError, match=r"PauliChannel2 probabilities must sum to <= 1"):
+            noise_op_to_stim(op)
+
 
 class TestDepolarize1Probs:
     """Tests for depolarize1_probs utility function."""
@@ -261,6 +285,11 @@ class TestDepolarize1Probs:
         text, delta = noise_op_to_stim(op)
         assert "PAULI_CHANNEL_1" in text
         assert delta == 0
+
+    def test_invalid_probability_raises(self) -> None:
+        """Test that depolarize1_probs validates probability range."""
+        with pytest.raises(ValueError, match=r"depolarize1_probs\.p must be within \[0, 1\]"):
+            depolarize1_probs(-0.1)
 
 
 class TestDepolarize2Probs:
@@ -293,6 +322,11 @@ class TestDepolarize2Probs:
         assert "PAULI_CHANNEL_2" in text
         assert delta == 0
 
+    def test_invalid_probability_raises(self) -> None:
+        """Test that depolarize2_probs validates probability range."""
+        with pytest.raises(ValueError, match=r"depolarize2_probs\.p must be within \[0, 1\]"):
+            depolarize2_probs(1.2)
+
 
 class TestHeraldedPauliChannel1:
     """Tests for HeraldedPauliChannel1 noise operation."""
@@ -322,6 +356,12 @@ class TestHeraldedPauliChannel1:
         """Test that targets list is converted to tuple."""
         op = HeraldedPauliChannel1(pi=0.0, px=0.01, py=0.0, pz=0.0, targets=[0, 1])
         assert isinstance(op.targets, tuple)
+
+    def test_probability_sum_greater_than_one_raises(self) -> None:
+        """Test HeraldedPauliChannel1 with probabilities summing to >1 raises ValueError."""
+        op = HeraldedPauliChannel1(pi=0.4, px=0.4, py=0.3, pz=0.0, targets=[0])
+        with pytest.raises(ValueError, match=r"HeraldedPauliChannel1 probabilities must sum to <= 1"):
+            noise_op_to_stim(op)
 
 
 class TestHeraldedErase:
@@ -353,6 +393,12 @@ class TestHeraldedErase:
         op = HeraldedErase(p=0.05, targets=[0, 1, 2])
         assert isinstance(op.targets, tuple)
 
+    def test_probability_out_of_range_raises(self) -> None:
+        """Test HeraldedErase with out-of-range probability raises ValueError."""
+        op = HeraldedErase(p=1.1, targets=[0])
+        with pytest.raises(ValueError, match=r"HeraldedErase\.p must be within \[0, 1\]"):
+            noise_op_to_stim(op)
+
 
 class TestRawStimOp:
     """Tests for RawStimOp noise operation."""
@@ -382,6 +428,21 @@ class TestRawStimOp:
         """Test RawStimOp with BEFORE placement."""
         op = RawStimOp(text="Z_ERROR(0.01) 0", placement=NoisePlacement.BEFORE)
         assert op.placement == NoisePlacement.BEFORE
+
+    def test_multiline_text_raises(self) -> None:
+        """Test RawStimOp rejects multiline text."""
+        with pytest.raises(ValueError, match="single Stim instruction line"):
+            RawStimOp(text="M 0\nM 1", record_delta=0)
+
+    def test_negative_record_delta_raises(self) -> None:
+        """Test RawStimOp rejects negative record_delta."""
+        with pytest.raises(ValueError, match="must be non-negative"):
+            RawStimOp(text="X_ERROR(0.01) 0", record_delta=-1)
+
+    def test_record_delta_mismatch_raises(self) -> None:
+        """Test RawStimOp validates record_delta consistency for inferable instructions."""
+        with pytest.raises(ValueError, match="record_delta mismatch"):
+            RawStimOp(text="MR 5", record_delta=0)
 
 
 # ---- NoiseModel Tests ----
@@ -566,6 +627,12 @@ class TestMeasurementFlip:
         text, delta = noise_op_to_stim(op)
         assert not text
         assert delta == 0
+
+    def test_invalid_probability_raises(self) -> None:
+        """Test MeasurementFlip validates probability range."""
+        op = MeasurementFlip(p=-0.1, target=0)
+        with pytest.raises(ValueError, match=r"MeasurementFlip\.p must be within \[0, 1\]"):
+            noise_op_to_stim(op)
 
 
 # ---- DepolarizingNoiseModel Tests ----
