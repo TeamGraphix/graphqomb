@@ -98,8 +98,7 @@ class _StimCompiler:
             elif isinstance(cmd, (X, Z)):
                 cmd_name = type(cmd).__name__
                 msg = (
-                    f"Unsupported command for stim compilation: {cmd_name}. "
-                    "X/Z correction commands are not supported."
+                    f"Unsupported command for stim compilation: {cmd_name}. X/Z correction commands are not supported."
                 )
                 raise NotImplementedError(msg)
             else:
