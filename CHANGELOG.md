@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation**: Added comprehensive Sphinx documentation for the noise model module
 
+- **PTN Format**: Human-readable text format (`.ptn`) for pattern serialization
+  - `ptn_format.dumps()` / `ptn_format.dump()`: Serialize patterns to text
+  - `ptn_format.loads()` / `ptn_format.load()`: Deserialize patterns from text
+  - Format separates quantum instructions and classical feedforward processing
+  - Timeslice markers `[n]` indicate parallel execution groups
+  - Pauli measurements use compact notation (`X +`, `Y -`, `Z +`)
+  - Non-Pauli measurements use plane+angle format (`XY pi/4`)
+  - Support for node coordinates and inline comments
+
 ### Changed
 
 - **Stim Compiler**: Refactored internal structure to support noise model integration
