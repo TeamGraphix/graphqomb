@@ -125,16 +125,6 @@ docstring-code-format = true
   "T201", # print
   "D",
 ]
-"graphqomb/ptn_format.py" = [
-  "C901",    # too complex (parser functions)
-  "PLR0911", # too many return statements (angle formatting)
-  "PLR0912", # too many branches (parser)
-  "PLR0914", # too many local variables (parser)
-  "PLR0915", # too many statements (parser)
-  "PLR2004", # magic values in parser
-  "PLW2901", # loop variable overwritten (line processing)
-  "FURB122", # writelines suggestion (readability preference)
-]
 
 [tool.pytest.ini_options]
 pythonpath = ["graphqomb"]

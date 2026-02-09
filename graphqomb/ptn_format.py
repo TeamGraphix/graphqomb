@@ -35,9 +35,36 @@ if TYPE_CHECKING:
 
 PTN_VERSION = 1
 
+# Angle formatting/parsing lookup tables
+_ANGLE_TO_STR: dict[float, str] = {
+    0.0: "0",
+    math.pi: "pi",
+    -math.pi: "-pi",
+    math.pi / 2: "pi/2",
+    -math.pi / 2: "-pi/2",
+    math.pi / 4: "pi/4",
+    -math.pi / 4: "-pi/4",
+    3 * math.pi / 2: "3pi/2",
+    3 * math.pi / 4: "3pi/4",
+}
+
+_STR_TO_ANGLE: dict[str, float] = {
+    "0": 0.0,
+    "pi": math.pi,
+    "-pi": -math.pi,
+    "pi/2": math.pi / 2,
+    "-pi/2": -math.pi / 2,
+    "pi/4": math.pi / 4,
+    "-pi/4": -math.pi / 4,
+    "3pi/2": 3 * math.pi / 2,
+    "3pi/4": 3 * math.pi / 4,
+}
+
+_PI_PATTERN = re.compile(r"^(-?\d*)pi(?:/(\d+))?$")
+
 
 def _format_angle(angle: float) -> str:
-    """Format angle for output, using pi fractions where appropriate.
+    r"""Format angle for output, using pi fractions where appropriate.
 
     Parameters
     ----------
@@ -49,30 +76,18 @@ def _format_angle(angle: float) -> str:
     `str`
         Formatted angle string.
     """
-    # Check for common pi fractions
-    if math.isclose(angle, 0.0, abs_tol=1e-10):
-        return "0"
-    if math.isclose(angle, math.pi, rel_tol=1e-10):
-        return "pi"
-    if math.isclose(angle, -math.pi, rel_tol=1e-10):
-        return "-pi"
-    if math.isclose(angle, math.pi / 2, rel_tol=1e-10):
-        return "pi/2"
-    if math.isclose(angle, -math.pi / 2, rel_tol=1e-10):
-        return "-pi/2"
-    if math.isclose(angle, math.pi / 4, rel_tol=1e-10):
-        return "pi/4"
-    if math.isclose(angle, -math.pi / 4, rel_tol=1e-10):
-        return "-pi/4"
-    if math.isclose(angle, 3 * math.pi / 2, rel_tol=1e-10):
-        return "3pi/2"
-    if math.isclose(angle, 3 * math.pi / 4, rel_tol=1e-10):
-        return "3pi/4"
+    for ref_angle, label in _ANGLE_TO_STR.items():
+        tol = 1e-10 if ref_angle == 0.0 else None
+        if tol is not None:
+            if math.isclose(angle, ref_angle, abs_tol=tol):
+                return label
+        elif math.isclose(angle, ref_angle, rel_tol=1e-10):
+            return label
     return f"{angle}"
 
 
 def _parse_angle(s: str) -> float:
-    """Parse angle string to float.
+    r"""Parse angle string to float.
 
     Parameters
     ----------
@@ -85,27 +100,10 @@ def _parse_angle(s: str) -> float:
         The angle in radians.
     """
     s = s.strip()
-    if s == "0":
-        return 0.0
-    if s == "pi":
-        return math.pi
-    if s == "-pi":
-        return -math.pi
-    if s == "pi/2":
-        return math.pi / 2
-    if s == "-pi/2":
-        return -math.pi / 2
-    if s == "pi/4":
-        return math.pi / 4
-    if s == "-pi/4":
-        return -math.pi / 4
-    if s == "3pi/2":
-        return 3 * math.pi / 2
-    if s == "3pi/4":
-        return 3 * math.pi / 4
+    if s in _STR_TO_ANGLE:
+        return _STR_TO_ANGLE[s]
 
-    # Try to parse as a general pi expression (e.g., "2pi/3")
-    pi_match = re.match(r"^(-?\d*)pi(?:/(\d+))?$", s)
+    pi_match = _PI_PATTERN.match(s)
     if pi_match:
         numerator = pi_match.group(1)
         denominator = pi_match.group(2)
@@ -117,11 +115,11 @@ def _parse_angle(s: str) -> float:
 
 
 def _format_coord(coord: tuple[float, ...]) -> str:
-    """Format coordinate tuple for output.
+    r"""Format coordinate tuple for output.
 
     Parameters
     ----------
-    coord : `tuple`[`float`, ...]
+    coord : `tuple`\[`float`, ...\]
         Coordinate tuple (2D or 3D).
 
     Returns
@@ -133,75 +131,88 @@ def _format_coord(coord: tuple[float, ...]) -> str:
 
 
 def _parse_coord(parts: list[str]) -> tuple[float, ...]:
-    """Parse coordinate from string parts.
+    r"""Parse coordinate from string parts.
 
     Parameters
     ----------
-    parts : `list`[`str`]
+    parts : `list`\[`str`\]
         List of coordinate value strings.
 
     Returns
     -------
-    `tuple`[`float`, ...]
+    `tuple`\[`float`, ...\]
         Coordinate tuple.
     """
     return tuple(float(p) for p in parts)
 
 
-def _write_header(
-    out: StringIO,
-    pattern: Pattern,
-) -> None:
-    """Write header section to output.
+# ============================================================
+# Serialization (dumps/dump)
+# ============================================================
 
-    Parameters
-    ----------
-    out : `StringIO`
-        Output stream.
-    pattern : `Pattern`
-        The pattern to write.
-    """
+
+def _write_header(out: StringIO, pattern: Pattern) -> None:
+    """Write header section to output."""
     out.write(f"# GraphQOMB Pattern Format v{PTN_VERSION}\n")
     out.write("\n")
     out.write("#======== HEADER ========\n")
     out.write(f".version {PTN_VERSION}\n")
 
-    # Input nodes
     if pattern.input_node_indices:
         input_parts = [
             f"{node}:{qidx}" for node, qidx in sorted(pattern.input_node_indices.items(), key=operator.itemgetter(1))
         ]
         out.write(f".input {' '.join(input_parts)}\n")
 
-    # Output nodes
     if pattern.output_node_indices:
         output_parts = [
             f"{node}:{qidx}" for node, qidx in sorted(pattern.output_node_indices.items(), key=operator.itemgetter(1))
         ]
         out.write(f".output {' '.join(output_parts)}\n")
 
-    # Input coordinates
-    for node, coord in sorted(pattern.input_coordinates.items()):
-        out.write(f".coord {node} {_format_coord(coord)}\n")
+    out.writelines(
+        f".coord {node} {_format_coord(coord)}\n" for node, coord in sorted(pattern.input_coordinates.items())
+    )
 
 
-def _write_quantum_section(
-    out: StringIO,
-    pattern: Pattern,
-) -> None:
-    """Write quantum instructions section to output.
+def _write_command(out: StringIO, cmd: Command) -> None:
+    """Write a single command to output."""
+    if isinstance(cmd, N):
+        if cmd.coordinate is not None:
+            out.write(f"N {cmd.node} {_format_coord(cmd.coordinate)}\n")
+        else:
+            out.write(f"N {cmd.node}\n")
+    elif isinstance(cmd, E):
+        out.write(f"E {cmd.nodes[0]} {cmd.nodes[1]}\n")
+    elif isinstance(cmd, M):
+        _write_measurement(out, cmd)
+    elif isinstance(cmd, X):
+        out.write(f"X {cmd.node}\n")
+    elif isinstance(cmd, Z):
+        out.write(f"Z {cmd.node}\n")
 
-    Parameters
-    ----------
-    out : `StringIO`
-        Output stream.
-    pattern : `Pattern`
-        The pattern to write.
-    """
+
+def _write_measurement(out: StringIO, cmd: M) -> None:
+    """Write measurement command with appropriate format."""
+    pauli_axis = determine_pauli_axis(cmd.meas_basis)
+    if pauli_axis is not None:
+        angle = cmd.meas_basis.angle
+        if pauli_axis == Axis.Y:
+            sign = "+" if is_close_angle(angle, math.pi / 2) else "-"
+        else:
+            sign = "+" if is_close_angle(angle, 0.0) else "-"
+        out.write(f"M {cmd.node} {pauli_axis.name} {sign}\n")
+    else:
+        plane_name = cmd.meas_basis.plane.name
+        angle_str = _format_angle(cmd.meas_basis.angle)
+        out.write(f"M {cmd.node} {plane_name} {angle_str}\n")
+
+
+def _write_quantum_section(out: StringIO, pattern: Pattern) -> None:
+    """Write quantum instructions section to output."""
     out.write("\n")
     out.write("#======== QUANTUM ========\n")
 
-    # Group commands by timeslice
     timeslice = 0
     current_slice_commands: list[Command] = []
 
@@ -219,83 +230,25 @@ def _write_quantum_section(
         else:
             current_slice_commands.append(cmd)
 
-    # Write remaining commands in last slice
     if current_slice_commands or timeslice == 0:
         write_slice(timeslice, current_slice_commands)
 
 
-def _write_command(out: StringIO, cmd: Command) -> None:
-    """Write a single command to output.
-
-    Parameters
-    ----------
-    out : `StringIO`
-        Output stream.
-    cmd : `Command`
-        The command to write.
-    """
-    if isinstance(cmd, N):
-        if cmd.coordinate is not None:
-            out.write(f"N {cmd.node} {_format_coord(cmd.coordinate)}\n")
-        else:
-            out.write(f"N {cmd.node}\n")
-    elif isinstance(cmd, E):
-        out.write(f"E {cmd.nodes[0]} {cmd.nodes[1]}\n")
-    elif isinstance(cmd, M):
-        # Check if this is a Pauli measurement (X, Y, or Z basis)
-        pauli_axis = determine_pauli_axis(cmd.meas_basis)
-        if pauli_axis is not None:
-            # Determine sign based on angle
-            angle = cmd.meas_basis.angle
-            if pauli_axis == Axis.Y:
-                # Y measurement: +Y at pi/2, -Y at 3pi/2
-                sign = "+" if is_close_angle(angle, math.pi / 2) else "-"
-            else:
-                # X or Z measurement: + at 0, - at pi
-                sign = "+" if is_close_angle(angle, 0.0) else "-"
-            out.write(f"M {cmd.node} {pauli_axis.name} {sign}\n")
-        else:
-            # Non-Pauli measurement: use plane and angle
-            plane_name = cmd.meas_basis.plane.name
-            angle_str = _format_angle(cmd.meas_basis.angle)
-            out.write(f"M {cmd.node} {plane_name} {angle_str}\n")
-    elif isinstance(cmd, X):
-        out.write(f"X {cmd.node}\n")
-    elif isinstance(cmd, Z):
-        out.write(f"Z {cmd.node}\n")
-    elif isinstance(cmd, TICK):
-        pass  # TICK is handled by timeslice grouping
-
-
-def _write_classical_section(
-    out: StringIO,
-    pauli_frame: PauliFrame,
-) -> None:
-    """Write classical frame section to output.
-
-    Parameters
-    ----------
-    out : `StringIO`
-        Output stream.
-    pauli_frame : `PauliFrame`
-        The Pauli frame to write.
-    """
+def _write_classical_section(out: StringIO, pauli_frame: PauliFrame) -> None:
+    """Write classical frame section to output."""
     out.write("\n")
     out.write("#======== CLASSICAL ========\n")
 
-    # Write xflow
     for source, targets in sorted(pauli_frame.xflow.items()):
         if targets:
             targets_str = " ".join(str(t) for t in sorted(targets))
             out.write(f".xflow {source} -> {targets_str}\n")
 
-    # Write zflow
     for source, targets in sorted(pauli_frame.zflow.items()):
         if targets:
             targets_str = " ".join(str(t) for t in sorted(targets))
             out.write(f".zflow {source} -> {targets_str}\n")
 
-    # Write parity check groups (detectors)
     for group in pauli_frame.parity_check_group:
         if group:
             group_str = " ".join(str(n) for n in sorted(group))
@@ -336,17 +289,22 @@ def dump(pattern: Pattern, file: Path | str) -> None:
     path.write_text(dumps(pattern), encoding="utf-8")
 
 
+# ============================================================
+# Deserialization (loads/load)
+# ============================================================
+
+
 def _parse_node_qubit_pairs(parts: list[str]) -> dict[int, int]:
-    """Parse node:qubit pairs from string parts.
+    r"""Parse node:qubit pairs from string parts.
 
     Parameters
     ----------
-    parts : `list`[`str`]
+    parts : `list`\[`str`\]
         List of "node:qubit" strings.
 
     Returns
     -------
-    `dict`[`int`, `int`]
+    `dict`\[`int`, `int`\]
         Mapping from node to qubit index.
     """
     result: dict[int, int] = {}
@@ -357,7 +315,7 @@ def _parse_node_qubit_pairs(parts: list[str]) -> dict[int, int]:
 
 
 def _parse_flow(line: str) -> tuple[int, set[int]]:
-    """Parse a flow line (xflow or zflow).
+    r"""Parse a flow line (xflow or zflow).
 
     Parameters
     ----------
@@ -366,7 +324,7 @@ def _parse_flow(line: str) -> tuple[int, set[int]]:
 
     Returns
     -------
-    `tuple`[`int`, `set`[`int`]]
+    `tuple`\[`int`, `set`\[`int`\]\]
         Source node and set of target nodes.
     """
     parts = line.split("->")
@@ -406,6 +364,166 @@ class PatternData:
         self.parity_check_groups: list[set[int]] = []
 
 
+class _Parser:
+    """Internal parser state for loads()."""
+
+    def __init__(self) -> None:
+        self.result = PatternData()
+        self.current_timeslice = -1
+        self.version_found = False
+
+    def parse(self, s: str) -> PatternData:
+        r"""Parse the input string and return PatternData.
+
+        Parameters
+        ----------
+        s : `str`
+            The .ptn format string.
+
+        Returns
+        -------
+        `PatternData`
+            Container with pattern components.
+
+        Raises
+        ------
+        ValueError
+            If the format is invalid or unsupported version.
+        """
+        for line_num, raw_line in enumerate(s.splitlines(), 1):
+            self._parse_line(line_num, raw_line)
+
+        if not self.version_found:
+            msg = "Missing .version directive"
+            raise ValueError(msg)
+
+        return self.result
+
+    def _parse_line(self, line_num: int, raw_line: str) -> None:
+        """Parse a single line."""
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            return
+
+        if line.startswith("."):
+            self._parse_directive(line)
+        elif line.startswith("[") and line.endswith("]"):
+            self._parse_timeslice(line)
+        else:
+            self._parse_command(line_num, line)
+
+    def _parse_directive(self, line: str) -> None:
+        """Parse a directive line (starts with '.')."""
+        parts = line.split(maxsplit=1)
+        directive = parts[0]
+        content = parts[1] if len(parts) > 1 else ""
+
+        if directive == ".version":
+            self._handle_version(content)
+        elif directive == ".input":
+            self.result.input_node_indices = _parse_node_qubit_pairs(content.split())
+        elif directive == ".output":
+            self.result.output_node_indices = _parse_node_qubit_pairs(content.split())
+        elif directive == ".coord":
+            self._handle_coord(content)
+        elif directive == ".xflow":
+            source, targets = _parse_flow(content)
+            self.result.xflow[source] = targets
+        elif directive == ".zflow":
+            source, targets = _parse_flow(content)
+            self.result.zflow[source] = targets
+        elif directive == ".detector":
+            nodes = {int(n) for n in content.split()}
+            self.result.parity_check_groups.append(nodes)
+
+    def _handle_version(self, content: str) -> None:
+        r"""Handle .version directive.
+
+        Raises
+        ------
+        ValueError
+            If the version is unsupported.
+        """
+        version = int(content)
+        if version != PTN_VERSION:
+            msg = f"Unsupported .ptn version: {version} (expected {PTN_VERSION})"
+            raise ValueError(msg)
+        self.version_found = True
+
+    def _handle_coord(self, content: str) -> None:
+        """Handle .coord directive."""
+        coord_parts = content.split()
+        node = int(coord_parts[0])
+        coord = _parse_coord(coord_parts[1:])
+        self.result.input_coordinates[node] = coord
+
+    def _parse_timeslice(self, line: str) -> None:
+        """Parse timeslice marker [n]."""
+        slice_num = int(line[1:-1])
+        while self.current_timeslice < slice_num - 1:
+            self.result.commands.append(TICK())
+            self.current_timeslice += 1
+        if self.current_timeslice < slice_num:
+            if self.current_timeslice >= 0:
+                self.result.commands.append(TICK())
+            self.current_timeslice = slice_num
+
+    def _parse_command(self, line_num: int, line: str) -> None:
+        r"""Parse a command line.
+
+        Raises
+        ------
+        ValueError
+            If the command type is unknown.
+        """
+        parts = line.split()
+        cmd_type = parts[0]
+
+        if cmd_type == "N":
+            self._parse_n_command(parts)
+        elif cmd_type == "E":
+            self._parse_e_command(parts)
+        elif cmd_type == "M":
+            self._parse_m_command(parts)
+        elif cmd_type == "X":
+            self.result.commands.append(X(node=int(parts[1])))
+        elif cmd_type == "Z":
+            self.result.commands.append(Z(node=int(parts[1])))
+        else:
+            msg = f"Unknown command at line {line_num}: {cmd_type}"
+            raise ValueError(msg)
+
+    def _parse_n_command(self, parts: list[str]) -> None:
+        """Parse N (node) command."""
+        node = int(parts[1])
+        coord: tuple[float, ...] | None = _parse_coord(parts[2:]) if len(parts) > 2 else None  # noqa: PLR2004
+        self.result.commands.append(N(node=node, coordinate=coord))
+
+    def _parse_e_command(self, parts: list[str]) -> None:
+        """Parse E (entangle) command."""
+        node1 = int(parts[1])
+        node2 = int(parts[2])
+        self.result.commands.append(E(nodes=(node1, node2)))
+
+    def _parse_m_command(self, parts: list[str]) -> None:
+        """Parse M (measure) command."""
+        node = int(parts[1])
+        basis_spec = parts[2]
+        meas_basis: MeasBasis
+
+        if basis_spec in {"X", "Y", "Z"}:
+            sign_str = parts[3]
+            sign = Sign.PLUS if sign_str == "+" else Sign.MINUS
+            axis = Axis[basis_spec]
+            meas_basis = AxisMeasBasis(axis, sign)
+        else:
+            plane = Plane[basis_spec]
+            angle = _parse_angle(parts[3])
+            meas_basis = PlannerMeasBasis(plane, angle)
+
+        self.result.commands.append(M(node=node, meas_basis=meas_basis))
+
+
 def loads(s: str) -> PatternData:
     """Deserialize a .ptn format string to pattern components.
 
@@ -419,130 +537,11 @@ def loads(s: str) -> PatternData:
     `PatternData`
         Container with pattern components.
 
-    Raises
-    ------
-    ValueError
-        If the format is invalid or unsupported version.
+    See Also
+    --------
+    _Parser.parse : Internal parser that may raise ValueError for invalid input.
     """
-    result = PatternData()
-
-    current_timeslice = -1
-    version_found = False
-
-    for line_num, line in enumerate(s.splitlines(), 1):
-        # Remove inline comments
-        if "#" in line:
-            line = line[: line.index("#")]
-        line = line.strip()
-
-        # Skip empty lines
-        if not line:
-            continue
-
-        # Parse directives
-        if line.startswith("."):
-            parts = line.split(maxsplit=1)
-            directive = parts[0]
-            content = parts[1] if len(parts) > 1 else ""
-
-            if directive == ".version":
-                version = int(content)
-                if version != PTN_VERSION:
-                    msg = f"Unsupported .ptn version: {version} (expected {PTN_VERSION})"
-                    raise ValueError(msg)
-                version_found = True
-
-            elif directive == ".input":
-                result.input_node_indices = _parse_node_qubit_pairs(content.split())
-
-            elif directive == ".output":
-                result.output_node_indices = _parse_node_qubit_pairs(content.split())
-
-            elif directive == ".coord":
-                coord_parts = content.split()
-                node = int(coord_parts[0])
-                coord = _parse_coord(coord_parts[1:])
-                result.input_coordinates[node] = coord
-
-            elif directive == ".xflow":
-                source, targets = _parse_flow(content)
-                result.xflow[source] = targets
-
-            elif directive == ".zflow":
-                source, targets = _parse_flow(content)
-                result.zflow[source] = targets
-
-            elif directive == ".detector":
-                nodes = {int(n) for n in content.split()}
-                result.parity_check_groups.append(nodes)
-
-            elif directive == ".observable":
-                # Observable parsing - store for future use
-                pass
-
-            continue
-
-        # Parse timeslice header
-        if line.startswith("[") and line.endswith("]"):
-            slice_num = int(line[1:-1])
-            # Add TICK commands for timeslice transitions
-            while current_timeslice < slice_num - 1:
-                result.commands.append(TICK())
-                current_timeslice += 1
-            if current_timeslice < slice_num:
-                if current_timeslice >= 0:
-                    result.commands.append(TICK())
-                current_timeslice = slice_num
-            continue
-
-        # Parse commands
-        parts = line.split()
-        cmd_type = parts[0]
-
-        if cmd_type == "N":
-            node = int(parts[1])
-            n_coord: tuple[float, ...] | None = _parse_coord(parts[2:]) if len(parts) > 2 else None
-            result.commands.append(N(node=node, coordinate=n_coord))
-
-        elif cmd_type == "E":
-            node1 = int(parts[1])
-            node2 = int(parts[2])
-            result.commands.append(E(nodes=(node1, node2)))
-
-        elif cmd_type == "M":
-            node = int(parts[1])
-            basis_spec = parts[2]
-            meas_basis: MeasBasis
-            # Check if this is a Pauli measurement (X/Y/Z with +/-)
-            if basis_spec in {"X", "Y", "Z"}:
-                sign_str = parts[3]
-                sign = Sign.PLUS if sign_str == "+" else Sign.MINUS
-                axis = Axis[basis_spec]
-                meas_basis = AxisMeasBasis(axis, sign)
-            else:
-                # Plane-based measurement (XY/XZ/YZ with angle)
-                plane = Plane[basis_spec]
-                m_angle = _parse_angle(parts[3])
-                meas_basis = PlannerMeasBasis(plane, m_angle)
-            result.commands.append(M(node=node, meas_basis=meas_basis))
-
-        elif cmd_type == "X":
-            node = int(parts[1])
-            result.commands.append(X(node=node))
-
-        elif cmd_type == "Z":
-            node = int(parts[1])
-            result.commands.append(Z(node=node))
-
-        else:
-            msg = f"Unknown command at line {line_num}: {cmd_type}"
-            raise ValueError(msg)
-
-    if not version_found:
-        msg = "Missing .version directive"
-        raise ValueError(msg)
-
-    return result
+    return _Parser().parse(s)
 
 
 def load(file: Path | str) -> PatternData:
