@@ -18,7 +18,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, Command, E, M, N, X, Z
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import (
+    Axis,
+    AxisMeasBasis,
+    MeasBasis,
+    Plane,
+    PlannerMeasBasis,
+    Sign,
+    determine_pauli_axis,
+    is_close_angle,
+)
 
 if TYPE_CHECKING:
     from graphqomb.pattern import Pattern
@@ -233,9 +242,23 @@ def _write_command(out: StringIO, cmd: Command) -> None:
     elif isinstance(cmd, E):
         out.write(f"E {cmd.nodes[0]} {cmd.nodes[1]}\n")
     elif isinstance(cmd, M):
-        plane_name = cmd.meas_basis.plane.name
-        angle_str = _format_angle(cmd.meas_basis.angle)
-        out.write(f"M {cmd.node} {plane_name} {angle_str}\n")
+        # Check if this is a Pauli measurement (X, Y, or Z basis)
+        pauli_axis = determine_pauli_axis(cmd.meas_basis)
+        if pauli_axis is not None:
+            # Determine sign based on angle
+            angle = cmd.meas_basis.angle
+            if pauli_axis == Axis.Y:
+                # Y measurement: +Y at pi/2, -Y at 3pi/2
+                sign = "+" if is_close_angle(angle, math.pi / 2) else "-"
+            else:
+                # X or Z measurement: + at 0, - at pi
+                sign = "+" if is_close_angle(angle, 0.0) else "-"
+            out.write(f"M {cmd.node} {pauli_axis.name} {sign}\n")
+        else:
+            # Non-Pauli measurement: use plane and angle
+            plane_name = cmd.meas_basis.plane.name
+            angle_str = _format_angle(cmd.meas_basis.angle)
+            out.write(f"M {cmd.node} {plane_name} {angle_str}\n")
     elif isinstance(cmd, X):
         out.write(f"X {cmd.node}\n")
     elif isinstance(cmd, Z):
@@ -488,9 +511,19 @@ def loads(s: str) -> PatternData:
 
         elif cmd_type == "M":
             node = int(parts[1])
-            plane = Plane[parts[2]]
-            angle = _parse_angle(parts[3])
-            meas_basis = PlannerMeasBasis(plane, angle)
+            basis_spec = parts[2]
+            meas_basis: MeasBasis
+            # Check if this is a Pauli measurement (X/Y/Z with +/-)
+            if basis_spec in {"X", "Y", "Z"}:
+                sign_str = parts[3]
+                sign = Sign.PLUS if sign_str == "+" else Sign.MINUS
+                axis = Axis[basis_spec]
+                meas_basis = AxisMeasBasis(axis, sign)
+            else:
+                # Plane-based measurement (XY/XZ/YZ with angle)
+                plane = Plane[basis_spec]
+                m_angle = _parse_angle(parts[3])
+                meas_basis = PlannerMeasBasis(plane, m_angle)
             result.commands.append(M(node=node, meas_basis=meas_basis))
 
         elif cmd_type == "X":

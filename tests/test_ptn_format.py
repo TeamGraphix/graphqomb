@@ -74,15 +74,15 @@ def test_dumps_coordinates():
     assert ".coord 0 0.0 0.0" in ptn_str
 
 
-def test_dumps_measurement_angles():
-    """Test that measurement angles are correctly formatted."""
+def test_dumps_pauli_measurements():
+    """Test that Pauli measurements are correctly formatted with +/- signs."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
 
-    # pi/2 should be formatted as "pi/2"
-    assert "pi/2" in ptn_str
-    # 0.0 should be formatted as "0"
-    assert "XY 0" in ptn_str
+    # X measurement (XY plane, angle 0) should be formatted as "X +"
+    assert "M 0 X +" in ptn_str
+    # Y measurement (XY plane, angle pi/2) should be formatted as "Y +"
+    assert "M 1 Y +" in ptn_str
 
 
 def test_loads_basic():
@@ -183,6 +183,46 @@ M 4 XY 3pi/4
     assert math.isclose(angles[2], math.pi / 2)
     assert math.isclose(angles[3], math.pi / 4)
     assert math.isclose(angles[4], 3 * math.pi / 4)
+
+
+def test_loads_pauli_measurements():
+    """Test parsing of Pauli measurement format (X/Y/Z +/-)."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 6:0
+
+[0]
+M 0 X +
+M 1 X -
+M 2 Y +
+M 3 Y -
+M 4 Z +
+M 5 Z -
+"""
+    result = loads(ptn_str)
+
+    measurements = [c for c in result.commands if isinstance(c, M)]
+    assert len(measurements) == 6
+
+    # Check that Pauli measurements are parsed correctly
+    m0 = next(m for m in measurements if m.node == 0)
+    assert math.isclose(m0.meas_basis.angle, 0.0)  # X +
+
+    m1 = next(m for m in measurements if m.node == 1)
+    assert math.isclose(m1.meas_basis.angle, math.pi)  # X -
+
+    m2 = next(m for m in measurements if m.node == 2)
+    assert math.isclose(m2.meas_basis.angle, math.pi / 2)  # Y +
+
+    m3 = next(m for m in measurements if m.node == 3)
+    assert math.isclose(m3.meas_basis.angle, 3 * math.pi / 2)  # Y -
+
+    m4 = next(m for m in measurements if m.node == 4)
+    assert math.isclose(m4.meas_basis.angle, 0.0)  # Z +
+
+    m5 = next(m for m in measurements if m.node == 5)
+    assert math.isclose(m5.meas_basis.angle, math.pi)  # Z -
 
 
 def test_loads_flow_parsing():
