@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `DepolarizingNoiseModel` for single and two-qubit depolarizing noise
   - Added `MeasurementFlipNoiseModel` for measurement bit-flip errors using Stim's built-in `MX(p)` syntax
 
+- **Pattern**: Added `depth_of()` method to count time slices containing specific command types (e.g., measurement depth via `pattern.depth_of((M,))`)
+
 - **Stim Compiler Enhancement**: Extended `stim_compile()` to accept `noise_models` parameter
   - Support for multiple noise models via `Sequence[NoiseModel]`
   - Added `tick_duration` parameter for idle noise calculations
