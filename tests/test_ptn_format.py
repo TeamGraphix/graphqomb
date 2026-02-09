@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -20,9 +21,18 @@ from graphqomb.ptn_format import (
 )
 from graphqomb.qompiler import qompile
 
+if TYPE_CHECKING:
+    from graphqomb.pattern import Pattern
 
-def create_simple_pattern():
-    """Create a simple pattern for testing."""
+
+def create_simple_pattern() -> Pattern:
+    """Create a simple pattern for testing.
+
+    Returns
+    -------
+    Pattern
+        A compiled MBQC pattern for testing.
+    """
     graph = GraphState()
     in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
     mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
@@ -38,12 +48,10 @@ def create_simple_pattern():
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
 
     xflow = {in_node: {mid_node}, mid_node: {out_node}}
-    pattern = qompile(graph, xflow)
-
-    return pattern
+    return qompile(graph, xflow)
 
 
-def test_dumps_basic():
+def test_dumps_basic() -> None:
     """Test basic pattern serialization."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
@@ -55,7 +63,7 @@ def test_dumps_basic():
     assert "#======== CLASSICAL ========" in ptn_str
 
 
-def test_dumps_contains_commands():
+def test_dumps_contains_commands() -> None:
     """Test that dumps includes all command types."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
@@ -66,7 +74,7 @@ def test_dumps_contains_commands():
     assert "M " in ptn_str  # Measurement
 
 
-def test_dumps_coordinates():
+def test_dumps_coordinates() -> None:
     """Test that coordinates are correctly serialized."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
@@ -74,7 +82,7 @@ def test_dumps_coordinates():
     assert ".coord 0 0.0 0.0" in ptn_str
 
 
-def test_dumps_pauli_measurements():
+def test_dumps_pauli_measurements() -> None:
     """Test that Pauli measurements are correctly formatted with +/- signs."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
@@ -85,7 +93,7 @@ def test_dumps_pauli_measurements():
     assert "M 1 Y +" in ptn_str
 
 
-def test_loads_basic():
+def test_loads_basic() -> None:
     """Test basic pattern deserialization."""
     ptn_str = """# Test pattern
 .version 1
@@ -110,7 +118,7 @@ M 0 XY 0
     assert result.input_coordinates == {0: (0.0, 0.0)}
 
 
-def test_loads_commands():
+def test_loads_commands() -> None:
     """Test that commands are correctly parsed."""
     ptn_str = """
 .version 1
@@ -138,7 +146,7 @@ Z 2
     assert any(isinstance(c, Z) and c.node == 2 for c in commands)
 
 
-def test_loads_timeslices():
+def test_loads_timeslices() -> None:
     """Test that timeslice markers generate TICK commands."""
     ptn_str = """
 .version 1
@@ -159,7 +167,7 @@ M 1 XY 0
     assert tick_count == 2
 
 
-def test_loads_angle_parsing():
+def test_loads_angle_parsing() -> None:
     """Test various angle format parsing."""
     ptn_str = """
 .version 1
@@ -185,7 +193,7 @@ M 4 XY 3pi/4
     assert math.isclose(angles[4], 3 * math.pi / 4)
 
 
-def test_loads_pauli_measurements():
+def test_loads_pauli_measurements() -> None:
     """Test parsing of Pauli measurement format (X/Y/Z +/-)."""
     ptn_str = """
 .version 1
@@ -225,7 +233,7 @@ M 5 Z -
     assert math.isclose(m5.meas_basis.angle, math.pi)  # Z -
 
 
-def test_loads_flow_parsing():
+def test_loads_flow_parsing() -> None:
     """Test xflow and zflow parsing."""
     ptn_str = """
 .version 1
@@ -246,7 +254,7 @@ M 0 XY 0
     assert result.zflow == {0: {3, 4}}
 
 
-def test_loads_detector_parsing():
+def test_loads_detector_parsing() -> None:
     """Test detector (parity check group) parsing."""
     ptn_str = """
 .version 1
@@ -266,7 +274,7 @@ M 0 XY 0
     assert result.parity_check_groups[1] == {3, 4}
 
 
-def test_loads_missing_version():
+def test_loads_missing_version() -> None:
     """Test that missing version raises ValueError."""
     ptn_str = """
 .input 0:0
@@ -274,22 +282,22 @@ def test_loads_missing_version():
 [0]
 M 0 XY 0
 """
-    with pytest.raises(ValueError, match="Missing .version directive"):
+    with pytest.raises(ValueError, match=r"Missing \.version directive"):
         loads(ptn_str)
 
 
-def test_loads_unsupported_version():
+def test_loads_unsupported_version() -> None:
     """Test that unsupported version raises ValueError."""
     ptn_str = """
 .version 99
 .input 0:0
 .output 1:0
 """
-    with pytest.raises(ValueError, match="Unsupported .ptn version"):
+    with pytest.raises(ValueError, match=r"Unsupported \.ptn version"):
         loads(ptn_str)
 
 
-def test_loads_unknown_command():
+def test_loads_unknown_command() -> None:
     """Test that unknown command raises ValueError."""
     ptn_str = """
 .version 1
@@ -303,7 +311,7 @@ UNKNOWN 0
         loads(ptn_str)
 
 
-def test_roundtrip():
+def test_roundtrip() -> None:
     """Test that dumps followed by loads preserves data."""
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
@@ -319,7 +327,7 @@ def test_roundtrip():
     assert original_count == parsed_count
 
 
-def test_dump_and_load_file():
+def test_dump_and_load_file() -> None:
     """Test file I/O operations."""
     pattern = create_simple_pattern()
 
@@ -340,7 +348,7 @@ def test_dump_and_load_file():
         assert result.output_node_indices == pattern.output_node_indices
 
 
-def test_multiple_input_output_qubits():
+def test_multiple_input_output_qubits() -> None:
     """Test pattern with multiple input/output qubits."""
     graph = GraphState()
     in0 = graph.add_physical_node()
@@ -369,7 +377,7 @@ def test_multiple_input_output_qubits():
     assert len(result.output_node_indices) == 2
 
 
-def test_3d_coordinates():
+def test_3d_coordinates() -> None:
     """Test 3D coordinate serialization and parsing."""
     ptn_str = """
 .version 1
@@ -390,7 +398,7 @@ M 0 XY 0
     assert n_cmd.coordinate == (4.0, 5.0, 6.0)
 
 
-def test_different_measurement_planes():
+def test_different_measurement_planes() -> None:
     """Test all measurement planes are correctly handled."""
     ptn_str = """
 .version 1
@@ -412,7 +420,7 @@ M 2 YZ pi/4
     assert planes[2] == Plane.YZ
 
 
-def test_empty_flow():
+def test_empty_flow() -> None:
     """Test pattern with empty flow mappings."""
     ptn_str = """
 .version 1
@@ -430,7 +438,7 @@ M 0 XY 0
     assert result.zflow == {}
 
 
-def test_comments_ignored():
+def test_comments_ignored() -> None:
     """Test that comments are properly ignored."""
     ptn_str = """
 # This is a comment
