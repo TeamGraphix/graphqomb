@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **PTN Format**: Human-readable text format (`.ptn`) for pattern serialization
+  - `ptn_format.dumps()` / `ptn_format.dump()`: Serialize patterns to text
+  - `ptn_format.loads()` / `ptn_format.load()`: Deserialize patterns from text
+  - Format separates quantum instructions and classical feedforward processing
+  - Timeslice markers `[n]` indicate parallel execution groups
+  - Pauli measurements use compact notation (`X +`, `Y -`, `Z +`)
+  - Non-Pauli measurements use plane+angle format (`XY pi/4`)
+  - Support for node coordinates and inline comments
+
 ## [0.2.1] - 2026-01-16
 
 ### Added
