@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphqomb.command import TICK, E, M, N, X, Z
+from graphqomb.command import TICK, Command, E, M, N, X, Z
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 from graphqomb.pattern import Pattern
@@ -92,6 +92,169 @@ def test_pattern_depth_is_zero_without_ticks(
     )
 
     assert pattern.depth == 0
+
+
+# Tests for depth_of
+
+
+def test_depth_of_counts_slices_with_measurements(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of counts only slices containing specified command types."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
+    # Slice 0: N, E (no M) | Slice 1: M | Slice 2: X, Z (no M)
+    commands = (
+        N(node=nodes[1]),
+        E(nodes=(nodes[0], nodes[1])),
+        TICK(),
+        M(node=nodes[1], meas_basis=meas_basis),
+        TICK(),
+        X(node=nodes[2]),
+        Z(node=nodes[2]),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((M,)) == 1
+
+
+def test_depth_of_counts_slices_with_multiple_types(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of counts slices containing any of the specified types."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
+    # Slice 0: N (has N) | Slice 1: M (has M) | Slice 2: X, Z (no N or M)
+    commands = (
+        N(node=nodes[1]),
+        TICK(),
+        M(node=nodes[1], meas_basis=meas_basis),
+        TICK(),
+        X(node=nodes[2]),
+        Z(node=nodes[2]),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((N, M)) == 2
+
+
+def test_depth_of_returns_zero_when_no_match(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of returns zero when no slice contains specified types."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    commands = (
+        N(node=nodes[1]),
+        TICK(),
+        E(nodes=(nodes[0], nodes[1])),
+        TICK(),
+        X(node=nodes[2]),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((M,)) == 0
+
+
+def test_depth_of_with_no_ticks(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of treats commands without TICKs as a single implicit slice."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
+    commands = (
+        N(node=nodes[1]),
+        M(node=nodes[1], meas_basis=meas_basis),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((M,)) == 1
+
+
+def test_depth_of_counts_last_slice_after_final_tick(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of counts commands after the final TICK."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
+    # Slice 0: N | TICK | Slice 1: M (after final TICK)
+    commands = (
+        N(node=nodes[1]),
+        TICK(),
+        M(node=nodes[1], meas_basis=meas_basis),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((M,)) == 1
+
+
+def test_depth_of_with_tick_type_returns_zero(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that passing TICK as a command type returns zero."""
+    input_nodes, output_nodes, pauli_frame, nodes = pattern_components
+    meas_basis = PlannerMeasBasis(Plane.XY, 0.0)
+    commands = (
+        N(node=nodes[1]),
+        TICK(),
+        M(node=nodes[1], meas_basis=meas_basis),
+        TICK(),
+    )
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((TICK,)) == 0
+
+
+def test_depth_of_empty_commands(
+    pattern_components: tuple[dict[int, int], dict[int, int], PauliFrame, list[int]],
+) -> None:
+    """Test that depth_of returns zero for an empty pattern."""
+    input_nodes, output_nodes, pauli_frame, _ = pattern_components
+    commands: tuple[Command, ...] = ()
+
+    pattern = Pattern(
+        input_node_indices=input_nodes,
+        output_node_indices=output_nodes,
+        commands=commands,
+        pauli_frame=pauli_frame,
+    )
+
+    assert pattern.depth_of((M,)) == 0
 
 
 # Tests for active_volume

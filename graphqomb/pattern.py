@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import typing
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, Command, E, M, N, X, Z
@@ -102,6 +102,35 @@ class Pattern(Sequence[Command]):
             Depth of the pattern
         """
         return sum(1 for cmd in self.commands if isinstance(cmd, TICK))
+
+    def depth_of(self, command_types: Collection[type[Command]]) -> int:
+        """Count the number of time slices containing at least one command of the specified types.
+
+        Parameters
+        ----------
+        command_types : `collections.abc.Collection`[`type`[`Command`]]
+            Command types to filter by.
+
+        Returns
+        -------
+        `int`
+            Number of time slices containing at least one matching command.
+        """
+        if not command_types:
+            return 0
+        types = tuple(command_types)
+        count = 0
+        found_in_slice = False
+        for cmd in self.commands:
+            if isinstance(cmd, TICK):
+                if found_in_slice:
+                    count += 1
+                found_in_slice = False
+            elif isinstance(cmd, types):
+                found_in_slice = True
+        if found_in_slice:
+            count += 1
+        return count
 
     @property
     def coordinates(self) -> dict[int, tuple[float, ...]]:
