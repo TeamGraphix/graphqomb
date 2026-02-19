@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Circuit Conversion**: Added circuit-derived pre-scheduling support in `circuit2graph()`.
+  - Added `CircuitScheduleStrategy` with `PARALLEL` and `MINIMIZE_SPACE`.
+  - Added `schedule_strategy` argument to `circuit2graph()`.
+  - `circuit2graph()` now returns `(graph, gflow, scheduler)` and pre-populates `Scheduler` via manual scheduling.
+
+### Changed
+
+- **Graph State**: Made `meas_bases` read-only by returning `MappingProxyType` to avoid external mutation.
+- **Graph State**: Added caching for `physical_nodes` snapshots and proper cache invalidation on node add/remove.
+- **Docs/Examples**: Updated circuit conversion usage in README and `examples/pattern_from_circuit.py` for the new `circuit2graph()` return signature.
+
+### Fixed
+
+- **Feedforward**: Fixed self-loop removal in `dag_from_flow()` by correcting operator precedence so self-loops are removed from combined `xflow`/`zflow` dependencies.
+- **Pauli Frame**: Initialize `_pauli_axis_cache` only when FTQC parity-check groups are provided, avoiding unnecessary cache creation in non-FTQC usage.
+
+### Tests
+
+- **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
+- **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
+- **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
+
 ## [0.2.1] - 2026-01-16
 
 ### Added
