@@ -10,6 +10,14 @@ import pytest
 from graphqomb.command import TICK, E
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
+from graphqomb.noise_model import (
+    DepolarizingNoiseModel,
+    HeraldedPauliChannel1,
+    MeasureEvent,
+    MeasurementFlip,
+    MeasurementFlipNoiseModel,
+    NoiseModel,
+)
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
@@ -42,6 +50,7 @@ def create_simple_pattern_x_measurement() -> tuple[Pattern, int, int]:
     # X measurement: XY plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     pattern = qompile(graph, xflow)
@@ -72,6 +81,7 @@ def create_simple_pattern_y_measurement() -> tuple[Pattern, int, int]:
     # Y measurement: XY plane with angle π/2
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     pattern = qompile(graph, xflow)
@@ -102,6 +112,7 @@ def create_simple_pattern_z_measurement() -> tuple[Pattern, int, int]:
     # Z measurement: XZ plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XZ, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XZ, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XZ, 0.0))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     pattern = qompile(graph, xflow)
@@ -156,57 +167,105 @@ def test_stim_compile_z_measurement() -> None:
 
 
 def test_stim_compile_with_depolarization() -> None:
-    """Test that depolarization error is correctly inserted."""
+    """Test that depolarization error is correctly inserted using DepolarizingNoiseModel."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, p_depol_after_clifford=0.01)
+    stim_str = stim_compile(pattern, noise_models=[DepolarizingNoiseModel(p1=0.01)])
 
     # Check DEPOLARIZE instructions are present
     assert "DEPOLARIZE1(0.01)" in stim_str
     assert "DEPOLARIZE2(0.01)" in stim_str
 
 
-def test_stim_compile_with_measurement_errors_x() -> None:
-    """Test that X measurement errors are correctly inserted."""
+def test_stim_compile_with_legacy_depolarization_parameter() -> None:
+    """Legacy depolarization parameter should still work with a deprecation warning."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    with pytest.warns(DeprecationWarning, match="p_depol_after_clifford"):
+        stim_str = stim_compile(pattern, p_depol_after_clifford=0.01)
 
-    # For X measurement, Z_ERROR should be inserted before MX
-    assert "Z_ERROR(0.01)" in stim_str
-    lines = stim_str.split("\n")
-    for i, line in enumerate(lines):
-        if "Z_ERROR(0.01)" in line and i + 1 < len(lines):
-            # Next non-empty line should be MX
-            next_line = lines[i + 1]
-            assert "MX" in next_line
+    assert "DEPOLARIZE1(0.01)" in stim_str
+    assert "DEPOLARIZE2(0.01)" in stim_str
+
+
+def test_stim_compile_with_measurement_errors_x() -> None:
+    """Test that X measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
+
+    # For X measurement, error probability is attached to MX instruction
+    assert "MX(0.01)" in stim_str
+
+
+def test_stim_compile_with_legacy_measurement_flip_parameter() -> None:
+    """Legacy measurement flip parameter should still work with a deprecation warning."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    with pytest.warns(DeprecationWarning, match="p_before_meas_flip"):
+        stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+
+    assert "MX(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_y() -> None:
-    """Test that Y measurement errors are correctly inserted."""
+    """Test that Y measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_y_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
-    # For Y measurement, both X_ERROR and Z_ERROR should be inserted before MY
-    assert "X_ERROR(0.01)" in stim_str
-    assert "Z_ERROR(0.01)" in stim_str
+    # For Y measurement, error probability is attached to MY instruction
+    assert "MY(0.01)" in stim_str
 
 
 def test_stim_compile_with_measurement_errors_z() -> None:
-    """Test that Z measurement errors are correctly inserted."""
+    """Test that Z measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_z_measurement()
 
-    stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
+    stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
-    # For Z measurement, X_ERROR should be inserted before MZ
-    assert "X_ERROR(0.01)" in stim_str
-    lines = stim_str.split("\n")
-    for i, line in enumerate(lines):
-        if "X_ERROR(0.01)" in line and i + 1 < len(lines):
-            # Next non-empty line should be MZ
-            next_line = lines[i + 1]
-            assert "MZ" in next_line
+    # For Z measurement, error probability is attached to MZ instruction
+    assert "MZ(0.01)" in stim_str
+
+
+def test_stim_compile_combines_measurement_flip_probabilities() -> None:
+    """Multiple MeasurementFlip models should combine as independent events."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    stim_str = stim_compile(
+        pattern,
+        noise_models=[
+            MeasurementFlipNoiseModel(p=0.1),
+            MeasurementFlipNoiseModel(p=0.2),
+        ],
+    )
+
+    expected = 1.0 - (1.0 - 0.1) * (1.0 - 0.2)
+    mx_lines = [line for line in stim_str.splitlines() if line.startswith("MX(")]
+    assert mx_lines
+    for line in mx_lines:
+        prob = float(line.split("(", 1)[1].split(")", 1)[0])
+        assert math.isclose(prob, expected)
+
+
+def test_stim_compile_rejects_mixed_legacy_and_noise_models() -> None:
+    """Legacy noise parameters cannot be used together with noise_models."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    with pytest.raises(ValueError, match="cannot be used together with noise_models"):
+        stim_compile(
+            pattern,
+            noise_models=[DepolarizingNoiseModel(p1=0.01)],
+            p_depol_after_clifford=0.01,
+        )
+
+
+def test_stim_compile_validates_legacy_probability_parameters() -> None:
+    """Legacy probability parameters should be validated before compilation."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    with pytest.raises(ValueError, match="must be within \\[0, 1\\]"):
+        stim_compile(pattern, p_before_meas_flip=1.1)
 
 
 def test_stim_compile_with_detectors() -> None:
@@ -225,6 +284,7 @@ def test_stim_compile_with_detectors() -> None:
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     # Add parity check groups
@@ -237,6 +297,93 @@ def test_stim_compile_with_detectors() -> None:
     assert "DETECTOR" in stim_str
     # DETECTOR may be empty if the dependent chain resolves to empty set
     # This is valid behavior for certain graph configurations
+
+
+class _HeraldedNoise(NoiseModel):
+    """Test noise model that adds heralded Pauli channel on measurements."""
+
+    def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
+        return [HeraldedPauliChannel1(0.0, 0.0, 0.0, 0.1, targets=[event.node.id])]
+
+
+class _MismatchedMeasurementFlipNoise(NoiseModel):
+    """Test noise model with intentionally mismatched MeasurementFlip target."""
+
+    def on_measure(self, event: MeasureEvent) -> list[MeasurementFlip]:
+        return [MeasurementFlip(p=0.1, target=event.node.id + 999)]
+
+
+def _parse_stim_measurements(stim_str: str) -> tuple[dict[int, int], int]:
+    """Parse stim string to extract measurement order and total record count."""
+    rec_index = 0
+    actual_meas_order: dict[int, int] = {}
+    for raw_line in stim_str.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        opcode = stripped.split()[0].split("(", 1)[0]
+        if opcode == "HERALDED_PAULI_CHANNEL_1":
+            targets = stripped.split(")", 1)[1].strip().split()
+            rec_index += len(targets)
+        elif opcode in {"MX", "MY", "MZ"}:
+            node = int(stripped.split()[1])
+            actual_meas_order[node] = rec_index
+            rec_index += 1
+    return actual_meas_order, rec_index
+
+
+def _normalize_detector(line: str) -> str:
+    """Normalize detector line by sorting targets."""
+    parts = line.strip().split()
+    if len(parts) <= 1:
+        return "DETECTOR"
+    targets = sorted(parts[1:])
+    return f"DETECTOR {' '.join(targets)}"
+
+
+def test_stim_compile_with_heralded_noise_updates_detectors() -> None:
+    """Heralded noise should shift rec indices used by detectors."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    meas_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = 0
+    graph.register_input(in_node, q_idx)
+    graph.register_output(out_node, q_idx)
+
+    graph.add_physical_edge(in_node, meas_node)
+    graph.add_physical_edge(meas_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {in_node: {meas_node}, meas_node: {out_node}}
+    parity_check_group = [{in_node}]
+    pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
+
+    stim_str = stim_compile(pattern, noise_models=[_HeraldedNoise()])
+
+    actual_meas_order, total_measurements = _parse_stim_measurements(stim_str)
+
+    check_groups = pattern.pauli_frame.detector_groups()
+    expected_detectors = {
+        _normalize_detector(
+            f"DETECTOR {' '.join(f'rec[{actual_meas_order[check] - total_measurements}]' for check in checks)}"
+        )
+        for checks in check_groups
+    }
+    actual_detectors = {_normalize_detector(line) for line in stim_str.splitlines() if line.startswith("DETECTOR")}
+    assert expected_detectors == actual_detectors
+
+
+def test_stim_compile_rejects_mismatched_measurement_flip_target() -> None:
+    """MeasurementFlip target must match the current measurement node."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    with pytest.raises(ValueError, match="MeasurementFlip target mismatch"):
+        stim_compile(pattern, noise_models=[_MismatchedMeasurementFlipNoise()])
 
 
 def test_stim_compile_with_logical_observables() -> None:
@@ -271,12 +418,33 @@ def test_stim_compile_unsupported_basis() -> None:
     # Non-Pauli measurement: XY plane with arbitrary angle
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.1))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.1))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.1))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     pattern = qompile(graph, xflow)
 
     # Should raise ValueError for unsupported measurement basis
     with pytest.raises(ValueError, match="Unsupported measurement basis"):
+        stim_compile(pattern)
+
+
+def test_stim_compile_unsupported_output_corrections() -> None:
+    """Test that X/Z correction commands in a pattern raise NotImplementedError."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = 0
+    graph.register_input(in_node, q_idx)
+    graph.register_output(out_node, q_idx)
+
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {in_node: {out_node}}
+    pattern = qompile(graph, xflow)
+
+    with pytest.raises(NotImplementedError, match="X/Z correction commands are not supported"):
         stim_compile(pattern)
 
 
@@ -292,6 +460,7 @@ def test_stim_compile_empty_pattern() -> None:
 
     graph.add_physical_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {out_node}}
     pattern = qompile(graph, xflow)
@@ -320,6 +489,7 @@ def test_stim_compile_axis_meas_basis() -> None:
     # Use AxisMeasBasis instead of PlannerMeasBasis
     graph.assign_meas_basis(in_node, AxisMeasBasis(Axis.X, Sign.PLUS))
     graph.assign_meas_basis(meas_node, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    graph.assign_meas_basis(out_node, AxisMeasBasis(Axis.X, Sign.PLUS))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     pattern = qompile(graph, xflow)
@@ -346,6 +516,7 @@ def test_stim_compile_with_tick_commands() -> None:
 
     graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node2, PlannerMeasBasis(Plane.XY, 0.0))
 
     flow = {node0: {node1}, node1: {node2}}
     scheduler = Scheduler(graph, flow)
@@ -435,6 +606,7 @@ def test_stim_compile_respects_manual_entangle_time() -> None:
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     scheduler = Scheduler(graph, {in_node: {mid_node}, mid_node: {out_node}})
 
@@ -479,6 +651,7 @@ def test_stim_compile_with_coordinates() -> None:
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}})
     stim_str = stim_compile(pattern)
@@ -500,6 +673,7 @@ def test_stim_compile_with_3d_coordinates() -> None:
 
     graph.add_physical_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     pattern = qompile(graph, {in_node: {out_node}})
     stim_str = stim_compile(pattern)
@@ -519,6 +693,7 @@ def test_stim_compile_without_coordinates() -> None:
 
     graph.add_physical_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     pattern = qompile(graph, {in_node: {out_node}})
     stim_str = stim_compile(pattern, emit_qubit_coords=False)
@@ -541,6 +716,7 @@ def test_pattern_coordinates_property() -> None:
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}})
 
