@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from graphqomb.common import Plane, PlannerMeasBasis
@@ -90,9 +92,9 @@ def test_from_graph_with_meas_bases() -> None:
     assert node_map[nodes[2]] not in gs.meas_bases
     # Check that the measurement bases have the correct attributes
     assert gs.meas_bases[node_map[nodes[0]]].plane == Plane.XY
-    assert gs.meas_bases[node_map[nodes[0]]].angle == 0.0
+    assert math.isclose(gs.meas_bases[node_map[nodes[0]]].angle, 0.0)
     assert gs.meas_bases[node_map[nodes[1]]].plane == Plane.XY
-    assert gs.meas_bases[node_map[nodes[1]]].angle == 1.5708
+    assert math.isclose(gs.meas_bases[node_map[nodes[1]]].angle, 1.5708)
 
 
 def test_from_graph_with_partial_meas_bases() -> None:
@@ -190,9 +192,9 @@ def test_from_base_graph_state_simple() -> None:
     assert 0 in dst.meas_bases
     assert 1 in dst.meas_bases
     assert dst.meas_bases[0].plane == Plane.XY
-    assert dst.meas_bases[0].angle == 0.0
+    assert math.isclose(dst.meas_bases[0].angle, 0.0)
     assert dst.meas_bases[1].plane == Plane.XY
-    assert dst.meas_bases[1].angle == 1.5708
+    assert math.isclose(dst.meas_bases[1].angle, 1.5708)
 
 
 def test_from_base_graph_state_preserves_indices() -> None:

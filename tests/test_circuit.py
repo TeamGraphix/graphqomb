@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 
 import numpy as np
 import pytest
@@ -42,7 +43,7 @@ def test_mbqc_circuit_j_gate() -> None:
     assert len(instructions) == 1
     assert isinstance(instructions[0], J)
     assert instructions[0].qubit == 0
-    assert instructions[0].angle == 0.5
+    assert math.isclose(instructions[0].angle, 0.5)
 
 
 def test_mbqc_circuit_cz_gate() -> None:
@@ -63,7 +64,7 @@ def test_mbqc_circuit_phase_gadget() -> None:
     assert len(instructions) == 1
     assert isinstance(instructions[0], PhaseGadget)
     assert instructions[0].qubits == [0, 1, 3]
-    assert instructions[0].angle == 0.25
+    assert math.isclose(instructions[0].angle, 0.25)
 
 
 def test_mbqc_circuit_multiple_gates() -> None:
@@ -277,7 +278,7 @@ def test_circuit2graph_phase_gadget_circuit() -> None:
     basis = graph.meas_bases[pg_node]
     assert isinstance(basis, PlannerMeasBasis)
     assert basis.plane == Plane.YZ
-    assert basis.angle == 0.25
+    assert math.isclose(basis.angle, 0.25)
 
 
 def test_circuit2graph_empty_circuit() -> None:

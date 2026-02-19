@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 
@@ -187,10 +189,10 @@ def test_register_output_raises_1(graph: GraphState) -> None:
 def test_assign_meas_basis(graph: GraphState) -> None:
     """Test setting the measurement basis of a physical node."""
     node_index = graph.add_physical_node()
-    meas_basis = PlannerMeasBasis(Plane.XZ, 0.5 * np.pi)
+    meas_basis = PlannerMeasBasis(Plane.XZ, 0.5 * math.pi)
     graph.assign_meas_basis(node_index, meas_basis)
     assert graph.meas_bases[node_index].plane == Plane.XZ
-    assert graph.meas_bases[node_index].angle == 0.5 * np.pi
+    assert math.isclose(graph.meas_bases[node_index].angle, 0.5 * math.pi)
 
 
 def test_check_canonical_form_true(canonical_graph: GraphState) -> None:
