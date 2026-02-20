@@ -5,24 +5,20 @@ from __future__ import annotations
 import math
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
 from graphqomb.command import TICK, E, M, N, X, Z
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
+from graphqomb.pattern import Pattern
 from graphqomb.ptn_format import (
-    PatternData,
     dump,
     dumps,
     load,
     loads,
 )
 from graphqomb.qompiler import qompile
-
-if TYPE_CHECKING:
-    from graphqomb.pattern import Pattern
 
 
 def create_simple_pattern() -> Pattern:
@@ -104,15 +100,17 @@ def test_loads_basic() -> None:
 #======== QUANTUM ========
 [0]
 N 1
+N 2
 E 0 1
 M 0 XY 0
+M 1 XY 0
 
 #======== CLASSICAL ========
-.xflow 0 -> 1
-"""
+    .xflow 0 -> 1
+    """
     result = loads(ptn_str)
 
-    assert isinstance(result, PatternData)
+    assert isinstance(result, Pattern)
     assert result.input_node_indices == {0: 0}
     assert result.output_node_indices == {2: 0}
     assert result.input_coordinates == {0: (0.0, 0.0)}
@@ -128,9 +126,11 @@ def test_loads_commands() -> None:
 [0]
 N 1
 N 3 1.0 2.0
+N 2
 E 0 1
 M 0 XY 0
 M 1 XY pi/2
+M 3 XY 0
 X 2
 Z 2
 """
@@ -154,11 +154,11 @@ def test_loads_timeslices() -> None:
 .output 1:0
 
 [0]
+N 1
 E 0 1
 [1]
 M 0 XY 0
 [2]
-M 1 XY 0
 """
     result = loads(ptn_str)
 
@@ -175,6 +175,11 @@ def test_loads_angle_parsing() -> None:
 .output 5:0
 
 [0]
+N 1
+N 2
+N 3
+N 4
+N 5
 M 0 XY 0
 M 1 XY pi
 M 2 XY pi/2
@@ -201,6 +206,12 @@ def test_loads_pauli_measurements() -> None:
 .output 6:0
 
 [0]
+N 1
+N 2
+N 3
+N 4
+N 5
+N 6
 M 0 X +
 M 1 X -
 M 2 Y +
@@ -242,16 +253,18 @@ def test_loads_flow_parsing() -> None:
 
 [0]
 N 1
+N 2
 E 0 1
 M 0 XY 0
+M 1 XY 0
 
 .xflow 0 -> 1 2
-.zflow 0 -> 3 4
+.zflow 0 -> 0 1
 """
     result = loads(ptn_str)
 
-    assert result.xflow == {0: {1, 2}}
-    assert result.zflow == {0: {3, 4}}
+    assert result.pauli_frame.xflow == {0: {1, 2}}
+    assert result.pauli_frame.zflow == {0: {0, 1}}
 
 
 def test_loads_detector_parsing() -> None:
@@ -262,16 +275,41 @@ def test_loads_detector_parsing() -> None:
 .output 2:0
 
 [0]
+N 1
+N 2
 M 0 XY 0
+M 1 XY 0
 
-.detector 0 1 2
-.detector 3 4
+.detector 0 1
+.detector 1
 """
     result = loads(ptn_str)
 
-    assert len(result.parity_check_groups) == 2
-    assert result.parity_check_groups[0] == {0, 1, 2}
-    assert result.parity_check_groups[1] == {3, 4}
+    assert len(result.pauli_frame.parity_check_group) == 2
+    assert result.pauli_frame.parity_check_group[0] == {0, 1}
+    assert result.pauli_frame.parity_check_group[1] == {1}
+
+
+def test_loads_observable_parsing() -> None:
+    """Test logical observable parsing."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 2:0
+
+[0]
+N 1
+N 2
+M 0 XY 0
+M 1 XY 0
+
+.observable 0 0 1
+.observable 1
+"""
+    result = loads(ptn_str)
+
+    assert result.pauli_frame.logical_observables[0] == {0, 1}
+    assert result.pauli_frame.logical_observables[1] == set()
 
 
 def test_loads_missing_version() -> None:
@@ -348,6 +386,23 @@ def test_dump_and_load_file() -> None:
         assert result.output_node_indices == pattern.output_node_indices
 
 
+def test_dump_contains_observable_directive() -> None:
+    """Test that dumps includes observable directives."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {out_node}}, logical_observables={0: {in_node}})
+    ptn_str = dumps(pattern)
+
+    assert ".observable 0 0" in ptn_str
+
+
 def test_multiple_input_output_qubits() -> None:
     """Test pattern with multiple input/output qubits."""
     graph = GraphState()
@@ -406,6 +461,9 @@ def test_different_measurement_planes() -> None:
 .output 3:0
 
 [0]
+N 1
+N 2
+N 3
 M 0 XY pi/4
 M 1 XZ pi/4
 M 2 YZ pi/4
@@ -428,14 +486,15 @@ def test_empty_flow() -> None:
 .output 1:0
 
 [0]
+N 1
 M 0 XY 0
 
 #======== CLASSICAL ========
 """
     result = loads(ptn_str)
 
-    assert result.xflow == {}
-    assert result.zflow == {}
+    assert result.pauli_frame.xflow == {}
+    assert result.pauli_frame.zflow == {}
 
 
 def test_comments_ignored() -> None:
@@ -449,8 +508,78 @@ def test_comments_ignored() -> None:
 
 # Comment in quantum section
 [0]
+N 1
 M 0 XY 0
 """
     result = loads(ptn_str)
     # Should parse without error
     assert result.input_node_indices is not None
+
+
+def test_loads_allows_dag_violating_measurement_order() -> None:
+    """Test that importer skips DAG/schedule causality checks."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 2:0
+
+[0]
+N 1
+N 2
+M 1 XY 0
+M 0 XY 0
+
+.xflow 0 -> 1
+"""
+    result = loads(ptn_str)
+    assert result.pauli_frame.xflow == {0: {1}}
+
+
+def test_loads_reject_duplicate_measurement() -> None:
+    """Test that duplicate measurement on the same node is rejected."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 1:0
+
+[0]
+N 1
+M 0 XY 0
+M 0 XY pi
+"""
+    with pytest.raises(ValueError, match="measured more than once"):
+        loads(ptn_str)
+
+
+def test_loads_reject_unknown_flow_target() -> None:
+    """Test that flows referencing unknown nodes are rejected."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 1:0
+
+[0]
+N 1
+M 0 XY 0
+
+.xflow 0 -> 99
+"""
+    with pytest.raises(ValueError, match="unknown target nodes"):
+        loads(ptn_str)
+
+
+def test_loads_reject_observable_non_measured_node() -> None:
+    """Test that observables referencing non-measured nodes are rejected."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 1:0
+
+[0]
+N 1
+M 0 XY 0
+
+.observable 0 1
+"""
+    with pytest.raises(ValueError, match="contains non-measured nodes"):
+        loads(ptn_str)
