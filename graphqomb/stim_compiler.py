@@ -64,8 +64,11 @@ class _StimCompiler:
         self._process_commands()
         total = self._rec_index
         self._emit_detectors(total)
-        if logical_observables is not None:
-            self._emit_observables(logical_observables, total)
+        effective_observables = (
+            logical_observables if logical_observables is not None else self._pframe.logical_observables
+        )
+        if effective_observables:
+            self._emit_observables(effective_observables, total)
         return self._stim_io.getvalue().strip()
 
     def _emit_detectors(self, total_measurements: int) -> None:
@@ -74,7 +77,7 @@ class _StimCompiler:
             self._stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
     def _emit_observables(self, logical_observables: Mapping[int, Collection[int]], total_measurements: int) -> None:
-        for log_idx, obs in logical_observables.items():
+        for log_idx, obs in sorted(logical_observables.items()):
             group = self._pframe.logical_observables_group(obs)
             targets = [f"rec[{self._meas_order[n] - total_measurements}]" for n in group]
             self._stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
@@ -321,7 +324,9 @@ def stim_compile(  # noqa: PLR0913
     pattern : `Pattern`
         The pattern to compile.
     logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
-        A mapping from logical observable index to a collection of node indices, by default None.
+        A mapping from logical observable index to a collection of node indices.
+        If `None`, logical observables stored in `pattern.pauli_frame.logical_observables`
+        are used. By default `None`.
     p_depol_after_clifford : `float` | `None`, optional
         Legacy depolarizing probability after Clifford gates. Deprecated in 0.3.0.
         Use ``noise_models=[DepolarizingNoiseModel(p1=..., p2=...)]`` instead.

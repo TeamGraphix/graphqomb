@@ -401,6 +401,32 @@ def test_stim_compile_with_logical_observables() -> None:
     # This is valid behavior for certain graph configurations
 
 
+def test_stim_compile_uses_pattern_logical_observables_by_default() -> None:
+    """Test that stored logical observables are emitted when argument is omitted."""
+    pattern, meas_node, _ = create_simple_pattern_x_measurement()
+    pattern.pauli_frame.logical_observables = {0: {meas_node}}
+
+    stim_str = stim_compile(pattern)
+
+    assert "OBSERVABLE_INCLUDE(0)" in stim_str
+
+
+def test_qompile_stores_logical_observables_in_pauli_frame() -> None:
+    """Test that qompile stores logical observables in PauliFrame."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    pattern = qompile(graph, {in_node: {out_node}}, logical_observables={0: {in_node}})
+
+    assert pattern.pauli_frame.logical_observables == {0: {in_node}}
+
+
 def test_stim_compile_unsupported_basis() -> None:
     """Test that unsupported measurement basis raises ValueError."""
     graph = GraphState()
