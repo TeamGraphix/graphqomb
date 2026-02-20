@@ -289,7 +289,7 @@ def test_collect_dependent_chain_x_axis(x_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for X axis measurement."""
     pframe = x_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.nodes)
     n1 = nodes[1]
 
     # For X axis, parents come from inv_zflow
@@ -302,7 +302,7 @@ def test_collect_dependent_chain_y_axis(y_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for Y axis measurement."""
     pframe = y_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.nodes)
     n1 = nodes[1]
 
     # For Y axis, parents come from symmetric difference of inv_xflow and inv_zflow
@@ -315,7 +315,7 @@ def test_collect_dependent_chain_z_axis(z_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for Z axis measurement."""
     pframe = z_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.nodes)
     n1 = nodes[1]
 
     # For Z axis, parents come from inv_xflow
@@ -385,6 +385,34 @@ def test_logical_observables_group() -> None:
     group = pframe.logical_observables_group(target_nodes)
     assert isinstance(group, set)
     assert group == {n0, n2}  # n0 is included via dependent chain
+
+
+def test_observable_groups() -> None:
+    """Test expansion of all stored logical observables."""
+    graph = GraphState()
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+
+    graph.register_input(n0, 0)
+    graph.register_output(n2, 0)
+
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+
+    graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(n1, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(n2, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {n0: {n1}, n1: {n2}}
+    zflow: dict[int, set[int]] = {n0: {n0, n2}}
+    observables = {0: {n2}, 1: {n1, n2}}
+
+    pframe = PauliFrame(graph, xflow, zflow, logical_observables=observables)
+    groups = pframe.observable_groups()
+
+    assert groups[0] == {n0, n2}
+    assert groups[1] == {n0, n1, n2}
 
 
 def test_collect_dependent_chain_cache_hit() -> None:
