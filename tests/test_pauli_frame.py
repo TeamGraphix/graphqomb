@@ -59,7 +59,9 @@ def simple_pauli_frame(
         A simple PauliFrame instance
     """
     graph, xflow, zflow = simple_graph_with_flows
-    return PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
 @pytest.fixture
@@ -107,7 +109,9 @@ def x_axis_pauli_frame() -> PauliFrame:
     xflow = {n0: {n1}, n1: {n2}}
     zflow: dict[int, set[int]] = {}
 
-    return PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
 @pytest.fixture
@@ -137,7 +141,9 @@ def y_axis_pauli_frame() -> PauliFrame:
     xflow = {n0: {n1}, n1: {n2}}
     zflow = {n0: {n0}}
 
-    return PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
 @pytest.fixture
@@ -167,7 +173,9 @@ def z_axis_pauli_frame() -> PauliFrame:
     xflow = {n0: {n1}, n1: {n2}}
     zflow: dict[int, set[int]] = {}
 
-    return PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
 def test_x_flip(simple_pauli_frame: PauliFrame, simple_nodes: list[int]) -> None:
@@ -378,7 +386,9 @@ def test_logical_observables_group() -> None:
     xflow = {n0: {n1}, n1: {n2}}
     zflow: dict[int, set[int]] = {n0: {n0, n2}}
 
-    pframe = PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # Get logical observables group
     target_nodes = [n2]
@@ -410,7 +420,9 @@ def test_collect_dependent_chain_cache_hit() -> None:
     xflow = {n0: {n1}, n1: {n2}, n2: {n3}}
     zflow = {n0: {n0}}
 
-    pframe = PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # First call to n2
     chain1 = pframe._collect_dependent_chain(n2)
@@ -468,7 +480,9 @@ def test_collect_dependent_chain_diamond_cancellation() -> None:
     xflow = {n0: {n1, n2}, n1: {n3}, n2: {n3}, n3: {n4}}
     zflow: dict[int, set[int]] = {}
 
-    pframe = PauliFrame(graph, xflow, zflow)
+    # Provide parity_check_group to enable _pauli_axis_cache initialization
+    parity_check_group = [set(graph.physical_nodes)]
+    pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # Verify the chain for n3
     chain_n3 = pframe._collect_dependent_chain(n3)
