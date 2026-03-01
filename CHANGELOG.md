@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Noise Model API**: Event-based noise injection system for Stim circuit compilation
+  - Added `NoiseModel` base class for custom noise behavior with `on_prepare`, `on_entangle`, `on_measure`, and `on_idle` hooks
+  - Added typed `NoiseOp` dataclasses: `PauliChannel1`, `PauliChannel2`, `HeraldedPauliChannel1`, `HeraldedErase`, `RawStimOp`, `MeasurementFlip`
+  - Added event dataclasses: `PrepareEvent`, `EntangleEvent`, `MeasureEvent`, `IdleEvent` with `NodeInfo` and `Coordinate`
+  - Added `NoisePlacement` enum for controlling noise insertion timing (AUTO, BEFORE, AFTER)
+  - Added `noise_op_to_stim()` conversion function
+  - Added `depolarize1_probs()` and `depolarize2_probs()` utility functions for depolarizing noise
+
+- **Built-in Noise Models**: Ready-to-use noise model implementations
+  - Added `DepolarizingNoiseModel` for single and two-qubit depolarizing noise
+  - Added `MeasurementFlipNoiseModel` for measurement bit-flip errors using Stim's built-in `MX(p)` syntax
+
+- **Stim Compiler Enhancement**: Extended `stim_compile()` to accept `noise_models` parameter
+  - Support for multiple noise models via `Sequence[NoiseModel]`
+  - Added `tick_duration` parameter for idle noise calculations
+  - Automatic measurement record tracking for heralded noise operations
+
+- **Documentation**: Added comprehensive Sphinx documentation for the noise model module
+
+### Changed
+
+- **Stim Compiler**: Refactored internal structure to support noise model integration
+
 ## [0.2.1] - 2026-01-16
 
 ### Added

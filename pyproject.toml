@@ -115,11 +115,14 @@ docstring-code-format = true
   "S101",    # `assert` detected
   "SLF001",  # private method
   "PLC2701", # private method
-  "PLR2004", # magic value in test(should be removed)
+  "PLR2004", # magic value in test
+  "PLR6301", # method could be static
   "D100",
   "D103",
   "D104",
   "D400",
+  "D417",    # return not documented (numpy style)
+  "DOC201",  # return not documented (pydoclint)
 ]
 "examples/*.py" = [
   "T201", # print
