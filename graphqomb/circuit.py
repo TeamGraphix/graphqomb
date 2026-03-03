@@ -5,14 +5,17 @@ This module provides:
 - `BaseCircuit`: An abstract base class for quantum circuits.
 - `MBQCCircuit`: A circuit class composed solely of a unit gate set.
 - `Circuit`: A class for circuits that include macro instructions.
-- `circuit2graph`: A function that converts a circuit to a graph state and gflow.
+- `CircuitScheduleStrategy`: Scheduling strategies for circuit conversion.
+- `circuit2graph`: A function that converts a circuit to a graph state, gflow, and scheduler.
 """
 
 from __future__ import annotations
 
 import copy
+import enum
 import itertools
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import typing_extensions
@@ -20,9 +23,117 @@ import typing_extensions
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphqomb.graphstate import GraphState
+from graphqomb.scheduler import Scheduler
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+class CircuitScheduleStrategy(Enum):
+    """Enumeration for manual scheduling strategies derived from circuit structure."""
+
+    PARALLEL = enum.auto()
+    MINIMIZE_SPACE = enum.auto()
+
+
+class _Circuit2GraphContext:
+    """Internal helper for converting circuits with a given scheduling strategy."""
+
+    graph: GraphState
+    gflow: dict[int, set[int]]
+    qindex2front_nodes: dict[int, int]
+    qindex2timestep: dict[int, int]
+    prepare_time: dict[int, int]
+    measure_time: dict[int, int]
+    minimize_qubits: bool
+    current_time: int
+
+    def __init__(self, graph: GraphState, strategy: CircuitScheduleStrategy) -> None:
+        if strategy == CircuitScheduleStrategy.PARALLEL:
+            self.minimize_qubits = False
+        elif strategy == CircuitScheduleStrategy.MINIMIZE_SPACE:
+            self.minimize_qubits = True
+        else:
+            msg = f"Invalid schedule strategy: {strategy}"
+            raise ValueError(msg)
+
+        self.graph = graph
+        self.gflow = {}
+        self.qindex2front_nodes = {}
+        self.qindex2timestep = {}
+        self.prepare_time = {}
+        self.measure_time = {}
+        self.current_time = 0
+
+    def apply_instruction(self, instruction: UnitGate) -> None:
+        """Apply a unit gate to the graph conversion context.
+
+        Raises
+        ------
+        TypeError
+            If the instruction type is not supported.
+        """
+        if isinstance(instruction, J):
+            self._apply_j(instruction)
+            return
+        if isinstance(instruction, CZ):
+            self._apply_cz(instruction)
+            return
+        if isinstance(instruction, PhaseGadget):
+            self._apply_phase_gadget(instruction)
+            return
+        msg = f"Invalid instruction: {instruction}"
+        raise TypeError(msg)
+
+    def _apply_j(self, instruction: J) -> None:
+        new_node = self.graph.add_physical_node()
+        self.graph.add_physical_edge(self.qindex2front_nodes[instruction.qubit], new_node)
+        self.graph.assign_meas_basis(
+            self.qindex2front_nodes[instruction.qubit],
+            PlannerMeasBasis(Plane.XY, -instruction.angle),
+        )
+
+        timestep = self.qindex2timestep[instruction.qubit]
+        if self.minimize_qubits:
+            timestep = max(self.current_time, timestep)
+        self.prepare_time[new_node] = timestep
+        self.measure_time[self.qindex2front_nodes[instruction.qubit]] = timestep + 1
+        self.qindex2timestep[instruction.qubit] = timestep + 1
+        if self.minimize_qubits:
+            self.current_time = timestep + 1
+
+        self.gflow[self.qindex2front_nodes[instruction.qubit]] = {new_node}
+        self.qindex2front_nodes[instruction.qubit] = new_node
+
+    def _apply_cz(self, instruction: CZ) -> None:
+        self.graph.add_physical_edge(
+            self.qindex2front_nodes[instruction.qubits[0]],
+            self.qindex2front_nodes[instruction.qubits[1]],
+        )
+
+        aligned_time = max(self.qindex2timestep[instruction.qubits[0]], self.qindex2timestep[instruction.qubits[1]])
+        if self.minimize_qubits:
+            aligned_time = max(self.current_time, aligned_time)
+            self.current_time = aligned_time
+        self.qindex2timestep[instruction.qubits[0]] = aligned_time
+        self.qindex2timestep[instruction.qubits[1]] = aligned_time
+
+    def _apply_phase_gadget(self, instruction: PhaseGadget) -> None:
+        new_node = self.graph.add_physical_node()
+        self.graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
+        for qubit in instruction.qubits:
+            self.graph.add_physical_edge(self.qindex2front_nodes[qubit], new_node)
+
+        self.gflow[new_node] = {new_node}
+
+        max_timestep = max(self.qindex2timestep[qubit] for qubit in instruction.qubits)
+        if self.minimize_qubits:
+            max_timestep = max(self.current_time, max_timestep)
+            self.current_time = max_timestep + 1
+        self.prepare_time[new_node] = max_timestep
+        self.measure_time[new_node] = max_timestep + 1
+        for qubit in instruction.qubits:
+            self.qindex2timestep[qubit] = max_timestep + 1
 
 
 class BaseCircuit(ABC):
@@ -208,64 +319,49 @@ class Circuit(BaseCircuit):
         self.__macro_gate_instructions.append(gate)
 
 
-def circuit2graph(circuit: BaseCircuit) -> tuple[GraphState, dict[int, set[int]]]:
-    r"""Convert a circuit to a graph state and gflow.
+def circuit2graph(
+    circuit: BaseCircuit,
+    schedule_strategy: CircuitScheduleStrategy = CircuitScheduleStrategy.PARALLEL,
+) -> tuple[GraphState, dict[int, set[int]], Scheduler]:
+    r"""Convert a circuit to a graph state, gflow, and scheduler.
 
     Parameters
     ----------
     circuit : `BaseCircuit`
         The quantum circuit to convert.
+    schedule_strategy : `CircuitScheduleStrategy`, optional
+        Strategy for scheduling preparation and measurement times derived from the circuit,
+        by default `CircuitScheduleStrategy.PARALLEL`.
+        The strategies are:
+
+        - `CircuitScheduleStrategy.PARALLEL`: schedule each qubit independently to reduce depth
+        - `CircuitScheduleStrategy.MINIMIZE_SPACE`: serialize operations to reduce prepared qubits
 
     Returns
     -------
-    `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\]\]
-        The graph state and gflow converted from the circuit.
+    `tuple`\[`GraphState`, `dict`\[`int`, `set`\[`int`\]\], `Scheduler`\]
+        The graph state, gflow, and scheduler converted from the circuit.
+        The scheduler is configured with automatic time scheduling derived from circuit structure.
 
-    Raises
-    ------
-    TypeError
-        If the circuit contains an invalid instruction.
     """
     graph = GraphState()
-    gflow: dict[int, set[int]] = {}
-
-    qindex2front_nodes: dict[int, int] = {}
+    context = _Circuit2GraphContext(graph, schedule_strategy)
 
     # input nodes
     for i in range(circuit.num_qubits):
         node = graph.add_physical_node()
         graph.register_input(node, i)
-        qindex2front_nodes[i] = node
+        context.qindex2front_nodes[i] = node
+        context.qindex2timestep[i] = 0
 
     for instruction in circuit.unit_instructions():
-        if isinstance(instruction, J):
-            new_node = graph.add_physical_node()
-            graph.add_physical_edge(qindex2front_nodes[instruction.qubit], new_node)
-            graph.assign_meas_basis(
-                qindex2front_nodes[instruction.qubit],
-                PlannerMeasBasis(Plane.XY, -instruction.angle),
-            )
+        context.apply_instruction(instruction)
 
-            gflow[qindex2front_nodes[instruction.qubit]] = {new_node}
-            qindex2front_nodes[instruction.qubit] = new_node
-
-        elif isinstance(instruction, CZ):
-            graph.add_physical_edge(
-                qindex2front_nodes[instruction.qubits[0]],
-                qindex2front_nodes[instruction.qubits[1]],
-            )
-        elif isinstance(instruction, PhaseGadget):
-            new_node = graph.add_physical_node()
-            graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
-            for qubit in instruction.qubits:
-                graph.add_physical_edge(qindex2front_nodes[qubit], new_node)
-
-            gflow[new_node] = {new_node}
-        else:
-            msg = f"Invalid instruction: {instruction}"
-            raise TypeError(msg)
-
-    for qindex, node in qindex2front_nodes.items():
+    for qindex, node in context.qindex2front_nodes.items():
         graph.register_output(node, qindex)
 
-    return graph, gflow
+    # manually schedule
+    scheduler = Scheduler(graph, context.gflow)
+    scheduler.manual_schedule(context.prepare_time, context.measure_time)
+
+    return graph, context.gflow, scheduler
