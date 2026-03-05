@@ -288,60 +288,6 @@ def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
     return scores
 
 
-def _determine_measure_nodes(
-    neighbors_map: Mapping[int, AbstractSet[int]],
-    measure_candidates: AbstractSet[int],
-    prepared: AbstractSet[int],
-    alive: AbstractSet[int],
-    max_qubit_count: int,
-) -> tuple[set[int], set[int]]:
-    r"""Determine which nodes to measure without exceeding max qubit count.
-
-    Parameters
-    ----------
-    neighbors_map : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
-        Mapping from node to its neighbors.
-    measure_candidates : `collections.abc.Set`\[`int`\]
-        The candidate nodes available for measurement.
-    prepared : `collections.abc.Set`\[`int`\]
-        The set of currently prepared nodes.
-    alive : `collections.abc.Set`\[`int`\]
-        The set of currently active (prepared but not yet measured) nodes.
-    max_qubit_count : `int`
-        The maximum allowed number of active qubits.
-
-    Returns
-    -------
-    `tuple`\[`set`\[`int`\], `set`\[`int`\]\]
-        A tuple of (to_measure, to_prepare) sets indicating which nodes to measure and prepare.
-
-    Raises
-    ------
-    RuntimeError
-        If no nodes can be measured without exceeding the max qubit count.
-    """
-    to_measure: set[int] = set()
-    to_prepare: set[int] = set()
-
-    for node in measure_candidates:
-        # Neighbors that still need to be prepared for this node
-        new_neighbors = neighbors_map[node] - prepared
-        additional_to_prepare = new_neighbors - to_prepare
-
-        # Projected number of active qubits after preparing these neighbors
-        projected_active = len(alive) + len(to_prepare) + len(additional_to_prepare)
-
-        if projected_active <= max_qubit_count:
-            to_measure.add(node)
-            to_prepare |= new_neighbors
-
-    if not to_measure:
-        msg = "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
-        raise RuntimeError(msg)
-
-    return to_measure, to_prepare
-
-
 def greedy_minimize_space(  # noqa: C901, PLR0914, PLR0915
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
