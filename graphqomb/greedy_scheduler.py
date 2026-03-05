@@ -13,8 +13,9 @@ This module provides:
 
 from __future__ import annotations
 
-from graphlib import CycleError, TopologicalSorter
 from typing import TYPE_CHECKING
+
+from graphqomb.feedforward import TOPO_ORDER_CYCLE_ERROR_MSG, inverse_dag_from_dag, topo_order_from_inv_dag
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -23,16 +24,24 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def greedy_minimize_time(
+def greedy_minimize_time(  # noqa: PLR0914
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
     max_qubit_count: int | None = None,
 ) -> tuple[dict[int, int], dict[int, int]]:
     r"""Fast greedy scheduler optimizing for minimal execution time (makespan).
 
-    This algorithm uses different strategies based on max_qubit_count:
-    - Without qubit limit: Prepare all nodes at time=0, measure in ASAP order
-    - With qubit limit: Use slice-by-slice scheduling with slack-filling
+    This algorithm uses a single slice-by-slice strategy with slack-filling.
+    If `max_qubit_count` is `None`, it is treated as no active-qubit limit.
+
+    At each time slice, scheduling proceeds in two phases:
+
+    1. Phase 1 (measurement phase): Measure every currently ready node.
+       A node is ready when all DAG parents are already measured, all graph
+       neighbors are prepared, and (for non-input nodes) the node itself is prepared.
+    2. Phase 2 (preparation phase): Use remaining qubit capacity to prepare
+       high-priority unprepared nodes that are likely to unblock future
+       measurements (slack-filling).
 
     Parameters
     ----------
@@ -47,86 +56,23 @@ def greedy_minimize_time(
     -------
     `tuple`\[`dict`\[`int`, `int`\], `dict`\[`int`, `int`\]\]
         A tuple of (prepare_time, measure_time) dictionaries
+
+    Raises
+    ------
+    RuntimeError
+        If the scheduling cannot proceed due to cyclic dependencies
+        or if the max_qubit_count constraint is too tight to allow any progress.
     """
     unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
     input_nodes = set(graph.input_node_indices.keys())
     output_nodes = set(graph.output_node_indices.keys())
 
-    # Build inverse DAG: for each node, track which nodes must be measured before it
-    inv_dag: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
-    for parent, children in dag.items():
-        for child in children:
-            inv_dag[child].add(parent)
+    inv_dag = inverse_dag_from_dag(dag, graph.physical_nodes)
 
     # Cache neighbors to avoid repeated set constructions in tight loops
     neighbors_map = {node: graph.neighbors(node) for node in graph.physical_nodes}
 
-    if max_qubit_count is None:
-        # Optimal strategy: prepare all nodes at time=0, measure in ASAP order
-        return _greedy_minimize_time_unlimited(graph, inv_dag, neighbors_map, input_nodes, output_nodes)
-
-    # With qubit limit: use slice-by-slice scheduling with slack-filling
-    return _greedy_minimize_time_limited(
-        graph,
-        dag,
-        inv_dag,
-        neighbors_map,
-        unmeasured,
-        input_nodes,
-        output_nodes,
-        max_qubit_count,
-    )
-
-
-def _greedy_minimize_time_unlimited(
-    graph: BaseGraphState,
-    inv_dag: Mapping[int, AbstractSet[int]],
-    neighbors_map: Mapping[int, AbstractSet[int]],
-    input_nodes: AbstractSet[int],
-    output_nodes: AbstractSet[int],
-) -> tuple[dict[int, int], dict[int, int]]:
-    measure_time: dict[int, int] = {}
-
-    # 1. Compute ASAP measurement times using topological order
-    # Neighbor constraint: assume all non-input nodes can be prepared at time 0
-    # TopologicalSorter expects {node: dependencies}, which is inv_dag
-    try:
-        topo_order = list(TopologicalSorter(inv_dag).static_order())
-    except CycleError as exc:
-        msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
-        raise RuntimeError(msg) from exc
-
-    for node in topo_order:
-        if node in output_nodes:
-            continue
-        # DAG constraint: must measure after all parents
-        parent_times = [measure_time[p] for p in inv_dag[node] if p in measure_time]
-        # Neighbor constraint: all neighbors must be prepared before measurement
-        # Input nodes are prepared at time -1, others at time 0 (earliest possible)
-        neighbor_prep_times = [-1 if n in input_nodes else 0 for n in neighbors_map[node]]
-        # Measure at the next time slot after all parents are measured
-        # AND after all neighbors are prepared
-        measure_time[node] = max(
-            max(parent_times, default=-1) + 1,
-            max(neighbor_prep_times, default=-1) + 1,
-        )
-
-    # 2. Compute ALAP preparation times (replace time=0 with latest possible)
-    prepare_time = alap_prepare_times(graph, measure_time)
-
-    return prepare_time, measure_time
-
-
-def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
-    graph: BaseGraphState,
-    dag: Mapping[int, AbstractSet[int]],
-    inv_dag: Mapping[int, AbstractSet[int]],
-    neighbors_map: Mapping[int, AbstractSet[int]],
-    unmeasured: AbstractSet[int],
-    input_nodes: AbstractSet[int],
-    output_nodes: AbstractSet[int],
-    max_qubit_count: int,
-) -> tuple[dict[int, int], dict[int, int]]:
+    # Single implementation for both bounded and unbounded capacity modes.
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
@@ -137,7 +83,9 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
     prepared: set[int] = set(input_nodes)
     alive: set[int] = set(input_nodes)
 
-    if len(alive) > max_qubit_count:
+    effective_max_qubit_count = max_qubit_count if max_qubit_count is not None else len(graph.physical_nodes)
+
+    if len(alive) > effective_max_qubit_count:
         msg = "Initial number of active qubits exceeds max_qubit_count."
         raise RuntimeError(msg)
 
@@ -147,55 +95,36 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
     current_time = 0
 
     while unmeasured_mut:
-        # Phase 1: Measure all ready nodes
-        # A node is ready if:
-        # - DAG dependencies are resolved (inv_dag_mut[node] is empty)
-        # - All neighbors are prepared
-        # - The node itself is prepared (if not an input node)
-        ready_to_measure: set[int] = set()
-        for node in unmeasured_mut:
-            if inv_dag_mut[node]:
-                continue  # DAG dependencies not resolved
-            if not neighbors_map[node] <= prepared:
-                continue  # Neighbors not prepared
-            if node not in input_nodes and node not in prepared:
-                continue  # Self not prepared
-            ready_to_measure.add(node)
-
-        for node in ready_to_measure:
-            measure_time[node] = current_time
-            unmeasured_mut.remove(node)
-            alive.discard(node)
-
-            # Update DAG dependencies
-            for child in dag.get(node, ()):
-                inv_dag_mut[child].discard(node)
-
-        # Phase 2: Prepare nodes using free capacity (slack-filling)
-        free_capacity = max_qubit_count - len(alive)
-
-        if free_capacity > 0:
-            # Get unprepared nodes with their priority scores
-            unprepared = graph.physical_nodes - prepared
-            if unprepared:
-                prep_candidates = _get_prep_candidates_with_priority(
-                    unprepared,
-                    inv_dag_mut,
-                    neighbors_map,
-                    prepared,
-                    unmeasured_mut,
-                    output_nodes,
-                    criticality,
-                )
-                # Prepare top candidates within free capacity
-                for candidate, _score in prep_candidates[:free_capacity]:
-                    prepare_time[candidate] = current_time
-                    prepared.add(candidate)
-                    alive.add(candidate)
+        ready_to_measure = _phase1_measure_ready_nodes(
+            current_time,
+            dag=dag,
+            inv_dag=inv_dag_mut,
+            neighbors_map=neighbors_map,
+            input_nodes=input_nodes,
+            prepared=prepared,
+            alive=alive,
+            unmeasured=unmeasured_mut,
+            measure_time=measure_time,
+        )
+        prepared_in_phase2 = _phase2_prepare_nodes_with_slack(
+            current_time,
+            physical_nodes=graph.physical_nodes,
+            max_qubit_count=effective_max_qubit_count,
+            inv_dag=inv_dag_mut,
+            neighbors_map=neighbors_map,
+            prepared=prepared,
+            alive=alive,
+            unmeasured=unmeasured_mut,
+            output_nodes=output_nodes,
+            criticality=criticality,
+            prepare_time=prepare_time,
+        )
 
         # Check if we made progress
-        if not ready_to_measure and free_capacity == 0 and unmeasured_mut:
-            # No measurements and no room to prepare - stuck
+        if not ready_to_measure and not prepared_in_phase2 and unmeasured_mut:
+            if max_qubit_count is None:
+                raise RuntimeError(TOPO_ORDER_CYCLE_ERROR_MSG)
+            # No measurements and no room to prepare under qubit-capacity constraint.
             msg = (
                 "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
             )
@@ -214,6 +143,82 @@ def _greedy_minimize_time_limited(  # noqa: C901, PLR0912, PLR0913, PLR0917
     return prepare_time, measure_time
 
 
+def _phase1_measure_ready_nodes(  # noqa: PLR0913
+    current_time: int,
+    *,
+    dag: Mapping[int, AbstractSet[int]],
+    inv_dag: dict[int, set[int]],
+    neighbors_map: Mapping[int, AbstractSet[int]],
+    input_nodes: AbstractSet[int],
+    prepared: set[int],
+    alive: set[int],
+    unmeasured: set[int],
+    measure_time: dict[int, int],
+) -> set[int]:
+    # Phase 1: measure all currently ready nodes.
+    ready_to_measure: set[int] = set()
+    for node in unmeasured:
+        if inv_dag[node]:
+            continue
+        if not neighbors_map[node] <= prepared:
+            continue
+        if node not in input_nodes and node not in prepared:
+            continue
+        ready_to_measure.add(node)
+
+    for node in ready_to_measure:
+        measure_time[node] = current_time
+        unmeasured.remove(node)
+        alive.discard(node)
+        for child in dag.get(node, ()):
+            inv_dag[child].discard(node)
+
+    return ready_to_measure
+
+
+def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
+    current_time: int,
+    *,
+    physical_nodes: AbstractSet[int],
+    max_qubit_count: int,
+    inv_dag: Mapping[int, AbstractSet[int]],
+    neighbors_map: Mapping[int, AbstractSet[int]],
+    prepared: set[int],
+    alive: set[int],
+    unmeasured: AbstractSet[int],
+    output_nodes: AbstractSet[int],
+    criticality: Mapping[int, int],
+    prepare_time: dict[int, int],
+) -> bool:
+    # Phase 2: fill free qubit capacity with high-priority preparation candidates.
+    free_capacity = max_qubit_count - len(alive)
+    if free_capacity <= 0:
+        return False
+
+    unprepared = physical_nodes - prepared
+    if not unprepared:
+        return False
+
+    prep_candidates = _get_prep_candidates_with_priority(
+        unprepared,
+        inv_dag,
+        neighbors_map,
+        prepared,
+        unmeasured,
+        output_nodes,
+        criticality,
+    )
+
+    prepared_in_phase2 = False
+    for candidate, _score in prep_candidates[:free_capacity]:
+        prepare_time[candidate] = current_time
+        prepared.add(candidate)
+        alive.add(candidate)
+        prepared_in_phase2 = True
+
+    return prepared_in_phase2
+
+
 def _compute_criticality(
     dag: Mapping[int, AbstractSet[int]],
     output_nodes: AbstractSet[int],
@@ -222,13 +227,9 @@ def _compute_criticality(
     # Nodes with higher criticality should be prioritized for unblocking.
     criticality: dict[int, int] = {}
 
-    # TopologicalSorter(dag) returns nodes with no "dependencies" first.
-    # Since dag is {parent: children}, nodes with empty children come first (leaves).
-    # This is the correct order for computing criticality (leaves before roots).
-    try:
-        topo_order = list(TopologicalSorter(dag).static_order())
-    except CycleError:
-        return {}
+    # For criticality we need children first, so reverse dependency-first topo order.
+    topo_order = topo_order_from_inv_dag(inverse_dag_from_dag(dag))
+    topo_order.reverse()
 
     for node in topo_order:
         children_crits = [criticality.get(c, 0) for c in dag.get(node, ())]
@@ -288,7 +289,7 @@ def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
     return scores
 
 
-def greedy_minimize_space(  # noqa: C901, PLR0914, PLR0915
+def greedy_minimize_space(  # noqa: PLR0914
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:
@@ -323,19 +324,9 @@ def greedy_minimize_space(  # noqa: C901, PLR0914, PLR0915
 
     unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
 
-    try:
-        topo_order = list(TopologicalSorter(dag).static_order())
-    except CycleError as exc:
-        msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
-        raise RuntimeError(msg) from exc
-    topo_order.reverse()  # from parents to children
+    inv_dag = inverse_dag_from_dag(dag, graph.physical_nodes)
+    topo_order = topo_order_from_inv_dag(inv_dag)  # from parents to children
     topo_rank = {node: i for i, node in enumerate(topo_order)}
-
-    # Build inverse DAG: for each node, track which nodes must be measured before it
-    inv_dag: dict[int, set[int]] = {node: set() for node in graph.physical_nodes}
-    for parent, children in dag.items():
-        for child in children:
-            inv_dag[child].add(parent)
 
     input_nodes = set(graph.input_node_indices.keys())
     prepared: set[int] = set(input_nodes)
@@ -349,8 +340,7 @@ def greedy_minimize_space(  # noqa: C901, PLR0914, PLR0915
 
     while unmeasured:
         if not measure_candidates:
-            msg = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
-            raise RuntimeError(msg)
+            raise RuntimeError(TOPO_ORDER_CYCLE_ERROR_MSG)
 
         # calculate costs and pick the best node to measure
         default_rank = len(topo_rank)
