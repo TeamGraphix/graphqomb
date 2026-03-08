@@ -6,14 +6,17 @@ import pytest
 from graphqomb.circuit import MBQCCircuit, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.feedforward import (
+    TOPO_ORDER_CYCLE_ERROR_MSG,
     _is_flow,
     _is_gflow,
     check_dag,
     check_flow,
     dag_from_flow,
+    inverse_dag_from_dag,
     pauli_simplification,
     propagate_correction_map,
     signal_shifting,
+    topo_order_from_inv_dag,
 )
 from graphqomb.graphstate import GraphState
 from graphqomb.qompiler import qompile
@@ -94,6 +97,46 @@ def test_check_flow_true_for_acyclic() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
     check_flow(graphstate, flow)
+
+
+def test_topo_order_from_inv_dag_basic() -> None:
+    inv_dag: dict[int, set[int]] = {
+        0: set(),
+        1: {0},
+        2: {1},
+    }
+    assert topo_order_from_inv_dag(inv_dag) == [0, 1, 2]
+
+
+def test_inverse_dag_from_dag_basic() -> None:
+    dag: dict[int, set[int]] = {
+        0: {1, 2},
+        1: {2},
+        2: set(),
+    }
+    assert inverse_dag_from_dag(dag) == {
+        0: set(),
+        1: {0},
+        2: {0, 1},
+    }
+
+
+def test_inverse_dag_from_dag_with_all_nodes() -> None:
+    dag = {0: {1}}
+    assert inverse_dag_from_dag(dag, all_nodes={0, 1, 2}) == {
+        0: set(),
+        1: {0},
+        2: set(),
+    }
+
+
+def test_topo_order_from_inv_dag_cycle_raises() -> None:
+    inv_dag = {
+        0: {1},
+        1: {0},
+    }
+    with pytest.raises(RuntimeError, match=TOPO_ORDER_CYCLE_ERROR_MSG):
+        topo_order_from_inv_dag(inv_dag)
 
 
 # Tests for propagate_correction_map
