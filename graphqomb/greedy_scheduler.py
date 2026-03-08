@@ -13,6 +13,7 @@ This module provides:
 
 from __future__ import annotations
 
+import itertools
 from typing import TYPE_CHECKING
 
 from graphqomb.feedforward import TOPO_ORDER_CYCLE_ERROR_MSG, inverse_dag_from_dag, topo_order_from_inv_dag
@@ -190,7 +191,7 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
     criticality: Mapping[int, int],
     prepare_time: dict[int, int],
 ) -> bool:
-    # Phase 2: fill free qubit capacity with high-priority preparation candidates.
+    # Phase 2: prepare only nodes that can unblock the current DAG frontier.
     free_capacity = max_qubit_count - len(alive)
     if free_capacity <= 0:
         return False
@@ -210,11 +211,14 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
     )
 
     prepared_in_phase2 = False
-    for candidate, _score in prep_candidates[:free_capacity]:
+    for candidate, score in prep_candidates:
+        if free_capacity <= 0 or score <= 0:
+            break
         prepare_time[candidate] = current_time
         prepared.add(candidate)
         alive.add(candidate)
         prepared_in_phase2 = True
+        free_capacity -= 1
 
     return prepared_in_phase2
 
@@ -268,9 +272,14 @@ def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
             dag_ready_blocked.add(node)
             missing_map[node] = missing
 
+    if not dag_ready_blocked:
+        return []
+
+    useful_candidates = set().union(*missing_map.values())
+
     # Score each unprepared node
     scores: list[tuple[int, float]] = []
-    for candidate in unprepared:
+    for candidate in useful_candidates:
         score = 0.0
         for blocked_node in dag_ready_blocked:
             if candidate in missing_map[blocked_node]:
@@ -283,8 +292,9 @@ def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
 
         scores.append((candidate, score))
 
-    # Sort by score descending (higher score = higher priority)
-    scores.sort(key=lambda x: -x[1])
+    # Sort by score descending (higher score = higher priority).
+    # Break ties by node id for deterministic schedules.
+    scores.sort(key=lambda item: (-item[1], item[0]))
 
     return scores
 

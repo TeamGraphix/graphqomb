@@ -171,6 +171,37 @@ def test_greedy_minimize_time_with_too_small_max_qubit_count_raises() -> None:
         greedy_minimize_time(graph, scheduler.dag, max_qubit_count=1)
 
 
+def test_greedy_minimize_time_does_not_fill_capacity_with_unrelated_nodes() -> None:
+    """Avoid preparing zero-priority nodes that cause a false capacity deadlock."""
+    graph = GraphState()
+    nodes = [graph.add_physical_node() for _ in range(5)]
+
+    # Connected graph:
+    # 0(input) - 1 - 4(output)
+    #           |
+    #           3 - 2
+    graph.add_physical_edge(nodes[0], nodes[1])
+    graph.add_physical_edge(nodes[1], nodes[3])
+    graph.add_physical_edge(nodes[1], nodes[4])
+    graph.add_physical_edge(nodes[2], nodes[3])
+
+    graph.register_input(nodes[0], 0)
+    graph.register_output(nodes[4], 0)
+
+    dag = {
+        nodes[0]: {nodes[1]},
+        nodes[1]: {nodes[2]},
+        nodes[2]: {nodes[3]},
+        nodes[3]: {nodes[4]},
+        nodes[4]: set(),
+    }
+
+    prepare_time, measure_time = greedy_minimize_time(graph, dag, max_qubit_count=3)
+
+    assert measure_time[nodes[0]] < measure_time[nodes[1]] < measure_time[nodes[2]] < measure_time[nodes[3]]
+    assert _compute_max_alive_qubits(graph, prepare_time, measure_time) <= 3
+
+
 def test_greedy_scheduler_via_solve_schedule() -> None:
     """Test greedy scheduler through Scheduler.solve_schedule with use_greedy=True."""
     # Create a simple graph
