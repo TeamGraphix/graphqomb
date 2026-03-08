@@ -100,7 +100,7 @@ def test_check_flow_true_for_acyclic() -> None:
 
 
 def test_topo_order_from_inv_dag_basic() -> None:
-    inv_dag = {
+    inv_dag: dict[int, set[int]] = {
         0: set(),
         1: {0},
         2: {1},
@@ -109,7 +109,7 @@ def test_topo_order_from_inv_dag_basic() -> None:
 
 
 def test_inverse_dag_from_dag_basic() -> None:
-    dag = {
+    dag: dict[int, set[int]] = {
         0: {1, 2},
         1: {2},
         2: set(),

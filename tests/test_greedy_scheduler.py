@@ -188,7 +188,7 @@ def test_greedy_minimize_time_does_not_fill_capacity_with_unrelated_nodes() -> N
     graph.register_input(nodes[0], 0)
     graph.register_output(nodes[4], 0)
 
-    dag = {
+    dag: dict[int, set[int]] = {
         nodes[0]: {nodes[1]},
         nodes[1]: {nodes[2]},
         nodes[2]: {nodes[3]},
@@ -220,7 +220,7 @@ def test_greedy_minimize_time_tail_outputs_preserve_capacity_limit() -> None:
     graph.register_output(n2, 0)
     graph.register_output(n3, 1)
 
-    dag = {
+    dag: dict[int, set[int]] = {
         n0: {n1},
         n1: {n2},
         n2: set(),
@@ -691,7 +691,7 @@ def test_greedy_minimize_space_prepares_remaining_tail_nodes() -> None:
     graph.register_output(n1, 0)
     graph.register_output(n2, 1)
 
-    dag = {
+    dag: dict[int, set[int]] = {
         n0: set(),
         n1: set(),
         n2: set(),
