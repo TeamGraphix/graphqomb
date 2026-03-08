@@ -116,7 +116,6 @@ def greedy_minimize_time(  # noqa: PLR0914
             prepared=prepared,
             alive=alive,
             unmeasured=unmeasured_mut,
-            output_nodes=output_nodes,
             criticality=criticality,
             prepare_time=prepare_time,
         )
@@ -225,7 +224,6 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
     prepared: set[int],
     alive: set[int],
     unmeasured: AbstractSet[int],
-    output_nodes: AbstractSet[int],
     criticality: Mapping[int, int],
     prepare_time: dict[int, int],
 ) -> bool:
@@ -243,7 +241,6 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
         neighbors_map,
         prepared,
         unmeasured,
-        output_nodes,
         criticality,
     )
 
@@ -283,12 +280,11 @@ def _compute_criticality(
     return criticality
 
 
-def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
+def _get_prep_candidates_with_priority(
     inv_dag: Mapping[int, AbstractSet[int]],
     neighbors_map: Mapping[int, AbstractSet[int]],
     prepared: AbstractSet[int],
     unmeasured: AbstractSet[int],
-    output_nodes: AbstractSet[int],
     criticality: Mapping[int, int],
 ) -> list[tuple[int, float]]:
     # Get preparation candidates sorted by priority score.
