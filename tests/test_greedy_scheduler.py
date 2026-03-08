@@ -202,6 +202,39 @@ def test_greedy_minimize_time_does_not_fill_capacity_with_unrelated_nodes() -> N
     assert _compute_max_alive_qubits(graph, prepare_time, measure_time) <= 3
 
 
+def test_greedy_minimize_time_tail_outputs_preserve_capacity_limit() -> None:
+    """Tail outputs should keep their existing prep times instead of being pulled earlier by ALAP."""
+    graph = GraphState()
+    n0 = graph.add_physical_node()
+    n1 = graph.add_physical_node()
+    n2 = graph.add_physical_node()
+    n3 = graph.add_physical_node()
+
+    # Connected graph:
+    # 0(input) - 1 - 2(output) - 3(output)
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+    graph.add_physical_edge(n2, n3)
+
+    graph.register_input(n0, 0)
+    graph.register_output(n2, 0)
+    graph.register_output(n3, 1)
+
+    dag = {
+        n0: {n1},
+        n1: {n2},
+        n2: set(),
+        n3: set(),
+    }
+
+    prepare_time, measure_time = greedy_minimize_time(graph, dag, max_qubit_count=2)
+
+    assert n2 in prepare_time
+    assert n3 in prepare_time
+    assert prepare_time[n3] >= prepare_time[n2]
+    assert _compute_max_alive_qubits(graph, prepare_time, measure_time) <= 2
+
+
 def test_greedy_scheduler_via_solve_schedule() -> None:
     """Test greedy scheduler through Scheduler.solve_schedule with use_greedy=True."""
     # Create a simple graph

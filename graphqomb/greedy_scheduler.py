@@ -138,10 +138,48 @@ def greedy_minimize_time(  # noqa: PLR0914
             msg = "Scheduling did not converge; possible cyclic dependency."
             raise RuntimeError(msg)
 
+    _prepare_remaining_nodes_at_tail(
+        current_time,
+        physical_nodes=graph.physical_nodes,
+        input_nodes=input_nodes,
+        max_qubit_count=effective_max_qubit_count,
+        prepared=prepared,
+        alive=alive,
+        prepare_time=prepare_time,
+    )
+
     # Apply ALAP post-processing to minimize active volume
-    prepare_time = alap_prepare_times(graph, measure_time)
+    prepare_time = alap_prepare_times(graph, prepare_time, measure_time)
 
     return prepare_time, measure_time
+
+
+def _prepare_remaining_nodes_at_tail(  # noqa: PLR0913
+    current_time: int,
+    *,
+    physical_nodes: AbstractSet[int],
+    input_nodes: AbstractSet[int],
+    max_qubit_count: int,
+    prepared: set[int],
+    alive: set[int],
+    prepare_time: dict[int, int],
+) -> None:
+    # Any remaining nodes are outputs that were never needed for a measurement.
+    # With no future measurements to free qubits, they must all fit in the final live set.
+    remaining = physical_nodes - input_nodes - prepared
+    if not remaining:
+        return
+
+    if len(alive) + len(remaining) > max_qubit_count:
+        msg = (
+            "Cannot prepare remaining output nodes without exceeding max qubit count. Please increase max_qubit_count."
+        )
+        raise RuntimeError(msg)
+
+    for node in sorted(remaining):
+        prepare_time[node] = current_time
+    prepared.update(remaining)
+    alive.update(remaining)
 
 
 def _phase1_measure_ready_nodes(  # noqa: PLR0913
@@ -201,7 +239,6 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
         return False
 
     prep_candidates = _get_prep_candidates_with_priority(
-        unprepared,
         inv_dag,
         neighbors_map,
         prepared,
@@ -247,7 +284,6 @@ def _compute_criticality(
 
 
 def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
-    unprepared: AbstractSet[int],
     inv_dag: Mapping[int, AbstractSet[int]],
     neighbors_map: Mapping[int, AbstractSet[int]],
     prepared: AbstractSet[int],
@@ -436,15 +472,39 @@ def _calc_activate_cost(
     return max(len(alive) - 1, 0)
 
 
+def _set_tighter_deadline(deadline: Mapping[int, int], node: int, candidate_time: int) -> None:
+    current_deadline = deadline.get(node)
+    if current_deadline is None or candidate_time < current_deadline:
+        deadline[node] = candidate_time
+
+
+def _delay_prepare_times(
+    prepare_time: Mapping[int, int],
+    deadline: Mapping[int, int],
+) -> dict[int, int]:
+    delayed_prepare_time: dict[int, int] = {}
+    for node, original_time in prepare_time.items():
+        latest_time = deadline.get(node)
+        if latest_time is None:
+            delayed_prepare_time[node] = original_time
+            continue
+        if latest_time < original_time:
+            msg = f"ALAP would move node {node} earlier than its existing preparation time."
+            raise RuntimeError(msg)
+        delayed_prepare_time[node] = latest_time
+    return delayed_prepare_time
+
+
 def alap_prepare_times(
     graph: BaseGraphState,
+    prepare_time: Mapping[int, int],
     measure_time: Mapping[int, int],
 ) -> dict[int, int]:
     r"""Recompute preparation times using ALAP (As Late As Possible) strategy.
 
-    Given fixed measurement times, this computes the latest possible preparation
-    time for each node while respecting the constraint that all neighbors must
-    be prepared before a node is measured.
+    Given fixed measurement times and an existing valid preparation schedule,
+    this delays each prepared node as late as possible while respecting the
+    constraint that all neighbors must be prepared before a node is measured.
 
     This post-processing reduces active volume (sum of qubit lifetimes) without
     changing the measurement schedule or depth.
@@ -453,6 +513,8 @@ def alap_prepare_times(
     ----------
     graph : `BaseGraphState`
         The graph state
+    prepare_time : `collections.abc.Mapping`\[`int`, `int`\]
+        Existing preparation times for non-input nodes
     measure_time : `collections.abc.Mapping`\[`int`, `int`\]
         Fixed measurement times for non-output nodes
 
@@ -466,32 +528,11 @@ def alap_prepare_times(
     # deadline[v] = latest time v can be prepared
     deadline: dict[int, int] = {}
 
-    # For each measured node u, all its neighbors must be prepared before meas(u)
-    for u, meas_u in measure_time.items():
-        for neighbor in graph.neighbors(u):
-            if neighbor in input_nodes:
+    # Each measured node and its neighbors must be prepared before that measurement.
+    for node, meas_t in measure_time.items():
+        for dependency in itertools.chain((node,), graph.neighbors(node)):
+            if dependency in input_nodes:
                 continue  # Input nodes don't need prep
-            if neighbor not in deadline:
-                deadline[neighbor] = meas_u - 1
-            else:
-                deadline[neighbor] = min(deadline[neighbor], meas_u - 1)
+            _set_tighter_deadline(deadline, dependency, meas_t - 1)
 
-    # For measured nodes, they must be prepared before their own measurement
-    for v, meas_v in measure_time.items():
-        if v in input_nodes:
-            continue  # Input nodes don't need prep
-        if v not in deadline:
-            deadline[v] = meas_v - 1
-        else:
-            deadline[v] = min(deadline[v], meas_v - 1)
-
-    # Handle nodes with no deadline yet (output nodes with no measured neighbors)
-    # These should be prepared at the latest possible time: max(measure_time) - 1
-    # or 0 if there are no measurements
-    makespan = max(measure_time.values(), default=0)
-    for v in graph.physical_nodes - input_nodes:
-        if v not in deadline:
-            # No constraint from neighbors, prep as late as possible
-            deadline[v] = max(makespan - 1, 0)
-
-    return deadline
+    return _delay_prepare_times(prepare_time, deadline)
