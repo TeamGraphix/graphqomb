@@ -322,10 +322,6 @@ def _get_prep_candidates_with_priority(  # noqa: PLR0913, PLR0917
                 crit = criticality.get(blocked_node, 1)
                 score += crit / len(missing_map[blocked_node])
 
-        # Apply penalty for output nodes (they stay alive forever)
-        if candidate in output_nodes:
-            score *= 0.5
-
         scores.append((candidate, score))
 
     # Sort by score descending (higher score = higher priority).
