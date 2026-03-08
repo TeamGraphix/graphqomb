@@ -675,3 +675,31 @@ def test_greedy_minimize_space_non_input_dag_root() -> None:
     # Input nodes should not be in prepare_time
     assert n0 not in prepare_time
     assert n2 not in prepare_time
+
+
+def test_greedy_minimize_space_prepares_remaining_tail_nodes() -> None:
+    """Remaining non-input nodes should receive a tail preparation time."""
+    graph = GraphState()
+    n0 = graph.add_physical_node()  # input
+    n1 = graph.add_physical_node()  # output
+    n2 = graph.add_physical_node()  # output tail
+
+    graph.add_physical_edge(n0, n1)
+    graph.add_physical_edge(n1, n2)
+
+    graph.register_input(n0, 0)
+    graph.register_output(n1, 0)
+    graph.register_output(n2, 1)
+
+    dag = {
+        n0: set(),
+        n1: set(),
+        n2: set(),
+    }
+
+    prepare_time, measure_time = greedy_minimize_space(graph, dag)
+
+    assert measure_time == {n0: 1}
+    assert n1 in prepare_time
+    assert n2 in prepare_time
+    assert prepare_time[n2] >= prepare_time[n1]

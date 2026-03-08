@@ -429,6 +429,11 @@ def greedy_minimize_space(  # noqa: PLR0914
 
         current_time = meas_time + 1
 
+    # Any nodes left here were never needed to unlock a measurement.
+    remaining = graph.physical_nodes - input_nodes - prepared
+    for node in sorted(remaining):
+        prepare_time[node] = current_time
+
     return prepare_time, measure_time
 
 
@@ -470,12 +475,6 @@ def _calc_activate_cost(
         return len(alive) + num_to_prepare
     # No preparation needed -> node is measured in the current slice, so alive decreases by 1.
     return max(len(alive) - 1, 0)
-
-
-def _set_tighter_deadline(deadline: Mapping[int, int], node: int, candidate_time: int) -> None:
-    current_deadline = deadline.get(node)
-    if current_deadline is None or candidate_time < current_deadline:
-        deadline[node] = candidate_time
 
 
 def _delay_prepare_times(
@@ -533,6 +532,8 @@ def alap_prepare_times(
         for dependency in itertools.chain((node,), graph.neighbors(node)):
             if dependency in input_nodes:
                 continue  # Input nodes don't need prep
-            _set_tighter_deadline(deadline, dependency, meas_t - 1)
+            current_deadline = deadline.get(dependency)
+            if current_deadline is None or (meas_t - 1) < current_deadline:
+                deadline[dependency] = meas_t - 1
 
     return _delay_prepare_times(prepare_time, deadline)
