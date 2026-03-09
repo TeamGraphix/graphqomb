@@ -486,7 +486,7 @@ class PauliChannel2:
 
     def __post_init__(self) -> None:
         probabilities = _pauli_channel_2_args(self.probabilities)
-        targets = tuple(tuple(pair) for pair in self.targets)
+        targets = tuple(pair for pair in self.targets)
         _flatten_pairs(targets)
         placement = _validate_noise_placement("PauliChannel2.placement", self.placement)
         object.__setattr__(self, "probabilities", probabilities)
