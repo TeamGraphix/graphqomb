@@ -29,11 +29,11 @@ circuit.cz(0, 2)
 circuit.cz(1, 2)
 
 # %%
-# convert circuit to graph and flow
-graphstate, gflow = circuit2graph(circuit)
+# convert circuit to graph, flow, and scheduler
+graphstate, gflow, scheduler = circuit2graph(circuit)
 
-# first, qompile it to standardized pattern
-pattern = qompile(graphstate, gflow)
+# first, qompile it to pattern using the circuit-derived schedule
+pattern = qompile(graphstate, gflow, scheduler=scheduler)
 print("get max space of pattern:", pattern.max_space)
 print_pattern(pattern)
 

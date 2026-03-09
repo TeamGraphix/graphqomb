@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from graphqomb.command import TICK, E, M, N, X, Z
@@ -320,7 +322,7 @@ def test_throughput_calculates_measurements_per_tick(
         pauli_frame=pauli_frame,
     )
 
-    assert pattern.throughput == 2 / 4
+    assert math.isclose(pattern.throughput, 2 / 4)
 
 
 def test_throughput_raises_for_zero_depth(

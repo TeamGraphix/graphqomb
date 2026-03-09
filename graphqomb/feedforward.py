@@ -3,6 +3,8 @@
 This module provides:
 
 - `dag_from_flow`: Construct a directed acyclic graph (DAG) from a flowlike object.
+- `inverse_dag_from_dag`: Construct an inverse DAG (node -> dependencies).
+- `topo_order_from_inv_dag`: Construct a topological order from an inverse DAG.
 - `check_dag`: Check if a directed acyclic graph (DAG) does not contain a cycle.
 - `check_flow`: Check if the flowlike object is causal with respect to the graph state.
 - `signal_shifting`: Convert the correction maps into more parallel-friendly forms using signal shifting.
@@ -13,13 +15,15 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
-from graphlib import TopologicalSorter
+from graphlib import CycleError, TopologicalSorter
 from typing import Any, TypeGuard
 
 import typing_extensions
 
 from graphqomb.common import Axis, Plane, determine_pauli_axis
 from graphqomb.graphstate import BaseGraphState, odd_neighbors
+
+TOPO_ORDER_CYCLE_ERROR_MSG = "No nodes can be measured; possible cyclic dependency or incomplete preparation."
 
 
 def _is_flow(flowlike: Mapping[int, Any]) -> TypeGuard[Mapping[int, int]]:
@@ -101,7 +105,7 @@ def dag_from_flow(
         msg = "Invalid zflow object"
         raise TypeError(msg)
     for node in non_output_nodes:
-        target_nodes = xflow.get(node, set()) | zflow.get(node, set()) - {node}  # remove self-loops
+        target_nodes = (xflow.get(node, set()) | zflow.get(node, set())) - {node}  # remove self-loops
         dag[node] = target_nodes
     for output in output_nodes:
         dag[output] = set()
@@ -127,6 +131,60 @@ def check_dag(dag: Mapping[int, Iterable[int]]) -> None:
             if node in dag[child]:
                 msg = f"Cycle detected in the graph: {node} -> {child}"
                 raise ValueError(msg)
+
+
+def inverse_dag_from_dag(
+    dag: Mapping[int, Iterable[int]],
+    all_nodes: Iterable[int] | None = None,
+) -> dict[int, set[int]]:
+    r"""Build inverse DAG (node -> dependencies) from parent->children DAG.
+
+    Parameters
+    ----------
+    dag : `collections.abc.Mapping`\[`int`, `collections.abc.Iterable`\[`int`\]\]
+        DAG represented as parent node -> children.
+    all_nodes : `collections.abc.Iterable`\[`int`\] | `None`, optional
+        Optional full node set to include isolated nodes.
+
+    Returns
+    -------
+    `dict`\[`int`, `set`\[`int`\]\]
+        Inverse DAG represented as node -> dependencies.
+    """
+    nodes = set(all_nodes) if all_nodes is not None else set(dag)
+    for children in dag.values():
+        nodes.update(children)
+
+    inv_dag: dict[int, set[int]] = {node: set() for node in nodes}
+    for parent, children in dag.items():
+        for child in children:
+            inv_dag[child].add(parent)
+
+    return inv_dag
+
+
+def topo_order_from_inv_dag(inv_dag: Mapping[int, Iterable[int]]) -> list[int]:
+    r"""Build topological order from an inverse DAG (node -> dependencies).
+
+    Parameters
+    ----------
+    inv_dag : `collections.abc.Mapping`\[`int`, `collections.abc.Iterable`\[`int`\]\]
+        Inverse DAG where each node maps to the nodes it depends on.
+
+    Returns
+    -------
+    `list`\[`int`\]
+        Topological order from dependencies to dependents.
+
+    Raises
+    ------
+    RuntimeError
+        If topological ordering is not possible due to a cycle.
+    """
+    try:
+        return list(TopologicalSorter(inv_dag).static_order())
+    except CycleError as exc:
+        raise RuntimeError(TOPO_ORDER_CYCLE_ERROR_MSG) from exc
 
 
 def check_flow(

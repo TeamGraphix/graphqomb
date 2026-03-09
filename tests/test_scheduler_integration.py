@@ -135,6 +135,35 @@ def test_schedule_config_options() -> None:
     assert time_slices <= space_slices or space_slices <= time_slices  # Either way is valid
 
 
+def test_minimize_space_cpsat_prepares_node_before_measuring_it() -> None:
+    """Test CP-SAT MINIMIZE_SPACE enforces self preparation before measurement."""
+    graph = GraphState()
+    input_node = graph.add_physical_node()
+    measured_node = graph.add_physical_node()
+    qindex = 0
+
+    graph.add_physical_edge(input_node, measured_node)
+    graph.register_input(input_node, qindex)
+    graph.register_output(input_node, qindex)
+    graph.assign_meas_basis(measured_node, PlannerMeasBasis(Plane.YZ, 0.2))
+
+    gflow = {measured_node: {measured_node}}
+    scheduler = Scheduler(graph, gflow)
+
+    success = scheduler.solve_schedule(ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE), timeout=10)
+
+    assert success
+    prep_time = scheduler.prepare_time[measured_node]
+    meas_time = scheduler.measure_time[measured_node]
+    ent_time = scheduler.entangle_time[input_node, measured_node]
+    assert prep_time is not None
+    assert meas_time is not None
+    assert ent_time is not None
+    assert prep_time < meas_time
+    assert ent_time == prep_time
+    assert ent_time < meas_time
+
+
 def test_space_constrained_scheduling() -> None:
     """Test space-constrained time optimization."""
     # Create a larger graph to test constraints

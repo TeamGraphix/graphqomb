@@ -37,6 +37,7 @@ class ScheduleConfig:
     strategy: Strategy
     max_qubit_count: int | None = None
     max_time: int | None = None
+    use_greedy: bool = False
 
 
 @dataclass
@@ -60,6 +61,11 @@ def _add_constraints(
         for child in children:
             if node in node2meas and child in node2meas:
                 model.add(node2meas[node] < node2meas[child])
+
+    # A non-input, non-output node must be prepared before it is measured.
+    for node in graph.physical_nodes:
+        if node in node2prep and node in node2meas:
+            model.add(node2prep[node] < node2meas[node])
 
     # Edge constraints
     for node in graph.physical_nodes - set(graph.output_node_indices):
