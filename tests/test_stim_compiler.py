@@ -411,11 +411,11 @@ def test_stim_compile_with_logical_observables() -> None:
     # X measurement: XY plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
     # Provide parity_check_group to enable _pauli_axis_cache for logical observables
-    # Only include measured nodes (exclude output nodes which don't have measurement bases)
-    measured_nodes = {in_node, meas_node}
+    measured_nodes = {in_node, meas_node, out_node}
     parity_check_group = [measured_nodes]
     pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
 
