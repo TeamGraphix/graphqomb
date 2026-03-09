@@ -80,10 +80,10 @@ circuit = Circuit(2)
 circuit.apply_macro_gate(H(0))
 circuit.apply_macro_gate(CNOT((0, 1)))
 
-graph, feedforward = circuit2graph(circuit)
+graph, feedforward, scheduler = circuit2graph(circuit)
 
-# Compile into pattern
-pattern = qompile(graph, feedforward)
+# Compile into pattern using the circuit-derived schedule
+pattern = qompile(graph, feedforward, scheduler=scheduler)
 
 # Simulate the pattern
 simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
