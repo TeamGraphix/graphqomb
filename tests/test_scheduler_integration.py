@@ -153,12 +153,15 @@ def test_minimize_space_cpsat_prepares_node_before_measuring_it() -> None:
     success = scheduler.solve_schedule(ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE), timeout=10)
 
     assert success
-    assert scheduler.prepare_time[measured_node] is not None
-    assert scheduler.measure_time[measured_node] is not None
-    assert scheduler.entangle_time[input_node, measured_node] is not None
-    assert scheduler.prepare_time[measured_node] < scheduler.measure_time[measured_node]
-    assert scheduler.entangle_time[input_node, measured_node] == scheduler.prepare_time[measured_node]
-    assert scheduler.entangle_time[input_node, measured_node] < scheduler.measure_time[measured_node]
+    prep_time = scheduler.prepare_time[measured_node]
+    meas_time = scheduler.measure_time[measured_node]
+    ent_time = scheduler.entangle_time[input_node, measured_node]
+    assert prep_time is not None
+    assert meas_time is not None
+    assert ent_time is not None
+    assert prep_time < meas_time
+    assert ent_time == prep_time
+    assert ent_time < meas_time
 
 
 def test_space_constrained_scheduling() -> None:

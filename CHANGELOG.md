@@ -12,10 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Greedy Scheduler**: Fast greedy scheduling algorithms as an alternative to CP-SAT optimization
   - Added `greedy_minimize_time()` for minimal execution time scheduling with ALAP preparation optimization
   - Added `greedy_minimize_space()` for minimal qubit usage scheduling
+- **Schedule Solver**: Added constraint that every non-input, non-output node must be prepared strictly before it is measured (`node2prep[node] < node2meas[node]`)
+
+### Fixed
+
+- **Feedforward**: Fixed operator precedence bug in `dag_from_flow` where self-loops were only removed from `zflow` but not from `xflow`. The expression `xflow | zflow - {node}` was evaluated as `xflow | (zflow - {node})` due to `-` binding tighter than `|`. Corrected to `(xflow | zflow) - {node}`.
 
 ### Tests
 
 - **Greedy Scheduler**: Added tests for greedy scheduling algorithms
+- **Schedule Solver**: Added integration test verifying that CP-SAT MINIMIZE_SPACE strategy enforces node preparation before measurement
 
 
 ## [0.2.1] - 2026-01-16
