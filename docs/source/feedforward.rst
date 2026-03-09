@@ -11,6 +11,10 @@ Functions
 
 .. autofunction:: graphqomb.feedforward.dag_from_flow
 
+.. autofunction:: graphqomb.feedforward.inverse_dag_from_dag
+
+.. autofunction:: graphqomb.feedforward.topo_order_from_inv_dag
+
 .. autofunction:: graphqomb.feedforward.check_dag
 
 .. autofunction:: graphqomb.feedforward.check_flow

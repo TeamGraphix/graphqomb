@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Greedy Scheduler**: Fast greedy scheduling algorithms as an alternative to CP-SAT optimization
+  - Added `greedy_minimize_time()` for minimal execution time scheduling with ALAP preparation optimization
+  - Added `greedy_minimize_space()` for minimal qubit usage scheduling
 - **Circuit Conversion**: Added circuit-derived pre-scheduling support in `circuit2graph()`.
   - Added `CircuitScheduleStrategy` with `PARALLEL` and `MINIMIZE_SPACE`.
   - Added `schedule_strategy` argument to `circuit2graph()`.
@@ -27,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- **Greedy Scheduler**: Added tests for greedy scheduling algorithms
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
 - **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
 - **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
