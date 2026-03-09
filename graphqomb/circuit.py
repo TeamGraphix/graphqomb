@@ -357,6 +357,7 @@ def circuit2graph(
     for instruction in circuit.unit_instructions():
         context.apply_instruction(instruction)
 
+    # output nodes
     for qindex, node in context.qindex2front_nodes.items():
         graph.register_output(node, qindex)
 
