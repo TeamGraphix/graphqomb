@@ -67,6 +67,18 @@ def test_dag_from_flow_basic_gflow() -> None:
     assert dag[node2] == set()
 
 
+def test_dag_from_flow_removes_self_loop_from_xflow() -> None:
+    graphstate, node1, node2 = two_node_graph()
+    xflow: dict[int, set[int]] = {node1: {node1, node2}, node2: set()}
+    zflow: dict[int, set[int]] = {node1: set(), node2: set()}
+
+    dag = dag_from_flow(graphstate, xflow, zflow)
+    check_dag(dag)
+
+    assert node1 not in dag[node1]
+    assert dag[node1] == {node2}
+
+
 def test_dag_from_flow_invalid_type_raises() -> None:
     graphstate, node1, node2 = two_node_graph()
     invalid: dict[int, int | set[int]] = {node1: node2, node2: {node2}}  # mixed types
