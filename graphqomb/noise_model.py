@@ -58,9 +58,7 @@ Create a simple depolarizing noise model:
 ...         return [PauliChannel1(**depolarize1_probs(self.p1), targets=[event.node.id])]
 ...
 ...     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
-...         return [
-...             PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])
-...         ]
+...         return [PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])]
 
 Use with stim_compile:
 
