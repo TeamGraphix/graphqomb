@@ -18,6 +18,23 @@ This module provides:
 - `depolarize2_probs`: Utility to create 2-qubit depolarizing probabilities.
 - :data:`PAULI_CHANNEL_2_ORDER`: Constant for Pauli channel order.
 
+See Also
+--------
+stim_compile : The main compilation function that accepts a NoiseModel.
+
+Notes
+-----
+- **Placement control**: Each `NoiseOp` has a ``placement`` attribute.
+  ``AUTO`` defers to :func:`default_noise_placement`, while
+  ``BEFORE``/``AFTER`` force insertion side.
+
+- **Record delta**: Heralded instructions (`HeraldedPauliChannel1`,
+  `HeraldedErase`) add measurement records. The compiler automatically
+  tracks these to compute correct detector indices.
+
+- **Coordinate access**: Events provide `NodeInfo` objects with optional
+  coordinates, useful for position-dependent noise models.
+
 Examples
 --------
 Create a simple depolarizing noise model:
@@ -41,7 +58,9 @@ Create a simple depolarizing noise model:
 ...         return [PauliChannel1(**depolarize1_probs(self.p1), targets=[event.node.id])]
 ...
 ...     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
-...         return [PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])]
+...         return [
+...             PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])
+...         ]
 
 Use with stim_compile:
 
@@ -57,23 +76,6 @@ Use heralded noise that adds measurement records:
 ...     def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
 ...         # Heralded erasure with 10% probability
 ...         return [HeraldedPauliChannel1(pi=0.1, px=0.0, py=0.0, pz=0.0, targets=[event.node.id])]
-
-Notes
------
-- **Placement control**: Each `NoiseOp` has a ``placement`` attribute.
-  ``AUTO`` defers to :func:`default_noise_placement`, while
-  ``BEFORE``/``AFTER`` force insertion side.
-
-- **Record delta**: Heralded instructions (`HeraldedPauliChannel1`,
-  `HeraldedErase`) add measurement records. The compiler automatically
-  tracks these to compute correct detector indices.
-
-- **Coordinate access**: Events provide `NodeInfo` objects with optional
-  coordinates, useful for position-dependent noise models.
-
-See Also
---------
-stim_compile : The main compilation function that accepts a NoiseModel.
 """
 
 from __future__ import annotations
@@ -154,6 +156,32 @@ def _validate_probability_sum(name: str, probabilities: Sequence[float], *, atol
     if total > 1.0 + atol:
         msg = f"{name} probabilities must sum to <= 1, got {total}"
         raise ValueError(msg)
+
+
+def _validate_noise_placement(name: str, placement: NoisePlacement) -> NoisePlacement:
+    """Validate and return a noise placement value.
+
+    Parameters
+    ----------
+    name : `str`
+        Human-readable name used in error messages.
+    placement : `NoisePlacement`
+        Placement value to validate.
+
+    Returns
+    -------
+    `NoisePlacement`
+        The validated placement value.
+
+    Raises
+    ------
+    TypeError
+        If ``placement`` is not a `NoisePlacement`.
+    """
+    if not isinstance(placement, NoisePlacement):
+        msg = f"{name} must be a NoisePlacement, got {placement!r}"
+        raise TypeError(msg)
+    return placement
 
 
 def depolarize1_probs(p: float) -> dict[str, float]:
@@ -407,7 +435,16 @@ class PauliChannel1:
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
+        px = _validate_probability("PauliChannel1.px", self.px)
+        py = _validate_probability("PauliChannel1.py", self.py)
+        pz = _validate_probability("PauliChannel1.pz", self.pz)
+        _validate_probability_sum("PauliChannel1", (px, py, pz))
+        placement = _validate_noise_placement("PauliChannel1.placement", self.placement)
+        object.__setattr__(self, "px", px)
+        object.__setattr__(self, "py", py)
+        object.__setattr__(self, "pz", pz)
         object.__setattr__(self, "targets", tuple(self.targets))
+        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -450,7 +487,13 @@ class PauliChannel2:
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "targets", tuple(tuple(pair) for pair in self.targets))
+        probabilities = _pauli_channel_2_args(self.probabilities)
+        targets = tuple(tuple(pair) for pair in self.targets)
+        _flatten_pairs(targets)
+        placement = _validate_noise_placement("PauliChannel2.placement", self.placement)
+        object.__setattr__(self, "probabilities", probabilities)
+        object.__setattr__(self, "targets", targets)
+        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -501,7 +544,18 @@ class HeraldedPauliChannel1:
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
+        pi = _validate_probability("HeraldedPauliChannel1.pi", self.pi)
+        px = _validate_probability("HeraldedPauliChannel1.px", self.px)
+        py = _validate_probability("HeraldedPauliChannel1.py", self.py)
+        pz = _validate_probability("HeraldedPauliChannel1.pz", self.pz)
+        _validate_probability_sum("HeraldedPauliChannel1", (pi, px, py, pz))
+        placement = _validate_noise_placement("HeraldedPauliChannel1.placement", self.placement)
+        object.__setattr__(self, "pi", pi)
+        object.__setattr__(self, "px", px)
+        object.__setattr__(self, "py", py)
+        object.__setattr__(self, "pz", pz)
         object.__setattr__(self, "targets", tuple(self.targets))
+        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -541,7 +595,11 @@ class HeraldedErase:
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
+        p = _validate_probability("HeraldedErase.p", self.p)
+        placement = _validate_noise_placement("HeraldedErase.placement", self.placement)
+        object.__setattr__(self, "p", p)
         object.__setattr__(self, "targets", tuple(self.targets))
+        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -580,6 +638,7 @@ class RawStimOp:
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
+        placement = _validate_noise_placement("RawStimOp.placement", self.placement)
         if "\n" in self.text or "\r" in self.text:
             msg = "RawStimOp.text must be a single Stim instruction line without newlines"
             raise ValueError(msg)
@@ -593,6 +652,7 @@ class RawStimOp:
                 f"expected {expected_delta}, got {self.record_delta}"
             )
             raise ValueError(msg)
+        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -617,6 +677,12 @@ class MeasurementFlip:
     p: float
     target: int
     placement: NoisePlacement = NoisePlacement.AUTO
+
+    def __post_init__(self) -> None:
+        p = _validate_probability("MeasurementFlip.p", self.p)
+        placement = _validate_noise_placement("MeasurementFlip.placement", self.placement)
+        object.__setattr__(self, "p", p)
+        object.__setattr__(self, "placement", placement)
 
 
 NoiseOp = PauliChannel1 | PauliChannel2 | HeraldedPauliChannel1 | HeraldedErase | RawStimOp | MeasurementFlip
@@ -644,9 +710,6 @@ class NoiseModel:
     ...             PauliChannel1(px=0.01, py=0.0, pz=0.0, targets=[event.node.id], placement=NoisePlacement.BEFORE)
     ...         ]
 
-    See Also
-    --------
-    stim_compile : The main compilation function that accepts a NoiseModel.
     """
 
     def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
@@ -742,45 +805,33 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     if isinstance(op, PauliChannel1):
         if not op.targets:
             return "", 0
-        px = _validate_probability("PauliChannel1.px", op.px)
-        py = _validate_probability("PauliChannel1.py", op.py)
-        pz = _validate_probability("PauliChannel1.pz", op.pz)
-        _validate_probability_sum("PauliChannel1", (px, py, pz))
         targets = " ".join(str(t) for t in op.targets)
-        return f"PAULI_CHANNEL_1({px},{py},{pz}) {targets}", 0
+        return f"PAULI_CHANNEL_1({op.px},{op.py},{op.pz}) {targets}", 0
 
     if isinstance(op, PauliChannel2):
         if not op.targets:
             return "", 0
-        args = _pauli_channel_2_args(op.probabilities)
         flat_targets = _flatten_pairs(op.targets)
         targets_str = " ".join(str(t) for t in flat_targets)
-        args_str = ",".join(str(v) for v in args)
+        args_str = ",".join(str(v) for v in op.probabilities)
         return f"PAULI_CHANNEL_2({args_str}) {targets_str}", 0
 
     if isinstance(op, HeraldedPauliChannel1):
         if not op.targets:
             return "", 0
-        pi = _validate_probability("HeraldedPauliChannel1.pi", op.pi)
-        px = _validate_probability("HeraldedPauliChannel1.px", op.px)
-        py = _validate_probability("HeraldedPauliChannel1.py", op.py)
-        pz = _validate_probability("HeraldedPauliChannel1.pz", op.pz)
-        _validate_probability_sum("HeraldedPauliChannel1", (pi, px, py, pz))
         targets = " ".join(str(t) for t in op.targets)
         return (
-            f"HERALDED_PAULI_CHANNEL_1({pi},{px},{py},{pz}) {targets}",
+            f"HERALDED_PAULI_CHANNEL_1({op.pi},{op.px},{op.py},{op.pz}) {targets}",
             len(op.targets),
         )
 
     if isinstance(op, HeraldedErase):
         if not op.targets:
             return "", 0
-        p = _validate_probability("HeraldedErase.p", op.p)
         targets = " ".join(str(t) for t in op.targets)
-        return f"HERALDED_ERASE({p}) {targets}", len(op.targets)
+        return f"HERALDED_ERASE({op.p}) {targets}", len(op.targets)
 
     if isinstance(op, MeasurementFlip):
-        _validate_probability("MeasurementFlip.p", op.p)
         # MeasurementFlip is handled specially in the compiler by modifying
         # the measurement instruction. It should not be emitted as a separate op.
         return "", 0
@@ -880,8 +931,8 @@ class DepolarizingNoiseModel(NoiseModel):
     """
 
     def __init__(self, p1: float, p2: float | None = None) -> None:
-        self._p1 = p1
-        self._p2 = p2 if p2 is not None else p1
+        self._p1 = _validate_probability("DepolarizingNoiseModel.p1", p1)
+        self._p2 = self._p1 if p2 is None else _validate_probability("DepolarizingNoiseModel.p2", p2)
 
     def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:
         r"""Add single-qubit depolarizing noise after preparation.
@@ -928,7 +979,7 @@ class MeasurementFlipNoiseModel(NoiseModel):
     """
 
     def __init__(self, p: float) -> None:
-        self._p = p
+        self._p = _validate_probability("MeasurementFlipNoiseModel.p", p)
 
     def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:
         r"""Add measurement flip error.

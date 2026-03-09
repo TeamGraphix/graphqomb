@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Stim Compiler**: Refactored internal structure to support noise model integration
+- **Noise Validation**: Centralized noise parameter validation in `noise_model`
+  - `NoiseOp` dataclasses now validate and normalize their inputs at construction time
+  - `DepolarizingNoiseModel` and `MeasurementFlipNoiseModel` now reject invalid probabilities when instantiated
+  - `MeasurementFlip` is now enforced as a measurement-only noise operation during Stim compilation
+
+### Removed
+
+- **Stim Compiler Legacy Noise Args**: Removed `p_depol_after_clifford` and `p_before_meas_flip` from `stim_compile()`
+  - Use `noise_models=[DepolarizingNoiseModel(...), MeasurementFlipNoiseModel(...)]` instead
 
 ## [0.2.1] - 2026-01-16
 

@@ -10,18 +10,15 @@ from __future__ import annotations
 import math
 from io import StringIO
 from typing import TYPE_CHECKING
-from warnings import warn
 
 from graphqomb.command import TICK, E, M, N, X, Z
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
 from graphqomb.noise_model import (
     Coordinate,
-    DepolarizingNoiseModel,
     EntangleEvent,
     IdleEvent,
     MeasureEvent,
     MeasurementFlip,
-    MeasurementFlipNoiseModel,
     NodeInfo,
     NoiseModel,
     NoiseOp,
@@ -107,7 +104,7 @@ class _StimCompiler:
 
     def _process_prepare(self, node: int, coordinate: tuple[float, ...] | None, *, is_input: bool) -> None:
         event = PrepareEvent(time=self._tick, node=self._node_info(node), is_input=is_input)
-        ops = self._collect_noise_ops_from_models(lambda m: m.on_prepare(event))
+        ops = self._validate_ops_for_event(event, self._collect_noise_ops_from_models(lambda m: m.on_prepare(event)))
         default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
@@ -124,7 +121,7 @@ class _StimCompiler:
         n0, n1 = nodes
         edge: tuple[int, int] = (n0, n1) if n0 < n1 else (n1, n0)
         event = EntangleEvent(time=self._tick, node0=self._node_info(n0), node1=self._node_info(n1), edge=edge)
-        ops = self._collect_noise_ops_from_models(lambda m: m.on_entangle(event))
+        ops = self._validate_ops_for_event(event, self._collect_noise_ops_from_models(lambda m: m.on_entangle(event)))
         default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.BEFORE, default_placement)
 
@@ -138,7 +135,7 @@ class _StimCompiler:
             msg = f"Unsupported measurement basis: {meas_basis.plane, meas_basis.angle}"
             raise ValueError(msg)
         event = MeasureEvent(time=self._tick, node=self._node_info(node), axis=axis)
-        ops = self._collect_noise_ops_from_models(lambda m: m.on_measure(event))
+        ops = self._validate_ops_for_event(event, self._collect_noise_ops_from_models(lambda m: m.on_measure(event)))
 
         # Separate MeasurementFlip from other noise ops
         meas_flip_probs: list[float] = []
@@ -160,7 +157,6 @@ class _StimCompiler:
             meas_flip_p = meas_flip_probs[0]
         else:
             meas_flip_p = 1.0 - math.prod(1.0 - p for p in meas_flip_probs)
-        meas_flip_p = min(max(meas_flip_p, 0.0), 1.0)
 
         default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(other_ops, NoisePlacement.BEFORE, default_placement)
@@ -186,7 +182,7 @@ class _StimCompiler:
                 nodes=tuple(self._node_info(node) for node in idle_nodes),
                 duration=self._tick_duration,
             )
-            ops = self._collect_noise_ops_from_models(lambda m: m.on_idle(event))
+            ops = self._validate_ops_for_event(event, self._collect_noise_ops_from_models(lambda m: m.on_idle(event)))
             default_placement = default_noise_placement(event)
         else:
             ops = ()
@@ -208,6 +204,28 @@ class _StimCompiler:
             ops.extend(get_ops(model))
         return tuple(ops)
 
+    @staticmethod
+    def _validate_ops_for_event(
+        event: PrepareEvent | EntangleEvent | MeasureEvent | IdleEvent,
+        ops: tuple[NoiseOp, ...],
+    ) -> tuple[NoiseOp, ...]:
+        for op in ops:
+            if not isinstance(op, MeasurementFlip):
+                continue
+            if not isinstance(event, MeasureEvent):
+                msg = (
+                    "MeasurementFlip can only be returned from NoiseModel.on_measure(). "
+                    f"Received it for {type(event).__name__}."
+                )
+                raise TypeError(msg)
+            if op.target != event.node.id:
+                msg = (
+                    f"MeasurementFlip target mismatch: measurement on node {event.node.id}, "
+                    f"but flip targets node {op.target}"
+                )
+                raise ValueError(msg)
+        return ops
+
     def _emit_noise_ops(
         self, ops: Iterable[NoiseOp], placement: NoisePlacement, default_placement: NoisePlacement
     ) -> int:
@@ -225,91 +243,10 @@ class _StimCompiler:
         return record_delta
 
 
-def _validate_probability_parameter(name: str, value: float) -> None:
-    """Validate that a probability parameter is within [0, 1].
-
-    Parameters
-    ----------
-    name : `str`
-        Parameter name used in error messages.
-    value : `float`
-        Probability value to validate.
-
-    Raises
-    ------
-    ValueError
-        If ``value`` is outside the inclusive range [0, 1].
-    """
-    if not 0.0 <= value <= 1.0:
-        msg = f"{name} must be within [0, 1], got {value}"
-        raise ValueError(msg)
-
-
-def _normalize_noise_models(
-    noise_models: Sequence[NoiseModel] | None,
-    p_depol_after_clifford: float | None,
-    p_before_meas_flip: float | None,
-) -> tuple[NoiseModel, ...]:
-    r"""Normalize legacy noise parameters and new noise model API.
-
-    Parameters
-    ----------
-    noise_models : `collections.abc.Sequence`\[`NoiseModel`\] | `None`
-        New noise model API input.
-    p_depol_after_clifford : `float` | `None`
-        Legacy depolarizing noise parameter.
-    p_before_meas_flip : `float` | `None`
-        Legacy measurement flip noise parameter.
-
-    Returns
-    -------
-    `tuple`\[`NoiseModel`, ...\]
-        Normalized noise model sequence.
-
-    Raises
-    ------
-    ValueError
-        If legacy parameters are invalid or mixed with ``noise_models``.
-    """
-    used_legacy: list[str] = []
-    legacy_models: list[NoiseModel] = []
-
-    if p_depol_after_clifford is not None:
-        _validate_probability_parameter("p_depol_after_clifford", p_depol_after_clifford)
-        used_legacy.append("p_depol_after_clifford")
-        if p_depol_after_clifford > 0.0:
-            legacy_models.append(DepolarizingNoiseModel(p1=p_depol_after_clifford, p2=p_depol_after_clifford))
-
-    if p_before_meas_flip is not None:
-        _validate_probability_parameter("p_before_meas_flip", p_before_meas_flip)
-        used_legacy.append("p_before_meas_flip")
-        if p_before_meas_flip > 0.0:
-            legacy_models.append(MeasurementFlipNoiseModel(p=p_before_meas_flip))
-
-    if noise_models is not None and used_legacy:
-        legacy_args = ", ".join(used_legacy)
-        msg = f"{legacy_args} cannot be used together with noise_models."
-        raise ValueError(msg)
-
-    if used_legacy:
-        warn(
-            "p_depol_after_clifford and p_before_meas_flip are deprecated in 0.3.0 and will be removed in 0.4.0. "
-            "Use noise_models with DepolarizingNoiseModel and MeasurementFlipNoiseModel instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-
-    if noise_models is not None:
-        return tuple(noise_models)
-    return tuple(legacy_models)
-
-
-def stim_compile(  # noqa: PLR0913
+def stim_compile(
     pattern: Pattern,
     logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
-    p_depol_after_clifford: float | None = None,
-    p_before_meas_flip: float | None = None,
     emit_qubit_coords: bool = True,
     noise_models: Sequence[NoiseModel] | None = None,
     tick_duration: float = 1.0,
@@ -322,12 +259,6 @@ def stim_compile(  # noqa: PLR0913
         The pattern to compile.
     logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
         A mapping from logical observable index to a collection of node indices, by default None.
-    p_depol_after_clifford : `float` | `None`, optional
-        Legacy depolarizing probability after Clifford gates. Deprecated in 0.3.0.
-        Use ``noise_models=[DepolarizingNoiseModel(p1=..., p2=...)]`` instead.
-    p_before_meas_flip : `float` | `None`, optional
-        Legacy measurement bit-flip probability. Deprecated in 0.3.0.
-        Use ``noise_models=[MeasurementFlipNoiseModel(p=...)]`` instead.
     emit_qubit_coords : `bool`, optional
         Whether to emit QUBIT_COORDS instructions for nodes with coordinates,
         by default True.
@@ -345,9 +276,6 @@ def stim_compile(  # noqa: PLR0913
 
     Notes
     -----
-    Deprecated parameters ``p_depol_after_clifford`` and ``p_before_meas_flip`` emit
-    a `DeprecationWarning` and will be removed in 0.4.0.
-    Legacy parameters cannot be mixed with ``noise_models``.
     Stim only supports Clifford gates, therefore this compiler only supports
     Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
     Non-Pauli measurements will raise a ValueError.
@@ -370,15 +298,10 @@ def stim_compile(  # noqa: PLR0913
     >>> #     ]
     >>> # )
     """
-    normalized_noise_models = _normalize_noise_models(
-        noise_models=noise_models,
-        p_depol_after_clifford=p_depol_after_clifford,
-        p_before_meas_flip=p_before_meas_flip,
-    )
     compiler = _StimCompiler(
         pattern,
         emit_qubit_coords=emit_qubit_coords,
-        noise_models=normalized_noise_models,
+        noise_models=tuple(() if noise_models is None else noise_models),
         tick_duration=tick_duration,
     )
     return compiler.compile(logical_observables)

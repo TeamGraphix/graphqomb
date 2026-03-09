@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from graphqomb.common import Axis
@@ -137,7 +139,7 @@ class TestIdleEvent:
         event = IdleEvent(time=1, nodes=nodes, duration=1.0)
         assert event.time == 1
         assert len(event.nodes) == 3
-        assert event.duration == 1.0
+        assert math.isclose(event.duration, 1.0)
 
 
 # ---- NoiseOp Tests ----
@@ -180,15 +182,13 @@ class TestPauliChannel1:
 
     def test_negative_probability_raises(self) -> None:
         """Test PauliChannel1 with negative probability raises ValueError."""
-        op = PauliChannel1(px=-0.01, py=0.0, pz=0.0, targets=[0])
         with pytest.raises(ValueError, match=r"PauliChannel1\.px must be within \[0, 1\]"):
-            noise_op_to_stim(op)
+            PauliChannel1(px=-0.01, py=0.0, pz=0.0, targets=[0])
 
     def test_probability_sum_greater_than_one_raises(self) -> None:
         """Test PauliChannel1 with probabilities summing to >1 raises ValueError."""
-        op = PauliChannel1(px=0.5, py=0.4, pz=0.2, targets=[0])
         with pytest.raises(ValueError, match=r"PauliChannel1 probabilities must sum to <= 1"):
-            noise_op_to_stim(op)
+            PauliChannel1(px=0.5, py=0.4, pz=0.2, targets=[0])
 
 
 class TestPauliChannel2:
@@ -228,15 +228,13 @@ class TestPauliChannel2:
 
     def test_unknown_key_raises(self) -> None:
         """Test PauliChannel2 with unknown key raises ValueError."""
-        op = PauliChannel2(probabilities={"ZZZ": 0.01}, targets=[(0, 1)])
         with pytest.raises(ValueError, match="Unknown PAULI_CHANNEL_2 keys"):
-            noise_op_to_stim(op)
+            PauliChannel2(probabilities={"ZZZ": 0.01}, targets=[(0, 1)])
 
     def test_wrong_sequence_length_raises(self) -> None:
         """Test PauliChannel2 with wrong sequence length raises ValueError."""
-        op = PauliChannel2(probabilities=[0.01] * 10, targets=[(0, 1)])
         with pytest.raises(ValueError, match="PAULI_CHANNEL_2 expects 15 probabilities"):
-            noise_op_to_stim(op)
+            PauliChannel2(probabilities=[0.01] * 10, targets=[(0, 1)])
 
     def test_targets_converted_to_tuple(self) -> None:
         """Test that targets list is converted to tuple of tuples."""
@@ -250,15 +248,13 @@ class TestPauliChannel2:
 
     def test_probability_out_of_range_raises(self) -> None:
         """Test PauliChannel2 with out-of-range probability raises ValueError."""
-        op = PauliChannel2(probabilities={"ZZ": 1.1}, targets=[(0, 1)])
         with pytest.raises(ValueError, match=r"PauliChannel2\.probabilities\[ZZ\] must be within \[0, 1\]"):
-            noise_op_to_stim(op)
+            PauliChannel2(probabilities={"ZZ": 1.1}, targets=[(0, 1)])
 
     def test_probability_sum_greater_than_one_raises(self) -> None:
         """Test PauliChannel2 with probabilities summing to >1 raises ValueError."""
-        op = PauliChannel2(probabilities={"ZZ": 0.8, "XX": 0.3}, targets=[(0, 1)])
         with pytest.raises(ValueError, match=r"PauliChannel2 probabilities must sum to <= 1"):
-            noise_op_to_stim(op)
+            PauliChannel2(probabilities={"ZZ": 0.8, "XX": 0.3}, targets=[(0, 1)])
 
 
 class TestDepolarize1Probs:
@@ -359,9 +355,8 @@ class TestHeraldedPauliChannel1:
 
     def test_probability_sum_greater_than_one_raises(self) -> None:
         """Test HeraldedPauliChannel1 with probabilities summing to >1 raises ValueError."""
-        op = HeraldedPauliChannel1(pi=0.4, px=0.4, py=0.3, pz=0.0, targets=[0])
         with pytest.raises(ValueError, match=r"HeraldedPauliChannel1 probabilities must sum to <= 1"):
-            noise_op_to_stim(op)
+            HeraldedPauliChannel1(pi=0.4, px=0.4, py=0.3, pz=0.0, targets=[0])
 
 
 class TestHeraldedErase:
@@ -395,9 +390,8 @@ class TestHeraldedErase:
 
     def test_probability_out_of_range_raises(self) -> None:
         """Test HeraldedErase with out-of-range probability raises ValueError."""
-        op = HeraldedErase(p=1.1, targets=[0])
         with pytest.raises(ValueError, match=r"HeraldedErase\.p must be within \[0, 1\]"):
-            noise_op_to_stim(op)
+            HeraldedErase(p=1.1, targets=[0])
 
 
 class TestRawStimOp:
@@ -571,7 +565,7 @@ class TestCustomNoiseModel:
         ops = list(model.on_prepare(event))
         assert len(ops) == 1
         assert isinstance(ops[0], PauliChannel1)
-        assert ops[0].px == 0.01
+        assert math.isclose(ops[0].px, 0.01)
         assert 5 in ops[0].targets
 
     def test_on_entangle(self) -> None:
@@ -601,7 +595,7 @@ class TestCustomNoiseModel:
         ops = list(model.on_idle(event))
         assert len(ops) == 1
         assert isinstance(ops[0], PauliChannel1)
-        assert ops[0].px == 0.002  # p * duration
+        assert math.isclose(ops[0].px, 0.002)  # p * duration
 
 
 # ---- MeasurementFlip Tests ----
@@ -613,7 +607,7 @@ class TestMeasurementFlip:
     def test_basic(self) -> None:
         """Test basic MeasurementFlip creation."""
         op = MeasurementFlip(p=0.01, target=5)
-        assert op.p == 0.01
+        assert math.isclose(op.p, 0.01)
         assert op.target == 5
         assert op.placement == NoisePlacement.AUTO
 
@@ -630,9 +624,8 @@ class TestMeasurementFlip:
 
     def test_invalid_probability_raises(self) -> None:
         """Test MeasurementFlip validates probability range."""
-        op = MeasurementFlip(p=-0.1, target=0)
         with pytest.raises(ValueError, match=r"MeasurementFlip\.p must be within \[0, 1\]"):
-            noise_op_to_stim(op)
+            MeasurementFlip(p=-0.1, target=0)
 
 
 # ---- DepolarizingNoiseModel Tests ----
@@ -698,6 +691,21 @@ class TestDepolarizingNoiseModel:
         ops = list(model.on_prepare(event))
         assert len(ops) == 0
 
+    def test_invalid_p1_raises(self) -> None:
+        """Test that invalid p1 is rejected at construction time."""
+        with pytest.raises(ValueError, match=r"DepolarizingNoiseModel\.p1 must be within \[0, 1\]"):
+            DepolarizingNoiseModel(p1=1.1)
+
+    def test_invalid_p2_raises(self) -> None:
+        """Test that invalid p2 is rejected at construction time."""
+        with pytest.raises(ValueError, match=r"DepolarizingNoiseModel\.p2 must be within \[0, 1\]"):
+            DepolarizingNoiseModel(p1=0.1, p2=-0.1)
+
+    def test_nan_probability_raises(self) -> None:
+        """Test that NaN probabilities are rejected at construction time."""
+        with pytest.raises(ValueError, match=r"DepolarizingNoiseModel\.p1 must be within \[0, 1\]"):
+            DepolarizingNoiseModel(p1=float("nan"))
+
 
 # ---- MeasurementFlipNoiseModel Tests ----
 
@@ -713,7 +721,7 @@ class TestMeasurementFlipNoiseModel:
         ops = list(model.on_measure(event))
         assert len(ops) == 1
         assert isinstance(ops[0], MeasurementFlip)
-        assert ops[0].p == 0.01
+        assert math.isclose(ops[0].p, 0.01)
         assert ops[0].target == 5
 
     def test_zero_probability_returns_empty(self) -> None:
@@ -733,4 +741,14 @@ class TestMeasurementFlipNoiseModel:
             ops = list(model.on_measure(event))
             assert len(ops) == 1
             assert isinstance(ops[0], MeasurementFlip)
-            assert ops[0].p == 0.005
+            assert math.isclose(ops[0].p, 0.005)
+
+    def test_invalid_probability_raises(self) -> None:
+        """Test that invalid p is rejected at construction time."""
+        with pytest.raises(ValueError, match=r"MeasurementFlipNoiseModel\.p must be within \[0, 1\]"):
+            MeasurementFlipNoiseModel(p=1.1)
+
+    def test_nan_probability_raises(self) -> None:
+        """Test that NaN p is rejected at construction time."""
+        with pytest.raises(ValueError, match=r"MeasurementFlipNoiseModel\.p must be within \[0, 1\]"):
+            MeasurementFlipNoiseModel(p=float("nan"))

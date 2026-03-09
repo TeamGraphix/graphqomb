@@ -12,11 +12,14 @@ from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.noise_model import (
     DepolarizingNoiseModel,
+    EntangleEvent,
     HeraldedPauliChannel1,
+    IdleEvent,
     MeasureEvent,
     MeasurementFlip,
     MeasurementFlipNoiseModel,
     NoiseModel,
+    PrepareEvent,
 )
 from graphqomb.qompiler import qompile
 from graphqomb.schedule_solver import ScheduleConfig, Strategy
@@ -177,17 +180,6 @@ def test_stim_compile_with_depolarization() -> None:
     assert "DEPOLARIZE2(0.01)" in stim_str
 
 
-def test_stim_compile_with_legacy_depolarization_parameter() -> None:
-    """Legacy depolarization parameter should still work with a deprecation warning."""
-    pattern, _, _ = create_simple_pattern_x_measurement()
-
-    with pytest.warns(DeprecationWarning, match="p_depol_after_clifford"):
-        stim_str = stim_compile(pattern, p_depol_after_clifford=0.01)
-
-    assert "DEPOLARIZE1(0.01)" in stim_str
-    assert "DEPOLARIZE2(0.01)" in stim_str
-
-
 def test_stim_compile_with_measurement_errors_x() -> None:
     """Test that X measurement errors are correctly inserted using MeasurementFlipNoiseModel."""
     pattern, _, _ = create_simple_pattern_x_measurement()
@@ -195,16 +187,6 @@ def test_stim_compile_with_measurement_errors_x() -> None:
     stim_str = stim_compile(pattern, noise_models=[MeasurementFlipNoiseModel(p=0.01)])
 
     # For X measurement, error probability is attached to MX instruction
-    assert "MX(0.01)" in stim_str
-
-
-def test_stim_compile_with_legacy_measurement_flip_parameter() -> None:
-    """Legacy measurement flip parameter should still work with a deprecation warning."""
-    pattern, _, _ = create_simple_pattern_x_measurement()
-
-    with pytest.warns(DeprecationWarning, match="p_before_meas_flip"):
-        stim_str = stim_compile(pattern, p_before_meas_flip=0.01)
-
     assert "MX(0.01)" in stim_str
 
 
@@ -248,24 +230,12 @@ def test_stim_compile_combines_measurement_flip_probabilities() -> None:
         assert math.isclose(prob, expected)
 
 
-def test_stim_compile_rejects_mixed_legacy_and_noise_models() -> None:
-    """Legacy noise parameters cannot be used together with noise_models."""
+def test_stim_compile_removed_legacy_noise_parameters() -> None:
+    """Removed legacy noise parameters should no longer be accepted."""
     pattern, _, _ = create_simple_pattern_x_measurement()
 
-    with pytest.raises(ValueError, match="cannot be used together with noise_models"):
-        stim_compile(
-            pattern,
-            noise_models=[DepolarizingNoiseModel(p1=0.01)],
-            p_depol_after_clifford=0.01,
-        )
-
-
-def test_stim_compile_validates_legacy_probability_parameters() -> None:
-    """Legacy probability parameters should be validated before compilation."""
-    pattern, _, _ = create_simple_pattern_x_measurement()
-
-    with pytest.raises(ValueError, match="must be within \\[0, 1\\]"):
-        stim_compile(pattern, p_before_meas_flip=1.1)
+    with pytest.raises(TypeError, match="unexpected keyword argument 'p_before_meas_flip'"):
+        stim_compile(pattern, p_before_meas_flip=0.01)  # type: ignore[call-arg]
 
 
 def test_stim_compile_with_detectors() -> None:
@@ -311,6 +281,27 @@ class _MismatchedMeasurementFlipNoise(NoiseModel):
 
     def on_measure(self, event: MeasureEvent) -> list[MeasurementFlip]:
         return [MeasurementFlip(p=0.1, target=event.node.id + 999)]
+
+
+class _PrepareMeasurementFlipNoise(NoiseModel):
+    """Test noise model with invalid MeasurementFlip on prepare."""
+
+    def on_prepare(self, event: PrepareEvent) -> list[MeasurementFlip]:
+        return [MeasurementFlip(p=0.1, target=event.node.id)]
+
+
+class _EntangleMeasurementFlipNoise(NoiseModel):
+    """Test noise model with invalid MeasurementFlip on entangle."""
+
+    def on_entangle(self, event: EntangleEvent) -> list[MeasurementFlip]:
+        return [MeasurementFlip(p=0.1, target=event.node0.id)]
+
+
+class _IdleMeasurementFlipNoise(NoiseModel):
+    """Test noise model with invalid MeasurementFlip on idle."""
+
+    def on_idle(self, event: IdleEvent) -> list[MeasurementFlip]:
+        return [MeasurementFlip(p=0.1, target=event.nodes[0].id)]
 
 
 def _parse_stim_measurements(stim_str: str) -> tuple[dict[int, int], int]:
@@ -384,6 +375,22 @@ def test_stim_compile_rejects_mismatched_measurement_flip_target() -> None:
 
     with pytest.raises(ValueError, match="MeasurementFlip target mismatch"):
         stim_compile(pattern, noise_models=[_MismatchedMeasurementFlipNoise()])
+
+
+@pytest.mark.parametrize(
+    "noise_model",
+    [
+        _PrepareMeasurementFlipNoise(),
+        _EntangleMeasurementFlipNoise(),
+        _IdleMeasurementFlipNoise(),
+    ],
+)
+def test_stim_compile_rejects_measurement_flip_outside_measurement(noise_model: NoiseModel) -> None:
+    """MeasurementFlip can only be emitted during measurement events."""
+    pattern, _, _ = create_simple_pattern_x_measurement()
+
+    with pytest.raises(TypeError, match=r"MeasurementFlip can only be returned from NoiseModel\.on_measure"):
+        stim_compile(pattern, noise_models=[noise_model])
 
 
 def test_stim_compile_with_logical_observables() -> None:
