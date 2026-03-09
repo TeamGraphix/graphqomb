@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Greedy Scheduler**: Fast greedy scheduling algorithms as an alternative to CP-SAT optimization
   - Added `greedy_minimize_time()` for minimal execution time scheduling with ALAP preparation optimization
   - Added `greedy_minimize_space()` for minimal qubit usage scheduling
+- **Schedule Solver**: Added constraint that every non-input, non-output node must be prepared strictly before it is measured (`node2prep[node] < node2meas[node]`)
 - **Circuit Conversion**: Added circuit-derived pre-scheduling support in `circuit2graph()`.
   - Added `CircuitScheduleStrategy` with `PARALLEL` and `MINIMIZE_SPACE`.
   - Added `schedule_strategy` argument to `circuit2graph()`.
@@ -25,12 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Feedforward**: Fixed self-loop removal in `dag_from_flow()` by correcting operator precedence so self-loops are removed from combined `xflow`/`zflow` dependencies.
-- **Pauli Frame**: Initialize `_pauli_axis_cache` only when FTQC parity-check groups are provided, avoiding unnecessary cache creation in non-FTQC usage.
+- - **Feedforward**: Fixed operator precedence bug in `dag_from_flow` where self-loops were only removed from `zflow` but not from `xflow`. The expression `xflow | zflow - {node}` was evaluated as `xflow | (zflow - {node})` due to `-` binding tighter than `|`. Corrected to `(xflow | zflow) - {node}`.
 
 ### Tests
 
 - **Greedy Scheduler**: Added tests for greedy scheduling algorithms
+- **Schedule Solver**: Added integration test verifying that CP-SAT MINIMIZE_SPACE strategy enforces node preparation before measurement
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
 - **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
 - **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
