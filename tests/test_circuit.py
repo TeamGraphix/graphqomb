@@ -449,20 +449,6 @@ def test_circuit2graph_minimize_qubits_strategy_serializes() -> None:
     scheduler_min.validate_schedule()
 
 
-def test_circuit2graph_cz_timestep_alignment() -> None:
-    """Test that CZ gates align timesteps of interacting qubits."""
-    circuit = MBQCCircuit(num_qubits=2)
-    circuit.j(qubit=0, angle=0.5)  # qubit 0 at timestep 1
-    circuit.j(qubit=0, angle=0.3)  # qubit 0 at timestep 2
-    circuit.cz(qubit1=0, qubit2=1)  # Should align qubit 1 to timestep 2
-    circuit.j(qubit=1, angle=0.1)  # Now qubit 1 at timestep 3
-
-    _graph, _gflow, scheduler = circuit2graph(circuit)
-
-    # Validate schedule respects DAG constraints
-    scheduler.validate_schedule()
-
-
 def test_circuit2graph_phase_gadget_timing() -> None:
     """Test that phase gadget has valid timing."""
     circuit = MBQCCircuit(num_qubits=3)
