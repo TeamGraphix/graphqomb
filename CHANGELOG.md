@@ -9,22 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Noise Model API**: Event-based noise injection system for Stim circuit compilation
-  - Added `NoiseModel` base class for custom noise behavior with `on_prepare`, `on_entangle`, `on_measure`, and `on_idle` hooks
-  - Added typed `NoiseOp` dataclasses: `PauliChannel1`, `PauliChannel2`, `HeraldedPauliChannel1`, `HeraldedErase`, `RawStimOp`, `MeasurementFlip`
-  - Added event dataclasses: `PrepareEvent`, `EntangleEvent`, `MeasureEvent`, `IdleEvent` with `NodeInfo` and `Coordinate`
-  - Added `NoisePlacement` enum for controlling noise insertion timing (AUTO, BEFORE, AFTER)
-  - Added `noise_op_to_stim()` conversion function
-  - Added `depolarize1_probs()` and `depolarize2_probs()` utility functions for depolarizing noise
+- **Noise Model Module**: Added `graphqomb.noise_model` for event-driven noise injection during Stim compilation
+  - Added `NoiseModel` hooks for `on_prepare`, `on_entangle`, `on_measure`, and `on_idle`
+  - Added frozen, validated `NoiseOp` dataclasses: `PauliChannel1`, `PauliChannel2`, `HeraldedPauliChannel1`, `HeraldedErase`, `RawStimOp`, `MeasurementFlip`
+  - Added event dataclasses `PrepareEvent`, `EntangleEvent`, `MeasureEvent`, `IdleEvent`, plus `NodeInfo` and `Coordinate`
+  - Added `NoisePlacement`, `noise_op_to_stim()`, `depolarize1_probs()`, and `depolarize2_probs()`
 
 - **Built-in Noise Models**: Ready-to-use noise model implementations
   - Added `DepolarizingNoiseModel` for single and two-qubit depolarizing noise
   - Added `MeasurementFlipNoiseModel` for measurement bit-flip errors using Stim's built-in `MX(p)` syntax
 
-- **Stim Compiler Enhancement**: Extended `stim_compile()` to accept `noise_models` parameter
+- **Stim Compiler Noise Integration**: Added noise-model-driven Stim compilation
   - Support for multiple noise models via `Sequence[NoiseModel]`
   - Added `tick_duration` parameter for idle noise calculations
-  - Automatic measurement record tracking for heralded noise operations
+  - Automatic measurement record tracking for heralded noise operations when emitting detectors and observables
 
 - **Greedy Scheduler**: Fast greedy scheduling algorithms as an alternative to CP-SAT optimization
   - Added `greedy_minimize_time()` for minimal execution time scheduling with ALAP preparation optimization
@@ -41,7 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Stim Compiler**: Refactored internal structure to support noise model integration
+- **Stim Compiler API**: `stim_compile()` now has signature `stim_compile(pattern, logical_observables=None, *, emit_qubit_coords=True, noise_models=None, tick_duration=1.0)`
+- **Stim Compiler**: Refactored internal structure to support event-driven noise model integration
+- **Measurement Flip Semantics**: `MeasurementFlipNoiseModel` and custom `MeasurementFlip` ops now compile to Stim's native `MX(p)` / `MY(p)` / `MZ(p)` instructions instead of emitting separate Pauli error instructions
+- **Noise Extension API**: `NoiseOp` values are now represented as plain frozen dataclasses collected under the `NoiseOp` union, improving type safety for custom `NoiseModel` implementations
 - **Noise Validation**: Centralized noise parameter validation in `noise_model`
   - `NoiseOp` dataclasses now validate and normalize their inputs at construction time
   - `DepolarizingNoiseModel` and `MeasurementFlipNoiseModel` now reject invalid probabilities when instantiated
@@ -52,10 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Stim Compiler**: Detector and observable record indices now stay aligned when noise models emit heralded instructions that add measurement records
 - **Feedforward**: Fixed operator precedence bug in `dag_from_flow` where self-loops were only removed from `zflow` but not from `xflow`. The expression `xflow | zflow - {node}` was evaluated as `xflow | (zflow - {node})` due to `-` binding tighter than `|`. Corrected to `(xflow | zflow) - {node}`.
 
 ### Tests
 
+- **Noise Model / Stim Compiler**: Added comprehensive tests for `graphqomb.noise_model` and noise-aware `stim_compile()`, including heralded record tracking, `MeasurementFlip` validation, and removed legacy kwargs
 - **Greedy Scheduler**: Added tests for greedy scheduling algorithms
 - **Schedule Solver**: Added integration test verifying that CP-SAT MINIMIZE_SPACE strategy enforces node preparation before measurement
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
