@@ -58,7 +58,12 @@ Create a simple depolarizing noise model:
 ...         return [PauliChannel1(**depolarize1_probs(self.p1), targets=[event.node.id])]
 ...
 ...     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
-...         return [PauliChannel2(probabilities=depolarize2_probs(self.p2), targets=[(event.node0.id, event.node1.id)])]
+...         return [
+...             PauliChannel2.from_mapping(
+...                 probabilities=depolarize2_probs(self.p2),
+...                 targets=[(event.node0.id, event.node1.id)],
+...             )
+...         ]
 
 Use with stim_compile:
 
@@ -78,12 +83,13 @@ Use heralded noise that adds measurement records:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from graphqomb.common import Axis
 
 
@@ -104,6 +110,8 @@ PAULI_CHANNEL_2_ORDER: tuple[str, ...] = (
     "ZY",
     "ZZ",
 )
+_PAULI_CHANNEL_2_KEYS = frozenset(PAULI_CHANNEL_2_ORDER)
+_PAULI_CHANNEL_2_ARG_COUNT = len(PAULI_CHANNEL_2_ORDER)
 
 
 def _validate_probability(name: str, value: float) -> float:
@@ -454,13 +462,12 @@ class PauliChannel2:
 
     Parameters
     ----------
-    probabilities : `collections.abc.Sequence`\[`float`\] | `collections.abc.Mapping`\[`str`, `float`\]
-        Either a sequence of 15 probabilities in the order
-        (IX, IY, IZ, XI, XX, XY, XZ, YI, YX, YY, YZ, ZI, ZX, ZY, ZZ),
-        or a mapping from Pauli string keys to probabilities.
-        Missing keys default to 0.
-    targets : `collections.abc.Sequence`\[`tuple`\[`int`, `int`\]\]
-        Target qubit pairs as ``[(q0, q1), ...]``.
+    probabilities : `tuple`\[`float`, ...\]
+        The canonical 15 probabilities in Stim's ``PAULI_CHANNEL_2`` order:
+        ``(IX, IY, IZ, XI, XX, XY, XZ, YI, YX, YY, YZ, ZI, ZX, ZY, ZZ)``.
+        Prefer using `from_mapping` or `from_sequence` to construct instances.
+    targets : `tuple`\[`tuple`\[`int`, `int`\], ...\]
+        Target qubit pairs as ``((q0, q1), ...)``.
     placement : `NoisePlacement`
         Whether to insert before or after the main operation.
         ``AUTO`` defers to :func:`default_noise_placement`.
@@ -469,7 +476,7 @@ class PauliChannel2:
     --------
     Using a mapping (recommended for sparse errors):
 
-    >>> op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1)])
+    >>> op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01}, targets=[(0, 1)])
     >>> text, delta = noise_op_to_stim(op)
     >>> "PAULI_CHANNEL_2" in text
     True
@@ -477,21 +484,60 @@ class PauliChannel2:
     Using a full probability sequence:
 
     >>> probs = [0.0] * 14 + [0.01]  # Only ZZ error
-    >>> op = PauliChannel2(probabilities=probs, targets=[(2, 3)])
+    >>> op = PauliChannel2.from_sequence(probabilities=probs, targets=[(2, 3)])
     """
 
-    probabilities: Sequence[float] | Mapping[str, float]
-    targets: Sequence[tuple[int, int]]
+    probabilities: tuple[float, ...]
+    targets: tuple[tuple[int, int], ...]
     placement: NoisePlacement = NoisePlacement.AUTO
 
     def __post_init__(self) -> None:
-        probabilities = _pauli_channel_2_args(self.probabilities)
-        targets = tuple(pair for pair in self.targets)
-        _flatten_pairs(targets)
+        probabilities = _normalize_pauli_channel_2_sequence(self.probabilities)
+        targets = _normalize_pauli_channel_2_targets(self.targets)
         placement = _validate_noise_placement("PauliChannel2.placement", self.placement)
         object.__setattr__(self, "probabilities", probabilities)
         object.__setattr__(self, "targets", targets)
         object.__setattr__(self, "placement", placement)
+
+    @classmethod
+    def from_mapping(
+        cls: type[PauliChannel2],
+        probabilities: Mapping[str, float],
+        targets: Sequence[tuple[int, int]],
+        placement: NoisePlacement = NoisePlacement.AUTO,
+    ) -> PauliChannel2:
+        """Build a Pauli channel from sparse Pauli-pair probabilities.
+
+        Returns
+        -------
+        `PauliChannel2`
+            A normalized two-qubit Pauli channel.
+        """
+        return cls(
+            probabilities=_normalize_pauli_channel_2_mapping(probabilities),
+            targets=_normalize_pauli_channel_2_targets(targets),
+            placement=placement,
+        )
+
+    @classmethod
+    def from_sequence(
+        cls: type[PauliChannel2],
+        probabilities: Sequence[float],
+        targets: Sequence[tuple[int, int]],
+        placement: NoisePlacement = NoisePlacement.AUTO,
+    ) -> PauliChannel2:
+        """Build a Pauli channel from probabilities in Stim's required order.
+
+        Returns
+        -------
+        `PauliChannel2`
+            A normalized two-qubit Pauli channel.
+        """
+        return cls(
+            probabilities=_normalize_pauli_channel_2_sequence(probabilities),
+            targets=_normalize_pauli_channel_2_targets(targets),
+            placement=placement,
+        )
 
 
 @dataclass(frozen=True)
@@ -637,12 +683,15 @@ class RawStimOp:
 
     def __post_init__(self) -> None:
         placement = _validate_noise_placement("RawStimOp.placement", self.placement)
+        object.__setattr__(self, "placement", placement)
         if "\n" in self.text or "\r" in self.text:
             msg = "RawStimOp.text must be a single Stim instruction line without newlines"
             raise ValueError(msg)
         if self.record_delta < 0:
             msg = f"RawStimOp.record_delta must be non-negative, got {self.record_delta}"
             raise ValueError(msg)
+        # Only enforce record_delta when the opcode makes the record count
+        # unambiguous without needing a full Stim parser.
         expected_delta = _infer_raw_record_delta(self.text)
         if expected_delta is not None and self.record_delta != expected_delta:
             msg = (
@@ -650,7 +699,6 @@ class RawStimOp:
                 f"expected {expected_delta}, got {self.record_delta}"
             )
             raise ValueError(msg)
-        object.__setattr__(self, "placement", placement)
 
 
 @dataclass(frozen=True)
@@ -838,25 +886,38 @@ def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
     raise TypeError(msg)
 
 
-def _pauli_channel_2_args(probabilities: Sequence[float] | Mapping[str, float]) -> tuple[float, ...]:
-    if isinstance(probabilities, Mapping):
-        unknown = set(probabilities) - set(PAULI_CHANNEL_2_ORDER)
-        if unknown:
-            msg = f"Unknown PAULI_CHANNEL_2 keys: {sorted(unknown)}"
-            raise ValueError(msg)
-        values = tuple(float(probabilities.get(key, 0.0)) for key in PAULI_CHANNEL_2_ORDER)
-        for key, value in zip(PAULI_CHANNEL_2_ORDER, values, strict=True):
-            _validate_probability(f"PauliChannel2.probabilities[{key}]", value)
-        _validate_probability_sum("PauliChannel2", values)
-        return values
+def _normalize_pauli_channel_2_mapping(probabilities: Mapping[str, float]) -> tuple[float, ...]:
+    unknown = set(probabilities) - _PAULI_CHANNEL_2_KEYS
+    if unknown:
+        msg = f"Unknown PAULI_CHANNEL_2 keys: {sorted(unknown)}"
+        raise ValueError(msg)
+
+    values = tuple(float(probabilities.get(key, 0.0)) for key in PAULI_CHANNEL_2_ORDER)
+    for key, value in zip(PAULI_CHANNEL_2_ORDER, values, strict=True):
+        _validate_probability(f"PauliChannel2.probabilities[{key}]", value)
+    _validate_probability_sum("PauliChannel2", values)
+    return values
+
+
+def _normalize_pauli_channel_2_sequence(probabilities: Sequence[float]) -> tuple[float, ...]:
     values = tuple(float(v) for v in probabilities)
-    if len(values) != len(PAULI_CHANNEL_2_ORDER):
-        msg = f"PAULI_CHANNEL_2 expects {len(PAULI_CHANNEL_2_ORDER)} probabilities, got {len(values)}"
+    if len(values) != _PAULI_CHANNEL_2_ARG_COUNT:
+        msg = f"PAULI_CHANNEL_2 expects {_PAULI_CHANNEL_2_ARG_COUNT} probabilities, got {len(values)}"
         raise ValueError(msg)
     for index, value in enumerate(values):
         _validate_probability(f"PauliChannel2.probabilities[{index}]", value)
     _validate_probability_sum("PauliChannel2", values)
     return values
+
+
+def _normalize_pauli_channel_2_targets(targets: Sequence[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
+    normalized: list[tuple[int, int]] = []
+    for pair in targets:
+        if len(pair) != 2:  # noqa: PLR2004
+            msg = f"PAULI_CHANNEL_2 targets must be pairs, got: {pair!r}"
+            raise ValueError(msg)
+        normalized.append((pair[0], pair[1]))
+    return tuple(normalized)
 
 
 def _flatten_pairs(pairs: Sequence[tuple[int, int]]) -> tuple[int, ...]:

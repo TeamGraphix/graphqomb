@@ -196,7 +196,7 @@ class TestPauliChannel2:
 
     def test_with_mapping(self) -> None:
         """Test PauliChannel2 with mapping probabilities."""
-        op = PauliChannel2(probabilities={"ZZ": 0.01, "XX": 0.005}, targets=[(0, 1)])
+        op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01, "XX": 0.005}, targets=[(0, 1)])
         text, delta = noise_op_to_stim(op)
         assert "PAULI_CHANNEL_2" in text
         assert "0 1" in text
@@ -206,7 +206,7 @@ class TestPauliChannel2:
         """Test PauliChannel2 with sequence probabilities."""
         probs = [0.0] * 15
         probs[14] = 0.01  # ZZ
-        op = PauliChannel2(probabilities=probs, targets=[(2, 3)])
+        op = PauliChannel2.from_sequence(probabilities=probs, targets=[(2, 3)])
         text, delta = noise_op_to_stim(op)
         assert "PAULI_CHANNEL_2" in text
         assert "2 3" in text
@@ -214,14 +214,14 @@ class TestPauliChannel2:
 
     def test_multiple_pairs(self) -> None:
         """Test PauliChannel2 with multiple target pairs."""
-        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
+        op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
         text, delta = noise_op_to_stim(op)
         assert "0 1 2 3" in text
         assert delta == 0
 
     def test_empty_targets(self) -> None:
         """Test PauliChannel2 with empty targets returns empty string."""
-        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[])
+        op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01}, targets=[])
         text, delta = noise_op_to_stim(op)
         assert not text
         assert delta == 0
@@ -229,16 +229,17 @@ class TestPauliChannel2:
     def test_unknown_key_raises(self) -> None:
         """Test PauliChannel2 with unknown key raises ValueError."""
         with pytest.raises(ValueError, match="Unknown PAULI_CHANNEL_2 keys"):
-            PauliChannel2(probabilities={"ZZZ": 0.01}, targets=[(0, 1)])
+            PauliChannel2.from_mapping(probabilities={"ZZZ": 0.01}, targets=[(0, 1)])
 
     def test_wrong_sequence_length_raises(self) -> None:
         """Test PauliChannel2 with wrong sequence length raises ValueError."""
         with pytest.raises(ValueError, match="PAULI_CHANNEL_2 expects 15 probabilities"):
-            PauliChannel2(probabilities=[0.01] * 10, targets=[(0, 1)])
+            PauliChannel2.from_sequence(probabilities=[0.01] * 10, targets=[(0, 1)])
 
-    def test_targets_converted_to_tuple(self) -> None:
-        """Test that targets list is converted to tuple of tuples."""
-        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
+    def test_internal_representation_is_normalized(self) -> None:
+        """Test that PauliChannel2 stores canonical tuple values."""
+        op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01}, targets=[(0, 1), (2, 3)])
+        assert isinstance(op.probabilities, tuple)
         assert isinstance(op.targets, tuple)
         assert all(isinstance(pair, tuple) for pair in op.targets)
 
@@ -249,12 +250,12 @@ class TestPauliChannel2:
     def test_probability_out_of_range_raises(self) -> None:
         """Test PauliChannel2 with out-of-range probability raises ValueError."""
         with pytest.raises(ValueError, match=r"PauliChannel2\.probabilities\[ZZ\] must be within \[0, 1\]"):
-            PauliChannel2(probabilities={"ZZ": 1.1}, targets=[(0, 1)])
+            PauliChannel2.from_mapping(probabilities={"ZZ": 1.1}, targets=[(0, 1)])
 
     def test_probability_sum_greater_than_one_raises(self) -> None:
         """Test PauliChannel2 with probabilities summing to >1 raises ValueError."""
         with pytest.raises(ValueError, match=r"PauliChannel2 probabilities must sum to <= 1"):
-            PauliChannel2(probabilities={"ZZ": 0.8, "XX": 0.3}, targets=[(0, 1)])
+            PauliChannel2.from_mapping(probabilities={"ZZ": 0.8, "XX": 0.3}, targets=[(0, 1)])
 
 
 class TestDepolarize1Probs:
@@ -313,7 +314,7 @@ class TestDepolarize2Probs:
     def test_can_be_used_with_pauli_channel_2(self) -> None:
         """Test that depolarize2_probs works with PauliChannel2."""
         probs = depolarize2_probs(0.15)
-        op = PauliChannel2(probabilities=probs, targets=[(0, 1)])
+        op = PauliChannel2.from_mapping(probabilities=probs, targets=[(0, 1)])
         text, delta = noise_op_to_stim(op)
         assert "PAULI_CHANNEL_2" in text
         assert delta == 0
@@ -514,7 +515,7 @@ class TestNoisePlacementAuto:
 
     def test_auto_is_default_for_pauli_channel_2(self) -> None:
         """Test that AUTO is the default placement for PauliChannel2."""
-        op = PauliChannel2(probabilities={"ZZ": 0.01}, targets=[(0, 1)])
+        op = PauliChannel2.from_mapping(probabilities={"ZZ": 0.01}, targets=[(0, 1)])
         assert op.placement == NoisePlacement.AUTO
 
     def test_auto_is_default_for_heralded_pauli_channel_1(self) -> None:
@@ -543,7 +544,7 @@ class _CustomNoiseModel(NoiseModel):
         return [PauliChannel1(px=self.p, py=0.0, pz=0.0, targets=[event.node.id])]
 
     def on_entangle(self, event: EntangleEvent) -> list[PauliChannel2]:
-        return [PauliChannel2(probabilities={"ZZ": self.p}, targets=[(event.node0.id, event.node1.id)])]
+        return [PauliChannel2.from_mapping(probabilities={"ZZ": self.p}, targets=[(event.node0.id, event.node1.id)])]
 
     def on_measure(self, event: MeasureEvent) -> list[HeraldedPauliChannel1]:
         return [HeraldedPauliChannel1(pi=0.0, px=self.p, py=0.0, pz=0.0, targets=[event.node.id])]
