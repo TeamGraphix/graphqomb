@@ -100,7 +100,7 @@ def test_collect_edge_map_preserves_edge_types_and_respects_exclusions() -> None
     edge_map = _collect_edge_map(diagram, excluded_vertices={second_spider})
 
     assert set(edge_map) == {(input_boundary, first_spider)}
-    assert edge_map[(input_boundary, first_spider)].edge_type == zx.EdgeType.SIMPLE
+    assert edge_map[input_boundary, first_spider].edge_type == zx.EdgeType.SIMPLE
     assert (first_spider, second_spider) not in edge_map
     assert (second_spider, output_boundary) not in edge_map
 
@@ -128,7 +128,7 @@ def test_rewrite_input_boundary_maps_promotes_simple_boundaries_to_z_spiders() -
     assert rewritten_inputs == (boundary,)
     assert node_map[boundary].vertex_type == zx.VertexType.Z
     assert node_map[boundary].phase == 0
-    assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[boundary, spider].edge_type == zx.EdgeType.HADAMARD
 
 
 def test_rewrite_output_boundary_maps_keeps_hadamard_output_vertex() -> None:
@@ -140,7 +140,7 @@ def test_rewrite_output_boundary_maps_keeps_hadamard_output_vertex() -> None:
 
     assert rewritten_outputs == (boundary,)
     assert node_map[boundary].vertex_type == zx.VertexType.BOUNDARY
-    assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[boundary, spider].edge_type == zx.EdgeType.HADAMARD
 
 
 def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary() -> None:
@@ -157,12 +157,19 @@ def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary(
     assert node_map[synthetic_output].vertex_type == zx.VertexType.BOUNDARY
     assert node_map[synthetic_output].qubit == node_map[boundary].qubit
     assert node_map[synthetic_output].row == node_map[boundary].row + 1
-    assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
-    assert edge_map[(boundary, synthetic_output)].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[boundary, spider].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[boundary, synthetic_output].edge_type == zx.EdgeType.HADAMARD
 
 
 def test_collect_phase_gadgets_rewrites_internal_phase_gadget() -> None:
-    diagram, input_boundary, left_spider, hub_spider, phase_spider, output_boundary = _build_internal_phase_gadget_diagram()
+    (
+        diagram,
+        input_boundary,
+        left_spider,
+        hub_spider,
+        phase_spider,
+        output_boundary,
+    ) = _build_internal_phase_gadget_diagram()
 
     rewritten = _collect_phase_gadgets(diagram)
 

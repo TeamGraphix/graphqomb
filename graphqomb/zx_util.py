@@ -20,6 +20,24 @@ PyZXDiagram: TypeAlias = BaseGraph[int, Any]
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class VertexData:
+    """Collected PyZX vertex metadata used during import.
+
+    Attributes
+    ----------
+    vertex_id : `int`
+        Original PyZX vertex id.
+    vertex_type : VertexType
+        PyZX vertex type.
+    phase : FractionLike
+        PyZX vertex phase in multiples of pi.
+    qubit : FloatInt
+        PyZX qubit coordinate.
+    row : FloatInt
+        PyZX row coordinate.
+    is_ground : `bool`
+        Whether the vertex is marked as ground in PyZX.
+    """
+
     vertex_id: int
     vertex_type: VertexType
     phase: FractionLike
@@ -30,25 +48,56 @@ class VertexData:
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class EdgeData:
+    """Collected PyZX edge metadata used during import.
+
+    Attributes
+    ----------
+    source : `int`
+        Smaller endpoint id of the undirected edge.
+    target : `int`
+        Larger endpoint id of the undirected edge.
+    edge_type : EdgeType
+        PyZX edge type.
+    """
+
     source: int
     target: int
     edge_type: EdgeType
 
 
-def from_pyzx(diagram: PyZXDiagram, recognize_pg: bool = False) -> tuple[GraphState, dict[int, int]]:
-    # check if the diagram is in graph-like form or not
+def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[GraphState, dict[int, int]]:
+    r"""Convert a graph-like PyZX diagram into a graph state.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram in graph-like form.
+    recognize_pg : `bool`, optional
+        Whether to rewrite supported phase-gadget patterns before import.
+
+    Returns
+    -------
+    `tuple`\[`GraphState`, `dict`\[`int`, `int`\]\]
+        Imported graph state and a map from PyZX vertex ids to GraphState node ids.
+
+    Raises
+    ------
+    ValueError
+        If the input diagram is not in strict graph-like form.
+    """
+    # Check whether the diagram is in graph-like form.
     if not zx.is_graph_like(diagram, strict=True):
         msg = "The input diagram is not in graph-like form. Please apply the graph-like transformation first."
         raise ValueError(msg)
 
-    # if a vertex is a green spider and has only one phase-free Z-spider neighbor, then we can treat it as a phase gadget
+    # Rewrite supported phase-gadget patterns before collecting graph data.
     diagram = _collect_phase_gadgets(diagram) if recognize_pg else diagram
 
-    # collect all the vertices and edges in the diagram
+    # Collect all vertices and edges in the diagram.
     node_map = _collect_node_map(diagram)
     edge_map = _collect_edge_map(diagram)
 
-    # process input/output boundaries
+    # Process input and output boundaries.
     rewritten_inputs = _rewrite_input_boundary_maps(diagram, node_map, edge_map)
     rewritten_outputs = _rewrite_output_boundary_maps(diagram, node_map, edge_map)
 
@@ -69,7 +118,18 @@ def _build_meas_basis_map(
     *,
     output_nodes: set[int],
 ) -> dict[int, PlannerMeasBasis]:
-    """Build GraphState measurement bases from PyZX vertex metadata."""
+    """Build GraphState measurement bases from PyZX vertex metadata.
+
+    Returns
+    -------
+    dict[int, PlannerMeasBasis]
+        Measurement-basis assignments for imported nodes.
+
+    Raises
+    ------
+    ValueError
+        If an imported vertex type cannot be represented as a measurement basis.
+    """
     meas_bases: dict[int, PlannerMeasBasis] = {}
 
     for vertex_id, vertex_data in node_map.items():
@@ -90,14 +150,31 @@ def _build_meas_basis_map(
 
 
 def _build_coordinate_map(node_map: dict[int, VertexData]) -> dict[int, tuple[float, float]]:
-    """Build 2D coordinates from PyZX qubit/row placement."""
+    """Build 2D coordinates from PyZX qubit and row placement.
+
+    Returns
+    -------
+    dict[int, tuple[float, float]]
+        Coordinate map keyed by PyZX vertex id.
+    """
     return {
         vertex_id: (float(vertex_data.qubit), float(vertex_data.row)) for vertex_id, vertex_data in node_map.items()
     }
 
 
 def _phase_to_angle(phase: FractionLike) -> float:
-    """Convert a PyZX phase expressed in multiples of pi into radians."""
+    """Convert a PyZX phase expressed in multiples of pi into radians.
+
+    Returns
+    -------
+    float
+        Phase angle in radians.
+
+    Raises
+    ------
+    TypeError
+        If the phase is symbolic and cannot be converted to a float.
+    """
     try:
         return float(phase) * math.pi
     except TypeError as exc:
@@ -107,17 +184,17 @@ def _phase_to_angle(phase: FractionLike) -> float:
 
 def _collect_node_map(
     diagram: PyZXDiagram,
-    *,
-    excluded_vertices: set[int] | None = None,
 ) -> dict[int, VertexData]:
-    """Collect vertex metadata from a PyZX diagram."""
-    excluded = excluded_vertices or set()
+    """Collect vertex metadata from a PyZX diagram.
+
+    Returns
+    -------
+    dict[int, VertexData]
+        Vertex metadata keyed by PyZX vertex id.
+    """
     node_map: dict[int, VertexData] = {}
 
     for vertex_id in diagram.vertices():
-        if vertex_id in excluded:
-            continue
-
         node_map[vertex_id] = VertexData(
             vertex_id=vertex_id,
             vertex_type=diagram.type(vertex_id),
@@ -132,17 +209,23 @@ def _collect_node_map(
 
 def _collect_edge_map(
     diagram: PyZXDiagram,
-    *,
-    excluded_vertices: set[int] | None = None,
 ) -> dict[tuple[int, int], EdgeData]:
-    """Collect edge metadata from a PyZX diagram."""
-    excluded = excluded_vertices or set()
+    """Collect edge metadata from a PyZX diagram.
+
+    Returns
+    -------
+    dict[tuple[int, int], EdgeData]
+        Edge metadata keyed by canonical undirected endpoint pairs.
+
+    Raises
+    ------
+    ValueError
+        If the diagram contains parallel edges.
+    """
     edge_map: dict[tuple[int, int], EdgeData] = {}
 
     for edge in diagram.edges():
         source, target = diagram.edge_st(edge)
-        if source in excluded or target in excluded:
-            continue
 
         edge_key = _edge_key(source, target)
         if edge_key in edge_map:
@@ -159,7 +242,13 @@ def _collect_edge_map(
 
 
 def _edge_key(source: int, target: int) -> tuple[int, int]:
-    """Return a canonical key for an undirected edge."""
+    """Return a canonical key for an undirected edge.
+
+    Returns
+    -------
+    tuple[int, int]
+        Edge endpoints ordered increasingly.
+    """
     return (source, target) if source <= target else (target, source)
 
 
@@ -168,7 +257,18 @@ def _rewrite_input_boundary_maps(
     node_map: dict[int, VertexData],
     edge_map: dict[tuple[int, int], EdgeData],
 ) -> tuple[int, ...]:
-    """Rewrite PyZX input boundary vertices into GraphState-compatible node/edge maps."""
+    """Rewrite input boundaries into GraphState-compatible node and edge maps.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Imported input nodes in logical-qubit order.
+
+    Raises
+    ------
+    ValueError
+        If a boundary shape is unsupported or inconsistent with graph-like form.
+    """
     rewritten_inputs: list[int] = []
     input_vertices = diagram.inputs()
 
@@ -222,7 +322,18 @@ def _rewrite_output_boundary_maps(
     node_map: dict[int, VertexData],
     edge_map: dict[tuple[int, int], EdgeData],
 ) -> tuple[int, ...]:
-    """Rewrite PyZX output boundary vertices into GraphState-compatible node/edge maps."""
+    """Rewrite output boundaries into GraphState-compatible node and edge maps.
+
+    Returns
+    -------
+    tuple[int, ...]
+        Imported output nodes in logical-qubit order.
+
+    Raises
+    ------
+    ValueError
+        If a boundary shape is unsupported or inconsistent with graph-like form.
+    """
     rewritten_outputs: list[int] = []
     output_vertices = diagram.outputs()
 
@@ -287,7 +398,13 @@ def _rewrite_output_boundary_maps(
 
 
 def _next_vertex_id(node_map: dict[int, VertexData]) -> int:
-    """Return a fresh synthetic vertex id for import-time rewrites."""
+    """Return a fresh synthetic vertex id for import-time rewrites.
+
+    Returns
+    -------
+    int
+        Next available vertex id.
+    """
     return max(node_map, default=-1) + 1
 
 
