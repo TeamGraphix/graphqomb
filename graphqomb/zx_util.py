@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import pyzx as zx
 from pyzx.graph.base import BaseGraph
 
+from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
@@ -33,8 +35,7 @@ class EdgeData:
     edge_type: EdgeType
 
 
-def from_pyzx(diagram: PyZXDiagram, recognize_pg: bool = False) -> GraphState:
-
+def from_pyzx(diagram: PyZXDiagram, recognize_pg: bool = False) -> tuple[GraphState, dict[int, int]]:
     # check if the diagram is in graph-like form or not
     if not zx.is_graph_like(diagram, strict=True):
         msg = "The input diagram is not in graph-like form. Please apply the graph-like transformation first."
@@ -51,9 +52,58 @@ def from_pyzx(diagram: PyZXDiagram, recognize_pg: bool = False) -> GraphState:
     rewritten_inputs = _rewrite_input_boundary_maps(diagram, node_map, edge_map)
     rewritten_outputs = _rewrite_output_boundary_maps(diagram, node_map, edge_map)
 
-    graph = GraphState()
+    graph, graph_node_map = GraphState.from_graph(
+        nodes=node_map,
+        edges=edge_map,
+        inputs=rewritten_inputs,
+        outputs=rewritten_outputs,
+        meas_bases=_build_meas_basis_map(node_map, output_nodes=set(rewritten_outputs)),
+        coordinates=_build_coordinate_map(node_map),
+    )
 
-    return graph
+    return graph, graph_node_map
+
+
+def _build_meas_basis_map(
+    node_map: dict[int, VertexData],
+    *,
+    output_nodes: set[int],
+) -> dict[int, PlannerMeasBasis]:
+    """Build GraphState measurement bases from PyZX vertex metadata."""
+    meas_bases: dict[int, PlannerMeasBasis] = {}
+
+    for vertex_id, vertex_data in node_map.items():
+        if vertex_id in output_nodes or vertex_data.vertex_type == zx.VertexType.BOUNDARY:
+            continue
+
+        if vertex_data.vertex_type == zx.VertexType.Z:
+            plane = Plane.XY
+        elif vertex_data.vertex_type == zx.VertexType.X:
+            plane = Plane.YZ
+        else:
+            msg = f"Unsupported PyZX vertex type for GraphState import: {vertex_data.vertex_type}"
+            raise ValueError(msg)
+
+        meas_bases[vertex_id] = PlannerMeasBasis(plane, _phase_to_angle(vertex_data.phase))
+
+    return meas_bases
+
+
+def _build_coordinate_map(node_map: dict[int, VertexData]) -> dict[int, tuple[float, float]]:
+    """Build 2D coordinates from PyZX qubit/row placement."""
+    return {
+        vertex_id: (float(vertex_data.qubit), float(vertex_data.row))
+        for vertex_id, vertex_data in node_map.items()
+    }
+
+
+def _phase_to_angle(phase: FractionLike) -> float:
+    """Convert a PyZX phase expressed in multiples of pi into radians."""
+    try:
+        return float(phase) * math.pi
+    except TypeError as exc:
+        msg = f"Unsupported symbolic PyZX phase for GraphState import: {phase!r}"
+        raise TypeError(msg) from exc
 
 
 def _collect_node_map(
@@ -158,6 +208,7 @@ def _rewrite_input_boundary_maps(
                 phase=0,
                 is_ground=False,
             )
+            edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=zx.EdgeType.HADAMARD)
             rewritten_inputs.append(input_vertex)
             continue
 
@@ -242,4 +293,5 @@ def _next_vertex_id(node_map: dict[int, VertexData]) -> int:
 
 
 def _collect_phase_gadgets(diagram: PyZXDiagram) -> set[int]:
-    raise NotImplementedError
+    del diagram
+    return set()

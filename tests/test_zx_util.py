@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import math
 from fractions import Fraction
 
 import pyzx as zx
 
-from graphqomb.zx_util import _collect_edge_map, _collect_node_map, _rewrite_input_boundary_maps, _rewrite_output_boundary_maps
+from graphqomb.common import Plane
+from graphqomb.zx_util import (
+    _collect_edge_map,
+    _collect_node_map,
+    _rewrite_input_boundary_maps,
+    _rewrite_output_boundary_maps,
+    from_pyzx,
+)
 
 
 def _build_graphlike_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int]:
@@ -85,7 +93,7 @@ def test_rewrite_input_boundary_maps_promotes_simple_boundaries_to_z_spiders() -
     assert rewritten_inputs == (boundary,)
     assert node_map[boundary].vertex_type == zx.VertexType.Z
     assert node_map[boundary].phase == 0
-    assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.SIMPLE
+    assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
 
 
 def test_rewrite_output_boundary_maps_keeps_hadamard_output_vertex() -> None:
@@ -116,3 +124,37 @@ def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary(
     assert node_map[synthetic_output].row == node_map[boundary].row + 1
     assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
     assert edge_map[(boundary, synthetic_output)].edge_type == zx.EdgeType.HADAMARD
+
+
+def test_from_pyzx_builds_graphstate_and_node_map() -> None:
+    diagram, input_boundary, first_spider, second_spider, output_boundary = _build_graphlike_diagram()
+
+    graph, node_map = from_pyzx(diagram)
+
+    synthetic_output = max(node_map)
+
+    assert set(node_map) == {input_boundary, first_spider, second_spider, output_boundary, synthetic_output}
+    assert graph.input_node_indices == {node_map[input_boundary]: 0}
+    assert graph.output_node_indices == {node_map[synthetic_output]: 0}
+    assert graph.physical_edges == {
+        tuple(sorted((node_map[input_boundary], node_map[first_spider]))),
+        tuple(sorted((node_map[first_spider], node_map[second_spider]))),
+        tuple(sorted((node_map[second_spider], node_map[output_boundary]))),
+        tuple(sorted((node_map[output_boundary], node_map[synthetic_output]))),
+    }
+
+    assert graph.meas_bases[node_map[input_boundary]].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[node_map[input_boundary]].angle, 0.0)
+    assert graph.meas_bases[node_map[first_spider]].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[node_map[first_spider]].angle, math.pi / 2)
+    assert graph.meas_bases[node_map[second_spider]].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[node_map[second_spider]].angle, 0.0)
+    assert graph.meas_bases[node_map[output_boundary]].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[node_map[output_boundary]].angle, 0.0)
+    assert node_map[synthetic_output] not in graph.meas_bases
+
+    assert graph.coordinates[node_map[input_boundary]] == (0.0, 0.0)
+    assert graph.coordinates[node_map[first_spider]] == (0.0, 1.0)
+    assert graph.coordinates[node_map[second_spider]] == (1.0, 2.0)
+    assert graph.coordinates[node_map[output_boundary]] == (1.0, 3.0)
+    assert graph.coordinates[node_map[synthetic_output]] == (1.0, 4.0)
