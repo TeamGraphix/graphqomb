@@ -9,6 +9,7 @@ from graphqomb.common import Plane
 from graphqomb.zx_util import (
     _collect_edge_map,
     _collect_node_map,
+    _collect_phase_gadgets,
     _rewrite_input_boundary_maps,
     _rewrite_output_boundary_maps,
     from_pyzx,
@@ -43,6 +44,40 @@ def _build_single_boundary_diagram(
     diagram.set_inputs(() if is_output else (boundary,))
     diagram.set_outputs((boundary,) if is_output else ())
     return diagram, boundary, spider
+
+
+def _build_internal_phase_gadget_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int, int]:
+    diagram = zx.Graph()
+    input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
+    left_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
+    hub_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=2)
+    phase_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=3, phase=Fraction(1, 4))
+    right_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=2, row=3)
+    output_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=2, row=4)
+
+    diagram.add_edge((input_boundary, left_spider), edgetype=zx.EdgeType.SIMPLE)
+    diagram.add_edge((left_spider, hub_spider), edgetype=zx.EdgeType.HADAMARD)
+    diagram.add_edge((hub_spider, phase_spider), edgetype=zx.EdgeType.HADAMARD)
+    diagram.add_edge((hub_spider, right_spider), edgetype=zx.EdgeType.HADAMARD)
+    diagram.add_edge((right_spider, output_boundary), edgetype=zx.EdgeType.SIMPLE)
+    diagram.set_inputs((input_boundary,))
+    diagram.set_outputs((output_boundary,))
+
+    return diagram, input_boundary, left_spider, hub_spider, phase_spider, output_boundary
+
+
+def _build_io_phase_gadget_diagram() -> tuple[zx.graph_s.GraphS, int, int, int]:
+    diagram = zx.Graph()
+    input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
+    io_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
+    phase_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=2, phase=Fraction(1, 4))
+
+    diagram.add_edge((input_boundary, io_spider), edgetype=zx.EdgeType.SIMPLE)
+    diagram.add_edge((io_spider, phase_spider), edgetype=zx.EdgeType.HADAMARD)
+    diagram.set_inputs((input_boundary,))
+    diagram.set_outputs(())
+
+    return diagram, input_boundary, io_spider, phase_spider
 
 
 def test_collect_node_map_preserves_pyzx_vertex_metadata() -> None:
@@ -124,6 +159,31 @@ def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary(
     assert node_map[synthetic_output].row == node_map[boundary].row + 1
     assert edge_map[(boundary, spider)].edge_type == zx.EdgeType.HADAMARD
     assert edge_map[(boundary, synthetic_output)].edge_type == zx.EdgeType.HADAMARD
+
+
+def test_collect_phase_gadgets_rewrites_internal_phase_gadget() -> None:
+    diagram, input_boundary, left_spider, hub_spider, phase_spider, output_boundary = _build_internal_phase_gadget_diagram()
+
+    rewritten = _collect_phase_gadgets(diagram)
+
+    assert phase_spider in diagram.vertex_set()
+    assert phase_spider not in rewritten.vertex_set()
+    assert rewritten.type(hub_spider) == zx.VertexType.X
+    assert rewritten.phase(hub_spider) == Fraction(1, 4)
+    assert rewritten.inputs() == (input_boundary,)
+    assert rewritten.outputs() == (output_boundary,)
+    assert rewritten.connected(left_spider, hub_spider)
+
+
+def test_collect_phase_gadgets_rewrites_boundary_adjacent_z_spider() -> None:
+    diagram, input_boundary, io_spider, phase_spider = _build_io_phase_gadget_diagram()
+
+    rewritten = _collect_phase_gadgets(diagram)
+
+    assert rewritten.inputs() == (input_boundary,)
+    assert phase_spider not in rewritten.vertex_set()
+    assert rewritten.type(io_spider) == zx.VertexType.X
+    assert rewritten.phase(io_spider) == Fraction(1, 4)
 
 
 def test_from_pyzx_builds_graphstate_and_node_map() -> None:

@@ -42,11 +42,11 @@ def from_pyzx(diagram: PyZXDiagram, recognize_pg: bool = False) -> tuple[GraphSt
         raise ValueError(msg)
 
     # if a vertex is a green spider and has only one phase-free Z-spider neighbor, then we can treat it as a phase gadget
-    pg_vertices = _collect_phase_gadgets(diagram) if recognize_pg else set()
+    diagram = _collect_phase_gadgets(diagram) if recognize_pg else diagram
 
     # collect all the vertices and edges in the diagram
-    node_map = _collect_node_map(diagram, excluded_vertices=pg_vertices)
-    edge_map = _collect_edge_map(diagram, excluded_vertices=pg_vertices)
+    node_map = _collect_node_map(diagram)
+    edge_map = _collect_edge_map(diagram)
 
     # process input/output boundaries
     rewritten_inputs = _rewrite_input_boundary_maps(diagram, node_map, edge_map)
@@ -92,8 +92,7 @@ def _build_meas_basis_map(
 def _build_coordinate_map(node_map: dict[int, VertexData]) -> dict[int, tuple[float, float]]:
     """Build 2D coordinates from PyZX qubit/row placement."""
     return {
-        vertex_id: (float(vertex_data.qubit), float(vertex_data.row))
-        for vertex_id, vertex_data in node_map.items()
+        vertex_id: (float(vertex_data.qubit), float(vertex_data.row)) for vertex_id, vertex_data in node_map.items()
     }
 
 
@@ -292,6 +291,30 @@ def _next_vertex_id(node_map: dict[int, VertexData]) -> int:
     return max(node_map, default=-1) + 1
 
 
-def _collect_phase_gadgets(diagram: PyZXDiagram) -> set[int]:
-    del diagram
-    return set()
+def _collect_phase_gadgets(diagram: PyZXDiagram) -> PyZXDiagram:
+    # collect Z spiders (lone Z spiders) with exactly one phase-free non-input/output Z-spider neighbor
+    # replace the neighboring phase-free Z-spider with an X-spider carrying the lone spider phase
+    # then remove the lone Z-spider and its incident edge
+    rewritten_diagram = diagram.copy()
+
+    candidates: list[tuple[int, int]] = []
+    for vertex in rewritten_diagram.vertices():
+        if rewritten_diagram.type(vertex) != zx.VertexType.Z:
+            continue
+        if rewritten_diagram.vertex_degree(vertex) != 1:
+            continue
+
+        neighbor = next(iter(rewritten_diagram.neighbors(vertex)))
+        if rewritten_diagram.type(neighbor) != zx.VertexType.Z:
+            continue
+        if rewritten_diagram.phase(neighbor) != 0:
+            continue
+
+        candidates.append((vertex, neighbor))
+
+    for lone_z_spider, phase_free_neighbor in candidates:
+        rewritten_diagram.set_type(phase_free_neighbor, zx.VertexType.X)
+        rewritten_diagram.set_phase(phase_free_neighbor, rewritten_diagram.phase(lone_z_spider))
+        rewritten_diagram.remove_vertex(lone_z_spider)
+
+    return rewritten_diagram
