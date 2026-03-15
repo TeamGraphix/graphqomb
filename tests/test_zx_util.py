@@ -94,15 +94,19 @@ def test_collect_node_map_preserves_pyzx_vertex_metadata() -> None:
     assert node_map[second_spider].is_ground is True
 
 
-def test_collect_edge_map_preserves_edge_types_and_respects_exclusions() -> None:
+def test_collect_edge_map_preserves_edge_types() -> None:
     diagram, input_boundary, first_spider, second_spider, output_boundary = _build_graphlike_diagram()
 
-    edge_map = _collect_edge_map(diagram, excluded_vertices={second_spider})
+    edge_map = _collect_edge_map(diagram)
 
-    assert set(edge_map) == {(input_boundary, first_spider)}
+    assert set(edge_map) == {
+        (input_boundary, first_spider),
+        (first_spider, second_spider),
+        (second_spider, output_boundary),
+    }
     assert edge_map[input_boundary, first_spider].edge_type == zx.EdgeType.SIMPLE
-    assert (first_spider, second_spider) not in edge_map
-    assert (second_spider, output_boundary) not in edge_map
+    assert edge_map[first_spider, second_spider].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[second_spider, output_boundary].edge_type == zx.EdgeType.SIMPLE
 
 
 def test_rewrite_input_boundary_maps_removes_hadamard_boundary_vertices() -> None:

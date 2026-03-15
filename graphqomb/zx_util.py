@@ -13,6 +13,9 @@ from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
+    from collections.abc import Set as AbstractSet
+
     from pyzx.utils import EdgeType, FloatInt, FractionLike, VertexType
 
 PyZXDiagram: TypeAlias = BaseGraph[int, Any]
@@ -114,11 +117,18 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[Grap
 
 
 def _build_meas_basis_map(
-    node_map: dict[int, VertexData],
+    node_map: Mapping[int, VertexData],
     *,
-    output_nodes: set[int],
+    output_nodes: AbstractSet[int],
 ) -> dict[int, PlannerMeasBasis]:
-    """Build GraphState measurement bases from PyZX vertex metadata.
+    r"""Build GraphState measurement bases from PyZX vertex metadata.
+
+    Parameters
+    ----------
+    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
+        Imported PyZX vertex metadata keyed by vertex id.
+    output_nodes : `collections.abc.Set`\[`int`\]
+        Node ids that should be treated as outputs and skipped.
 
     Returns
     -------
@@ -149,8 +159,13 @@ def _build_meas_basis_map(
     return meas_bases
 
 
-def _build_coordinate_map(node_map: dict[int, VertexData]) -> dict[int, tuple[float, float]]:
-    """Build 2D coordinates from PyZX qubit and row placement.
+def _build_coordinate_map(node_map: Mapping[int, VertexData]) -> dict[int, tuple[float, float]]:
+    r"""Build 2D coordinates from PyZX qubit and row placement.
+
+    Parameters
+    ----------
+    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
+        Imported PyZX vertex metadata keyed by vertex id.
 
     Returns
     -------
@@ -164,6 +179,11 @@ def _build_coordinate_map(node_map: dict[int, VertexData]) -> dict[int, tuple[fl
 
 def _phase_to_angle(phase: FractionLike) -> float:
     """Convert a PyZX phase expressed in multiples of pi into radians.
+
+    Parameters
+    ----------
+    phase : FractionLike
+        PyZX phase value expressed in multiples of pi.
 
     Returns
     -------
@@ -186,6 +206,11 @@ def _collect_node_map(
     diagram: PyZXDiagram,
 ) -> dict[int, VertexData]:
     """Collect vertex metadata from a PyZX diagram.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
 
     Returns
     -------
@@ -211,6 +236,11 @@ def _collect_edge_map(
     diagram: PyZXDiagram,
 ) -> dict[tuple[int, int], EdgeData]:
     """Collect edge metadata from a PyZX diagram.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
 
     Returns
     -------
@@ -244,6 +274,13 @@ def _collect_edge_map(
 def _edge_key(source: int, target: int) -> tuple[int, int]:
     """Return a canonical key for an undirected edge.
 
+    Parameters
+    ----------
+    source : `int`
+        One endpoint of the edge.
+    target : `int`
+        The other endpoint of the edge.
+
     Returns
     -------
     tuple[int, int]
@@ -254,10 +291,19 @@ def _edge_key(source: int, target: int) -> tuple[int, int]:
 
 def _rewrite_input_boundary_maps(
     diagram: PyZXDiagram,
-    node_map: dict[int, VertexData],
-    edge_map: dict[tuple[int, int], EdgeData],
+    node_map: MutableMapping[int, VertexData],
+    edge_map: MutableMapping[tuple[int, int], EdgeData],
 ) -> tuple[int, ...]:
-    """Rewrite input boundaries into GraphState-compatible node and edge maps.
+    r"""Rewrite input boundaries into GraphState-compatible node and edge maps.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
+    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+        Mutable imported vertex metadata keyed by vertex id.
+    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+        Mutable imported edge metadata keyed by canonical endpoint pairs.
 
     Returns
     -------
@@ -319,10 +365,19 @@ def _rewrite_input_boundary_maps(
 
 def _rewrite_output_boundary_maps(
     diagram: PyZXDiagram,
-    node_map: dict[int, VertexData],
-    edge_map: dict[tuple[int, int], EdgeData],
+    node_map: MutableMapping[int, VertexData],
+    edge_map: MutableMapping[tuple[int, int], EdgeData],
 ) -> tuple[int, ...]:
-    """Rewrite output boundaries into GraphState-compatible node and edge maps.
+    r"""Rewrite output boundaries into GraphState-compatible node and edge maps.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
+    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+        Mutable imported vertex metadata keyed by vertex id.
+    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+        Mutable imported edge metadata keyed by canonical endpoint pairs.
 
     Returns
     -------
@@ -397,8 +452,13 @@ def _rewrite_output_boundary_maps(
     return tuple(rewritten_outputs)
 
 
-def _next_vertex_id(node_map: dict[int, VertexData]) -> int:
-    """Return a fresh synthetic vertex id for import-time rewrites.
+def _next_vertex_id(node_map: Mapping[int, VertexData]) -> int:
+    r"""Return a fresh synthetic vertex id for import-time rewrites.
+
+    Parameters
+    ----------
+    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
+        Imported vertex metadata keyed by vertex id.
 
     Returns
     -------
@@ -409,9 +469,20 @@ def _next_vertex_id(node_map: dict[int, VertexData]) -> int:
 
 
 def _collect_phase_gadgets(diagram: PyZXDiagram) -> PyZXDiagram:
-    # collect Z spiders (lone Z spiders) with exactly one phase-free non-input/output Z-spider neighbor
-    # replace the neighboring phase-free Z-spider with an X-spider carrying the lone spider phase
-    # then remove the lone Z-spider and its incident edge
+    r"""Rewrite supported phase-gadget patterns in a PyZX diagram.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
+
+    Returns
+    -------
+    `PyZXDiagram`
+        A copied diagram where each lone `Z` spider attached to a phase-free
+        `Z` spider is absorbed into that neighbor, turning the neighbor into an
+        `X` spider with the lone spider's phase.
+    """
     rewritten_diagram = diagram.copy()
 
     candidates: list[tuple[int, int]] = []
