@@ -152,8 +152,6 @@ class _StimCompiler:
                 other_ops.append(op)
         if not meas_flip_probs:
             meas_flip_p = 0.0
-        elif len(meas_flip_probs) == 1:
-            meas_flip_p = meas_flip_probs[0]
         else:
             meas_flip_p = 0.0
             for p in meas_flip_probs:
