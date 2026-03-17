@@ -7,7 +7,6 @@ This module provides:
 
 from __future__ import annotations
 
-import math
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -156,7 +155,9 @@ class _StimCompiler:
         elif len(meas_flip_probs) == 1:
             meas_flip_p = meas_flip_probs[0]
         else:
-            meas_flip_p = 1.0 - math.prod(1.0 - p for p in meas_flip_probs)
+            meas_flip_p = 0.0
+            for p in meas_flip_probs:
+                meas_flip_p = meas_flip_p * (1 - p) + (1 - meas_flip_p) * p
 
         default_placement = default_noise_placement(event)
         self._rec_index += self._emit_noise_ops(other_ops, NoisePlacement.BEFORE, default_placement)

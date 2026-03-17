@@ -222,7 +222,7 @@ def test_stim_compile_combines_measurement_flip_probabilities() -> None:
         ],
     )
 
-    expected = 1.0 - (1.0 - 0.1) * (1.0 - 0.2)
+    expected = (1 - 0.1) * 0.2 + 0.1 * (1 - 0.2)
     mx_lines = [line for line in stim_str.splitlines() if line.startswith("MX(")]
     assert mx_lines
     for line in mx_lines:
