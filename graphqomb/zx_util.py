@@ -183,8 +183,8 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> GraphState
     diagram : `PyZXDiagram`
         Input PyZX diagram in graph-like form.
     recognize_pg : `bool`, optional
-        Whether to recognize supported lone-`Z` phase gadgets and import their
-        neighbors as `YZ`-plane measurements.
+        Whether to recognize supported lone-Z phase gadgets and import their
+        neighbors as YZ-plane measurements.
 
     Returns
     -------
