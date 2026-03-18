@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import math
 from typing import TYPE_CHECKING, Any, TypeAlias
-
-import pyzx as zx
-from pyzx.graph.base import BaseGraph
 
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
@@ -15,10 +13,38 @@ from graphqomb.graphstate import GraphState
 if TYPE_CHECKING:
     from collections.abc import Mapping, MutableMapping
     from collections.abc import Set as AbstractSet
+    from types import ModuleType
 
+    from pyzx.graph.base import BaseGraph
     from pyzx.utils import EdgeType, FloatInt, FractionLike, VertexType
 
-PyZXDiagram: TypeAlias = BaseGraph[int, Any]
+    PyZXDiagram: TypeAlias = BaseGraph[int, Any]
+else:
+    PyZXDiagram: TypeAlias = Any
+
+_PYZX_INSTALL_HINT = "PyZX support requires the optional dependency `graphqomb[pyzx]`."
+
+
+def _require_pyzx() -> ModuleType:
+    """Import PyZX on demand for optional integration paths.
+
+    Returns
+    -------
+    `types.ModuleType`
+        Imported `pyzx` module.
+
+    Raises
+    ------
+    ModuleNotFoundError
+        If the optional `pyzx` dependency is not installed.
+    """
+    try:
+        zx = importlib.import_module("pyzx")
+    except ModuleNotFoundError as exc:
+        msg = f"{_PYZX_INSTALL_HINT} Install it with `pip install graphqomb[pyzx]`."
+        raise ModuleNotFoundError(msg) from exc
+
+    return zx
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -88,8 +114,10 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[Grap
     ValueError
         If the input diagram is not in strict graph-like form.
     """
+    pyzx = _require_pyzx()
+
     # Check whether the diagram is in graph-like form.
-    if not zx.is_graph_like(diagram, strict=True):
+    if not pyzx.is_graph_like(diagram, strict=True):
         msg = "The input diagram is not in graph-like form. Please apply the graph-like transformation first."
         raise ValueError(msg)
 
@@ -140,15 +168,16 @@ def _build_meas_basis_map(
     ValueError
         If an imported vertex type cannot be represented as a measurement basis.
     """
+    pyzx = _require_pyzx()
     meas_bases: dict[int, PlannerMeasBasis] = {}
 
     for vertex_id, vertex_data in node_map.items():
-        if vertex_id in output_nodes or vertex_data.vertex_type == zx.VertexType.BOUNDARY:
+        if vertex_id in output_nodes or vertex_data.vertex_type == pyzx.VertexType.BOUNDARY:
             continue
 
-        if vertex_data.vertex_type == zx.VertexType.Z:
+        if vertex_data.vertex_type == pyzx.VertexType.Z:
             plane = Plane.XY
-        elif vertex_data.vertex_type == zx.VertexType.X:
+        elif vertex_data.vertex_type == pyzx.VertexType.X:
             plane = Plane.YZ
         else:
             msg = f"Unsupported PyZX vertex type for GraphState import: {vertex_data.vertex_type}"
@@ -160,7 +189,7 @@ def _build_meas_basis_map(
 
 
 def _build_coordinate_map(node_map: Mapping[int, VertexData]) -> dict[int, tuple[float, float]]:
-    r"""Build 2D coordinates from PyZX qubit and row placement.
+    r"""Build 2D coordinates from PyZX row and qubit placement.
 
     Parameters
     ----------
@@ -173,7 +202,7 @@ def _build_coordinate_map(node_map: Mapping[int, VertexData]) -> dict[int, tuple
         Coordinate map keyed by PyZX vertex id.
     """
     return {
-        vertex_id: (float(vertex_data.qubit), float(vertex_data.row)) for vertex_id, vertex_data in node_map.items()
+        vertex_id: (float(vertex_data.row), float(vertex_data.qubit)) for vertex_id, vertex_data in node_map.items()
     }
 
 
@@ -315,6 +344,7 @@ def _rewrite_input_boundary_maps(
     ValueError
         If a boundary shape is unsupported or inconsistent with graph-like form.
     """
+    pyzx = _require_pyzx()
     rewritten_inputs: list[int] = []
     input_vertices = diagram.inputs()
 
@@ -324,7 +354,7 @@ def _rewrite_input_boundary_maps(
             raise ValueError(msg)
 
         vertex_data = node_map[input_vertex]
-        if vertex_data.vertex_type != zx.VertexType.BOUNDARY:
+        if vertex_data.vertex_type != pyzx.VertexType.BOUNDARY:
             msg = f"Input vertex must be a boundary vertex: {input_vertex}"
             raise ValueError(msg)
 
@@ -340,20 +370,20 @@ def _rewrite_input_boundary_maps(
             msg = f"Missing incident edge for input boundary: {input_vertex}"
             raise ValueError(msg)
 
-        if edge_data.edge_type == zx.EdgeType.HADAMARD:
+        if edge_data.edge_type == pyzx.EdgeType.HADAMARD:
             del node_map[input_vertex]
             del edge_map[edge_key]
             rewritten_inputs.append(neighbor)
             continue
 
-        if edge_data.edge_type == zx.EdgeType.SIMPLE:
+        if edge_data.edge_type == pyzx.EdgeType.SIMPLE:
             node_map[input_vertex] = dataclasses.replace(
                 vertex_data,
-                vertex_type=zx.VertexType.Z,
+                vertex_type=pyzx.VertexType.Z,
                 phase=0,
                 is_ground=False,
             )
-            edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=zx.EdgeType.HADAMARD)
+            edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=pyzx.EdgeType.HADAMARD)
             rewritten_inputs.append(input_vertex)
             continue
 
@@ -389,6 +419,7 @@ def _rewrite_output_boundary_maps(
     ValueError
         If a boundary shape is unsupported or inconsistent with graph-like form.
     """
+    pyzx = _require_pyzx()
     rewritten_outputs: list[int] = []
     output_vertices = diagram.outputs()
 
@@ -398,7 +429,7 @@ def _rewrite_output_boundary_maps(
             raise ValueError(msg)
 
         vertex_data = node_map[output_vertex]
-        if vertex_data.vertex_type != zx.VertexType.BOUNDARY:
+        if vertex_data.vertex_type != pyzx.VertexType.BOUNDARY:
             msg = f"Output vertex must be a boundary vertex: {output_vertex}"
             raise ValueError(msg)
 
@@ -414,23 +445,23 @@ def _rewrite_output_boundary_maps(
             msg = f"Missing incident edge for output boundary: {output_vertex}"
             raise ValueError(msg)
 
-        if edge_data.edge_type == zx.EdgeType.HADAMARD:
+        if edge_data.edge_type == pyzx.EdgeType.HADAMARD:
             rewritten_outputs.append(output_vertex)
             continue
 
-        if edge_data.edge_type == zx.EdgeType.SIMPLE:
+        if edge_data.edge_type == pyzx.EdgeType.SIMPLE:
             node_map[output_vertex] = dataclasses.replace(
                 vertex_data,
-                vertex_type=zx.VertexType.Z,
+                vertex_type=pyzx.VertexType.Z,
                 phase=0,
                 is_ground=False,
             )
-            edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=zx.EdgeType.HADAMARD)
+            edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=pyzx.EdgeType.HADAMARD)
 
             new_output_vertex = _next_vertex_id(node_map)
             node_map[new_output_vertex] = VertexData(
                 vertex_id=new_output_vertex,
-                vertex_type=zx.VertexType.BOUNDARY,
+                vertex_type=pyzx.VertexType.BOUNDARY,
                 phase=0,
                 qubit=vertex_data.qubit,
                 row=vertex_data.row + 1,
@@ -440,7 +471,7 @@ def _rewrite_output_boundary_maps(
             edge_map[new_output_edge_key] = EdgeData(
                 source=new_output_edge_key[0],
                 target=new_output_edge_key[1],
-                edge_type=zx.EdgeType.HADAMARD,
+                edge_type=pyzx.EdgeType.HADAMARD,
             )
             rewritten_outputs.append(new_output_vertex)
 
@@ -483,17 +514,18 @@ def _collect_phase_gadgets(diagram: PyZXDiagram) -> PyZXDiagram:
         `Z` spider is absorbed into that neighbor, turning the neighbor into an
         `X` spider with the lone spider's phase.
     """
+    pyzx = _require_pyzx()
     rewritten_diagram = diagram.copy()
 
     candidates: list[tuple[int, int]] = []
     for vertex in rewritten_diagram.vertices():
-        if rewritten_diagram.type(vertex) != zx.VertexType.Z:
+        if rewritten_diagram.type(vertex) != pyzx.VertexType.Z:
             continue
         if rewritten_diagram.vertex_degree(vertex) != 1:
             continue
 
         neighbor = next(iter(rewritten_diagram.neighbors(vertex)))
-        if rewritten_diagram.type(neighbor) != zx.VertexType.Z:
+        if rewritten_diagram.type(neighbor) != pyzx.VertexType.Z:
             continue
         if rewritten_diagram.phase(neighbor) != 0:
             continue
@@ -501,7 +533,7 @@ def _collect_phase_gadgets(diagram: PyZXDiagram) -> PyZXDiagram:
         candidates.append((vertex, neighbor))
 
     for lone_z_spider, phase_free_neighbor in candidates:
-        rewritten_diagram.set_type(phase_free_neighbor, zx.VertexType.X)
+        rewritten_diagram.set_type(phase_free_neighbor, pyzx.VertexType.X)
         rewritten_diagram.set_phase(phase_free_neighbor, rewritten_diagram.phase(lone_z_spider))
         rewritten_diagram.remove_vertex(lone_z_spider)
 
