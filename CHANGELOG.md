@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `schedule_strategy` argument to `circuit2graph()`.
   - `circuit2graph()` now returns `(graph, gflow, scheduler)` and pre-populates `Scheduler` via manual scheduling.
 - **PyZX Integration**: Added optional `graphqomb.zx_util` utilities for importing strict graph-like PyZX diagrams into `GraphState`.
-  - Added `from_pyzx()` to convert PyZX diagrams into a `GraphState` plus a PyZX-to-GraphState node-id map.
+  - Added `from_pyzx()` to convert PyZX diagrams into a `GraphState`.
   - Added boundary rewriting and metadata import helpers to preserve graph structure, measurement bases, and coordinates during conversion.
-  - Added optional phase-gadget recognition for supported lone-`Z` gadget patterns via `recognize_pg=True`.
+  - Added optional phase-gadget recognition for supported lone-`Z` gadget patterns via `recognize_pg=True`, importing the adjacent node as a `YZ`-plane measurement.
 
 ### Changed
 
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
 - **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
 - **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
-- **PyZX Integration**: Added unit tests for vertex/edge collection, boundary rewrites, phase-gadget rewrites, and end-to-end `from_pyzx()` conversion behavior.
+- **PyZX Integration**: Added unit tests for vertex/edge collection, boundary rewrites, lone-spider phase-gadget recognition, and end-to-end `from_pyzx()` conversion behavior.
 
 ## [0.2.1] - 2026-01-16
 

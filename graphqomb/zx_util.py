@@ -163,7 +163,19 @@ class EdgeData:
     edge_type: EdgeType
 
 
-def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[GraphState, dict[int, int]]:
+@dataclasses.dataclass(frozen=True, slots=True)
+class _PyZXImportData:
+    """Collected import data used to initialize a `GraphState`."""
+
+    nodes: dict[int, VertexData]
+    edges: dict[tuple[int, int], EdgeData]
+    inputs: tuple[int, ...]
+    outputs: tuple[int, ...]
+    meas_bases: dict[int, PlannerMeasBasis]
+    coordinates: dict[int, tuple[float, float]]
+
+
+def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> GraphState:
     r"""Convert a graph-like PyZX diagram into a graph state.
 
     Parameters
@@ -171,12 +183,13 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[Grap
     diagram : `PyZXDiagram`
         Input PyZX diagram in graph-like form.
     recognize_pg : `bool`, optional
-        Whether to rewrite supported phase-gadget patterns before import.
+        Whether to recognize supported lone-`Z` phase gadgets and import their
+        neighbors as `YZ`-plane measurements.
 
     Returns
     -------
-    `tuple`\[`GraphState`, `dict`\[`int`, `int`\]\]
-        Imported graph state and a map from PyZX vertex ids to GraphState node ids.
+    `GraphState`
+        Imported graph state.
 
     Raises
     ------
@@ -190,33 +203,64 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> tuple[Grap
         msg = "The input diagram is not in graph-like form. Please apply the graph-like transformation first."
         raise ValueError(msg)
 
-    # Rewrite supported phase-gadget patterns before collecting graph data.
-    diagram = _collect_phase_gadgets(diagram) if recognize_pg else diagram
+    import_data = _collect_import_data(diagram, recognize_pg=recognize_pg)
 
-    # Collect all vertices and edges in the diagram.
+    graph, _ = GraphState.from_graph(
+        nodes=import_data.nodes,
+        edges=import_data.edges,
+        inputs=import_data.inputs,
+        outputs=import_data.outputs,
+        meas_bases=import_data.meas_bases,
+        coordinates=import_data.coordinates,
+    )
+
+    return graph
+
+
+def _collect_import_data(diagram: PyZXDiagram, *, recognize_pg: bool) -> _PyZXImportData:
+    """Collect the import-time graph data derived from a PyZX diagram.
+
+    Returns
+    -------
+    _PyZXImportData
+        Topology, boundary registration, measurement bases, and coordinates
+        used to initialize the imported `GraphState`.
+    """
     node_map = _collect_node_map(diagram)
     edge_map = _collect_edge_map(diagram)
 
-    # Process input and output boundaries.
     rewritten_inputs = _rewrite_input_boundary_maps(diagram, node_map, edge_map)
     rewritten_outputs = _rewrite_output_boundary_maps(diagram, node_map, edge_map)
+    output_nodes = set(rewritten_outputs)
 
-    graph, graph_node_map = GraphState.from_graph(
+    pg_meas_bases: dict[int, PlannerMeasBasis] = {}
+    if recognize_pg:
+        pg_meas_bases = _collect_phase_gadget_meas_bases(diagram, node_map, edge_map)
+
+    meas_bases = dict(pg_meas_bases)
+    meas_bases.update(
+        _build_meas_basis_map(
+            node_map,
+            output_nodes=output_nodes,
+            excluded_nodes=set(pg_meas_bases),
+        )
+    )
+
+    return _PyZXImportData(
         nodes=node_map,
         edges=edge_map,
         inputs=rewritten_inputs,
         outputs=rewritten_outputs,
-        meas_bases=_build_meas_basis_map(node_map, output_nodes=set(rewritten_outputs)),
+        meas_bases=meas_bases,
         coordinates=_build_coordinate_map(node_map),
     )
-
-    return graph, graph_node_map
 
 
 def _build_meas_basis_map(
     node_map: Mapping[int, VertexData],
     *,
     output_nodes: AbstractSet[int],
+    excluded_nodes: AbstractSet[int] | None = None,
 ) -> dict[int, PlannerMeasBasis]:
     r"""Build GraphState measurement bases from PyZX vertex metadata.
 
@@ -226,6 +270,8 @@ def _build_meas_basis_map(
         Imported PyZX vertex metadata keyed by vertex id.
     output_nodes : `collections.abc.Set`\[`int`\]
         Node ids that should be treated as outputs and skipped.
+    excluded_nodes : `collections.abc.Set`\[`int`\] | `None`, optional
+        Non-output nodes to exclude from default measurement-basis collection.
 
     Returns
     -------
@@ -239,9 +285,14 @@ def _build_meas_basis_map(
     """
     pyzx = _require_pyzx()
     meas_bases: dict[int, PlannerMeasBasis] = {}
+    skipped_nodes = set() if excluded_nodes is None else set(excluded_nodes)
 
     for vertex_id, vertex_data in node_map.items():
-        if vertex_id in output_nodes or vertex_data.vertex_type == pyzx.VertexType.BOUNDARY:
+        if (
+            vertex_id in output_nodes
+            or vertex_id in skipped_nodes
+            or vertex_data.vertex_type == pyzx.VertexType.BOUNDARY
+        ):
             continue
 
         if vertex_data.vertex_type == pyzx.VertexType.Z:
@@ -552,6 +603,101 @@ def _rewrite_output_boundary_maps(
     return tuple(rewritten_outputs)
 
 
+def _collect_phase_gadget_meas_bases(
+    diagram: PyZXDiagram,
+    node_map: MutableMapping[int, VertexData],
+    edge_map: MutableMapping[tuple[int, int], EdgeData],
+) -> dict[int, PlannerMeasBasis]:
+    r"""Rewrite supported lone-`Z` phase gadgets for GraphState import.
+
+    Supported patterns are phaseful degree-1 `Z` spiders connected by a
+    Hadamard edge to a phase-free `Z` spider. The lone spider is removed from
+    the imported node and edge maps, and its neighbor is imported as a
+    `YZ`-plane measurement with the lone spider's phase.
+
+    Parameters
+    ----------
+    diagram : `PyZXDiagram`
+        Input PyZX diagram.
+    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+        Mutable imported vertex metadata keyed by vertex id.
+    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+        Mutable imported edge metadata keyed by canonical endpoint pairs.
+
+    Returns
+    -------
+    dict[int, PlannerMeasBasis]
+        Measurement-basis overrides for recognized phase-gadget neighbors.
+    """
+    candidates: list[tuple[int, int]] = []
+    neighbor_counts: dict[int, int] = {}
+
+    for vertex_id, vertex_data in node_map.items():
+        neighbor = _phase_gadget_neighbor(diagram, node_map, edge_map, vertex_id, vertex_data)
+        if neighbor is None:
+            continue
+
+        candidates.append((vertex_id, neighbor))
+        neighbor_counts[neighbor] = neighbor_counts.get(neighbor, 0) + 1
+
+    meas_basis_overrides: dict[int, PlannerMeasBasis] = {}
+    for lone_z_spider, phase_gadget_neighbor in candidates:
+        if neighbor_counts[phase_gadget_neighbor] != 1:
+            continue
+
+        lone_vertex_data = node_map.get(lone_z_spider)
+        if lone_vertex_data is None:
+            continue
+
+        edge_key = _edge_key(lone_z_spider, phase_gadget_neighbor)
+        if edge_key not in edge_map:
+            continue
+
+        meas_basis_overrides[phase_gadget_neighbor] = PlannerMeasBasis(
+            Plane.YZ,
+            _phase_to_angle(lone_vertex_data.phase),
+        )
+        del node_map[lone_z_spider]
+        del edge_map[edge_key]
+
+    return meas_basis_overrides
+
+
+def _phase_gadget_neighbor(
+    diagram: PyZXDiagram,
+    node_map: Mapping[int, VertexData],
+    edge_map: Mapping[tuple[int, int], EdgeData],
+    vertex_id: int,
+    vertex_data: VertexData,
+) -> int | None:
+    """Return the supported phase-gadget neighbor for a lone `Z` spider.
+
+    Returns
+    -------
+    int | None
+        Neighbor vertex id when the lone spider matches a supported
+        phase-gadget pattern, otherwise `None`.
+    """
+    pyzx = _require_pyzx()
+    if vertex_data.vertex_type != pyzx.VertexType.Z or vertex_data.phase == 0:
+        return None
+    if diagram.vertex_degree(vertex_id) != 1:
+        return None
+
+    neighbor = next(iter(diagram.neighbors(vertex_id)))
+    neighbor_data = node_map.get(neighbor)
+    if neighbor_data is None:
+        return None
+    if neighbor_data.vertex_type != pyzx.VertexType.Z or neighbor_data.phase != 0:
+        return None
+
+    edge_data = edge_map.get(_edge_key(vertex_id, neighbor))
+    if edge_data is None or edge_data.edge_type != pyzx.EdgeType.HADAMARD:
+        return None
+
+    return neighbor
+
+
 def _next_vertex_id(node_map: Mapping[int, VertexData]) -> int:
     r"""Return a fresh synthetic vertex id for import-time rewrites.
 
@@ -566,44 +712,3 @@ def _next_vertex_id(node_map: Mapping[int, VertexData]) -> int:
         Next available vertex id.
     """
     return max(node_map, default=-1) + 1
-
-
-def _collect_phase_gadgets(diagram: PyZXDiagram) -> PyZXDiagram:
-    r"""Rewrite supported phase-gadget patterns in a PyZX diagram.
-
-    Parameters
-    ----------
-    diagram : `PyZXDiagram`
-        Input PyZX diagram.
-
-    Returns
-    -------
-    `PyZXDiagram`
-        A copied diagram where each lone `Z` spider attached to a phase-free
-        `Z` spider is absorbed into that neighbor, turning the neighbor into an
-        `X` spider with the lone spider's phase.
-    """
-    pyzx = _require_pyzx()
-    rewritten_diagram = diagram.copy()
-
-    candidates: list[tuple[int, int]] = []
-    for vertex in rewritten_diagram.vertices():
-        if rewritten_diagram.type(vertex) != pyzx.VertexType.Z:
-            continue
-        if rewritten_diagram.vertex_degree(vertex) != 1:
-            continue
-
-        neighbor = next(iter(rewritten_diagram.neighbors(vertex)))
-        if rewritten_diagram.type(neighbor) != pyzx.VertexType.Z:
-            continue
-        if rewritten_diagram.phase(neighbor) != 0:
-            continue
-
-        candidates.append((vertex, neighbor))
-
-    for lone_z_spider, phase_free_neighbor in candidates:
-        rewritten_diagram.set_type(phase_free_neighbor, pyzx.VertexType.X)
-        rewritten_diagram.set_phase(phase_free_neighbor, rewritten_diagram.phase(lone_z_spider))
-        rewritten_diagram.remove_vertex(lone_z_spider)
-
-    return rewritten_diagram

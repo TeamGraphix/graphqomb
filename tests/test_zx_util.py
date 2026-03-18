@@ -14,7 +14,7 @@ from graphqomb.zx_util import (
     VertexType,
     _collect_edge_map,
     _collect_node_map,
-    _collect_phase_gadgets,
+    _collect_phase_gadget_meas_bases,
     _rewrite_input_boundary_maps,
     _rewrite_output_boundary_maps,
     from_pyzx,
@@ -106,7 +106,7 @@ def _build_single_boundary_diagram(
     return diagram, boundary, spider
 
 
-def _build_internal_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int, int]:
+def _build_internal_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int, int, int]:
     diagram = zx.Graph()
     input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
     left_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
@@ -123,7 +123,7 @@ def _build_internal_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, 
     diagram.set_inputs((input_boundary,))
     diagram.set_outputs((output_boundary,))
 
-    return diagram, input_boundary, left_spider, hub_spider, phase_spider, output_boundary
+    return diagram, input_boundary, left_spider, hub_spider, phase_spider, right_spider, output_boundary
 
 
 def _build_io_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
@@ -138,6 +138,18 @@ def _build_io_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
     diagram.set_outputs(())
 
     return diagram, input_boundary, io_spider, phase_spider
+
+
+def _build_ambiguous_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
+    diagram = zx.Graph()
+    hub_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=0)
+    phase_spider_0 = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=1, phase=Fraction(1, 4))
+    phase_spider_1 = diagram.add_vertex(ty=zx.VertexType.Z, qubit=2, row=1, phase=Fraction(1, 2))
+
+    diagram.add_edge((hub_spider, phase_spider_0), edgetype=zx.EdgeType.HADAMARD)
+    diagram.add_edge((hub_spider, phase_spider_1), edgetype=zx.EdgeType.HADAMARD)
+
+    return diagram, hub_spider, phase_spider_0, phase_spider_1
 
 
 def test_collect_node_map_preserves_pyzx_vertex_metadata() -> None:
@@ -225,67 +237,102 @@ def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary(
     assert edge_map[boundary, synthetic_output].edge_type == zx.EdgeType.HADAMARD
 
 
-def test_collect_phase_gadgets_rewrites_internal_phase_gadget() -> None:
+def test_collect_phase_gadget_meas_bases_removes_internal_lone_spider() -> None:
     (
         diagram,
         input_boundary,
         left_spider,
         hub_spider,
         phase_spider,
+        right_spider,
         output_boundary,
     ) = _build_internal_phase_gadget_diagram()
+    node_map = _collect_node_map(diagram)
+    edge_map = _collect_edge_map(diagram)
 
-    rewritten = cast("_PyZXTestDiagram", _collect_phase_gadgets(diagram))
+    meas_basis_overrides = _collect_phase_gadget_meas_bases(diagram, node_map, edge_map)
 
-    assert phase_spider in diagram.vertex_set()
-    assert phase_spider not in rewritten.vertex_set()
-    assert rewritten.type(hub_spider) == zx.VertexType.X
-    assert rewritten.phase(hub_spider) == Fraction(1, 4)
-    assert rewritten.inputs() == (input_boundary,)
-    assert rewritten.outputs() == (output_boundary,)
-    assert rewritten.connected(left_spider, hub_spider)
+    assert set(node_map) == {input_boundary, left_spider, hub_spider, right_spider, output_boundary}
+    assert phase_spider not in node_map
+    assert (hub_spider, phase_spider) not in edge_map
+    assert meas_basis_overrides[hub_spider].plane == Plane.YZ
+    assert math.isclose(meas_basis_overrides[hub_spider].angle, math.pi / 4)
 
 
-def test_collect_phase_gadgets_rewrites_boundary_adjacent_z_spider() -> None:
+def test_collect_phase_gadget_meas_bases_removes_boundary_adjacent_lone_spider() -> None:
     diagram, input_boundary, io_spider, phase_spider = _build_io_phase_gadget_diagram()
+    node_map = _collect_node_map(diagram)
+    edge_map = _collect_edge_map(diagram)
 
-    rewritten = cast("_PyZXTestDiagram", _collect_phase_gadgets(diagram))
+    meas_basis_overrides = _collect_phase_gadget_meas_bases(diagram, node_map, edge_map)
 
-    assert rewritten.inputs() == (input_boundary,)
-    assert phase_spider not in rewritten.vertex_set()
-    assert rewritten.type(io_spider) == zx.VertexType.X
-    assert rewritten.phase(io_spider) == Fraction(1, 4)
+    assert set(node_map) == {input_boundary, io_spider}
+    assert phase_spider not in node_map
+    assert (io_spider, phase_spider) not in edge_map
+    assert meas_basis_overrides[io_spider].plane == Plane.YZ
+    assert math.isclose(meas_basis_overrides[io_spider].angle, math.pi / 4)
 
 
-def test_from_pyzx_builds_graphstate_and_node_map() -> None:
-    diagram, input_boundary, first_spider, second_spider, output_boundary = _build_graphlike_diagram()
+def test_collect_phase_gadget_meas_bases_skips_ambiguous_lone_spiders() -> None:
+    diagram, hub_spider, phase_spider_0, phase_spider_1 = _build_ambiguous_phase_gadget_diagram()
+    node_map = _collect_node_map(diagram)
+    edge_map = _collect_edge_map(diagram)
 
-    graph, node_map = from_pyzx(diagram)
+    meas_basis_overrides = _collect_phase_gadget_meas_bases(diagram, node_map, edge_map)
 
-    synthetic_output = max(node_map)
-
-    assert set(node_map) == {input_boundary, first_spider, second_spider, output_boundary, synthetic_output}
-    assert graph.input_node_indices == {node_map[input_boundary]: 0}
-    assert graph.output_node_indices == {node_map[synthetic_output]: 0}
-    assert graph.physical_edges == {
-        tuple(sorted((node_map[input_boundary], node_map[first_spider]))),
-        tuple(sorted((node_map[first_spider], node_map[second_spider]))),
-        tuple(sorted((node_map[second_spider], node_map[output_boundary]))),
-        tuple(sorted((node_map[output_boundary], node_map[synthetic_output]))),
+    assert meas_basis_overrides == {}
+    assert set(node_map) == {hub_spider, phase_spider_0, phase_spider_1}
+    assert set(edge_map) == {
+        tuple(sorted((hub_spider, phase_spider_0))),
+        tuple(sorted((hub_spider, phase_spider_1))),
     }
 
-    assert graph.meas_bases[node_map[input_boundary]].plane == Plane.XY
-    assert math.isclose(graph.meas_bases[node_map[input_boundary]].angle, 0.0)
-    assert graph.meas_bases[node_map[first_spider]].plane == Plane.XY
-    assert math.isclose(graph.meas_bases[node_map[first_spider]].angle, math.pi / 2)
-    assert graph.meas_bases[node_map[second_spider]].plane == Plane.XY
-    assert math.isclose(graph.meas_bases[node_map[second_spider]].angle, 0.0)
-    assert graph.meas_bases[node_map[output_boundary]].plane == Plane.XY
-    assert math.isclose(graph.meas_bases[node_map[output_boundary]].angle, 0.0)
-    assert node_map[synthetic_output] not in graph.meas_bases
 
-    assert graph.coordinates[node_map[input_boundary]] == (0.0, 0.0)
-    assert graph.coordinates[node_map[first_spider]] == (1.0, 0.0)
-    assert graph.coordinates[node_map[second_spider]] == (2.0, 1.0)
-    assert graph.coordinates[node_map[output_boundary]] == (3.0, 1.0)
-    assert graph.coordinates[node_map[synthetic_output]] == (4.0, 1.0)
+def test_from_pyzx_builds_graphstate() -> None:
+    diagram, _, _, _, _ = _build_graphlike_diagram()
+
+    graph = from_pyzx(diagram)
+    coord_to_node = {coord: node for node, coord in graph.coordinates.items()}
+    input_node = coord_to_node[0.0, 0.0]
+    first_node = coord_to_node[1.0, 0.0]
+    second_node = coord_to_node[2.0, 1.0]
+    output_node = coord_to_node[3.0, 1.0]
+    synthetic_output = coord_to_node[4.0, 1.0]
+
+    assert graph.input_node_indices == {input_node: 0}
+    assert graph.output_node_indices == {synthetic_output: 0}
+    assert graph.physical_edges == {
+        tuple(sorted((input_node, first_node))),
+        tuple(sorted((first_node, second_node))),
+        tuple(sorted((second_node, output_node))),
+        tuple(sorted((output_node, synthetic_output))),
+    }
+
+    assert graph.meas_bases[input_node].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[input_node].angle, 0.0)
+    assert graph.meas_bases[first_node].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[first_node].angle, math.pi / 2)
+    assert graph.meas_bases[second_node].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[second_node].angle, 0.0)
+    assert graph.meas_bases[output_node].plane == Plane.XY
+    assert math.isclose(graph.meas_bases[output_node].angle, 0.0)
+    assert synthetic_output not in graph.meas_bases
+
+    assert graph.coordinates[input_node] == (0.0, 0.0)
+    assert graph.coordinates[first_node] == (1.0, 0.0)
+    assert graph.coordinates[second_node] == (2.0, 1.0)
+    assert graph.coordinates[output_node] == (3.0, 1.0)
+    assert graph.coordinates[synthetic_output] == (4.0, 1.0)
+
+
+def test_from_pyzx_recognizes_phase_gadget_as_yz_measurement() -> None:
+    diagram = _build_internal_phase_gadget_diagram()[0]
+
+    graph = from_pyzx(diagram, recognize_pg=True)
+    coord_to_node = {coord: node for node, coord in graph.coordinates.items()}
+    hub_node = coord_to_node[2.0, 1.0]
+
+    assert (3.0, 1.0) not in coord_to_node
+    assert graph.meas_bases[hub_node].plane == Plane.YZ
+    assert math.isclose(graph.meas_bases[hub_node].angle, math.pi / 4)
+    assert len(graph.physical_nodes) == 6
