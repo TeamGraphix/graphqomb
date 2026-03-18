@@ -1,4 +1,12 @@
-"""PyZX utilities."""
+"""PyZX integration utilities.
+
+This module provides:
+
+- `PyZXDiagram`: Protocol describing the PyZX graph interface used for import.
+- `VertexData`: Collected PyZX vertex metadata used during import.
+- `EdgeData`: Collected PyZX edge metadata used during import.
+- `from_pyzx`: Convert a graph-like PyZX diagram into a `GraphState`.
+"""
 # ruff: noqa: D102
 
 from __future__ import annotations
