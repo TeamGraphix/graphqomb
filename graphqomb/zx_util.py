@@ -1,36 +1,97 @@
 """PyZX utilities."""
+# ruff: noqa: D102
 
 from __future__ import annotations
 
 import dataclasses
 import importlib
 import math
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Protocol, SupportsFloat, TypeAlias, cast
 
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, MutableMapping
+    from collections.abc import Iterable, Mapping, MutableMapping
     from collections.abc import Set as AbstractSet
-    from types import ModuleType
 
-    from pyzx.graph.base import BaseGraph
-    from pyzx.utils import EdgeType, FloatInt, FractionLike, VertexType
+FloatInt: TypeAlias = float | int
+FractionLike: TypeAlias = SupportsFloat
+VertexType: TypeAlias = int
+EdgeType: TypeAlias = int
 
-    PyZXDiagram: TypeAlias = BaseGraph[int, Any]
-else:
-    PyZXDiagram: TypeAlias = Any
+
+class _PyZXVertexTypeNamespace(Protocol):
+    """Static view of the PyZX vertex-type enum namespace."""
+
+    BOUNDARY: int
+    Z: int
+    X: int
+
+
+class _PyZXEdgeTypeNamespace(Protocol):
+    """Static view of the PyZX edge-type enum namespace."""
+
+    HADAMARD: int
+    SIMPLE: int
+
+
+class PyZXDiagram(Protocol):
+    """Protocol covering the PyZX graph surface used by this module."""
+
+    def copy(self) -> PyZXDiagram: ...
+
+    def edges(self) -> Iterable[object]: ...
+
+    def edge_st(self, edge: object) -> tuple[int, int]: ...
+
+    def edge_type(self, edge: object) -> EdgeType: ...
+
+    def inputs(self) -> tuple[int, ...]: ...
+
+    def is_ground(self, vertex: int) -> bool: ...
+
+    def neighbors(self, vertex: int) -> Iterable[int]: ...
+
+    def outputs(self) -> tuple[int, ...]: ...
+
+    def phase(self, vertex: int) -> FractionLike: ...
+
+    def qubit(self, vertex: int) -> FloatInt: ...
+
+    def remove_vertex(self, vertex: int) -> None: ...
+
+    def row(self, vertex: int) -> FloatInt: ...
+
+    def set_phase(self, vertex: int, phase: FractionLike) -> None: ...
+
+    def set_type(self, vertex: int, vertex_type: VertexType) -> None: ...
+
+    def type(self, vertex: int) -> VertexType: ...
+
+    def vertex_degree(self, vertex: int) -> int: ...
+
+    def vertices(self) -> Iterable[int]: ...
+
+
+class PyZXModule(Protocol):
+    """Protocol for the runtime `pyzx` module attributes used here."""
+
+    EdgeType: _PyZXEdgeTypeNamespace
+    VertexType: _PyZXVertexTypeNamespace
+
+    def is_graph_like(self, diagram: PyZXDiagram, *, strict: bool = ...) -> bool: ...
+
 
 _PYZX_INSTALL_HINT = "PyZX support requires the optional dependency `graphqomb[pyzx]`."
 
 
-def _require_pyzx() -> ModuleType:
+def _require_pyzx() -> PyZXModule:
     """Import PyZX on demand for optional integration paths.
 
     Returns
     -------
-    `types.ModuleType`
+    `PyZXModule`
         Imported `pyzx` module.
 
     Raises
@@ -44,7 +105,7 @@ def _require_pyzx() -> ModuleType:
         msg = f"{_PYZX_INSTALL_HINT} Install it with `pip install graphqomb[pyzx]`."
         raise ModuleNotFoundError(msg) from exc
 
-    return zx
+    return cast("PyZXModule", zx)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import importlib
 import math
 from fractions import Fraction
-
-import pytest
+from typing import Protocol, cast
 
 from graphqomb.common import Plane
 from graphqomb.zx_util import (
+    EdgeType,
+    FloatInt,
+    FractionLike,
+    PyZXDiagram,
+    VertexType,
     _collect_edge_map,
     _collect_node_map,
     _collect_phase_gadgets,
@@ -15,11 +20,63 @@ from graphqomb.zx_util import (
     from_pyzx,
 )
 
-zx = pytest.importorskip("pyzx")
+
+class _PyTestMarkNamespace(Protocol):
+    pyzx: object
+
+
+class _PyTestModule(Protocol):
+    mark: _PyTestMarkNamespace
+
+    def importorskip(self, modname: str) -> object: ...
+
+
+class _PyZXVertexTypeNamespace(Protocol):
+    BOUNDARY: VertexType
+    Z: VertexType
+    X: VertexType
+
+
+class _PyZXEdgeTypeNamespace(Protocol):
+    SIMPLE: EdgeType
+    HADAMARD: EdgeType
+
+
+class _PyZXTestDiagram(PyZXDiagram, Protocol):
+    def add_edge(self, edge_pair: tuple[int, int], edgetype: EdgeType = ...) -> object: ...
+
+    def add_vertex(
+        self,
+        *,
+        ty: VertexType,
+        qubit: FloatInt = ...,
+        row: FloatInt = ...,
+        phase: FractionLike = ...,
+        ground: bool = ...,
+    ) -> int: ...
+
+    def connected(self, vertex_1: int, vertex_2: int) -> bool: ...
+
+    def set_inputs(self, inputs: tuple[int, ...]) -> None: ...
+
+    def set_outputs(self, outputs: tuple[int, ...]) -> None: ...
+
+    def vertex_set(self) -> set[int]: ...
+
+
+class _PyZXModule(Protocol):
+    EdgeType: _PyZXEdgeTypeNamespace
+    VertexType: _PyZXVertexTypeNamespace
+
+    def Graph(self) -> _PyZXTestDiagram: ...  # noqa: N802
+
+
+pytest = cast("_PyTestModule", importlib.import_module("pytest"))
+zx = cast("_PyZXModule", pytest.importorskip("pyzx"))
 pytestmark = pytest.mark.pyzx
 
 
-def _build_graphlike_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int]:
+def _build_graphlike_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int]:
     diagram = zx.Graph()
     input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
     first_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1, phase=Fraction(1, 2))
@@ -36,10 +93,10 @@ def _build_graphlike_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int]:
 
 
 def _build_single_boundary_diagram(
-    edge_type: zx.EdgeType,
+    edge_type: EdgeType,
     *,
     is_output: bool = False,
-) -> tuple[zx.graph_s.GraphS, int, int]:
+) -> tuple[_PyZXTestDiagram, int, int]:
     diagram = zx.Graph()
     boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0, phase=Fraction(1, 2))
     spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
@@ -49,7 +106,7 @@ def _build_single_boundary_diagram(
     return diagram, boundary, spider
 
 
-def _build_internal_phase_gadget_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int, int]:
+def _build_internal_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int, int]:
     diagram = zx.Graph()
     input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
     left_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
@@ -69,7 +126,7 @@ def _build_internal_phase_gadget_diagram() -> tuple[zx.graph_s.GraphS, int, int,
     return diagram, input_boundary, left_spider, hub_spider, phase_spider, output_boundary
 
 
-def _build_io_phase_gadget_diagram() -> tuple[zx.graph_s.GraphS, int, int, int]:
+def _build_io_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
     diagram = zx.Graph()
     input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
     io_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1)
@@ -178,7 +235,7 @@ def test_collect_phase_gadgets_rewrites_internal_phase_gadget() -> None:
         output_boundary,
     ) = _build_internal_phase_gadget_diagram()
 
-    rewritten = _collect_phase_gadgets(diagram)
+    rewritten = cast("_PyZXTestDiagram", _collect_phase_gadgets(diagram))
 
     assert phase_spider in diagram.vertex_set()
     assert phase_spider not in rewritten.vertex_set()
@@ -192,7 +249,7 @@ def test_collect_phase_gadgets_rewrites_internal_phase_gadget() -> None:
 def test_collect_phase_gadgets_rewrites_boundary_adjacent_z_spider() -> None:
     diagram, input_boundary, io_spider, phase_spider = _build_io_phase_gadget_diagram()
 
-    rewritten = _collect_phase_gadgets(diagram)
+    rewritten = cast("_PyZXTestDiagram", _collect_phase_gadgets(diagram))
 
     assert rewritten.inputs() == (input_boundary,)
     assert phase_spider not in rewritten.vertex_set()
