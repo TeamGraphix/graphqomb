@@ -285,7 +285,7 @@ def _build_meas_basis_map(
     """
     pyzx = _require_pyzx()
     meas_bases: dict[int, PlannerMeasBasis] = {}
-    skipped_nodes = set() if excluded_nodes is None else set(excluded_nodes)
+    skipped_nodes: set[int] = set() if excluded_nodes is None else set(excluded_nodes)
 
     for vertex_id, vertex_data in node_map.items():
         if (
@@ -542,6 +542,7 @@ def _rewrite_output_boundary_maps(
     pyzx = _require_pyzx()
     rewritten_outputs: list[int] = []
     output_vertices = diagram.outputs()
+    next_vertex_id = max(node_map, default=-1) + 1
 
     for output_vertex in output_vertices:
         if output_vertex not in node_map:
@@ -578,7 +579,8 @@ def _rewrite_output_boundary_maps(
             )
             edge_map[edge_key] = dataclasses.replace(edge_data, edge_type=pyzx.EdgeType.HADAMARD)
 
-            new_output_vertex = _next_vertex_id(node_map)
+            new_output_vertex = next_vertex_id
+            next_vertex_id += 1
             node_map[new_output_vertex] = VertexData(
                 vertex_id=new_output_vertex,
                 vertex_type=pyzx.VertexType.BOUNDARY,
@@ -696,19 +698,3 @@ def _phase_gadget_neighbor(
         return None
 
     return neighbor
-
-
-def _next_vertex_id(node_map: Mapping[int, VertexData]) -> int:
-    r"""Return a fresh synthetic vertex id for import-time rewrites.
-
-    Parameters
-    ----------
-    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
-        Imported vertex metadata keyed by vertex id.
-
-    Returns
-    -------
-    int
-        Next available vertex id.
-    """
-    return max(node_map, default=-1) + 1

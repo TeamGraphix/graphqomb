@@ -140,6 +140,21 @@ def _build_io_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
     return diagram, input_boundary, io_spider, phase_spider
 
 
+def _build_multi_simple_output_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int]:
+    diagram = zx.Graph()
+    left_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=0)
+    left_output = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=1)
+    right_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=0)
+    right_output = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=1, row=1)
+
+    diagram.add_edge((left_spider, left_output), edgetype=zx.EdgeType.SIMPLE)
+    diagram.add_edge((right_spider, right_output), edgetype=zx.EdgeType.SIMPLE)
+    diagram.set_inputs(())
+    diagram.set_outputs((left_output, right_output))
+
+    return diagram, left_spider, left_output, right_spider, right_output
+
+
 def _build_ambiguous_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int, int]:
     diagram = zx.Graph()
     hub_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=0)
@@ -235,6 +250,26 @@ def test_rewrite_output_boundary_maps_adds_synthetic_output_for_simple_boundary(
     assert node_map[synthetic_output].row == node_map[boundary].row + 1
     assert edge_map[boundary, spider].edge_type == zx.EdgeType.HADAMARD
     assert edge_map[boundary, synthetic_output].edge_type == zx.EdgeType.HADAMARD
+
+
+def test_rewrite_output_boundary_maps_assigns_distinct_synthetic_vertices() -> None:
+    diagram, left_spider, left_output, right_spider, right_output = _build_multi_simple_output_diagram()
+    node_map = _collect_node_map(diagram)
+    edge_map = _collect_edge_map(diagram)
+
+    rewritten_outputs = _rewrite_output_boundary_maps(diagram, node_map, edge_map)
+    left_edge = (left_spider, left_output) if left_spider <= left_output else (left_output, left_spider)
+    right_edge = (right_spider, right_output) if right_spider <= right_output else (right_output, right_spider)
+
+    assert len(rewritten_outputs) == 2
+    assert len(set(rewritten_outputs)) == 2
+    assert set(rewritten_outputs).isdisjoint({left_spider, left_output, right_spider, right_output})
+    assert node_map[left_output].vertex_type == zx.VertexType.Z
+    assert node_map[right_output].vertex_type == zx.VertexType.Z
+    assert edge_map[left_edge].edge_type == zx.EdgeType.HADAMARD
+    assert edge_map[right_edge].edge_type == zx.EdgeType.HADAMARD
+    for synthetic_output in rewritten_outputs:
+        assert node_map[synthetic_output].vertex_type == zx.VertexType.BOUNDARY
 
 
 def test_collect_phase_gadget_meas_bases_removes_internal_lone_spider() -> None:
