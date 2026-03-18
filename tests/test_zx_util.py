@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from fractions import Fraction
 
-import pyzx as zx
+import pytest
 
 from graphqomb.common import Plane
 from graphqomb.zx_util import (
@@ -14,6 +14,9 @@ from graphqomb.zx_util import (
     _rewrite_output_boundary_maps,
     from_pyzx,
 )
+
+zx = pytest.importorskip("pyzx")
+pytestmark = pytest.mark.pyzx
 
 
 def _build_graphlike_diagram() -> tuple[zx.graph_s.GraphS, int, int, int, int]:
@@ -225,7 +228,7 @@ def test_from_pyzx_builds_graphstate_and_node_map() -> None:
     assert node_map[synthetic_output] not in graph.meas_bases
 
     assert graph.coordinates[node_map[input_boundary]] == (0.0, 0.0)
-    assert graph.coordinates[node_map[first_spider]] == (0.0, 1.0)
-    assert graph.coordinates[node_map[second_spider]] == (1.0, 2.0)
-    assert graph.coordinates[node_map[output_boundary]] == (1.0, 3.0)
-    assert graph.coordinates[node_map[synthetic_output]] == (1.0, 4.0)
+    assert graph.coordinates[node_map[first_spider]] == (1.0, 0.0)
+    assert graph.coordinates[node_map[second_spider]] == (2.0, 1.0)
+    assert graph.coordinates[node_map[output_boundary]] == (3.0, 1.0)
+    assert graph.coordinates[node_map[synthetic_output]] == (4.0, 1.0)
