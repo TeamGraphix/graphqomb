@@ -7,6 +7,8 @@ This module provides:
 - `EdgeData`: Collected PyZX edge metadata used during import.
 - `from_pyzx`: Convert a graph-like PyZX diagram into a `GraphState`.
 """
+# ignore D102: Undocumented public method especially for Protocols, which are primarily for internal use
+# and may not be directly instantiated by users.
 # ruff: noqa: D102
 
 from __future__ import annotations
@@ -99,7 +101,7 @@ def _require_pyzx() -> PyZXModule:
 
     Returns
     -------
-    `PyZXModule`
+    PyZXModule
         Imported `pyzx` module.
 
     Raises
@@ -266,11 +268,11 @@ def _build_meas_basis_map(
 
     Parameters
     ----------
-    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
+    node_map : collections.abc.Mapping[int, VertexData]
         Imported PyZX vertex metadata keyed by vertex id.
-    output_nodes : `collections.abc.Set`\[`int`\]
+    output_nodes : collections.abc.Set[int]
         Node ids that should be treated as outputs and skipped.
-    excluded_nodes : `collections.abc.Set`\[`int`\] | `None`, optional
+    excluded_nodes : collections.abc.Set[int] | None, optional
         Non-output nodes to exclude from default measurement-basis collection.
 
     Returns
@@ -313,7 +315,7 @@ def _build_coordinate_map(node_map: Mapping[int, VertexData]) -> dict[int, tuple
 
     Parameters
     ----------
-    node_map : `collections.abc.Mapping`\[`int`, `VertexData`\]
+    node_map : collections.abc.Mapping[int, VertexData]
         Imported PyZX vertex metadata keyed by vertex id.
 
     Returns
@@ -358,7 +360,7 @@ def _collect_node_map(
 
     Parameters
     ----------
-    diagram : `PyZXDiagram`
+    diagram : PyZXDiagram
         Input PyZX diagram.
 
     Returns
@@ -388,7 +390,7 @@ def _collect_edge_map(
 
     Parameters
     ----------
-    diagram : `PyZXDiagram`
+    diagram : PyZXDiagram
         Input PyZX diagram.
 
     Returns
@@ -425,9 +427,9 @@ def _edge_key(source: int, target: int) -> tuple[int, int]:
 
     Parameters
     ----------
-    source : `int`
+    source : int
         One endpoint of the edge.
-    target : `int`
+    target : int
         The other endpoint of the edge.
 
     Returns
@@ -447,11 +449,11 @@ def _rewrite_input_boundary_maps(
 
     Parameters
     ----------
-    diagram : `PyZXDiagram`
+    diagram : PyZXDiagram
         Input PyZX diagram.
-    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+    node_map : collections.abc.MutableMapping[int, VertexData]
         Mutable imported vertex metadata keyed by vertex id.
-    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+    edge_map : collections.abc.MutableMapping[tuple[int, int], EdgeData]
         Mutable imported edge metadata keyed by canonical endpoint pairs.
 
     Returns
@@ -522,11 +524,11 @@ def _rewrite_output_boundary_maps(
 
     Parameters
     ----------
-    diagram : `PyZXDiagram`
+    diagram : PyZXDiagram
         Input PyZX diagram.
-    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+    node_map : collections.abc.MutableMapping[int, VertexData]
         Mutable imported vertex metadata keyed by vertex id.
-    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+    edge_map : collections.abc.MutableMapping[tuple[int, int], EdgeData]
         Mutable imported edge metadata keyed by canonical endpoint pairs.
 
     Returns
@@ -619,11 +621,11 @@ def _collect_phase_gadget_meas_bases(
 
     Parameters
     ----------
-    diagram : `PyZXDiagram`
+    diagram : PyZXDiagram
         Input PyZX diagram.
-    node_map : `collections.abc.MutableMapping`\[`int`, `VertexData`\]
+    node_map : collections.abc.MutableMapping[int, VertexData]
         Mutable imported vertex metadata keyed by vertex id.
-    edge_map : `collections.abc.MutableMapping`\[`tuple`\[`int`, `int`\], `EdgeData`\]
+    edge_map : collections.abc.MutableMapping[tuple[int, int], EdgeData]
         Mutable imported edge metadata keyed by canonical endpoint pairs.
 
     Returns
