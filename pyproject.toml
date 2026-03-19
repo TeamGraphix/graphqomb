@@ -56,6 +56,7 @@ dependencies = { file = ["requirements.txt"] }
 [tool.setuptools.dynamic.optional-dependencies]
 dev = { file = ["requirements-dev.txt"] }
 doc = { file = ["docs/requirements.txt"] }
+pyzx = { file = ["requirements-pyzx.txt"] }
 
 [tool.setuptools.package-data]
 graphqomb = ["py.typed"]
@@ -133,7 +134,10 @@ docstring-code-format = true
 pythonpath = ["graphqomb"]
 testpaths = ["tests"]
 filterwarnings = "ignore::DeprecationWarning"
-markers = "slow: mark test as slow"
+markers = [
+  "slow: mark test as slow",
+  "pyzx: tests requiring the optional PyZX dependency",
+]
 
 [tool.coverage.report]
 show_missing = true

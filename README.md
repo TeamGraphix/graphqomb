@@ -45,6 +45,12 @@ This allows, for example, to integrate Pauli frame tracking needed for fault-tol
 pip install graphqomb
 ```
 
+Install optional PyZX integration:
+
+```bash
+pip install "graphqomb[pyzx]"
+```
+
 ### From Source (Development)
 
 ```bash
@@ -57,6 +63,12 @@ Install with development dependencies:
 
 ```bash
 pip install -e .[dev]
+```
+
+Install development dependencies with optional PyZX integration:
+
+```bash
+pip install -e .[dev,pyzx]
 ```
 
 Install with documentation dependencies:

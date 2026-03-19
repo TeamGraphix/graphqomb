@@ -23,3 +23,4 @@ Module reference
     stim_compiler
     noise_model
     visualizer
+    zx_util
