@@ -196,7 +196,8 @@ def from_pyzx(diagram: PyZXDiagram, *, recognize_pg: bool = False) -> GraphState
     Raises
     ------
     ValueError
-        If the input diagram is not in strict graph-like form.
+        If the input diagram is not in strict graph-like form or contains
+        ground vertices.
     """
     pyzx = _require_pyzx()
 
@@ -229,6 +230,7 @@ def _collect_import_data(diagram: PyZXDiagram, *, recognize_pg: bool) -> _PyZXIm
         used to initialize the imported `GraphState`.
     """
     node_map = _collect_node_map(diagram)
+    _validate_no_ground_vertices(node_map)
     edge_map = _collect_edge_map(diagram)
 
     rewritten_inputs = _rewrite_input_boundary_maps(diagram, node_map, edge_map)
@@ -256,6 +258,25 @@ def _collect_import_data(diagram: PyZXDiagram, *, recognize_pg: bool) -> _PyZXIm
         meas_bases=meas_bases,
         coordinates=_build_coordinate_map(node_map),
     )
+
+
+def _validate_no_ground_vertices(node_map: Mapping[int, VertexData]) -> None:
+    """Reject PyZX diagrams containing ground vertices.
+
+    Parameters
+    ----------
+    node_map : collections.abc.Mapping[int, VertexData]
+        Imported PyZX vertex metadata keyed by vertex id.
+
+    Raises
+    ------
+    ValueError
+        If the diagram contains ground vertices.
+    """
+    grounded_vertices = sorted(vertex_id for vertex_id, vertex_data in node_map.items() if vertex_data.is_ground)
+    if grounded_vertices:
+        msg = f"PyZX diagrams containing ground vertices are not supported for GraphState import: {grounded_vertices}"
+        raise ValueError(msg)
 
 
 def _build_meas_basis_map(

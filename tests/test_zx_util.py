@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import importlib
 import math
 from fractions import Fraction
 from typing import Protocol, cast
+
+import pytest
 
 from graphqomb.common import Plane
 from graphqomb.zx_util import (
@@ -19,16 +20,6 @@ from graphqomb.zx_util import (
     _rewrite_output_boundary_maps,
     from_pyzx,
 )
-
-
-class _PyTestMarkNamespace(Protocol):
-    pyzx: object
-
-
-class _PyTestModule(Protocol):
-    mark: _PyTestMarkNamespace
-
-    def importorskip(self, modname: str) -> object: ...
 
 
 class _PyZXVertexTypeNamespace(Protocol):
@@ -71,16 +62,15 @@ class _PyZXModule(Protocol):
     def Graph(self) -> _PyZXTestDiagram: ...  # noqa: N802
 
 
-pytest = cast("_PyTestModule", importlib.import_module("pytest"))
 zx = cast("_PyZXModule", pytest.importorskip("pyzx"))
 pytestmark = pytest.mark.pyzx
 
 
-def _build_graphlike_diagram() -> tuple[_PyZXTestDiagram, int, int, int, int]:
+def _build_graphlike_diagram(*, ground: bool = False) -> tuple[_PyZXTestDiagram, int, int, int, int]:
     diagram = zx.Graph()
     input_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=0, row=0)
     first_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=0, row=1, phase=Fraction(1, 2))
-    second_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=2, ground=True)
+    second_spider = diagram.add_vertex(ty=zx.VertexType.Z, qubit=1, row=2, ground=ground)
     output_boundary = diagram.add_vertex(ty=zx.VertexType.BOUNDARY, qubit=1, row=3)
 
     diagram.add_edge((input_boundary, first_spider), edgetype=zx.EdgeType.SIMPLE)
@@ -168,7 +158,7 @@ def _build_ambiguous_phase_gadget_diagram() -> tuple[_PyZXTestDiagram, int, int,
 
 
 def test_collect_node_map_preserves_pyzx_vertex_metadata() -> None:
-    diagram, input_boundary, first_spider, second_spider, output_boundary = _build_graphlike_diagram()
+    diagram, input_boundary, first_spider, second_spider, output_boundary = _build_graphlike_diagram(ground=True)
 
     node_map = _collect_node_map(diagram)
 
@@ -358,6 +348,13 @@ def test_from_pyzx_builds_graphstate() -> None:
     assert graph.coordinates[second_node] == (2.0, 1.0)
     assert graph.coordinates[output_node] == (3.0, 1.0)
     assert graph.coordinates[synthetic_output] == (4.0, 1.0)
+
+
+def test_from_pyzx_raises_for_ground_vertices() -> None:
+    diagram = _build_graphlike_diagram(ground=True)[0]
+
+    with pytest.raises(ValueError, match="ground vertices"):
+        from_pyzx(diagram)
 
 
 def test_from_pyzx_recognizes_phase_gadget_as_yz_measurement() -> None:
