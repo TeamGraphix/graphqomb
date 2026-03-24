@@ -1,6 +1,6 @@
 """Quantum Compiler(qompiler) module for Measurement-Based Quantum Computing (MBQC).
 
-note: `compile` is used in Python built-in functions, so we use `qompile` instead.
+note: ``compile`` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
 
@@ -38,24 +38,24 @@ def qompile(
 
     Parameters
     ----------
-    graph : `BaseGraphState`
+    graph : ``BaseGraphState``
         graph state
-    xflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\]
+    xflow : ``collections.abc.Mapping[int, collections.abc.Set[int]]``
         x correction flow
-    zflow : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+    zflow : ``collections.abc.Mapping[int, collections.abc.Set[int]] | None``
         z correction flow
-        if `None`, it is generated from xflow by odd neighbors
-    parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
+        if ``None``, it is generated from xflow by odd neighbors
+    parity_check_group : ``collections.abc.Sequence[collections.abc.Set[int]] | None``
         parity check group for FTQC
-    scheduler : `Scheduler` | `None`, optional
+    scheduler : ``Scheduler | None``, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, a `Scheduler` is constructed internally and solved with the
-        default `MINIMIZE_TIME` strategy before compiling the pattern,
-        by default `None`
+        if ``None``, a ``Scheduler`` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        by default ``None``
 
     Returns
     -------
-    `Pattern`
+    ``Pattern``
         compiled pattern
     """
     graph.check_canonical_form()
@@ -76,23 +76,23 @@ def _qompile(
 ) -> Pattern:
     """Compile graph state into pattern with a given Pauli frame.
 
-    note: This is an internal function of `qompile`.
+    note: This is an internal function of ``qompile``.
 
     Parameters
     ----------
-    graph : `BaseGraphState`
+    graph : ``BaseGraphState``
         graph state
-    pauli_frame : `PauliFrame`
+    pauli_frame : ``PauliFrame``
         Pauli frame to track the Pauli state of each node
-    scheduler : `Scheduler` | `None`, optional
+    scheduler : ``Scheduler | None``, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, a `Scheduler` is constructed internally and solved with the
-        default `MINIMIZE_TIME` strategy before compiling the pattern,
-        by default `None`
+        if ``None``, a ``Scheduler`` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        by default ``None``
 
     Returns
     -------
-    `Pattern`
+    ``Pattern``
         compiled pattern
     """
     meas_bases = graph.meas_bases
