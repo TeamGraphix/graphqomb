@@ -1,9 +1,8 @@
-"""
-Basic Pattern Generation Example
-================================
+"""Lowering a Labelled Graph State
+==================================
 
-This example demonstrates how to generate a pattern from a graph state
-using the graphqomb library.
+This example starts from a labelled graph state and an explicit feedforward map,
+then lowers them to an executable MBQC pattern.
 """
 
 # %%
@@ -12,9 +11,14 @@ from graphqomb.qompiler import qompile
 from graphqomb.random_objects import generate_random_flow_graph
 
 # %%
-# convert circuit to graph and flow
-graphstate, gflow = generate_random_flow_graph(width=3, depth=5)
-# first, qompile it to standardized pattern
-pattern = qompile(graphstate, gflow)
-print("get max space of pattern:", pattern.max_space)
+# Generate a labelled graph state and its X-correction map.
+graphstate, xflow = generate_random_flow_graph(width=3, depth=5)
+
+print("graph nodes:", len(graphstate.physical_nodes))
+print("graph edges:", len(graphstate.physical_edges))
+
+# Lower the graph/feedforward IRs to an executable pattern.
+pattern = qompile(graphstate, xflow)
+print("pattern depth:", pattern.depth)
+print("pattern max space:", pattern.max_space)
 print_pattern(pattern)

@@ -1,9 +1,8 @@
-"""
-Scheduler-based Pattern Generation Demo
+"""Scheduler IR and Execution Tradeoffs
 =======================================
 
-This example demonstrates how to use the scheduler to generate optimized
-measurement patterns from graph states using different scheduling strategies.
+This example compares scheduling strategies, shows how they change depth and
+space usage, and illustrates how schedules become TICK-delimited pattern slices.
 """
 
 # %%
