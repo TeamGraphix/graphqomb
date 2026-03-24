@@ -79,6 +79,10 @@ Lower these IR objects with :func:`graphqomb.qompiler.qompile`:
    print("pattern max space:", pattern.max_space)
    print("pattern active volume:", pattern.active_volume)
 
+Passing ``scheduler`` is optional. If you omit it, :func:`graphqomb.qompiler.qompile`
+constructs a :class:`graphqomb.scheduler.Scheduler` internally, solves it with the
+default ``MINIMIZE_TIME`` strategy, and still emits `TICK`-delimited time slices.
+
 By default, :func:`graphqomb.qompiler.qompile` derives ``zflow`` from odd neighborhoods when you do not pass it explicitly. This is convenient for standard deterministic workflows, while still allowing explicit ``zflow`` control when you need a custom feedforward design.
 
 The resulting :class:`graphqomb.pattern.Pattern` contains:
@@ -99,7 +103,11 @@ Patterns can be inspected directly:
    print_pattern(pattern, lim=20)
    print("space profile:", pattern.space)
 
-When a scheduler is provided, the emitted command stream is sliced with `TICK` markers. Those slice boundaries are the executable schedule seen by pattern simulators and downstream exporters.
+The emitted command stream is sliced with `TICK` markers according to the active
+schedule. This happens both when you provide ``scheduler`` explicitly and when
+:func:`graphqomb.qompiler.qompile` creates one internally with its default
+strategy. Those slice boundaries are the executable schedule seen by pattern
+simulators and downstream exporters.
 
 Simulate the pattern
 --------------------
