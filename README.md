@@ -1,7 +1,7 @@
 # GraphQOMB
 
 ![License](https://img.shields.io/github/license/TeamGraphix/graphqomb)
-[![PyPI version](https://badge.fury.io/py/graphqomb.svg)](https://badge.fury.io/py/graphqomb)
+[![PyPI version](https://badge.fury.io/py/graphqomb.svg)](https://pypi.org/project/graphqomb/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/graphqomb.svg)](https://pypi.org/project/graphqomb/)
 [![Documentation Status](https://readthedocs.org/projects/graphqomb/badge/?version=latest)](https://graphqomb.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/TeamGraphix/graphqomb/branch/master/graph/badge.svg)](https://codecov.io/gh/TeamGraphix/graphqomb)
@@ -9,37 +9,36 @@
 [![typecheck](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml/badge.svg)](https://github.com/TeamGraphix/graphqomb/actions/workflows/typecheck.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing, pronounce as _graphcomb_) is a modular graph-based compiler for measurement-based quantum computing (MBQC), providing a high-level interface to the [graphix](https://github.com/TeamGraphix/graphix) package for applications such as fault-tolerant MBQC.
+**GraphQOMB** (Qompiler for Measurement-Based Quantum Computing, pronounced _graphcomb_) is a compiler framework for measurement-based quantum computation (MBQC). It keeps the resource-state structure, classical feedforward, and execution schedule as separate first-class objects, then lowers them to an executable measurement pattern with a Pauli frame.
 
-GraphQOMB's philosophy is to use graph-like ZX diagrams as MBQC representation, with feedforward strategy treated independently.
-This allows, for example, to integrate Pauli frame tracking needed for fault-tolerant MBQC, into basic feedforward strategy of MBQC, allowing streamlined compilation.
+This design makes GraphQOMB useful both as an executable MBQC compiler and as a foundation for fault-tolerant workflows. The same core pipeline can be used to build patterns, study schedule-dependent resource tradeoffs, simulate them with statevector or density-matrix backends, and export compatible patterns to Stim-oriented downstream tooling.
+
+## Core Workflow
+
+GraphQOMB is organized around three explicit compiler interfaces:
+
+- **Labelled graph state**: the resource state, measurement bases, and I/O registration.
+- **Feedforward maps**: explicit `xflow` and optional `zflow` describing classical dependencies.
+- **Scheduler**: preparation, entanglement, and measurement order for executable slices.
+
+These are lowered with `qompile(...)` into a `Pattern` carrying:
+
+- a command stream for scheduled MBQC execution,
+- a `PauliFrame` for classical dependency tracking,
+- metrics such as `max_space`, `depth`, and `active_volume`.
 
 ## Features
 
-### Computation Design
-
-- **ZX-Calculus Integration**: Use ZX-diagrams as an abstract expression of measurement pattern
-- **Feedforward Strategy Design**: Our library accepts general feedforward strategy and optimization, eliminating the necessity of measurement calculus
-- **Scheduler**: Scheduling the node preparation and measurement time
-
-### Compilation
-
-- **MBQC Pattern Generation**: Measurement pattern is treated as a quantum assembly
-- **Pauli Frame Tracking**: Manage all the classical feedforward with Pauli Frame, enabling fault-tolerant computing as well
-
-### Simulation
-
-- **Pattern Simulation**: Simulate measurement patterns with statevector backend
-- **Simulation in Stim circuit**: Generate a stim circuit implementing a fault-tolerant MBQC
-
-### Others
-
-- **Transpilation into Graphix Pattern**: Transpile generated pattern into `graphix.pattern.Pattern` object for variety of execution backend (WIP)
-- **Visualization**: Visualize graph states
+- **Explicit IR boundaries**: work directly with graph-state, feedforward, and schedule objects instead of mixing them into a single representation.
+- **Pattern lowering**: compile MBQC IRs into executable patterns with `TICK`-delimited slices and Pauli-frame tracking.
+- **Schedule analysis**: compare depth-oriented and space-oriented schedules and inspect resulting resource metrics.
+- **Simulation**: run circuit or pattern simulations with statevector and density-matrix backends.
+- **Stim export**: compile compatible patterns to Stim text for downstream FT-oriented analysis.
+- **Toolchain interoperability**: use GraphQOMB downstream of circuit transpilation and graph-rewrite tooling such as PyZX and flow-finding utilities.
 
 ## Installation
 
-### From PyPI (Recommended)
+### From PyPI
 
 ```bash
 pip install graphqomb
@@ -51,27 +50,21 @@ Install optional PyZX integration:
 pip install "graphqomb[pyzx]"
 ```
 
-### From Source (Development)
+### From Source
 
 ```bash
 git clone https://github.com/TeamGraphix/graphqomb.git
-cd graphqomb/
+cd graphqomb
 pip install -e .
 ```
 
-Install with development dependencies:
+Install development dependencies:
 
 ```bash
 pip install -e .[dev]
 ```
 
-Install development dependencies with optional PyZX integration:
-
-```bash
-pip install -e .[dev,pyzx]
-```
-
-Install with documentation dependencies:
+Install documentation dependencies:
 
 ```bash
 pip install -e .[doc]
@@ -79,116 +72,86 @@ pip install -e .[doc]
 
 ## Quick Start
 
-### Prepare Resource State and Feedforward
+The quickest way to see the compiler pipeline is to start from an MBQC-native circuit, derive the graph/feedforward/schedule objects, and lower them into a pattern:
 
 ```python
-from graphqomb.circuit import Circuit, circuit2graph
-from graphqomb.gates import H, CNOT
+import numpy as np
+
+from graphqomb.circuit import MBQCCircuit, circuit2graph
 from graphqomb.qompiler import qompile
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 
-# Create a quantum circuit
-circuit = Circuit(2)
-circuit.apply_macro_gate(H(0))
-circuit.apply_macro_gate(CNOT((0, 1)))
+circuit = MBQCCircuit(3)
+circuit.j(0, 0.5 * np.pi)
+circuit.cz(0, 1)
+circuit.cz(0, 2)
+circuit.j(1, 0.75 * np.pi)
+circuit.j(2, 0.25 * np.pi)
 
-graph, feedforward, scheduler = circuit2graph(circuit)
+graphstate, xflow, scheduler = circuit2graph(circuit)
+pattern = qompile(graphstate, xflow, scheduler=scheduler)
 
-# Compile into pattern using the circuit-derived schedule
-pattern = qompile(graph, feedforward, scheduler=scheduler)
+print("pattern depth:", pattern.depth)
+print("pattern max space:", pattern.max_space)
 
-# Simulate the pattern
 simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
 simulator.simulate()
-print(simulator.state)
+print(simulator.state.state())
 ```
 
-### Creating and Visualizing Graph States
-
-```python
-from graphqomb.graphstate import GraphState
-from graphqomb.visualizer import visualize
-
-# Create a graph state using from_graph
-graph, node_map = GraphState.from_graph(
-    nodes=["input", "middle", "output"],
-    edges=[("input", "middle"), ("middle", "output")],
-    inputs=["input"],
-    outputs=["output"]
-)
-
-# Visualize the graph
-visualize(graph)
-```
+If you already have a graph-state design and explicit feedforward maps, you can skip `circuit2graph(...)` and call `qompile(...)` directly.
 
 ## Documentation
 
-- **Tutorial**: [WIP] for detailed usage guides
-- **Examples**: See [examples](https://graphqomb.readthedocs.io/en/latest/gallery/index.html) for code demonstrations
-- **API Reference**: Full API documentation is available [here](https://graphqomb.readthedocs.io/en/latest/references.html)
+- **Getting started**: https://graphqomb.readthedocs.io/en/latest/getting_started.html
+- **Architecture overview**: https://graphqomb.readthedocs.io/en/latest/architecture.html
+- **Example gallery**: https://graphqomb.readthedocs.io/en/latest/gallery/index.html
+- **API reference**: https://graphqomb.readthedocs.io/en/latest/references.html
+- **Stim compiler reference**: https://graphqomb.readthedocs.io/en/latest/stim_compiler.html
+
+## Current Scope
+
+GraphQOMB currently targets static, branch-free MBQC workflows. It is designed around causal feedforward dependencies and explicit scheduling, which makes it a good fit for pattern generation, simulation, and offline analysis of executable or fault-tolerant MBQC pipelines.
 
 ## Development
 
 ### Running Tests
 
 ```bash
-pytest                              # Run all tests
-pytest tests/test_specific.py       # Run specific test file
+pytest
+pytest tests/test_specific.py
 ```
 
 ### Code Quality
 
 ```bash
-ruff check                          # Lint code
-ruff format                         # Format code
-mypy                                # Type checking
-pyright                             # Type checking
+ruff check
+ruff format
+mypy
+pyright
 ```
 
 ### Building Documentation
 
 ```bash
-cd docs/
-make html                           # Build HTML documentation
-# Output will be in docs/build/html/
-```
-
-## Project Structure
-
-```
-graphqomb/
-├── graphqomb/               # Main source code
-│   ├── circuit.py           # Quantum circuit implementation
-│   ├── graphstate.py        # Graph state manipulation
-|   ├── scheduler.py         # Scheduling computaional order
-│   ├── qompiler.py          # Generate MBQC pattern
-│   ├── simulator.py         # Pattern simulation
-│   ├── visualizer.py        # Visualization tools
-│   └── ...
-├── tests/                   # Test suite
-├── examples/                # Example scripts
-├── docs/                    # Sphinx documentation
-│   └── source/
-│       ├── gallery/         # Example gallery
-│       └── ...
-└── pyproject.toml          # Project configuration
+cd docs
+make html
 ```
 
 ## Contributing
 
-We welcome contributions! Please:
+Contributions are welcome. Please open an issue or pull request with:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Ensure all tests pass and code is properly formatted
-5. Submit a pull request
+1. A clear description of the change.
+2. Tests for behavioral changes when applicable.
+3. Documentation updates for user-facing features.
 
 ## Related Projects
 
-- [graphix](https://github.com/TeamGraphix/graphix): The original MBQC library
-- [PyZX](https://github.com/Quantomatic/pyzx): ZX-calculus library for Python
-- [swiflow](https://github.com/TeamGraphix/swiflow): Rust-based fast flow finding algorithms
+- [graphix](https://github.com/TeamGraphix/graphix): MBQC software stack with a different abstraction strategy.
+- [PyZX](https://github.com/Quantomatic/pyzx): ZX-calculus tooling that can be used upstream of GraphQOMB.
+- [swiflow](https://github.com/TeamGraphix/swiflow): Flow-finding utilities for MBQC dependency structures.
+- [Stim](https://github.com/quantumlib/Stim): Fast stabilizer-circuit simulator targeted by the Stim export path.
 
 ## License
 

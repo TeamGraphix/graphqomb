@@ -1,8 +1,8 @@
-"""
-Graph Visualizer
-================
+"""Visualizing Labelled Graph States
+===================================
 
-Simple example to draw a GraphState in graphqomb.
+This example visualizes GraphQOMB's graph-state IR, including input/output
+registration and non-XY measurement planes.
 """
 
 # %%

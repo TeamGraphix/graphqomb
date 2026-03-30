@@ -1,6 +1,6 @@
 """Quantum Compiler(qompiler) module for Measurement-Based Quantum Computing (MBQC).
 
-note: `compile` is used in Python built-in functions, so we use `qompile` instead.
+note: ``compile`` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
 
@@ -49,7 +49,8 @@ def qompile(
         parity check group for FTQC
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, the commands are scheduled in a single slice,
+        if `None`, a `Scheduler` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
         by default `None`
 
     Returns
@@ -85,7 +86,8 @@ def _qompile(
         Pauli frame to track the Pauli state of each node
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, the commands are scheduled in a single slice,
+        if `None`, a `Scheduler` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
         by default `None`
 
     Returns

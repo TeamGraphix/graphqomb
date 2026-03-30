@@ -1,8 +1,8 @@
-"""
-Pattern Generation from Circuit
-===============================
+"""From Circuit to Executable Pattern
+=====================================
 
-Basic example of generating a pattern from a circuit and simulating it.
+This example transpiles an MBQC-native circuit into GraphQOMB's compiler IRs,
+then lowers them to an executable pattern and validates it by simulation.
 """
 
 # %%
@@ -29,12 +29,18 @@ circuit.cz(0, 2)
 circuit.cz(1, 2)
 
 # %%
-# convert circuit to graph, flow, and scheduler
-graphstate, gflow, scheduler = circuit2graph(circuit)
+# Convert the circuit into GraphQOMB's compiler IRs.
+graphstate, xflow, scheduler = circuit2graph(circuit)
+print("graph nodes:", len(graphstate.physical_nodes))
+print("graph edges:", len(graphstate.physical_edges))
+print("feedforward entries:", len(xflow))
+print("scheduled slices:", scheduler.num_slices())
 
-# first, qompile it to pattern using the circuit-derived schedule
-pattern = qompile(graphstate, gflow, scheduler=scheduler)
-print("get max space of pattern:", pattern.max_space)
+# Lower the IRs into an executable pattern using the derived schedule.
+pattern = qompile(graphstate, xflow, scheduler=scheduler)
+print("pattern depth:", pattern.depth)
+print("pattern max space:", pattern.max_space)
+print("pattern active volume:", pattern.active_volume)
 print_pattern(pattern)
 
 # %%

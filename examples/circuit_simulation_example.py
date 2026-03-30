@@ -1,9 +1,8 @@
-"""
-Circuit Simulation Examples
-===========================
+"""Circuit-Side Simulation Examples
+===================================
 
-This example demonstrates how to create and simulate quantum circuits using graphqomb,
-including basic MBQC circuits, macro gate circuits, and phase gadget circuits.
+This example focuses on GraphQOMB's circuit-level simulation APIs, including
+MBQC-native circuits, macro-gate circuits, and phase gadgets.
 """
 
 # %%
