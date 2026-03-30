@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Stim Compiler API**: `stim_compile()` now has signature `stim_compile(pattern, logical_observables=None, *, emit_qubit_coords=True, noise_models=None, tick_duration=1.0)`
+- **Stim Compiler API**: `stim_compile()` now has signature `stim_compile(pattern, *, emit_qubit_coords=True, noise_models=None, tick_duration=1.0)`
 - **Stim Compiler**: Refactored internal structure to support event-driven noise model integration
 - **Measurement Flip Semantics**: `MeasurementFlipNoiseModel` and custom `MeasurementFlip` ops now compile to Stim's native `MX(p)` / `MY(p)` / `MZ(p)` instructions instead of emitting separate Pauli error instructions
 - **Noise Extension API**: `NoiseOp` values are now represented as plain frozen dataclasses collected under the `NoiseOp` union, improving type safety for custom `NoiseModel` implementations

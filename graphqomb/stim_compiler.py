@@ -28,7 +28,7 @@ from graphqomb.noise_model import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from graphqomb.pattern import Pattern
 
@@ -55,13 +55,13 @@ class _StimCompiler:
         self._touched_nodes: set[int] = set()
         self._tick = 0
 
-    def compile(self, logical_observables: Mapping[int, Collection[int]] | None) -> str:
+    def compile(self) -> str:
         self._emit_input_nodes()
         self._process_commands()
         total = self._rec_index
         self._emit_detectors(total)
-        if logical_observables is not None:
-            self._emit_observables(logical_observables, total)
+        if self._pframe.logical_observables:
+            self._emit_observables(total)
         return self._stim_io.getvalue().strip()
 
     def _emit_detectors(self, total_measurements: int) -> None:
@@ -69,8 +69,8 @@ class _StimCompiler:
             targets = [f"rec[{self._meas_order[c] - total_measurements}]" for c in checks]
             self._stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
-    def _emit_observables(self, logical_observables: Mapping[int, Collection[int]], total_measurements: int) -> None:
-        for log_idx, obs in logical_observables.items():
+    def _emit_observables(self, total_measurements: int) -> None:
+        for log_idx, obs in sorted(self._pframe.logical_observables.items()):
             group = self._pframe.logical_observables_group(obs)
             targets = [f"rec[{self._meas_order[n] - total_measurements}]" for n in group]
             self._stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
@@ -244,7 +244,6 @@ class _StimCompiler:
 
 def stim_compile(
     pattern: Pattern,
-    logical_observables: Mapping[int, Collection[int]] | None = None,
     *,
     emit_qubit_coords: bool = True,
     noise_models: Sequence[NoiseModel] | None = None,
@@ -256,8 +255,6 @@ def stim_compile(
     ----------
     pattern : `Pattern`
         The pattern to compile.
-    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Collection`\[`int`\]\], optional
-        A mapping from logical observable index to a collection of node indices, by default None.
     emit_qubit_coords : `bool`, optional
         Whether to emit QUBIT_COORDS instructions for nodes with coordinates,
         by default True.
@@ -303,4 +300,4 @@ def stim_compile(
         noise_models=tuple(() if noise_models is None else noise_models),
         tick_duration=tick_duration,
     )
-    return compiler.compile(logical_observables)
+    return compiler.compile()
