@@ -289,6 +289,28 @@ def test_propagate_correction_map_zflow_none() -> None:
     assert parent in new_zflow
 
 
+def test_propagate_correction_map_handles_self_correction_child() -> None:
+    """Test propagate_correction_map with a self-correction child on the target."""
+    graphstate = GraphState()
+    parent = graphstate.add_physical_node()
+    target = graphstate.add_physical_node()
+    child = graphstate.add_physical_node()
+    graphstate.add_physical_edge(parent, target)
+    graphstate.add_physical_edge(target, child)
+
+    graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.assign_meas_basis(parent, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.register_output(child, 0)
+
+    xflow = {parent: set(), target: {target, child}}
+    zflow = {parent: {target}, target: {child}}
+
+    new_xflow, new_zflow = propagate_correction_map(target, graphstate, xflow, zflow)
+
+    assert new_xflow[parent] == {target, child}
+    assert target not in new_zflow[parent]
+
+
 # Tests for signal_shifting
 
 
@@ -347,6 +369,30 @@ def test_signal_shifting_zflow_none() -> None:
     # Should not raise error; zflow will be generated automatically
     assert isinstance(new_xflow, dict)
     assert isinstance(new_zflow, dict)
+
+
+def test_signal_shifting_preserves_original_flows() -> None:
+    """Test signal_shifting does not mutate the input flows."""
+    graphstate = GraphState()
+    node0 = graphstate.add_physical_node()
+    node1 = graphstate.add_physical_node()
+    output = graphstate.add_physical_node()
+    graphstate.add_physical_edge(node0, node1)
+    graphstate.add_physical_edge(node1, output)
+
+    graphstate.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+    graphstate.register_output(output, 0)
+
+    xflow = {node0: {node1}, node1: {output}}
+    zflow = {node0: {node1}, node1: {output}}
+    xflow_before = {node: set(children) for node, children in xflow.items()}
+    zflow_before = {node: set(children) for node, children in zflow.items()}
+
+    signal_shifting(graphstate, xflow, zflow)
+
+    assert xflow == xflow_before
+    assert zflow == zflow_before
 
 
 # Tests for pauli_simplification
