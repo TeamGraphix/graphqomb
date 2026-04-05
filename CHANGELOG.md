@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MeasurementFlip` is now enforced as a measurement-only noise operation during Stim compilation
 - **Graph State**: Made `meas_bases` read-only by returning `MappingProxyType` to avoid external mutation.
 - **Graph State**: Added caching for `physical_nodes` snapshots and proper cache invalidation on node add/remove.
+- **Feedforward**: Reworked `signal_shifting()` to update correction maps incrementally instead of rebuilding inverse maps and copies for every target node, substantially improving runtime on large flows while preserving the existing API.
 - **Docs/Examples**: Updated circuit conversion usage in README and `examples/pattern_from_circuit.py` for the new `circuit2graph()` return signature.
 - **Packaging/Docs**: Added the optional `graphqomb[pyzx]` extra, documented PyZX installation in the README, and published Sphinx API reference pages for `graphqomb.zx_util`.
 - **CI**: Split PyZX-marked tests into a dedicated GitHub Actions job and installed the optional dependency in coverage runs.
@@ -69,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Schedule Solver**: Added integration test verifying that CP-SAT MINIMIZE_SPACE strategy enforces node preparation before measurement
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
 - **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
+- **Feedforward**: Added regression tests covering self-correction propagation in `propagate_correction_map()` and non-mutating input handling in `signal_shifting()`.
 - **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
 - **PyZX Integration**: Added unit tests for vertex/edge collection, boundary rewrites, lone-spider phase-gadget recognition, and end-to-end `from_pyzx()` conversion behavior.
 
