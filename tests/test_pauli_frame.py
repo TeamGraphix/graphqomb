@@ -275,6 +275,16 @@ def test_pauli_axis_cache_initialization(simple_pauli_frame: PauliFrame, simple_
     assert pframe._pauli_axis_cache[n1] == Axis.X
 
 
+def test_pauli_axis_cache_not_initialized_without_observables(
+    simple_graph_with_flows: tuple[GraphState, dict[int, set[int]], dict[int, set[int]]],
+) -> None:
+    """Cache should stay empty when neither parity checks nor logical observables are provided."""
+    graph, xflow, zflow = simple_graph_with_flows
+    pframe = PauliFrame(graph, xflow, zflow)
+
+    assert pframe._pauli_axis_cache == {}
+
+
 def test_chain_cache_memoization(simple_pauli_frame: PauliFrame, simple_nodes: list[int]) -> None:
     """Test that chain cache memoization works correctly."""
     pframe = simple_pauli_frame

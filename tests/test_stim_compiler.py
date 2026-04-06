@@ -394,8 +394,7 @@ def test_stim_compile_rejects_measurement_flip_outside_measurement(noise_model: 
 
 
 def test_stim_compile_with_logical_observables() -> None:
-    """Test OBSERVABLE_INCLUDE generation."""
-    # Create pattern with parity_check_group for logical observables support
+    """Issue #167: logical observables should compile without parity_check_group."""
     graph = GraphState()
     in_node = graph.add_physical_node()
     meas_node = graph.add_physical_node()
@@ -414,20 +413,39 @@ def test_stim_compile_with_logical_observables() -> None:
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {meas_node}, meas_node: {out_node}}
-    # Provide parity_check_group to enable _pauli_axis_cache for logical observables
-    measured_nodes = {in_node, meas_node, out_node}
-    parity_check_group = [measured_nodes]
-    pattern = qompile(graph, xflow, parity_check_group=parity_check_group)
+    pattern = qompile(graph, xflow, logical_observables={0: {meas_node}})
 
-    # Define logical observables
-    logical_observables = {0: [meas_node]}
-
-    stim_str = stim_compile(pattern, logical_observables=logical_observables)
+    stim_str = stim_compile(pattern)
 
     # Check OBSERVABLE_INCLUDE instruction is present
     assert "OBSERVABLE_INCLUDE(0)" in stim_str
     # OBSERVABLE_INCLUDE may be empty if the dependent chain resolves to empty set
     # This is valid behavior for certain graph configurations
+
+
+def test_stim_compile_uses_logical_observables_from_qompile() -> None:
+    """Stored logical observables should be emitted when stim_compile omits them."""
+    graph = GraphState()
+    in_node = graph.add_physical_node()
+    meas_node = graph.add_physical_node()
+    out_node = graph.add_physical_node()
+
+    q_idx = 0
+    graph.register_input(in_node, q_idx)
+    graph.register_output(out_node, q_idx)
+
+    graph.add_physical_edge(in_node, meas_node)
+    graph.add_physical_edge(meas_node, out_node)
+
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    xflow = {in_node: {meas_node}, meas_node: {out_node}}
+    pattern = qompile(graph, xflow, logical_observables={0: {meas_node}})
+
+    assert pattern.pauli_frame.logical_observables == {0: {meas_node}}
+    assert "OBSERVABLE_INCLUDE(0)" in stim_compile(pattern)
 
 
 def test_stim_compile_unsupported_basis() -> None:
