@@ -155,7 +155,7 @@ Contributions are welcome. Please open an issue or pull request with:
 
 Our ongoing projects
 
-- [ls-pattern-compile](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile): Lattice-surgery compiler for MBQC backends
+- [ls-pattern-compile](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile): Lattice-surgery compiler for MBQC backends.
 - [graphqomb-studio](https://github.com/UTokyo-FT-MBQC/graphqomb-studio): 2D&3D GUI editor and visualizer for `GraphQOMB` package.
 
 ## License
