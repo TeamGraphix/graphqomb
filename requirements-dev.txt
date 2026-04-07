@@ -1,4 +1,4 @@
-ruff==0.15.8
+ruff==0.15.9
 mypy==1.20.0
 pyright==1.1.408
 pytest==9.0.2
