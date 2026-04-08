@@ -153,6 +153,11 @@ Contributions are welcome. Please open an issue or pull request with:
 - [swiflow](https://github.com/TeamGraphix/swiflow): Flow-finding utilities for MBQC dependency structures.
 - [Stim](https://github.com/quantumlib/Stim): Fast stabilizer-circuit simulator targeted by the Stim export path.
 
+Our ongoing projects
+
+- [ls-pattern-compile](https://github.com/UTokyo-FT-MBQC/ls-pattern-compile): Lattice-surgery compiler for MBQC backends.
+- [graphqomb-studio](https://github.com/UTokyo-FT-MBQC/graphqomb-studio): 2D&3D GUI editor and visualizer for `GraphQOMB` package.
+
 ## License
 
 [MIT License](LICENSE)
