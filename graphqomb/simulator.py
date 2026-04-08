@@ -177,17 +177,22 @@ class PatternSimulator:
             raise NotImplementedError
         result = rng.uniform() < 1 / 2
 
+        basis: MeasBasis = cmd.meas_basis
         if cmd.meas_basis.plane == Plane.XY:
+            if self.__pattern.pauli_frame.x_pauli[cmd.node]:
+                basis = basis.conjugate()
             if self.__pattern.pauli_frame.z_pauli[cmd.node]:
-                basis: MeasBasis = cmd.meas_basis.flip()
-            else:
-                basis = cmd.meas_basis
+                basis = basis.flip()
         elif cmd.meas_basis.plane == Plane.YZ:
-            basis = cmd.meas_basis.flip() if self.__pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
-        elif self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
-            basis = cmd.meas_basis.flip()
+            if self.__pattern.pauli_frame.x_pauli[cmd.node]:
+                basis = basis.flip()
+            if self.__pattern.pauli_frame.z_pauli[cmd.node]:
+                basis = basis.conjugate()
         else:
-            basis = cmd.meas_basis
+            if self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
+                basis = basis.conjugate()
+            if self.__pattern.pauli_frame.x_pauli[cmd.node]:
+                basis = basis.flip()
 
         node_id = self.node_indices.index(cmd.node)
         self.state.measure(node_id, basis, result)

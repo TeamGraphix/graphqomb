@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis, is_clifford_angle, is_close_angle
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign, is_clifford_angle, is_close_angle
 
 
 def test_inverse_order_plane() -> None:
@@ -50,3 +50,24 @@ def test_is_close_angle() -> None:
 
     # boundary cases
     assert is_close_angle(-1e-10, 1e-10)
+
+
+@pytest.mark.parametrize("plane", list(Plane))
+def test_planner_meas_basis_conjugate_negates_angle(plane: Plane) -> None:
+    basis = PlannerMeasBasis(plane, 0.3)
+
+    conjugated = basis.conjugate()
+
+    assert conjugated.plane == plane
+    assert is_close_angle(conjugated.angle, -0.3)
+
+
+@pytest.mark.parametrize("axis", list(Axis))
+@pytest.mark.parametrize("sign", list(Sign))
+def test_axis_meas_basis_conjugate_is_identity(axis: Axis, sign: Sign) -> None:
+    basis = AxisMeasBasis(axis, sign)
+
+    conjugated = basis.conjugate()
+
+    assert conjugated.axis == axis
+    assert conjugated.sign == sign

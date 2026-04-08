@@ -30,6 +30,40 @@ from graphqomb.schedule_solver import ScheduleConfig, Strategy
 from graphqomb.scheduler import Scheduler
 from graphqomb.simulator import CircuitSimulator, PatternSimulator, SimulatorBackend
 
+NON_PAULI_TEST_ANGLES = (0.2, 0.3, 0.7, 1.1, 0.25 * np.pi)
+
+
+def _assert_circuit_pattern_equivalence(
+    circuit: MBQCCircuit,
+    *,
+    measurement_seeds: tuple[int, ...] = (0, 1, 2),
+) -> None:
+    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
+    circ_simulator.simulate()
+    circ_state = circ_simulator.state.state()
+
+    for measurement_seed in measurement_seeds:
+        graphstate, xflow, scheduler = circuit2graph(circuit)
+        pattern = qompile(graphstate, xflow, scheduler=scheduler)
+
+        simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+        simulator.simulate(rng=np.random.default_rng(measurement_seed))
+        pattern_state = simulator.state.state()
+
+        inner_product = np.vdot(pattern_state, circ_state)
+        assert np.isclose(np.abs(inner_product), 1.0, atol=1e-9)
+
+
+def _build_small_random_single_qubit_circuit(seed: int) -> MBQCCircuit:
+    rng = np.random.default_rng(seed)
+    num_instructions = int(rng.integers(2, 6))
+    circuit = MBQCCircuit(1)
+
+    for _ in range(num_instructions):
+        circuit.j(0, float(rng.choice(NON_PAULI_TEST_ANGLES)))
+
+    return circuit
+
 # MBQCCircuit tests
 
 
@@ -560,6 +594,41 @@ def test_pauli_simplification_circuit_integration() -> None:
 
     # Verify that the results match (inner product should be close to 1)
     assert np.isclose(np.abs(inner_product), 1.0)
+
+
+def test_non_pauli_j_angles_circuit_pattern_equivalence_regression() -> None:
+    """Non-Pauli J angles should still compile to a pattern with the same output state."""
+    circuit = MBQCCircuit(1)
+    circuit.j(0, 0.2)
+    circuit.j(0, 0.3)
+
+    _assert_circuit_pattern_equivalence(circuit)
+
+
+def test_simple_entangling_circuit_pattern_equivalence() -> None:
+    """A small entangling circuit should preserve the output state after compilation."""
+    circuit = MBQCCircuit(2)
+    circuit.j(0, 0.2)
+    circuit.cz(0, 1)
+    circuit.j(1, 0.3)
+
+    _assert_circuit_pattern_equivalence(circuit)
+
+
+def test_pure_cz_circuit_pattern_equivalence() -> None:
+    """A CZ-only circuit should preserve the output state after compilation."""
+    circuit = MBQCCircuit(2)
+    circuit.cz(0, 1)
+
+    _assert_circuit_pattern_equivalence(circuit)
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_small_random_single_qubit_circuit_pattern_equivalence(seed: int) -> None:
+    """Small random single-qubit J chains should preserve the circuit output state after compilation."""
+    circuit = _build_small_random_single_qubit_circuit(seed)
+
+    _assert_circuit_pattern_equivalence(circuit)
 
 
 def test_circuit2graph_single_qubit_no_gates() -> None:
