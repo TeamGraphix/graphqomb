@@ -2,4 +2,4 @@ sphinx>=7.4.0
 sphinx_gallery>=0.17.0
 furo>=2025.12.19
 
-matplotlib>=3.7.0
+matplotlib>=3.10.9
