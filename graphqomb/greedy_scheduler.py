@@ -122,13 +122,23 @@ def greedy_minimize_time(  # noqa: PLR0914
 
         # Check if we made progress
         if not ready_to_measure and not prepared_in_phase2 and unmeasured_mut:
-            if max_qubit_count is None:
+            if current_time == 0 and _has_initial_input_input_entanglement_wait(
+                unmeasured_mut,
+                inv_dag_mut,
+                neighbors_map,
+                input_nodes,
+                prepared,
+            ):
+                pass
+            elif max_qubit_count is None:
                 raise RuntimeError(TOPO_ORDER_CYCLE_ERROR_MSG)
-            # No measurements and no room to prepare under qubit-capacity constraint.
-            msg = (
-                "Cannot schedule more measurements without exceeding max qubit count. Please increase max_qubit_count."
-            )
-            raise RuntimeError(msg)
+            else:
+                # No measurements and no room to prepare under qubit-capacity constraint.
+                msg = (
+                    "Cannot schedule more measurements without exceeding max qubit count. "
+                    "Please increase max_qubit_count."
+                )
+                raise RuntimeError(msg)
 
         current_time += 1
 
@@ -202,6 +212,8 @@ def _phase1_measure_ready_nodes(  # noqa: PLR0913
             continue
         if node not in input_nodes and node not in prepared:
             continue
+        if current_time == 0 and _needs_initial_input_input_entanglement_wait(node, neighbors_map, input_nodes):
+            continue
         ready_to_measure.add(node)
 
     for node in ready_to_measure:
@@ -212,6 +224,31 @@ def _phase1_measure_ready_nodes(  # noqa: PLR0913
             inv_dag[child].discard(node)
 
     return ready_to_measure
+
+
+def _needs_initial_input_input_entanglement_wait(
+    node: int,
+    neighbors_map: Mapping[int, AbstractSet[int]],
+    input_nodes: AbstractSet[int],
+) -> bool:
+    return node in input_nodes and bool(neighbors_map[node] & input_nodes)
+
+
+def _has_initial_input_input_entanglement_wait(
+    unmeasured: AbstractSet[int],
+    inv_dag: Mapping[int, AbstractSet[int]],
+    neighbors_map: Mapping[int, AbstractSet[int]],
+    input_nodes: AbstractSet[int],
+    prepared: AbstractSet[int],
+) -> bool:
+    for node in unmeasured:
+        if inv_dag[node]:
+            continue
+        if not neighbors_map[node] <= prepared:
+            continue
+        if _needs_initial_input_input_entanglement_wait(node, neighbors_map, input_nodes):
+            return True
+    return False
 
 
 def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
@@ -405,8 +442,11 @@ def greedy_minimize_space(  # noqa: PLR0914
             prepared.update(to_prepare)
             alive.update(to_prepare)
 
-        # Measure at current_time if no prep needed, otherwise at current_time + 1
-        meas_time = current_time + 1 if needs_prep else current_time
+        # Measure at current_time if no prep or initial input-input entanglement wait is needed.
+        needs_initial_entangle_wait = (
+            current_time == 0 and _needs_initial_input_input_entanglement_wait(best_node, neighbors_map, input_nodes)
+        )
+        meas_time = current_time + 1 if needs_prep or needs_initial_entangle_wait else current_time
         measure_time[best_node] = meas_time
         unmeasured.remove(best_node)
         alive.remove(best_node)
