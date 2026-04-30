@@ -44,11 +44,7 @@ html_theme = "furo"
 html_title = " "
 # html_static_path = ["_static"]
 
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-}
+intersphinx_mapping = {}
 
 html_context = {
     "mode": "production",
@@ -64,4 +60,7 @@ sphinx_gallery_conf = {
     "thumbnail_size": (800, 550),
 }
 
-suppress_warnings = ["config.cache"]
+suppress_warnings = [
+    "config.cache",
+    "ref.any",
+]
