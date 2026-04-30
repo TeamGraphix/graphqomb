@@ -12,7 +12,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ortools.sat.python import cp_model
 
@@ -71,6 +71,8 @@ def _add_constraints(
     for node in graph.physical_nodes - set(graph.output_node_indices):
         for neighbor in graph.neighbors(node):
             if neighbor in graph.input_node_indices:
+                if node in graph.input_node_indices:
+                    model.add(node2meas[node] > 0)
                 continue
             model.add(node2prep[neighbor] < node2meas[node])
 
@@ -166,8 +168,12 @@ def _set_minimize_time_objective(
             alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
             ctx.model.add(sum(alive_at_t) <= max_qubit_count)
 
-    # Time objective: minimize makespan
-    meas_vars = list(node2meas.values())
+    # Time objective: minimize makespan. Pure input-output graphs have no
+    # measurement/preparation variables, but can still have edge constraints.
+    meas_vars = list(node2meas.values()) or list(node2prep.values())
+    if not meas_vars:
+        ctx.model.minimize(0)
+        return
     makespan = ctx.model.new_int_var(0, max_time, "makespan")
     ctx.model.add_max_equality(makespan, meas_vars)
     ctx.model.minimize(makespan)
@@ -223,7 +229,7 @@ def solve_schedule(
     # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = timeout
-    status: cp_model.CpSolverStatus = solver.Solve(model)
+    status = cast("int", solver.Solve(model))
 
     if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
         prepare_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2prep.items()}

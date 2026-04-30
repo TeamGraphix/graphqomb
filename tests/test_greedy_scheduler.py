@@ -43,6 +43,32 @@ def test_greedy_minimize_time_simple() -> None:
     assert measure_time[node0] < measure_time[node1]
 
 
+@pytest.mark.parametrize("strategy", [Strategy.MINIMIZE_TIME, Strategy.MINIMIZE_SPACE])
+def test_greedy_input_input_entanglement_delays_input_measurement(strategy: Strategy) -> None:
+    """Greedy schedulers keep input-input entanglement before input measurement."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.register_input(node0, 0)
+    graph.register_input(node1, 1)
+
+    scheduler = Scheduler(graph, {})
+    config = ScheduleConfig(strategy=strategy, use_greedy=True)
+    success = scheduler.solve_schedule(config)
+
+    assert success
+    edge = (node0, node1)
+    assert scheduler.entangle_time[edge] == 0
+    node0_meas_time = scheduler.measure_time[node0]
+    node1_meas_time = scheduler.measure_time[node1]
+    assert node0_meas_time is not None
+    assert node1_meas_time is not None
+    assert node0_meas_time > 0
+    assert node1_meas_time > 0
+    scheduler.validate_schedule()
+
+
 def test_greedy_minimize_space_simple() -> None:
     """Test greedy_minimize_space on a simple graph."""
     # Create a simple 3-node chain graph

@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Stim Compiler**: Detector and observable record indices now stay aligned when noise models emit heralded instructions that add measurement records
+- **Pattern Simulator**: Fixed adaptive measurement conjugation so non-Pauli measurements apply the missing angle sign flip from the Pauli frame during simulation ([#139](https://github.com/TeamGraphix/graphqomb/issues/139))
 - **Feedforward**: Fixed operator precedence bug in `dag_from_flow` where self-loops were only removed from `zflow` but not from `xflow`. The expression `xflow | zflow - {node}` was evaluated as `xflow | (zflow - {node})` due to `-` binding tighter than `|`. Corrected to `(xflow | zflow) - {node}`.
 
 ### Tests
@@ -71,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Schedule Solver**: Added integration test verifying that CP-SAT MINIMIZE_SPACE strategy enforces node preparation before measurement
 - **Circuit Conversion**: Expanded scheduling tests in `tests/test_circuit.py`, including scheduler return contract, J/CZ/phase-gadget timing behavior, schedule validation, and `MINIMIZE_SPACE` behavior.
 - **Integration**: Added circuit-level integration tests for `signal_shifting()` and `pauli_simplification()` with circuit-vs-pattern statevector equivalence checks.
+- **Pattern Simulator / Measurement Bases**: Added regression tests for measurement-basis conjugation semantics and adaptive simulation of non-Pauli measurements affected by the Pauli frame.
 - **Stim Compiler / Pauli Frame**: Updated tests to explicitly pass parity-check groups where logical-observable and cache initialization paths are exercised.
 - **PyZX Integration**: Added unit tests for vertex/edge collection, boundary rewrites, lone-spider phase-gadget recognition, and end-to-end `from_pyzx()` conversion behavior.
 

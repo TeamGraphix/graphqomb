@@ -148,13 +148,7 @@ class PlannerMeasBasis(MeasBasis):
         if not isinstance(self.plane, Plane):
             msg = "The plane must be one of XY, YZ, XZ"
             raise TypeError(msg)
-        if self.plane == Plane.XY:
-            return PlannerMeasBasis(Plane.XY, -self.angle)
-        if self.plane == Plane.YZ:
-            return PlannerMeasBasis(Plane.YZ, -self.angle)
-        if self.plane == Plane.XZ:
-            return PlannerMeasBasis(Plane.XZ, self.angle)
-        typing_extensions.assert_never(self.plane)
+        return PlannerMeasBasis(self.plane, -self.angle)
 
     @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:
@@ -257,8 +251,6 @@ class AxisMeasBasis(MeasBasis):
         `AxisMeasBasis`
             conjugate AxisMeasBasis
         """
-        if self.axis == Axis.Y:
-            return AxisMeasBasis(Axis.Y, Sign.MINUS if self.sign == Sign.PLUS else Sign.PLUS)
         return AxisMeasBasis(self.axis, self.sign)
 
     @typing_extensions.override

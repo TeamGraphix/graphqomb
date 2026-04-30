@@ -171,26 +171,37 @@ class PatternSimulator:
         node_id2 = self.node_indices.index(cmd.nodes[1])
         self.state.entangle(node_id1, node_id2)
 
+    def _updated_measurement_basis(self, cmd: M) -> MeasBasis:
+        basis = cmd.meas_basis
+        x_pauli = self.__pattern.pauli_frame.x_pauli[cmd.node]
+        z_pauli = self.__pattern.pauli_frame.z_pauli[cmd.node]
+
+        if cmd.meas_basis.plane == Plane.XY:
+            if x_pauli:
+                basis = basis.conjugate()
+            if z_pauli:
+                basis = basis.flip()
+        elif cmd.meas_basis.plane == Plane.YZ:
+            if x_pauli:
+                basis = basis.flip()
+            if z_pauli:
+                basis = basis.conjugate()
+        else:
+            if x_pauli ^ z_pauli:
+                basis = basis.conjugate()
+            if x_pauli:
+                basis = basis.flip()
+
+        return basis
+
     @apply_cmd.register
     def _(self, cmd: M, *, rng: np.random.Generator) -> None:
         if self.calc_prob:
             raise NotImplementedError
         result = rng.uniform() < 1 / 2
 
-        if cmd.meas_basis.plane == Plane.XY:
-            if self.__pattern.pauli_frame.z_pauli[cmd.node]:
-                basis: MeasBasis = cmd.meas_basis.flip()
-            else:
-                basis = cmd.meas_basis
-        elif cmd.meas_basis.plane == Plane.YZ:
-            basis = cmd.meas_basis.flip() if self.__pattern.pauli_frame.x_pauli[cmd.node] else cmd.meas_basis
-        elif self.__pattern.pauli_frame.x_pauli[cmd.node] ^ self.__pattern.pauli_frame.z_pauli[cmd.node]:
-            basis = cmd.meas_basis.flip()
-        else:
-            basis = cmd.meas_basis
-
         node_id = self.node_indices.index(cmd.node)
-        self.state.measure(node_id, basis, result)
+        self.state.measure(node_id, self._updated_measurement_basis(cmd), result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 
