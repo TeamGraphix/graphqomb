@@ -64,6 +64,7 @@ def _build_small_random_single_qubit_circuit(seed: int) -> MBQCCircuit:
 
     return circuit
 
+
 # MBQCCircuit tests
 
 

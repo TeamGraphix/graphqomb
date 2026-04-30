@@ -530,10 +530,12 @@ def test_cpsat_input_input_entanglement_delays_input_measurement(strategy: Strat
     assert success
     edge = (node0, node1)
     assert scheduler.entangle_time[edge] == 0
-    assert scheduler.measure_time[node0] is not None
-    assert scheduler.measure_time[node1] is not None
-    assert scheduler.measure_time[node0] > 0
-    assert scheduler.measure_time[node1] > 0
+    node0_meas_time = scheduler.measure_time[node0]
+    node1_meas_time = scheduler.measure_time[node1]
+    assert node0_meas_time is not None
+    assert node1_meas_time is not None
+    assert node0_meas_time > 0
+    assert node1_meas_time > 0
     scheduler.validate_schedule()
 
 

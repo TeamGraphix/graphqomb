@@ -443,8 +443,8 @@ def greedy_minimize_space(  # noqa: PLR0914
             alive.update(to_prepare)
 
         # Measure at current_time if no prep or initial input-input entanglement wait is needed.
-        needs_initial_entangle_wait = (
-            current_time == 0 and _needs_initial_input_input_entanglement_wait(best_node, neighbors_map, input_nodes)
+        needs_initial_entangle_wait = current_time == 0 and _needs_initial_input_input_entanglement_wait(
+            best_node, neighbors_map, input_nodes
         )
         meas_time = current_time + 1 if needs_prep or needs_initial_entangle_wait else current_time
         measure_time[best_node] = meas_time
