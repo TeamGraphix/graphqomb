@@ -1,5 +1,5 @@
 numpy>=1.22,<3
 matplotlib
 networkx
-ortools>=9,<10
+ortools>=9.15.6755,<10
 typing_extensions
