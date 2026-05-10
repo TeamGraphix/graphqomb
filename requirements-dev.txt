@@ -1,6 +1,6 @@
-ruff==0.15.7
-mypy==1.19.1
-pyright==1.1.408
-pytest==9.0.2
+ruff==0.15.12
+mypy==1.20.2
+pyright==1.1.409
+pytest==9.0.3
 pytest-cov
 types-networkx

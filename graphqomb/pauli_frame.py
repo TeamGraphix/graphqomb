@@ -48,6 +48,7 @@ class PauliFrame:
     x_pauli: dict[int, bool]
     z_pauli: dict[int, bool]
     parity_check_group: list[set[int]]
+    logical_observables: dict[int, set[int]]
     inv_xflow: dict[int, set[int]]
     inv_zflow: dict[int, set[int]]
     _pauli_axis_cache: dict[int, Axis | None]
@@ -59,15 +60,21 @@ class PauliFrame:
         xflow: Mapping[int, AbstractSet[int]],
         zflow: Mapping[int, AbstractSet[int]],
         parity_check_group: Sequence[AbstractSet[int]] | None = None,
+        logical_observables: Mapping[int, AbstractSet[int]] | None = None,
     ) -> None:
         if parity_check_group is None:
             parity_check_group = []
+        if logical_observables is None:
+            logical_observables = {}
         self.graphstate = graphstate
         self.xflow = {node: set(targets) for node, targets in xflow.items()}
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
         self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
         self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
         self.parity_check_group = [set(item) for item in parity_check_group]
+        self.logical_observables = {
+            logical_idx: set(seed_nodes) for logical_idx, seed_nodes in logical_observables.items()
+        }
 
         self.inv_xflow = defaultdict(set)
         self.inv_zflow = defaultdict(set)
@@ -80,14 +87,13 @@ class PauliFrame:
                 self.inv_zflow[target].add(node)
             self.inv_zflow[node] -= {node}
 
-        # Pre-compute Pauli axes for performance optimization
-        # Only cache nodes that have measurement bases
+        # Pre-compute Pauli axes for performance optimization.
         # NOTE: if non-Pauli measurements are involved, the stim_compile func will error out earlier
         self._pauli_axis_cache = (
             {node: determine_pauli_axis(meas_basis) for node, meas_basis in graphstate.meas_bases.items()}
-            if parity_check_group
+            if parity_check_group or logical_observables
             else {}
-        )  # only necessary for FTQC
+        )
         # Cache for memoization of dependent chains
         self._chain_cache = {}
 
