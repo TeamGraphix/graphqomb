@@ -80,7 +80,7 @@ class MeasBasis(ABC):
 
     @abc.abstractmethod
     def conjugate(self) -> MeasBasis:
-        """Return the conjugate of the measurement basis."""
+        """Return the angle-conjugated measurement basis."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -133,12 +133,15 @@ class PlannerMeasBasis(MeasBasis):
 
     @typing_extensions.override
     def conjugate(self) -> PlannerMeasBasis:
-        """Return the conjugate of the PlannerMeasBasis object.
+        """Return the angle-conjugated PlannerMeasBasis object.
+
+        This operation represents measurement-angle sign inversion. It is not
+        defined as complex conjugation of the basis vector.
 
         Returns
         -------
         `PlannerMeasBasis`
-            conjugate PlannerMeasBasis
+            angle-conjugated PlannerMeasBasis
 
         Raises
         ------
