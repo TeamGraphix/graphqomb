@@ -64,10 +64,15 @@ def test_planner_meas_basis_conjugate_negates_angle(plane: Plane) -> None:
 
 @pytest.mark.parametrize("axis", list(Axis))
 @pytest.mark.parametrize("sign", list(Sign))
-def test_axis_meas_basis_conjugate_is_identity(axis: Axis, sign: Sign) -> None:
+def test_axis_meas_basis_conjugate_negates_angle(axis: Axis, sign: Sign) -> None:
     basis = AxisMeasBasis(axis, sign)
 
     conjugated = basis.conjugate()
 
+    expected_sign = sign
+    if axis == Axis.Y:
+        expected_sign = Sign.MINUS if sign == Sign.PLUS else Sign.PLUS
+
     assert conjugated.axis == axis
-    assert conjugated.sign == sign
+    assert conjugated.sign == expected_sign
+    assert is_close_angle(conjugated.angle, -basis.angle)

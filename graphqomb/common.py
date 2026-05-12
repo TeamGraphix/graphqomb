@@ -254,6 +254,8 @@ class AxisMeasBasis(MeasBasis):
         `AxisMeasBasis`
             conjugate AxisMeasBasis
         """
+        if self.axis == Axis.Y:
+            return AxisMeasBasis(Axis.Y, Sign.MINUS if self.sign == Sign.PLUS else Sign.PLUS)
         return AxisMeasBasis(self.axis, self.sign)
 
     @typing_extensions.override
