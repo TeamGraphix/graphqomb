@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from fractions import Fraction
-from typing import Protocol, cast
+from typing import Protocol, runtime_checkable
 
 import pytest
 
@@ -55,6 +55,7 @@ class _PyZXTestDiagram(PyZXDiagram, Protocol):
     def vertex_set(self) -> set[int]: ...
 
 
+@runtime_checkable
 class _PyZXModule(Protocol):
     EdgeType: _PyZXEdgeTypeNamespace
     VertexType: _PyZXVertexTypeNamespace
@@ -62,7 +63,10 @@ class _PyZXModule(Protocol):
     def Graph(self) -> _PyZXTestDiagram: ...  # noqa: N802
 
 
-zx = cast("_PyZXModule", pytest.importorskip("pyzx"))
+zx = pytest.importorskip("pyzx")
+if not isinstance(zx, _PyZXModule):
+    pytest.fail("Imported `pyzx` module does not provide the API required by these tests.")
+
 pytestmark = pytest.mark.pyzx
 
 

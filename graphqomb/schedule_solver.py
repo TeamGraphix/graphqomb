@@ -12,7 +12,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from ortools.sat.python import cp_model
 
@@ -229,7 +229,7 @@ def solve_schedule(
     # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = timeout
-    status = cast("int", solver.Solve(model))
+    status = solver.Solve(model)
 
     if status in {cp_model.OPTIMAL, cp_model.FEASIBLE}:
         prepare_time: dict[int, int] = {node: int(solver.Value(var)) for node, var in node2prep.items()}
