@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Non-Unitary Parity Projection Example**: Added `examples/nonunitary_parity_projection.py` demonstrating measurement-induced entanglement via a 3-node star graph parity projector
 
+### Fixed
+
+- **Qompiler**: `qompile()` now validates a provided scheduler before pattern generation, so invalid manual schedules fail early with `ValueError`.
+
 ## [0.3.0] - 2026-04-08
 
 ### Added
