@@ -80,7 +80,7 @@ class MeasBasis(ABC):
 
     @abc.abstractmethod
     def conjugate(self) -> MeasBasis:
-        """Return the conjugate of the measurement basis."""
+        """Return the angle-conjugated measurement basis."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -133,12 +133,15 @@ class PlannerMeasBasis(MeasBasis):
 
     @typing_extensions.override
     def conjugate(self) -> PlannerMeasBasis:
-        """Return the conjugate of the PlannerMeasBasis object.
+        """Return the angle-conjugated PlannerMeasBasis object.
+
+        This operation represents measurement-angle sign inversion. It is not
+        defined as complex conjugation of the basis vector.
 
         Returns
         -------
         `PlannerMeasBasis`
-            conjugate PlannerMeasBasis
+            angle-conjugated PlannerMeasBasis
 
         Raises
         ------
@@ -148,13 +151,7 @@ class PlannerMeasBasis(MeasBasis):
         if not isinstance(self.plane, Plane):
             msg = "The plane must be one of XY, YZ, XZ"
             raise TypeError(msg)
-        if self.plane == Plane.XY:
-            return PlannerMeasBasis(Plane.XY, -self.angle)
-        if self.plane == Plane.YZ:
-            return PlannerMeasBasis(Plane.YZ, -self.angle)
-        if self.plane == Plane.XZ:
-            return PlannerMeasBasis(Plane.XZ, self.angle)
-        typing_extensions.assert_never(self.plane)
+        return PlannerMeasBasis(self.plane, -self.angle)
 
     @typing_extensions.override
     def vector(self) -> NDArray[np.complex128]:

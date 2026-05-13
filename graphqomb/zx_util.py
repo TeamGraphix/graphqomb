@@ -16,7 +16,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import math
-from typing import TYPE_CHECKING, Protocol, SupportsFloat, TypeAlias, cast
+from typing import TYPE_CHECKING, Protocol, SupportsFloat, TypeAlias, runtime_checkable
 
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
@@ -84,6 +84,7 @@ class PyZXDiagram(Protocol):
     def vertices(self) -> Iterable[int]: ...
 
 
+@runtime_checkable
 class PyZXModule(Protocol):
     """Protocol for the runtime `pyzx` module attributes used here."""
 
@@ -108,6 +109,8 @@ def _require_pyzx() -> PyZXModule:
     ------
     ModuleNotFoundError
         If the optional `pyzx` dependency is not installed.
+    TypeError
+        If the imported `pyzx` module does not provide the required API.
     """
     try:
         zx = importlib.import_module("pyzx")
@@ -115,7 +118,11 @@ def _require_pyzx() -> PyZXModule:
         msg = f"{_PYZX_INSTALL_HINT} Install it with `pip install graphqomb[pyzx]`."
         raise ModuleNotFoundError(msg) from exc
 
-    return cast("PyZXModule", zx)
+    if not isinstance(zx, PyZXModule):
+        msg = "Imported `pyzx` module does not provide the API required by graphqomb."
+        raise TypeError(msg)
+
+    return zx
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
