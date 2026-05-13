@@ -54,6 +54,7 @@ def qompile(  # noqa: PLR0913
         scheduler to schedule the graph state preparation and measurements,
         if `None`, a `Scheduler` is constructed internally and solved with the
         default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        otherwise the provided scheduler is validated before compiling the pattern,
         by default `None`
 
     Returns
@@ -97,6 +98,7 @@ def _qompile(
         scheduler to schedule the graph state preparation and measurements,
         if `None`, a `Scheduler` is constructed internally and solved with the
         default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        otherwise the provided scheduler is validated before compiling the pattern,
         by default `None`
 
     Returns
@@ -112,9 +114,11 @@ def _qompile(
     topo_order.reverse()  # children first
 
     commands: list[Command] = []
-    if not scheduler:
+    if scheduler is None:
         scheduler = Scheduler(graph, pauli_frame.xflow, pauli_frame.zflow)
         scheduler.solve_schedule()
+    else:
+        scheduler.validate_schedule()
 
     timeline = scheduler.timeline
 

@@ -395,6 +395,32 @@ def test_validate_schedule_dag_violations() -> None:
         scheduler2.validate_schedule()
 
 
+def test_qompile_validates_provided_scheduler() -> None:
+    """Qompile should reject invalid schedules before pattern generation."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+    scheduler.manual_schedule(
+        prepare_time={node1: 0, node2: 0},
+        measure_time={node0: 2, node1: 1},
+    )
+
+    with pytest.raises(ValueError, match="DAG violation"):
+        qompile(graph, flow, scheduler=scheduler)
+
+
 def test_validate_schedule_same_time_prep_meas() -> None:
     """Test that validate_schedule rejects schedules with nodes prepared and measured at same time."""
     # Create a graph
