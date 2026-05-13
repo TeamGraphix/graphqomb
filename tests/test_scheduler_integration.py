@@ -2,7 +2,7 @@
 
 import pytest
 
-from graphqomb.command import TICK
+from graphqomb.command import TICK, E
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 from graphqomb.qompiler import qompile
@@ -133,6 +133,35 @@ def test_schedule_config_options() -> None:
     # Time optimization should generally use fewer slices than space optimization
     # (though this isn't guaranteed for all graphs)
     assert time_slices <= space_slices or space_slices <= time_slices  # Either way is valid
+
+
+def test_minimize_space_cpsat_prepares_node_before_measuring_it() -> None:
+    """Test CP-SAT MINIMIZE_SPACE enforces self preparation before measurement."""
+    graph = GraphState()
+    input_node = graph.add_physical_node()
+    measured_node = graph.add_physical_node()
+    qindex = 0
+
+    graph.add_physical_edge(input_node, measured_node)
+    graph.register_input(input_node, qindex)
+    graph.register_output(input_node, qindex)
+    graph.assign_meas_basis(measured_node, PlannerMeasBasis(Plane.YZ, 0.2))
+
+    gflow = {measured_node: {measured_node}}
+    scheduler = Scheduler(graph, gflow)
+
+    success = scheduler.solve_schedule(ScheduleConfig(strategy=Strategy.MINIMIZE_SPACE), timeout=10)
+
+    assert success
+    prep_time = scheduler.prepare_time[measured_node]
+    meas_time = scheduler.measure_time[measured_node]
+    ent_time = scheduler.entangle_time[input_node, measured_node]
+    assert prep_time is not None
+    assert meas_time is not None
+    assert ent_time is not None
+    assert prep_time < meas_time
+    assert ent_time == prep_time
+    assert ent_time < meas_time
 
 
 def test_space_constrained_scheduling() -> None:
@@ -366,6 +395,32 @@ def test_validate_schedule_dag_violations() -> None:
         scheduler2.validate_schedule()
 
 
+def test_qompile_validates_provided_scheduler() -> None:
+    """Qompile should reject invalid schedules before pattern generation."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    node2 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.add_physical_edge(node1, node2)
+
+    qindex = 0
+    graph.register_input(node0, qindex)
+    graph.register_output(node2, qindex)
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    flow = {node0: {node1}, node1: {node2}}
+    scheduler = Scheduler(graph, flow)
+    scheduler.manual_schedule(
+        prepare_time={node1: 0, node2: 0},
+        measure_time={node0: 2, node1: 1},
+    )
+
+    with pytest.raises(ValueError, match="DAG violation"):
+        qompile(graph, flow, scheduler=scheduler)
+
+
 def test_validate_schedule_same_time_prep_meas() -> None:
     """Test that validate_schedule rejects schedules with nodes prepared and measured at same time."""
     # Create a graph
@@ -461,6 +516,94 @@ def test_timeline_includes_entanglement() -> None:
     assert len(timeline[2][0]) == 0  # prep_nodes - no preparations at time 2
     assert len(timeline[2][1]) == 0  # ent_edges - no entanglements at time 2
     assert node1 in timeline[2][2]  # meas_nodes
+
+
+def test_input_input_entanglement_is_scheduled_in_first_slice() -> None:
+    """Input-input entanglement should be kept in an executable non-negative slice."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.register_input(node0, 0)
+    graph.register_input(node1, 1)
+    graph.register_output(node0, 0)
+    graph.register_output(node1, 1)
+
+    scheduler = Scheduler(graph, {})
+    scheduler.manual_schedule(prepare_time={}, measure_time={})
+
+    edge = (node0, node1)
+    assert scheduler.entangle_time[edge] == 0
+    assert edge in scheduler.timeline[0].entangle_edges
+    scheduler.validate_schedule()
+
+
+@pytest.mark.parametrize("strategy", [Strategy.MINIMIZE_TIME, Strategy.MINIMIZE_SPACE])
+def test_cpsat_input_input_entanglement_delays_input_measurement(strategy: Strategy) -> None:
+    """CP-SAT schedules input-input entanglement before measuring input endpoints."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.register_input(node0, 0)
+    graph.register_input(node1, 1)
+    graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(node1, PlannerMeasBasis(Plane.XY, 0.0))
+
+    scheduler = Scheduler(graph, {})
+    success = scheduler.solve_schedule(ScheduleConfig(strategy=strategy), timeout=10)
+
+    assert success
+    edge = (node0, node1)
+    assert scheduler.entangle_time[edge] == 0
+    node0_meas_time = scheduler.measure_time[node0]
+    node1_meas_time = scheduler.measure_time[node1]
+    assert node0_meas_time is not None
+    assert node1_meas_time is not None
+    assert node0_meas_time > 0
+    assert node1_meas_time > 0
+    scheduler.validate_schedule()
+
+
+def test_cpsat_minimize_time_all_input_output_edge_is_scheduled() -> None:
+    """All-input-output graphs still schedule input-input entanglement."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.register_input(node0, 0)
+    graph.register_input(node1, 1)
+    graph.register_output(node0, 0)
+    graph.register_output(node1, 1)
+
+    scheduler = Scheduler(graph, {})
+    success = scheduler.solve_schedule(ScheduleConfig(strategy=Strategy.MINIMIZE_TIME), timeout=10)
+
+    assert success
+    edge = (node0, node1)
+    assert scheduler.entangle_time[edge] == 0
+    assert edge in scheduler.timeline[0].entangle_edges
+    scheduler.validate_schedule()
+
+    pattern = qompile(graph, {})
+    assert any(isinstance(cmd, E) and cmd.nodes == edge for cmd in pattern)
+
+
+def test_validate_schedule_rejects_negative_executable_time() -> None:
+    """Executable schedule times must be non-negative."""
+    graph = GraphState()
+    node0 = graph.add_physical_node()
+    node1 = graph.add_physical_node()
+    graph.add_physical_edge(node0, node1)
+    graph.register_input(node0, 0)
+    graph.register_output(node1, 0)
+
+    scheduler = Scheduler(graph, {})
+    scheduler.manual_schedule(prepare_time={node1: 0}, measure_time={node0: 1})
+    scheduler.entangle_time[node0, node1] = -1
+
+    with pytest.raises(ValueError, match="negative executable times"):
+        scheduler.validate_schedule()
 
 
 def test_qompile_with_tick_commands() -> None:

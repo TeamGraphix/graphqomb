@@ -12,6 +12,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, NamedTuple
 
 from graphqomb.feedforward import dag_from_flow
+from graphqomb.greedy_scheduler import greedy_minimize_space, greedy_minimize_time
 from graphqomb.schedule_solver import ScheduleConfig, Strategy, solve_schedule
 
 if TYPE_CHECKING:
@@ -323,6 +324,24 @@ class Scheduler:
             msg = f"Nodes {sorted(unscheduled_meas)} have no measurement time scheduled (time is None)"
             raise ValueError(msg)
 
+    def _validate_executable_times_are_nonnegative(self) -> None:
+        """Validate that all executable schedule times are non-negative.
+
+        Raises
+        ------
+        ValueError
+            If any executable preparation, measurement, or entanglement time is negative.
+        """
+        for schedule_name, schedule in (
+            ("preparation", self.prepare_time),
+            ("measurement", self.measure_time),
+            ("entanglement", self.entangle_time),
+        ):
+            negative_times = {item: time for item, time in schedule.items() if time is not None and time < 0}
+            if negative_times:
+                msg = f"{schedule_name.capitalize()} schedule contains negative executable times: {negative_times}"
+                raise ValueError(msg)
+
     def _validate_dag_constraints(self) -> None:
         """Validate that measurement order respects DAG dependencies.
 
@@ -372,8 +391,8 @@ class Scheduler:
             # Edge can be created when both nodes are prepared
             # Only schedule if not already scheduled (preserve manual settings)
             if time1 is not None and time2 is not None and self.entangle_time[edge] is None:
-                # Entanglement happens when both nodes are prepared
-                self.entangle_time[edge] = max(time1, time2)
+                # Keep executable slices non-negative even when both endpoints are inputs.
+                self.entangle_time[edge] = max(time1, time2, 0)
 
     def _validate_entangle_time_constraints(self) -> None:
         """Validate that entanglement times respect preparation and measurement constraints.
@@ -484,6 +503,7 @@ class Scheduler:
         """
         self._validate_node_sets()
         self._validate_all_nodes_scheduled()
+        self._validate_executable_times_are_nonnegative()
         self._validate_dag_constraints()
         self._validate_time_ordering()
 
@@ -496,14 +516,15 @@ class Scheduler:
         config: ScheduleConfig | None = None,
         timeout: int = 60,
     ) -> bool:
-        r"""Compute the schedule using the constraint programming solver.
+        r"""Compute the schedule using constraint programming or greedy heuristics.
 
         Parameters
         ----------
         config : `ScheduleConfig` | `None`, optional
-            The scheduling configuration. If None, defaults to MINIMIZE_SPACE strategy.
+            The scheduling configuration. If None, defaults to MINIMIZE_TIME strategy.
         timeout : `int`, optional
-            Maximum solve time in seconds, by default 60
+            Maximum solve time in seconds for CP-SAT solver, by default 60.
+            Ignored when use_greedy=True.
 
         Returns
         -------
@@ -518,7 +539,17 @@ class Scheduler:
         if config is None:
             config = ScheduleConfig(Strategy.MINIMIZE_TIME)
 
-        result = solve_schedule(self.graph, self.dag, config, timeout)
+        result: tuple[dict[int, int], dict[int, int]] | None
+        if config.use_greedy:
+            # Use fast greedy heuristics
+            if config.strategy == Strategy.MINIMIZE_TIME:
+                result = greedy_minimize_time(self.graph, self.dag, max_qubit_count=config.max_qubit_count)
+            else:  # Strategy.MINIMIZE_SPACE
+                result = greedy_minimize_space(self.graph, self.dag)
+        else:
+            # Use CP-SAT solver for optimal solution
+            result = solve_schedule(self.graph, self.dag, config, timeout)
+
         if result is None:
             return False
 
@@ -532,14 +563,18 @@ class Scheduler:
             for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
         }
 
+        self.prepare_time = prep_time
+        self.measure_time = meas_time
+
+        # Auto-schedule unscheduled entanglement times before compression so
+        # slice-0 entanglement remains part of the executable time set.
+        if any(time is None for time in self.entangle_time.values()):
+            self.auto_schedule_entanglement()
+
         # Compress the schedule to minimize time indices
-        timings = compress_schedule(prep_time, meas_time, self.entangle_time)
+        timings = compress_schedule(self.prepare_time, self.measure_time, self.entangle_time)
         self.prepare_time = timings.prepare_time
         self.measure_time = timings.measure_time
         self.entangle_time = timings.entangle_time
-
-        # Auto-schedule unscheduled entanglement times
-        if any(time is None for time in self.entangle_time.values()):
-            self.auto_schedule_entanglement()
 
         return True

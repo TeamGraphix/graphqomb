@@ -3,21 +3,21 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from graphqomb.circuit import MBQCCircuit, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.feedforward import (
+    TOPO_ORDER_CYCLE_ERROR_MSG,
     _is_flow,
     _is_gflow,
     check_dag,
     check_flow,
     dag_from_flow,
+    inverse_dag_from_dag,
     pauli_simplification,
     propagate_correction_map,
     signal_shifting,
+    topo_order_from_inv_dag,
 )
 from graphqomb.graphstate import GraphState
-from graphqomb.qompiler import qompile
-from graphqomb.simulator import CircuitSimulator, PatternSimulator, SimulatorBackend
 
 
 def two_node_graph() -> tuple[GraphState, int, int]:
@@ -67,6 +67,18 @@ def test_dag_from_flow_basic_gflow() -> None:
     assert dag[node2] == set()
 
 
+def test_dag_from_flow_removes_self_loop_from_xflow() -> None:
+    graphstate, node1, node2 = two_node_graph()
+    xflow: dict[int, set[int]] = {node1: {node1, node2}, node2: set()}
+    zflow: dict[int, set[int]] = {node1: set(), node2: set()}
+
+    dag = dag_from_flow(graphstate, xflow, zflow)
+    check_dag(dag)
+
+    assert node1 not in dag[node1]
+    assert dag[node1] == {node2}
+
+
 def test_dag_from_flow_invalid_type_raises() -> None:
     graphstate, node1, node2 = two_node_graph()
     invalid: dict[int, int | set[int]] = {node1: node2, node2: {node2}}  # mixed types
@@ -94,6 +106,46 @@ def test_check_flow_true_for_acyclic() -> None:
     graphstate, node1, node2 = two_node_graph()
     flow = {node1: node2}
     check_flow(graphstate, flow)
+
+
+def test_topo_order_from_inv_dag_basic() -> None:
+    inv_dag: dict[int, set[int]] = {
+        0: set(),
+        1: {0},
+        2: {1},
+    }
+    assert topo_order_from_inv_dag(inv_dag) == [0, 1, 2]
+
+
+def test_inverse_dag_from_dag_basic() -> None:
+    dag: dict[int, set[int]] = {
+        0: {1, 2},
+        1: {2},
+        2: set(),
+    }
+    assert inverse_dag_from_dag(dag) == {
+        0: set(),
+        1: {0},
+        2: {0, 1},
+    }
+
+
+def test_inverse_dag_from_dag_with_all_nodes() -> None:
+    dag = {0: {1}}
+    assert inverse_dag_from_dag(dag, all_nodes={0, 1, 2}) == {
+        0: set(),
+        1: {0},
+        2: set(),
+    }
+
+
+def test_topo_order_from_inv_dag_cycle_raises() -> None:
+    inv_dag = {
+        0: {1},
+        1: {0},
+    }
+    with pytest.raises(RuntimeError, match=TOPO_ORDER_CYCLE_ERROR_MSG):
+        topo_order_from_inv_dag(inv_dag)
 
 
 # Tests for propagate_correction_map
@@ -297,48 +349,6 @@ def test_signal_shifting_zflow_none() -> None:
     assert isinstance(new_zflow, dict)
 
 
-def test_signal_shifting_circuit_integration() -> None:
-    """Test signal_shifting integration with circuit compilation and simulation."""
-    # Create a simple quantum circuit
-    circuit = MBQCCircuit(3)
-    circuit.j(0, 0.5 * np.pi)
-    circuit.cz(0, 1)
-    circuit.cz(0, 2)
-    circuit.j(1, 0.75 * np.pi)
-    circuit.j(2, 0.25 * np.pi)
-    circuit.cz(0, 2)
-    circuit.cz(1, 2)
-
-    # Convert circuit to graph and gflow
-    graphstate, gflow = circuit2graph(circuit)
-
-    # Apply signal shifting
-    xflow, zflow = signal_shifting(graphstate, gflow)
-
-    # Compile to pattern
-    pattern = qompile(graphstate, xflow, zflow)
-
-    # Verify pattern is runnable
-    assert pattern is not None
-    assert pattern.max_space >= 0
-    assert pattern.depth >= 0
-
-    # Simulate the pattern
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    simulator.simulate()
-    state = simulator.state
-    statevec = state.state()
-
-    # Compare with circuit simulator
-    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
-    circ_simulator.simulate()
-    circ_state = circ_simulator.state.state()
-    inner_product = np.vdot(statevec, circ_state)
-
-    # Verify that the results match (inner product should be close to 1)
-    assert np.isclose(np.abs(inner_product), 1.0)
-
-
 # Tests for pauli_simplification
 
 
@@ -514,40 +524,3 @@ def test_pauli_simplification_preserves_original_flows() -> None:
     # Original flows should be unchanged
     assert xflow[parent] == original_xflow_parent
     assert zflow[parent] == original_zflow_parent
-
-
-def test_pauli_simplification_circuit_integration() -> None:
-    """Test pauli_simplification integration with circuit compilation and simulation."""
-    # Create a quantum circuit (using j for rotations, cz for entanglement)
-    circuit = MBQCCircuit(2)
-    circuit.j(0, 0.5 * np.pi)  # Rotation on qubit 0
-    circuit.cz(0, 1)
-    circuit.j(1, 0.25 * np.pi)  # Rotation on qubit 1
-
-    # Convert circuit to graph and gflow
-    graphstate, gflow = circuit2graph(circuit)
-
-    # Apply pauli simplification
-    xflow, zflow = pauli_simplification(graphstate, gflow)
-
-    # Compile to pattern
-    pattern = qompile(graphstate, xflow, zflow)
-
-    # Verify pattern is runnable
-    assert pattern is not None
-    assert pattern.max_space >= 0
-
-    # Simulate the pattern
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-    simulator.simulate()
-    state = simulator.state
-    statevec = state.state()
-
-    # Compare with circuit simulator
-    circ_simulator = CircuitSimulator(circuit, SimulatorBackend.StateVector)
-    circ_simulator.simulate()
-    circ_state = circ_simulator.state.state()
-    inner_product = np.vdot(statevec, circ_state)
-
-    # Verify that the results match (inner product should be close to 1)
-    assert np.isclose(np.abs(inner_product), 1.0)

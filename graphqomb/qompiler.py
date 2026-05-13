@@ -1,6 +1,6 @@
 """Quantum Compiler(qompiler) module for Measurement-Based Quantum Computing (MBQC).
 
-note: `compile` is used in Python built-in functions, so we use `qompile` instead.
+note: ``compile`` is used in Python built-in functions, so we use `qompile` instead.
 
 This module provides:
 
@@ -26,12 +26,13 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def qompile(
+def qompile(  # noqa: PLR0913
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
     *,
     parity_check_group: Sequence[AbstractSet[int]] | None = None,
+    logical_observables: Mapping[int, AbstractSet[int]] | None = None,
     scheduler: Scheduler | None = None,
 ) -> Pattern:
     r"""Compile graph state into pattern with x/z correction flows.
@@ -47,9 +48,13 @@ def qompile(
         if `None`, it is generated from xflow by odd neighbors
     parity_check_group : `collections.abc.Sequence`\[`collections.abc.Set`\[`int`\]\] | `None`
         parity check group for FTQC
+    logical_observables : `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
+        logical observables represented by logical index and seed nodes
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, the commands are scheduled in a single slice,
+        if `None`, a `Scheduler` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        otherwise the provided scheduler is validated before compiling the pattern,
         by default `None`
 
     Returns
@@ -62,7 +67,13 @@ def qompile(
         zflow = {node: odd_neighbors(xflow[node], graph) for node in xflow}
     check_flow(graph, xflow, zflow)
 
-    pauli_frame = PauliFrame(graph, xflow, zflow, parity_check_group=parity_check_group)
+    pauli_frame = PauliFrame(
+        graph,
+        xflow,
+        zflow,
+        parity_check_group=parity_check_group,
+        logical_observables=logical_observables,
+    )
 
     return _qompile(graph, pauli_frame, scheduler=scheduler)
 
@@ -85,7 +96,9 @@ def _qompile(
         Pauli frame to track the Pauli state of each node
     scheduler : `Scheduler` | `None`, optional
         scheduler to schedule the graph state preparation and measurements,
-        if `None`, the commands are scheduled in a single slice,
+        if `None`, a `Scheduler` is constructed internally and solved with the
+        default ``MINIMIZE_TIME`` strategy before compiling the pattern,
+        otherwise the provided scheduler is validated before compiling the pattern,
         by default `None`
 
     Returns
@@ -101,9 +114,11 @@ def _qompile(
     topo_order.reverse()  # children first
 
     commands: list[Command] = []
-    if not scheduler:
+    if scheduler is None:
         scheduler = Scheduler(graph, pauli_frame.xflow, pauli_frame.zflow)
         scheduler.solve_schedule()
+    else:
+        scheduler.validate_schedule()
 
     timeline = scheduler.timeline
 

@@ -1,8 +1,9 @@
-"""Entanglement Scheduling and TICK Command Demo
-================================================
+"""Entanglement Scheduling and TICK Slices
+==========================================
 
-This example demonstrates the new entanglement scheduling functionality
-and TICK commands in graphqomb.
+This example shows how an explicit scheduler controls preparation,
+entanglement, and measurement slices, and how those slices are serialized
+with TICK commands.
 """
 
 from graphqomb.common import Plane, PlannerMeasBasis

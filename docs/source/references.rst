@@ -21,4 +21,6 @@ Module reference
     qompiler
     scheduler
     stim_compiler
+    noise_model
     visualizer
+    zx_util
