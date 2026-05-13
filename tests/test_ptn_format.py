@@ -3,25 +3,26 @@
 from __future__ import annotations
 
 import math
-import tempfile
-from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from graphqomb.command import TICK, E, M, N, X, Z
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import Plane, PlannerMeasBasis, determine_pauli_axis
 from graphqomb.graphstate import GraphState
 from graphqomb.ptn_format import (
-    PatternData,
     dump,
     dumps,
     load,
     loads,
 )
 from graphqomb.qompiler import qompile
+from graphqomb.stim_compiler import stim_compile
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from graphqomb.command import Command
     from graphqomb.pattern import Pattern
 
 
@@ -49,6 +50,68 @@ def create_simple_pattern() -> Pattern:
 
     xflow = {in_node: {mid_node}, mid_node: {out_node}}
     return qompile(graph, xflow)
+
+
+def create_measured_output_pattern_with_observable() -> Pattern:
+    """Create a stim-compatible pattern with a logical observable."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(10.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(20.0, 0.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    return qompile(graph, {in_node: {out_node}}, logical_observables={0: {in_node}})
+
+
+def create_measured_output_pattern_with_detector() -> Pattern:
+    """Create a stim-compatible pattern with a detector."""
+    graph = GraphState()
+    in_node = graph.add_physical_node(coordinate=(30.0, 0.0))
+    out_node = graph.add_physical_node(coordinate=(40.0, 0.0))
+
+    graph.register_input(in_node, 0)
+    graph.register_output(out_node, 0)
+    graph.add_physical_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
+    graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    return qompile(graph, {in_node: {out_node}}, parity_check_group=[{in_node}])
+
+
+def command_signature(cmd: Command) -> tuple[Any, ...]:  # noqa: PLR0911
+    """Return a behavior-level signature for a pattern command."""
+    if isinstance(cmd, N):
+        return ("N", cmd.node, cmd.coordinate)
+    if isinstance(cmd, E):
+        return ("E", cmd.nodes)
+    if isinstance(cmd, M):
+        pauli_axis = determine_pauli_axis(cmd.meas_basis)
+        if pauli_axis is not None:
+            return ("M", cmd.node, pauli_axis, cmd.meas_basis.angle)
+        return ("M", cmd.node, cmd.meas_basis.plane, cmd.meas_basis.angle)
+    if isinstance(cmd, X):
+        return ("X", cmd.node)
+    if isinstance(cmd, Z):
+        return ("Z", cmd.node)
+    if isinstance(cmd, TICK):
+        return ("TICK",)
+    return ("UNKNOWN", type(cmd).__name__)
+
+
+def assert_pattern_equivalent(actual: Pattern, expected: Pattern) -> None:
+    """Assert that serialized pattern content survived a roundtrip."""
+    assert actual.input_node_indices == expected.input_node_indices
+    assert actual.output_node_indices == expected.output_node_indices
+    assert actual.input_coordinates == expected.input_coordinates
+    assert actual.pauli_frame.xflow == expected.pauli_frame.xflow
+    assert actual.pauli_frame.zflow == expected.pauli_frame.zflow
+    assert actual.pauli_frame.parity_check_group == expected.pauli_frame.parity_check_group
+    assert actual.pauli_frame.logical_observables == expected.pauli_frame.logical_observables
+    assert [command_signature(cmd) for cmd in actual.commands] == [command_signature(cmd) for cmd in expected.commands]
 
 
 def test_dumps_basic() -> None:
@@ -112,7 +175,6 @@ M 0 XY 0
 """
     result = loads(ptn_str)
 
-    assert isinstance(result, PatternData)
     assert result.input_node_indices == {0: 0}
     assert result.output_node_indices == {2: 0}
     assert result.input_coordinates == {0: (0.0, 0.0)}
@@ -250,8 +312,8 @@ M 0 XY 0
 """
     result = loads(ptn_str)
 
-    assert result.xflow == {0: {1, 2}}
-    assert result.zflow == {0: {3, 4}}
+    assert result.pauli_frame.xflow == {0: {1, 2}}
+    assert result.pauli_frame.zflow == {0: {3, 4}}
 
 
 def test_loads_detector_parsing() -> None:
@@ -269,9 +331,27 @@ M 0 XY 0
 """
     result = loads(ptn_str)
 
-    assert len(result.parity_check_groups) == 2
-    assert result.parity_check_groups[0] == {0, 1, 2}
-    assert result.parity_check_groups[1] == {3, 4}
+    assert len(result.pauli_frame.parity_check_group) == 2
+    assert result.pauli_frame.parity_check_group[0] == {0, 1, 2}
+    assert result.pauli_frame.parity_check_group[1] == {3, 4}
+
+
+def test_loads_observable_parsing() -> None:
+    """Test logical observable parsing."""
+    ptn_str = """
+.version 1
+.input 0:0
+.output 1:0
+
+[0]
+M 0 X +
+M 1 X +
+
+.observable 0 -> 0 1
+"""
+    result = loads(ptn_str)
+
+    assert result.pauli_frame.logical_observables == {0: {0, 1}}
 
 
 def test_loads_missing_version() -> None:
@@ -317,35 +397,21 @@ def test_roundtrip() -> None:
     ptn_str = dumps(pattern)
     result = loads(ptn_str)
 
-    # Check input/output nodes match
-    assert result.input_node_indices == pattern.input_node_indices
-    assert result.output_node_indices == pattern.output_node_indices
-
-    # Check command count matches (excluding internal differences)
-    original_count = len([c for c in pattern.commands if not isinstance(c, (X, Z))])
-    parsed_count = len([c for c in result.commands if not isinstance(c, (X, Z))])
-    assert original_count == parsed_count
+    assert_pattern_equivalent(result, pattern)
 
 
-def test_dump_and_load_file() -> None:
+def test_dump_and_load_file(tmp_path: Path) -> None:
     """Test file I/O operations."""
     pattern = create_simple_pattern()
+    filepath = tmp_path / "test.ptn"
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filepath = Path(tmpdir) / "test.ptn"
+    dump(pattern, filepath)
 
-        # Write to file
-        dump(pattern, filepath)
+    assert filepath.exists()
 
-        # Verify file exists
-        assert filepath.exists()
+    result = load(filepath)
 
-        # Read from file
-        result = load(filepath)
-
-        # Verify content
-        assert result.input_node_indices == pattern.input_node_indices
-        assert result.output_node_indices == pattern.output_node_indices
+    assert_pattern_equivalent(result, pattern)
 
 
 def test_multiple_input_output_qubits() -> None:
@@ -434,8 +500,8 @@ M 0 XY 0
 """
     result = loads(ptn_str)
 
-    assert result.xflow == {}
-    assert result.zflow == {}
+    assert result.pauli_frame.xflow == {}
+    assert result.pauli_frame.zflow == {}
 
 
 def test_comments_ignored() -> None:
@@ -452,5 +518,81 @@ def test_comments_ignored() -> None:
 M 0 XY 0
 """
     result = loads(ptn_str)
-    # Should parse without error
-    assert result.input_node_indices is not None
+    assert result.input_node_indices == {0: 0}
+
+
+def test_roundtrip_preserves_logical_observables_for_stim() -> None:
+    """Logical observables should survive .ptn serialization."""
+    pattern = create_measured_output_pattern_with_observable()
+    ptn_str = dumps(pattern)
+
+    assert ".observable 0 -> 0" in ptn_str
+
+    result = loads(ptn_str)
+
+    assert_pattern_equivalent(result, pattern)
+    assert stim_compile(result) == stim_compile(pattern)
+
+
+def test_roundtrip_preserves_detectors_for_stim() -> None:
+    """Detectors should survive .ptn serialization."""
+    pattern = create_measured_output_pattern_with_detector()
+    ptn_str = dumps(pattern)
+
+    assert ".detector 0" in ptn_str
+
+    result = loads(ptn_str)
+
+    assert_pattern_equivalent(result, pattern)
+    assert stim_compile(result) == stim_compile(pattern)
+
+
+def test_loads_preserves_non_contiguous_node_ids() -> None:
+    """Loading should preserve node ids instead of remapping them."""
+    ptn_str = """
+.version 1
+.input 10:0
+.output 30:0
+.coord 10 1.0 2.0
+
+[0]
+N 20 3.0 4.0
+E 10 20
+E 20 30
+[1]
+M 10 X +
+[2]
+M 20 Y -
+[3]
+X 30
+Z 30
+
+.xflow 10 -> 20
+.zflow 20 -> 30
+"""
+    result = loads(ptn_str)
+
+    assert result.input_node_indices == {10: 0}
+    assert result.output_node_indices == {30: 0}
+    assert {10, 20, 30} <= result.pauli_frame.graphstate.physical_nodes
+    assert any(isinstance(cmd, N) and cmd.node == 20 for cmd in result.commands)
+    assert any(isinstance(cmd, X) and cmd.node == 30 for cmd in result.commands)
+
+
+@pytest.mark.parametrize(
+    ("ptn_str", "message"),
+    [
+        (".version 1\n.foo whatever\n", "Unknown directive"),
+        (".version 1\n[0]\nM 0 X bad\n", "Invalid Pauli measurement sign"),
+        (".version 1\n[0]\nM 0 X + junk\n", "M command requires"),
+        (".version 1\n.xflow 0 1\n", "must contain exactly one"),
+        (".version 1\n[-1]\n", "Timeslice must be non-negative"),
+        (".version 1\n[1]\n[0]\n", "monotonically increasing"),
+        (".version 1\n[0]\nM 0 XY pi/0\n", "denominator"),
+        (".version 1\n.detector\n", "requires at least one node"),
+    ],
+)
+def test_loads_rejects_malformed_input(ptn_str: str, message: str) -> None:
+    """Malformed .ptn input should fail instead of being guessed."""
+    with pytest.raises(ValueError, match=message):
+        loads(ptn_str)

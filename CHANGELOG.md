@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Timeslice markers `[n]` indicate parallel execution groups
   - Pauli measurements use compact notation (`X +`, `Y -`, `Z +`)
   - Non-Pauli measurements use plane+angle format (`XY pi/4`)
-  - Support for node coordinates and inline comments
+  - Support for node coordinates, logical observables, and inline comments
 - **Non-Unitary Parity Projection Example**: Added `examples/nonunitary_parity_projection.py` demonstrating measurement-induced entanglement via a 3-node star graph parity projector
 
 ### Fixed

@@ -15,6 +15,7 @@ import operator
 import re
 from io import StringIO
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, Command, E, M, N, X, Z
@@ -28,10 +29,13 @@ from graphqomb.common import (
     determine_pauli_axis,
     is_close_angle,
 )
+from graphqomb.graphstate import BaseGraphState
+from graphqomb.pattern import Pattern
+from graphqomb.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
-    from graphqomb.pattern import Pattern
-    from graphqomb.pauli_frame import PauliFrame
+    from collections.abc import Mapping, Sequence
+    from collections.abc import Set as AbstractSet
 
 PTN_VERSION = 1
 
@@ -77,7 +81,7 @@ def _format_angle(angle: float) -> str:
         Formatted angle string.
     """
     for ref_angle, label in _ANGLE_TO_STR.items():
-        tol = 1e-10 if ref_angle == 0.0 else None
+        tol = 1e-10 if label == "0" else None
         if tol is not None:
             if math.isclose(angle, ref_angle, abs_tol=tol):
                 return label
@@ -98,6 +102,11 @@ def _parse_angle(s: str) -> float:
     -------
     `float`
         The angle in radians.
+
+    Raises
+    ------
+    ValueError
+        If the angle is not a valid number or pi expression.
     """
     s = s.strip()
     if s in _STR_TO_ANGLE:
@@ -109,6 +118,9 @@ def _parse_angle(s: str) -> float:
         denominator = pi_match.group(2)
         num = int(numerator) if numerator and numerator != "-" else (1 if numerator != "-" else -1)
         denom = int(denominator) if denominator else 1
+        if denom == 0:
+            msg = "Angle denominator cannot be zero"
+            raise ValueError(msg)
         return num * math.pi / denom
 
     return float(s)
@@ -130,7 +142,7 @@ def _format_coord(coord: tuple[float, ...]) -> str:
     return " ".join(str(c) for c in coord)
 
 
-def _parse_coord(parts: list[str]) -> tuple[float, ...]:
+def _parse_coord(parts: Sequence[str]) -> tuple[float, ...]:
     r"""Parse coordinate from string parts.
 
     Parameters
@@ -254,6 +266,11 @@ def _write_classical_section(out: StringIO, pauli_frame: PauliFrame) -> None:
             group_str = " ".join(str(n) for n in sorted(group))
             out.write(f".detector {group_str}\n")
 
+    for logical_idx, nodes in sorted(pauli_frame.logical_observables.items()):
+        if nodes:
+            nodes_str = " ".join(str(n) for n in sorted(nodes))
+            out.write(f".observable {logical_idx} -> {nodes_str}\n")
+
 
 def dumps(pattern: Pattern) -> str:
     """Serialize a pattern to a .ptn format string.
@@ -294,7 +311,27 @@ def dump(pattern: Pattern, file: Path | str) -> None:
 # ============================================================
 
 
-def _parse_node_qubit_pairs(parts: list[str]) -> dict[int, int]:
+def _parse_int(value: str, label: str) -> int:
+    """Parse an integer field.
+
+    Returns
+    -------
+    `int`
+        Parsed integer.
+
+    Raises
+    ------
+    ValueError
+        If the field is not an integer.
+    """
+    try:
+        return int(value)
+    except ValueError as exc:
+        msg = f"Invalid {label}: {value!r}"
+        raise ValueError(msg) from exc
+
+
+def _parse_node_qubit_pairs(parts: Sequence[str]) -> dict[int, int]:
     r"""Parse node:qubit pairs from string parts.
 
     Parameters
@@ -306,15 +343,51 @@ def _parse_node_qubit_pairs(parts: list[str]) -> dict[int, int]:
     -------
     `dict`\[`int`, `int`\]
         Mapping from node to qubit index.
+
+    Raises
+    ------
+    ValueError
+        If any pair is malformed or duplicated.
     """
     result: dict[int, int] = {}
     for part in parts:
-        node_str, qidx_str = part.split(":")
-        result[int(node_str)] = int(qidx_str)
+        pair = part.split(":")
+        if len(pair) != 2:  # noqa: PLR2004
+            msg = f"Invalid node:qubit pair: {part!r}"
+            raise ValueError(msg)
+        node_str, qidx_str = pair
+        node = _parse_int(node_str, "node")
+        qidx = _parse_int(qidx_str, "qubit index")
+        if node in result:
+            msg = f"Duplicate node mapping: {node}"
+            raise ValueError(msg)
+        if qidx in result.values():
+            msg = f"Duplicate qubit index: {qidx}"
+            raise ValueError(msg)
+        result[node] = qidx
     return result
 
 
-def _parse_flow(line: str) -> tuple[int, set[int]]:
+def _parse_node_set(parts: Sequence[str], label: str) -> set[int]:
+    r"""Parse a non-empty set of node ids.
+
+    Returns
+    -------
+    `set`\[`int`\]
+        Parsed node ids.
+
+    Raises
+    ------
+    ValueError
+        If the node set is empty or contains invalid integers.
+    """
+    if not parts:
+        msg = f"{label} requires at least one node"
+        raise ValueError(msg)
+    return {_parse_int(part, "node") for part in parts}
+
+
+def _parse_arrow_mapping(line: str, label: str) -> tuple[int, set[int]]:
     r"""Parse a flow line (xflow or zflow).
 
     Parameters
@@ -326,14 +399,27 @@ def _parse_flow(line: str) -> tuple[int, set[int]]:
     -------
     `tuple`\[`int`, `set`\[`int`\]\]
         Source node and set of target nodes.
+
+    Raises
+    ------
+    ValueError
+        If the mapping is malformed.
     """
     parts = line.split("->")
-    source = int(parts[0].strip())
-    targets = {int(t) for t in parts[1].strip().split()}
+    if len(parts) != 2:  # noqa: PLR2004
+        msg = f"{label} must contain exactly one '->'"
+        raise ValueError(msg)
+    source_part = parts[0].strip()
+    target_parts = parts[1].strip().split()
+    if not source_part:
+        msg = f"{label} requires a source node"
+        raise ValueError(msg)
+    source = _parse_int(source_part, "source node")
+    targets = _parse_node_set(target_parts, f"{label} targets")
     return source, targets
 
 
-class PatternData:
+class _PatternData:
     """Container for parsed pattern data from .ptn format.
 
     Attributes
@@ -362,18 +448,182 @@ class PatternData:
         self.xflow: dict[int, set[int]] = {}
         self.zflow: dict[int, set[int]] = {}
         self.parity_check_groups: list[set[int]] = []
+        self.logical_observables: dict[int, set[int]] = {}
+
+
+class _LoadedGraphState(BaseGraphState):
+    """Read-only graph state reconstructed from a .ptn file."""
+
+    def __init__(  # noqa: PLR0913
+        self,
+        *,
+        input_node_indices: Mapping[int, int],
+        output_node_indices: Mapping[int, int],
+        physical_nodes: AbstractSet[int],
+        physical_edges: AbstractSet[tuple[int, int]],
+        meas_bases: Mapping[int, MeasBasis],
+        coordinates: Mapping[int, tuple[float, ...]],
+    ) -> None:
+        self._input_node_indices = dict(input_node_indices)
+        self._output_node_indices = dict(output_node_indices)
+        self._physical_nodes = set(physical_nodes)
+        self._physical_edges = {(node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in physical_edges}
+        self._meas_bases = dict(meas_bases)
+        self._coordinates = dict(coordinates)
+        self._neighbors: dict[int, set[int]] = {node: set() for node in self._physical_nodes}
+        for node1, node2 in self._physical_edges:
+            self._neighbors.setdefault(node1, set()).add(node2)
+            self._neighbors.setdefault(node2, set()).add(node1)
+
+    @property
+    def input_node_indices(self) -> dict[int, int]:
+        return self._input_node_indices.copy()
+
+    @property
+    def output_node_indices(self) -> dict[int, int]:
+        return self._output_node_indices.copy()
+
+    @property
+    def physical_nodes(self) -> set[int]:
+        return set(self._physical_nodes)
+
+    @property
+    def physical_edges(self) -> set[tuple[int, int]]:
+        return set(self._physical_edges)
+
+    @property
+    def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
+        return MappingProxyType(self._meas_bases)
+
+    @property
+    def coordinates(self) -> dict[int, tuple[float, ...]]:
+        return self._coordinates.copy()
+
+    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
+        msg = "Loaded .ptn graph states are read-only"
+        raise NotImplementedError(msg)
+
+    def add_physical_edge(self, node1: int, node2: int) -> None:
+        msg = "Loaded .ptn graph states are read-only"
+        raise NotImplementedError(msg)
+
+    def register_input(self, node: int, q_index: int) -> None:
+        msg = "Loaded .ptn graph states are read-only"
+        raise NotImplementedError(msg)
+
+    def register_output(self, node: int, q_index: int) -> None:
+        msg = "Loaded .ptn graph states are read-only"
+        raise NotImplementedError(msg)
+
+    def assign_meas_basis(self, node: int, meas_basis: MeasBasis) -> None:
+        msg = "Loaded .ptn graph states are read-only"
+        raise NotImplementedError(msg)
+
+    def neighbors(self, node: int) -> set[int]:
+        if node not in self._physical_nodes:
+            msg = f"Node does not exist node={node}"
+            raise ValueError(msg)
+        return self._neighbors.get(node, set()).copy()
+
+    def check_canonical_form(self) -> None:
+        for node in self._physical_nodes - self._output_node_indices.keys():
+            if node not in self._meas_bases:
+                msg = f"Measurement basis not set for node {node}"
+                raise ValueError(msg)
+
+
+def _command_nodes(cmd: Command) -> set[int]:
+    r"""Return node ids referenced by a command.
+
+    Returns
+    -------
+    `set`\[`int`\]
+        Node ids referenced by the command.
+    """
+    if isinstance(cmd, (N, M, X, Z)):
+        return {cmd.node}
+    if isinstance(cmd, E):
+        return set(cmd.nodes)
+    return set()
+
+
+def _build_pattern(data: _PatternData) -> Pattern:
+    """Build a Pattern from parsed .ptn data.
+
+    Returns
+    -------
+    `Pattern`
+        Reconstructed pattern.
+
+    Raises
+    ------
+    ValueError
+        If parsed commands contain invalid graph structure.
+    """
+    nodes: set[int] = set(data.input_node_indices) | set(data.output_node_indices) | set(data.input_coordinates)
+    edges: set[tuple[int, int]] = set()
+    meas_bases: dict[int, MeasBasis] = {}
+    coordinates = dict(data.input_coordinates)
+
+    for cmd in data.commands:
+        nodes.update(_command_nodes(cmd))
+        if isinstance(cmd, E):
+            node1, node2 = cmd.nodes
+            edge = (node1, node2) if node1 < node2 else (node2, node1)
+            if edge[0] == edge[1]:
+                msg = f"Self-loop edge is not allowed: {cmd.nodes}"
+                raise ValueError(msg)
+            edges.add(edge)
+        elif isinstance(cmd, M):
+            meas_bases[cmd.node] = cmd.meas_basis
+        elif isinstance(cmd, N) and cmd.coordinate is not None:
+            coordinates[cmd.node] = cmd.coordinate
+
+    for source, targets in data.xflow.items():
+        nodes.add(source)
+        nodes.update(targets)
+    for source, targets in data.zflow.items():
+        nodes.add(source)
+        nodes.update(targets)
+    for group in data.parity_check_groups:
+        nodes.update(group)
+    for nodes_in_observable in data.logical_observables.values():
+        nodes.update(nodes_in_observable)
+
+    graphstate = _LoadedGraphState(
+        input_node_indices=data.input_node_indices,
+        output_node_indices=data.output_node_indices,
+        physical_nodes=nodes,
+        physical_edges=edges,
+        meas_bases=meas_bases,
+        coordinates=coordinates,
+    )
+    pauli_frame = PauliFrame(
+        graphstate,
+        data.xflow,
+        data.zflow,
+        parity_check_group=data.parity_check_groups,
+        logical_observables=data.logical_observables,
+    )
+    return Pattern(
+        input_node_indices=dict(data.input_node_indices),
+        output_node_indices=dict(data.output_node_indices),
+        commands=tuple(data.commands),
+        pauli_frame=pauli_frame,
+        input_coordinates=dict(data.input_coordinates),
+    )
 
 
 class _Parser:
     """Internal parser state for loads()."""
 
     def __init__(self) -> None:
-        self.result = PatternData()
+        self.result = _PatternData()
         self.current_timeslice = -1
         self.version_found = False
 
-    def parse(self, s: str) -> PatternData:
-        r"""Parse the input string and return PatternData.
+    def parse(self, s: str) -> Pattern:
+        r"""Parse the input string and return Pattern.
 
         Parameters
         ----------
@@ -382,8 +632,8 @@ class _Parser:
 
         Returns
         -------
-        `PatternData`
-            Container with pattern components.
+        `Pattern`
+            Loaded measurement pattern.
 
         Raises
         ------
@@ -397,23 +647,39 @@ class _Parser:
             msg = "Missing .version directive"
             raise ValueError(msg)
 
-        return self.result
+        return _build_pattern(self.result)
 
     def _parse_line(self, line_num: int, raw_line: str) -> None:
-        """Parse a single line."""
+        """Parse a single line.
+
+        Raises
+        ------
+        ValueError
+            If the line is malformed.
+        """
         line = raw_line.split("#", 1)[0].strip()
         if not line:
             return
 
-        if line.startswith("."):
-            self._parse_directive(line)
-        elif line.startswith("[") and line.endswith("]"):
-            self._parse_timeslice(line)
-        else:
-            self._parse_command(line_num, line)
+        try:
+            if line.startswith("."):
+                self._parse_directive(line)
+            elif line.startswith("[") and line.endswith("]"):
+                self._parse_timeslice(line)
+            else:
+                self._parse_command(line)
+        except ValueError as exc:
+            msg = f"Line {line_num}: {exc}"
+            raise ValueError(msg) from exc
 
     def _parse_directive(self, line: str) -> None:
-        """Parse a directive line (starts with '.')."""
+        """Parse a directive line (starts with '.').
+
+        Raises
+        ------
+        ValueError
+            If the directive is invalid.
+        """
         parts = line.split(maxsplit=1)
         directive = parts[0]
         content = parts[1] if len(parts) > 1 else ""
@@ -427,14 +693,19 @@ class _Parser:
         elif directive == ".coord":
             self._handle_coord(content)
         elif directive == ".xflow":
-            source, targets = _parse_flow(content)
+            source, targets = _parse_arrow_mapping(content, ".xflow")
             self.result.xflow[source] = targets
         elif directive == ".zflow":
-            source, targets = _parse_flow(content)
+            source, targets = _parse_arrow_mapping(content, ".zflow")
             self.result.zflow[source] = targets
         elif directive == ".detector":
-            nodes = {int(n) for n in content.split()}
-            self.result.parity_check_groups.append(nodes)
+            self.result.parity_check_groups.append(_parse_node_set(content.split(), ".detector"))
+        elif directive == ".observable":
+            logical_idx, nodes = _parse_arrow_mapping(content, ".observable")
+            self.result.logical_observables[logical_idx] = nodes
+        else:
+            msg = f"Unknown directive: {directive}"
+            raise ValueError(msg)
 
     def _handle_version(self, content: str) -> None:
         r"""Handle .version directive.
@@ -444,22 +715,43 @@ class _Parser:
         ValueError
             If the version is unsupported.
         """
-        version = int(content)
+        version = _parse_int(content, "version")
         if version != PTN_VERSION:
             msg = f"Unsupported .ptn version: {version} (expected {PTN_VERSION})"
             raise ValueError(msg)
         self.version_found = True
 
     def _handle_coord(self, content: str) -> None:
-        """Handle .coord directive."""
+        """Handle .coord directive.
+
+        Raises
+        ------
+        ValueError
+            If the coordinate directive is malformed.
+        """
         coord_parts = content.split()
-        node = int(coord_parts[0])
+        if len(coord_parts) not in {3, 4}:
+            msg = ".coord requires a node and 2D or 3D coordinates"
+            raise ValueError(msg)
+        node = _parse_int(coord_parts[0], "node")
         coord = _parse_coord(coord_parts[1:])
         self.result.input_coordinates[node] = coord
 
     def _parse_timeslice(self, line: str) -> None:
-        """Parse timeslice marker [n]."""
-        slice_num = int(line[1:-1])
+        """Parse timeslice marker [n].
+
+        Raises
+        ------
+        ValueError
+            If the timeslice marker is malformed.
+        """
+        slice_num = _parse_int(line[1:-1], "timeslice")
+        if slice_num < 0:
+            msg = "Timeslice must be non-negative"
+            raise ValueError(msg)
+        if slice_num < self.current_timeslice:
+            msg = "Timeslices must be monotonically increasing"
+            raise ValueError(msg)
         while self.current_timeslice < slice_num - 1:
             self.result.commands.append(TICK())
             self.current_timeslice += 1
@@ -468,7 +760,7 @@ class _Parser:
                 self.result.commands.append(TICK())
             self.current_timeslice = slice_num
 
-    def _parse_command(self, line_num: int, line: str) -> None:
+    def _parse_command(self, line: str) -> None:
         r"""Parse a command line.
 
         Raises
@@ -486,46 +778,86 @@ class _Parser:
         elif cmd_type == "M":
             self._parse_m_command(parts)
         elif cmd_type == "X":
-            self.result.commands.append(X(node=int(parts[1])))
+            if len(parts) != 2:  # noqa: PLR2004
+                msg = "X command requires exactly one node"
+                raise ValueError(msg)
+            self.result.commands.append(X(node=_parse_int(parts[1], "node")))
         elif cmd_type == "Z":
-            self.result.commands.append(Z(node=int(parts[1])))
+            if len(parts) != 2:  # noqa: PLR2004
+                msg = "Z command requires exactly one node"
+                raise ValueError(msg)
+            self.result.commands.append(Z(node=_parse_int(parts[1], "node")))
         else:
-            msg = f"Unknown command at line {line_num}: {cmd_type}"
+            msg = f"Unknown command: {cmd_type}"
             raise ValueError(msg)
 
-    def _parse_n_command(self, parts: list[str]) -> None:
-        """Parse N (node) command."""
-        node = int(parts[1])
+    def _parse_n_command(self, parts: Sequence[str]) -> None:
+        """Parse N (node) command.
+
+        Raises
+        ------
+        ValueError
+            If the command is malformed.
+        """
+        if len(parts) not in {2, 4, 5}:
+            msg = "N command requires a node and optional 2D or 3D coordinates"
+            raise ValueError(msg)
+        node = _parse_int(parts[1], "node")
         coord: tuple[float, ...] | None = _parse_coord(parts[2:]) if len(parts) > 2 else None  # noqa: PLR2004
         self.result.commands.append(N(node=node, coordinate=coord))
 
-    def _parse_e_command(self, parts: list[str]) -> None:
-        """Parse E (entangle) command."""
-        node1 = int(parts[1])
-        node2 = int(parts[2])
+    def _parse_e_command(self, parts: Sequence[str]) -> None:
+        """Parse E (entangle) command.
+
+        Raises
+        ------
+        ValueError
+            If the command is malformed.
+        """
+        if len(parts) != 3:  # noqa: PLR2004
+            msg = "E command requires exactly two nodes"
+            raise ValueError(msg)
+        node1 = _parse_int(parts[1], "node")
+        node2 = _parse_int(parts[2], "node")
         self.result.commands.append(E(nodes=(node1, node2)))
 
-    def _parse_m_command(self, parts: list[str]) -> None:
-        """Parse M (measure) command."""
-        node = int(parts[1])
+    def _parse_m_command(self, parts: Sequence[str]) -> None:
+        """Parse M (measure) command.
+
+        Raises
+        ------
+        ValueError
+            If the command is malformed.
+        """
+        if len(parts) != 4:  # noqa: PLR2004
+            msg = "M command requires a node, basis, and angle/sign"
+            raise ValueError(msg)
+        node = _parse_int(parts[1], "node")
         basis_spec = parts[2]
         meas_basis: MeasBasis
 
         if basis_spec in {"X", "Y", "Z"}:
             sign_str = parts[3]
+            if sign_str not in {"+", "-"}:
+                msg = f"Invalid Pauli measurement sign: {sign_str!r}"
+                raise ValueError(msg)
             sign = Sign.PLUS if sign_str == "+" else Sign.MINUS
             axis = Axis[basis_spec]
             meas_basis = AxisMeasBasis(axis, sign)
         else:
-            plane = Plane[basis_spec]
+            try:
+                plane = Plane[basis_spec]
+            except KeyError as exc:
+                msg = f"Invalid measurement basis: {basis_spec!r}"
+                raise ValueError(msg) from exc
             angle = _parse_angle(parts[3])
             meas_basis = PlannerMeasBasis(plane, angle)
 
         self.result.commands.append(M(node=node, meas_basis=meas_basis))
 
 
-def loads(s: str) -> PatternData:
-    """Deserialize a .ptn format string to pattern components.
+def loads(s: str) -> Pattern:
+    """Deserialize a .ptn format string to a pattern.
 
     Parameters
     ----------
@@ -534,8 +866,8 @@ def loads(s: str) -> PatternData:
 
     Returns
     -------
-    `PatternData`
-        Container with pattern components.
+    `Pattern`
+        The loaded pattern.
 
     See Also
     --------
@@ -544,8 +876,8 @@ def loads(s: str) -> PatternData:
     return _Parser().parse(s)
 
 
-def load(file: Path | str) -> PatternData:
-    """Read pattern components from a .ptn file.
+def load(file: Path | str) -> Pattern:
+    """Read a pattern from a .ptn file.
 
     Parameters
     ----------
@@ -554,8 +886,8 @@ def load(file: Path | str) -> PatternData:
 
     Returns
     -------
-    `PatternData`
-        Container with pattern components.
+    `Pattern`
+        The loaded pattern.
         See `loads` for details.
     """
     path = Path(file)
