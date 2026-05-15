@@ -178,12 +178,14 @@ def test_dumps_preserves_xz_plane_x_pauli_sign() -> None:
     assert f"M {plus_node} X +" in ptn_str
     assert f"M {minus_node} X -" in ptn_str
     measurements = {cmd.node: cmd for cmd in result.commands if isinstance(cmd, M)}
-    assert isinstance(measurements[plus_node].meas_basis, AxisMeasBasis)
-    assert measurements[plus_node].meas_basis.axis == Axis.X
-    assert measurements[plus_node].meas_basis.sign == Sign.PLUS
-    assert isinstance(measurements[minus_node].meas_basis, AxisMeasBasis)
-    assert measurements[minus_node].meas_basis.axis == Axis.X
-    assert measurements[minus_node].meas_basis.sign == Sign.MINUS
+    plus_basis = measurements[plus_node].meas_basis
+    minus_basis = measurements[minus_node].meas_basis
+    assert isinstance(plus_basis, AxisMeasBasis)
+    assert plus_basis.axis == Axis.X
+    assert plus_basis.sign == Sign.PLUS
+    assert isinstance(minus_basis, AxisMeasBasis)
+    assert minus_basis.axis == Axis.X
+    assert minus_basis.sign == Sign.MINUS
 
 
 def test_dumps_preserves_consecutive_trailing_ticks() -> None:
