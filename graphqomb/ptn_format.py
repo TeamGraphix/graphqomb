@@ -204,15 +204,30 @@ def _write_command(out: StringIO, cmd: Command) -> None:
         out.write(f"Z {cmd.node}\n")
 
 
+def _is_positive_pauli_measurement(meas_basis: MeasBasis, pauli_axis: Axis) -> bool:
+    """Return whether a Pauli measurement is on the positive eigenbasis.
+
+    Returns
+    -------
+    bool
+        True if the measurement basis is the positive Pauli eigenbasis.
+    """
+    angle = meas_basis.angle
+    plane = meas_basis.plane
+    if pauli_axis == Axis.X:
+        positive_angle = math.pi / 2 if plane == Plane.XZ else 0.0
+    elif pauli_axis == Axis.Y:
+        positive_angle = math.pi / 2
+    else:
+        positive_angle = 0.0
+    return is_close_angle(angle, positive_angle)
+
+
 def _write_measurement(out: StringIO, cmd: M) -> None:
     """Write measurement command with appropriate format."""
     pauli_axis = determine_pauli_axis(cmd.meas_basis)
     if pauli_axis is not None:
-        angle = cmd.meas_basis.angle
-        if pauli_axis == Axis.Y:
-            sign = "+" if is_close_angle(angle, math.pi / 2) else "-"
-        else:
-            sign = "+" if is_close_angle(angle, 0.0) else "-"
+        sign = "+" if _is_positive_pauli_measurement(cmd.meas_basis, pauli_axis) else "-"
         out.write(f"M {cmd.node} {pauli_axis.name} {sign}\n")
     else:
         plane_name = cmd.meas_basis.plane.name
@@ -229,10 +244,9 @@ def _write_quantum_section(out: StringIO, pattern: Pattern) -> None:
     current_slice_commands: list[Command] = []
 
     def write_slice(slice_num: int, commands: list[Command]) -> None:
-        if commands or slice_num == 0:
-            out.write(f"[{slice_num}]\n")
-            for cmd in commands:
-                _write_command(out, cmd)
+        out.write(f"[{slice_num}]\n")
+        for cmd in commands:
+            _write_command(out, cmd)
 
     for cmd in pattern.commands:
         if isinstance(cmd, TICK):
@@ -242,7 +256,7 @@ def _write_quantum_section(out: StringIO, pattern: Pattern) -> None:
         else:
             current_slice_commands.append(cmd)
 
-    if current_slice_commands or timeslice == 0:
+    if current_slice_commands or timeslice == 0 or (pattern.commands and isinstance(pattern.commands[-1], TICK)):
         write_slice(timeslice, current_slice_commands)
 
 

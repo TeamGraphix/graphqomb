@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from graphqomb.command import TICK, E, M, N, X, Z
-from graphqomb.common import Plane, PlannerMeasBasis, determine_pauli_axis
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign, determine_pauli_axis
 from graphqomb.graphstate import GraphState
+from graphqomb.pattern import Pattern
+from graphqomb.pauli_frame import PauliFrame
 from graphqomb.ptn_format import (
     dump,
     dumps,
@@ -23,7 +25,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from graphqomb.command import Command
-    from graphqomb.pattern import Pattern
 
 
 def create_simple_pattern() -> Pattern:
@@ -154,6 +155,57 @@ def test_dumps_pauli_measurements() -> None:
     assert "M 0 X +" in ptn_str
     # Y measurement (XY plane, angle pi/2) should be formatted as "Y +"
     assert "M 1 Y +" in ptn_str
+
+
+def test_dumps_preserves_xz_plane_x_pauli_sign() -> None:
+    """Plane.XZ X measurements should serialize with the correct Pauli sign."""
+    graph = GraphState()
+    plus_node = graph.add_physical_node()
+    minus_node = graph.add_physical_node()
+    pattern = Pattern(
+        input_node_indices={},
+        output_node_indices={},
+        commands=(
+            M(plus_node, PlannerMeasBasis(Plane.XZ, math.pi / 2)),
+            M(minus_node, PlannerMeasBasis(Plane.XZ, 3 * math.pi / 2)),
+        ),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+    )
+
+    ptn_str = dumps(pattern)
+    result = loads(ptn_str)
+
+    assert f"M {plus_node} X +" in ptn_str
+    assert f"M {minus_node} X -" in ptn_str
+    measurements = {cmd.node: cmd for cmd in result.commands if isinstance(cmd, M)}
+    assert isinstance(measurements[plus_node].meas_basis, AxisMeasBasis)
+    assert measurements[plus_node].meas_basis.axis == Axis.X
+    assert measurements[plus_node].meas_basis.sign == Sign.PLUS
+    assert isinstance(measurements[minus_node].meas_basis, AxisMeasBasis)
+    assert measurements[minus_node].meas_basis.axis == Axis.X
+    assert measurements[minus_node].meas_basis.sign == Sign.MINUS
+
+
+def test_dumps_preserves_consecutive_trailing_ticks() -> None:
+    """Empty final timeslices should preserve consecutive trailing TICK commands."""
+    graph = GraphState()
+    node = graph.add_physical_node()
+    pattern = Pattern(
+        input_node_indices={},
+        output_node_indices={},
+        commands=(N(node), TICK(), TICK()),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+    )
+
+    ptn_str = dumps(pattern)
+    result = loads(ptn_str)
+
+    assert f"[0]\nN {node}\n[1]\n[2]\n" in ptn_str
+    assert [command_signature(cmd) for cmd in result.commands] == [
+        ("N", node, None),
+        ("TICK",),
+        ("TICK",),
+    ]
 
 
 def test_loads_basic() -> None:
