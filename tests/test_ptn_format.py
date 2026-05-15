@@ -283,6 +283,23 @@ M 1 XY 0
     assert tick_count == 2
 
 
+def test_loads_initial_empty_timeslices() -> None:
+    """Test that an initial non-zero timeslice marker creates the matching TICKs."""
+    ptn_str = """
+.version 1
+
+[2]
+M 0 XY 0
+"""
+    result = loads(ptn_str)
+
+    assert [command_signature(cmd) for cmd in result.commands] == [
+        ("TICK",),
+        ("TICK",),
+        ("M", 0, Axis.X, 0),
+    ]
+
+
 def test_loads_angle_parsing() -> None:
     """Test various angle format parsing."""
     ptn_str = """

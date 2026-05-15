@@ -766,13 +766,9 @@ class _Parser:
         if slice_num < self.current_timeslice:
             msg = "Timeslices must be monotonically increasing"
             raise ValueError(msg)
-        while self.current_timeslice < slice_num - 1:
-            self.result.commands.append(TICK())
-            self.current_timeslice += 1
-        if self.current_timeslice < slice_num:
-            if self.current_timeslice >= 0:
-                self.result.commands.append(TICK())
-            self.current_timeslice = slice_num
+        ticks_to_insert = slice_num if self.current_timeslice < 0 else slice_num - self.current_timeslice
+        self.result.commands.extend(TICK() for _ in range(ticks_to_insert))
+        self.current_timeslice = slice_num
 
     def _parse_command(self, line: str) -> None:
         r"""Parse a command line.
