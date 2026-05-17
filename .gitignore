@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 # Custom stuff
+examples/generated/
 docs/source/gallery
 docs/source/sg_execution_times.rst
 *.png

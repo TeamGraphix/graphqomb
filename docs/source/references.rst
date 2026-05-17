@@ -17,6 +17,7 @@ Module reference
     focus_flow
     command
     pattern
+    ptn_format
     pauli_frame
     qompiler
     scheduler

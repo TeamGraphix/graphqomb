@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 import operator
 import re
+from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
 from types import MappingProxyType
@@ -27,6 +28,7 @@ from graphqomb.common import (
     PlannerMeasBasis,
     Sign,
     determine_pauli_axis,
+    is_clifford_angle,
     is_close_angle,
 )
 from graphqomb.graphstate import BaseGraphState
@@ -34,8 +36,7 @@ from graphqomb.pattern import Pattern
 from graphqomb.pauli_frame import PauliFrame
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from collections.abc import Set as AbstractSet
+    from collections.abc import Sequence
 
 PTN_VERSION = 1
 
@@ -80,12 +81,14 @@ def _format_angle(angle: float) -> str:
     `str`
         Formatted angle string.
     """
-    for ref_angle, label in _ANGLE_TO_STR.items():
-        tol = 1e-10 if label == "0" else None
-        if tol is not None:
-            if math.isclose(angle, ref_angle, abs_tol=tol):
-                return label
-        elif math.isclose(angle, ref_angle, rel_tol=1e-10):
+    candidates = (
+        ((ref_angle, label) for ref_angle, label in _ANGLE_TO_STR.items() if is_clifford_angle(ref_angle))
+        if is_clifford_angle(angle)
+        else _ANGLE_TO_STR.items()
+    )
+    ordered_candidates = sorted(candidates, key=lambda item: item[0] < 0 if angle >= 0 else item[0] >= 0)
+    for ref_angle, label in ordered_candidates:
+        if is_close_angle(angle, ref_angle):
             return label
     return f"{angle}"
 
@@ -313,7 +316,7 @@ def dump(pattern: Pattern, file: Path | str) -> None:
     ----------
     pattern : `Pattern`
         The pattern to write.
-    file : `Path` | `str`
+    file : `pathlib.Path` | `str`
         The file path to write to.
     """
     path = Path(file)
@@ -433,6 +436,62 @@ def _parse_arrow_mapping(line: str, label: str) -> tuple[int, set[int]]:
     return source, targets
 
 
+def _empty_node_index_map() -> dict[int, int]:
+    r"""Return an empty node-to-qubit-index map.
+
+    Returns
+    -------
+    `dict`\[`int`, `int`\]
+        Empty node-to-qubit-index map.
+    """
+    return {}
+
+
+def _empty_coordinates() -> dict[int, tuple[float, ...]]:
+    r"""Return an empty coordinate map.
+
+    Returns
+    -------
+    `dict`\[`int`, `tuple`\[`float`, ...\]\]
+        Empty coordinate map.
+    """
+    return {}
+
+
+def _empty_commands() -> list[Command]:
+    r"""Return an empty command list.
+
+    Returns
+    -------
+    `list`\[`Command`\]
+        Empty command list.
+    """
+    return []
+
+
+def _empty_node_set_map() -> dict[int, set[int]]:
+    r"""Return an empty node-to-node-set map.
+
+    Returns
+    -------
+    `dict`\[`int`, `set`\[`int`\]\]
+        Empty node-to-node-set map.
+    """
+    return {}
+
+
+def _empty_node_groups() -> list[set[int]]:
+    r"""Return an empty node group list.
+
+    Returns
+    -------
+    `list`\[`set`\[`int`\]\]
+        Empty node group list.
+    """
+    return []
+
+
+@dataclass(slots=True)
 class _PatternData:
     """Container for parsed pattern data from .ptn format.
 
@@ -454,36 +513,37 @@ class _PatternData:
         Parity check groups for error detection.
     """
 
-    def __init__(self) -> None:
-        self.input_node_indices: dict[int, int] = {}
-        self.output_node_indices: dict[int, int] = {}
-        self.input_coordinates: dict[int, tuple[float, ...]] = {}
-        self.commands: list[Command] = []
-        self.xflow: dict[int, set[int]] = {}
-        self.zflow: dict[int, set[int]] = {}
-        self.parity_check_groups: list[set[int]] = []
-        self.logical_observables: dict[int, set[int]] = {}
+    input_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
+    output_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
+    input_coordinates: dict[int, tuple[float, ...]] = field(default_factory=_empty_coordinates)
+    commands: list[Command] = field(default_factory=_empty_commands)
+    xflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
+    zflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
+    parity_check_groups: list[set[int]] = field(default_factory=_empty_node_groups)
+    logical_observables: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
 
 
+@dataclass(slots=True)
 class _LoadedGraphState(BaseGraphState):
     """Read-only graph state reconstructed from a .ptn file."""
 
-    def __init__(  # noqa: PLR0913
-        self,
-        *,
-        input_node_indices: Mapping[int, int],
-        output_node_indices: Mapping[int, int],
-        physical_nodes: AbstractSet[int],
-        physical_edges: AbstractSet[tuple[int, int]],
-        meas_bases: Mapping[int, MeasBasis],
-        coordinates: Mapping[int, tuple[float, ...]],
-    ) -> None:
-        self._input_node_indices = dict(input_node_indices)
-        self._output_node_indices = dict(output_node_indices)
-        self._physical_nodes = set(physical_nodes)
-        self._physical_edges = {(node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in physical_edges}
-        self._meas_bases = dict(meas_bases)
-        self._coordinates = dict(coordinates)
+    _input_node_indices: dict[int, int]
+    _output_node_indices: dict[int, int]
+    _physical_nodes: set[int]
+    _physical_edges: set[tuple[int, int]]
+    _meas_bases: dict[int, MeasBasis]
+    _coordinates: dict[int, tuple[float, ...]]
+    _neighbors: dict[int, set[int]] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._input_node_indices = dict(self._input_node_indices)
+        self._output_node_indices = dict(self._output_node_indices)
+        self._physical_nodes = set(self._physical_nodes)
+        self._physical_edges = {
+            (node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._physical_edges
+        }
+        self._meas_bases = dict(self._meas_bases)
+        self._coordinates = dict(self._coordinates)
         self._neighbors: dict[int, set[int]] = {node: set() for node in self._physical_nodes}
         for node1, node2 in self._physical_edges:
             self._neighbors.setdefault(node1, set()).add(node2)
@@ -605,12 +665,12 @@ def _build_pattern(data: _PatternData) -> Pattern:
         nodes.update(nodes_in_observable)
 
     graphstate = _LoadedGraphState(
-        input_node_indices=data.input_node_indices,
-        output_node_indices=data.output_node_indices,
-        physical_nodes=nodes,
-        physical_edges=edges,
-        meas_bases=meas_bases,
-        coordinates=coordinates,
+        _input_node_indices=data.input_node_indices,
+        _output_node_indices=data.output_node_indices,
+        _physical_nodes=nodes,
+        _physical_edges=edges,
+        _meas_bases=meas_bases,
+        _coordinates=coordinates,
     )
     pauli_frame = PauliFrame(
         graphstate,
@@ -891,7 +951,7 @@ def load(file: Path | str) -> Pattern:
 
     Parameters
     ----------
-    file : `Path` | `str`
+    file : `pathlib.Path` | `str`
         The file path to read from.
 
     Returns

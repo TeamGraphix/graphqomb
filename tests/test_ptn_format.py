@@ -157,6 +157,20 @@ def test_dumps_pauli_measurements() -> None:
     assert "M 1 Y +" in ptn_str
 
 
+def test_dumps_formats_near_known_angle() -> None:
+    """Angles near known constants should serialize canonically."""
+    graph = GraphState()
+    node = graph.add_physical_node()
+    pattern = Pattern(
+        input_node_indices={},
+        output_node_indices={},
+        commands=(M(node, PlannerMeasBasis(Plane.XY, math.pi / 4 + 1e-10)),),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+    )
+
+    assert f"M {node} XY pi/4" in dumps(pattern)
+
+
 def test_dumps_preserves_xz_plane_x_pauli_sign() -> None:
     """Plane.XZ X measurements should serialize with the correct Pauli sign."""
     graph = GraphState()
@@ -645,7 +659,8 @@ Z 30
 
     assert result.input_node_indices == {10: 0}
     assert result.output_node_indices == {30: 0}
-    assert {10, 20, 30} <= result.pauli_frame.graphstate.physical_nodes
+    assert result.pauli_frame.graphstate.physical_nodes == {10, 20, 30}
+    assert result.pauli_frame.graphstate.physical_edges == {(10, 20), (20, 30)}
     assert any(isinstance(cmd, N) and cmd.node == 20 for cmd in result.commands)
     assert any(isinstance(cmd, X) and cmd.node == 30 for cmd in result.commands)
 
