@@ -539,9 +539,7 @@ class _LoadedGraphState(BaseGraphState):
         self._input_node_indices = dict(self._input_node_indices)
         self._output_node_indices = dict(self._output_node_indices)
         self._nodes = set(self._nodes)
-        self._edges = {
-            (node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._edges
-        }
+        self._edges = {(node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._edges}
         self._meas_bases = dict(self._meas_bases)
         self._coordinates = dict(self._coordinates)
         self._neighbors: dict[int, set[int]] = {node: set() for node in self._nodes}

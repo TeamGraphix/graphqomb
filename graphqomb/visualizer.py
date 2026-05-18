@@ -306,9 +306,7 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
     # For internal nodes, use networkx layout to minimize crossings
     if internal_nodes:
         # Create subgraph of internal nodes and their connections
-        internal_edges = [
-            edge for edge in graph.edges if edge[0] in internal_nodes and edge[1] in internal_nodes
-        ]
+        internal_edges = [edge for edge in graph.edges if edge[0] in internal_nodes and edge[1] in internal_nodes]
 
         if internal_edges:
             # Use spring layout for internal nodes

@@ -399,9 +399,7 @@ def test_circuit2graph_measurement_basis_assignment() -> None:
 
     # Find non-output nodes with measurement basis (J gates are applied to input nodes)
     measured_nodes = [
-        (n, basis)
-        for n in graph.nodes
-        if n not in graph.output_node_indices and (basis := graph.meas_bases.get(n))
+        (n, basis) for n in graph.nodes if n not in graph.output_node_indices and (basis := graph.meas_bases.get(n))
     ]
 
     assert len(measured_nodes) == 2

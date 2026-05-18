@@ -232,12 +232,10 @@ class Scheduler:
         takes precedence, even when the value is ``None``.
         """
         self.prepare_time = {
-            node: prepare_time.get(node, None)
-            for node in self.graph.nodes - self.graph.input_node_indices.keys()
+            node: prepare_time.get(node, None) for node in self.graph.nodes - self.graph.input_node_indices.keys()
         }
         self.measure_time = {
-            node: measure_time.get(node, None)
-            for node in self.graph.nodes - self.graph.output_node_indices.keys()
+            node: measure_time.get(node, None) for node in self.graph.nodes - self.graph.output_node_indices.keys()
         }
         if entangle_time is not None:
             resolved_entangle_time: dict[tuple[int, int], int | None] = {}
@@ -555,12 +553,10 @@ class Scheduler:
 
         prepare_time, measure_time = result
         prep_time = {
-            node: prepare_time.get(node, None)
-            for node in self.graph.nodes - self.graph.input_node_indices.keys()
+            node: prepare_time.get(node, None) for node in self.graph.nodes - self.graph.input_node_indices.keys()
         }
         meas_time = {
-            node: measure_time.get(node, None)
-            for node in self.graph.nodes - self.graph.output_node_indices.keys()
+            node: measure_time.get(node, None) for node in self.graph.nodes - self.graph.output_node_indices.keys()
         }
 
         self.prepare_time = prep_time
