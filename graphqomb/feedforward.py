@@ -86,7 +86,7 @@ def dag_from_flow(
     """  # noqa: E501
     dag: dict[int, set[int]] = {}
     output_nodes = set(graph.output_node_indices)
-    non_output_nodes = graph.physical_nodes - output_nodes
+    non_output_nodes = graph.nodes - output_nodes
     if _is_flow(xflow):
         xflow = {node: {xflow[node]} for node in xflow}
     elif _is_gflow(xflow):
@@ -367,7 +367,7 @@ def pauli_simplification(  # noqa: C901, PLR0912
         for v in vs:
             inv_zflow.setdefault(v, set()).add(k)
 
-    for node in graph.physical_nodes - graph.output_node_indices.keys():
+    for node in graph.nodes - graph.output_node_indices.keys():
         meas_basis = graph.meas_bases.get(node)
         if meas_basis is None:
             continue

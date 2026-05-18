@@ -39,10 +39,10 @@ node1 = node_map["middle1"]
 node2 = node_map["middle2"]
 node3 = node_map["output"]
 
-print(f"   Nodes: {list(graph.physical_nodes)}")
+print(f"   Nodes: {list(graph.nodes)}")
 print(f"   Input: {list(graph.input_node_indices.keys())}")
 print(f"   Output: {list(graph.output_node_indices.keys())}")
-print(f"   Edges: {list(graph.physical_edges)}")
+print(f"   Edges: {list(graph.edges)}")
 
 # Define flow
 flow = {node0: {node1}, node1: {node2}, node2: {node3}}

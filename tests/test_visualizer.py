@@ -24,12 +24,12 @@ def graph_with_coordinates() -> GraphState:
         A graph with nodes at coordinates (0,0), (1,0), (2,0).
     """
     graph = GraphState()
-    node1 = graph.add_physical_node(coordinate=(0.0, 0.0))
-    node2 = graph.add_physical_node(coordinate=(1.0, 0.0))
-    node3 = graph.add_physical_node(coordinate=(2.0, 0.0))
+    node1 = graph.add_node(coordinate=(0.0, 0.0))
+    node2 = graph.add_node(coordinate=(1.0, 0.0))
+    node3 = graph.add_node(coordinate=(2.0, 0.0))
 
-    graph.add_physical_edge(node1, node2)
-    graph.add_physical_edge(node2, node3)
+    graph.add_edge(node1, node2)
+    graph.add_edge(node2, node3)
 
     graph.register_input(node1, 0)
     graph.register_output(node3, 0)
@@ -58,12 +58,12 @@ def test_visualize_with_partial_coordinates() -> None:
     """Test that visualize handles graphs with partial coordinates."""
     graph = GraphState()
     # Only some nodes have coordinates
-    node1 = graph.add_physical_node(coordinate=(0.0, 0.0))
-    node2 = graph.add_physical_node()  # No coordinate
-    node3 = graph.add_physical_node(coordinate=(2.0, 0.0))
+    node1 = graph.add_node(coordinate=(0.0, 0.0))
+    node2 = graph.add_node()  # No coordinate
+    node3 = graph.add_node(coordinate=(2.0, 0.0))
 
-    graph.add_physical_edge(node1, node2)
-    graph.add_physical_edge(node2, node3)
+    graph.add_edge(node1, node2)
+    graph.add_edge(node2, node3)
 
     graph.register_input(node1, 0)
     graph.register_output(node3, 0)
@@ -79,10 +79,10 @@ def test_visualize_with_partial_coordinates() -> None:
 def test_visualize_with_3d_coordinates() -> None:
     """Test that visualize projects 3D coordinates to 2D."""
     graph = GraphState()
-    node1 = graph.add_physical_node(coordinate=(0.0, 0.0, 0.0))
-    node2 = graph.add_physical_node(coordinate=(1.0, 1.0, 1.0))
+    node1 = graph.add_node(coordinate=(0.0, 0.0, 0.0))
+    node2 = graph.add_node(coordinate=(1.0, 1.0, 1.0))
 
-    graph.add_physical_edge(node1, node2)
+    graph.add_edge(node1, node2)
 
     graph.register_input(node1, 0)
     graph.register_output(node2, 0)
@@ -97,10 +97,10 @@ def test_visualize_with_3d_coordinates() -> None:
 def test_visualize_with_1d_coordinates() -> None:
     """Test that visualize handles 1D coordinates by using y=0."""
     graph = GraphState()
-    node1 = graph.add_physical_node(coordinate=(0.0,))
-    node2 = graph.add_physical_node(coordinate=(1.0,))
+    node1 = graph.add_node(coordinate=(0.0,))
+    node2 = graph.add_node(coordinate=(1.0,))
 
-    graph.add_physical_edge(node1, node2)
+    graph.add_edge(node1, node2)
 
     graph.register_input(node1, 0)
     graph.register_output(node2, 0)
@@ -115,10 +115,10 @@ def test_visualize_with_1d_coordinates() -> None:
 def test_visualize_empty_coordinates() -> None:
     """Test that visualize works with empty graph coordinates."""
     graph = GraphState()
-    node1 = graph.add_physical_node()  # No coordinate
-    node2 = graph.add_physical_node()  # No coordinate
+    node1 = graph.add_node()  # No coordinate
+    node2 = graph.add_node()  # No coordinate
 
-    graph.add_physical_edge(node1, node2)
+    graph.add_edge(node1, node2)
 
     graph.register_input(node1, 0)
     graph.register_output(node2, 0)

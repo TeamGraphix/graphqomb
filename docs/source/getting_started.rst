@@ -53,8 +53,8 @@ Use :func:`graphqomb.circuit.circuit2graph` to derive the graph-state IR, feedfo
 
    graphstate, xflow, scheduler = circuit2graph(circuit)
 
-   print("graph nodes:", len(graphstate.physical_nodes))
-   print("graph edges:", len(graphstate.physical_edges))
+   print("graph nodes:", len(graphstate.nodes))
+   print("graph edges:", len(graphstate.edges))
    print("feedforward entries:", len(xflow))
    print("scheduled slices:", scheduler.num_slices())
 

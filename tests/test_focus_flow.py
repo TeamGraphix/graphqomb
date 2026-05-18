@@ -21,9 +21,9 @@ def test_update_gflow_selects_minimal_node() -> None:
 
 def test_is_focused_true_for_focused_flow(graphstate: GraphState) -> None:
     """If a child is the same as its parent, the flow is focused."""
-    node1 = graphstate.add_physical_node()
-    node2 = graphstate.add_physical_node()
-    graphstate.add_physical_edge(node1, node2)
+    node1 = graphstate.add_node()
+    node2 = graphstate.add_node()
+    graphstate.add_edge(node1, node2)
     q_index = 0
     graphstate.register_input(node1, q_index)
     graphstate.register_output(node2, q_index)
@@ -34,11 +34,11 @@ def test_is_focused_true_for_focused_flow(graphstate: GraphState) -> None:
 
 def test_is_focused_false_for_unfocused_flow(graphstate: GraphState) -> None:
     """If a child differs from its parent, the flow is not focused."""
-    node1 = graphstate.add_physical_node()
-    node2 = graphstate.add_physical_node()
-    node3 = graphstate.add_physical_node()
-    graphstate.add_physical_edge(node1, node2)
-    graphstate.add_physical_edge(node2, node3)
+    node1 = graphstate.add_node()
+    node2 = graphstate.add_node()
+    node3 = graphstate.add_node()
+    graphstate.add_edge(node1, node2)
+    graphstate.add_edge(node2, node3)
     graphstate.assign_meas_basis(node1, default_meas_basis())
     graphstate.assign_meas_basis(node2, default_meas_basis())
     flow = {node1: node2, node2: node3}

@@ -63,12 +63,12 @@ def _add_constraints(
                 model.add(node2meas[node] < node2meas[child])
 
     # A non-input, non-output node must be prepared before it is measured.
-    for node in graph.physical_nodes:
+    for node in graph.nodes:
         if node in node2prep and node in node2meas:
             model.add(node2prep[node] < node2meas[node])
 
     # Edge constraints
-    for node in graph.physical_nodes - set(graph.output_node_indices):
+    for node in graph.nodes - set(graph.output_node_indices):
         for neighbor in graph.neighbors(node):
             if neighbor in graph.input_node_indices:
                 if node in graph.input_node_indices:
@@ -114,7 +114,7 @@ def _compute_alive_nodes_at_time(
         Boolean variables indicating whether each node is alive at time t.
     """
     alive_at_t: list[cp_model.IntVar] = []
-    for node in ctx.graph.physical_nodes:
+    for node in ctx.graph.nodes:
         a_pre = ctx.model.new_bool_var(f"alive_pre_{node}_{t}")
         if node in ctx.graph.input_node_indices:
             ctx.model.add(a_pre == 1)
@@ -147,7 +147,7 @@ def _set_minimize_space_objective(
     max_time: int,
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
-    max_space = ctx.model.new_int_var(0, len(ctx.graph.physical_nodes), "max_space")
+    max_space = ctx.model.new_int_var(0, len(ctx.graph.nodes), "max_space")
     for t in range(max_time):
         alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
         ctx.model.add(max_space >= sum(alive_at_t))
@@ -208,12 +208,12 @@ def solve_schedule(
     model = cp_model.CpModel()
 
     # Determine max_time from config or calculate default
-    max_time = config.max_time if config.max_time is not None else 2 * len(graph.physical_nodes)
+    max_time = config.max_time if config.max_time is not None else 2 * len(graph.nodes)
 
     # Create variables
     node2prep: dict[int, cp_model.IntVar] = {}
     node2meas: dict[int, cp_model.IntVar] = {}
-    for node in graph.physical_nodes:
+    for node in graph.nodes:
         if node not in graph.input_node_indices:
             node2prep[node] = model.new_int_var(0, max_time, f"prep_{node}")
         if node not in graph.output_node_indices:

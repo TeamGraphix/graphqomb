@@ -18,8 +18,8 @@ def test_from_graph_with_string_nodes() -> None:
     gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges)
 
     assert node_map == {"start": 0, "middle": 1, "end": 2}
-    assert gs.physical_nodes == {0, 1, 2}
-    assert gs.physical_edges == {(0, 1), (1, 2)}
+    assert gs.nodes == {0, 1, 2}
+    assert gs.edges == {(0, 1), (1, 2)}
 
 
 def test_from_graph_with_tuple_nodes() -> None:
@@ -35,8 +35,8 @@ def test_from_graph_with_tuple_nodes() -> None:
     gs, node_map = GraphState.from_graph(nodes=grid_nodes, edges=grid_edges)
 
     assert len(node_map) == 4
-    assert gs.physical_nodes == {0, 1, 2, 3}
-    assert len(gs.physical_edges) == 4
+    assert gs.nodes == {0, 1, 2, 3}
+    assert len(gs.edges) == 4
 
 
 def test_from_graph_with_int_nodes() -> None:
@@ -47,7 +47,7 @@ def test_from_graph_with_int_nodes() -> None:
     gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges)
 
     assert node_map == {10: 0, 20: 1, 30: 2}
-    assert gs.physical_nodes == {0, 1, 2}
+    assert gs.nodes == {0, 1, 2}
 
 
 def test_from_graph_with_inputs_outputs() -> None:
@@ -154,8 +154,8 @@ def test_from_graph_empty_nodes() -> None:
     gs, node_map = GraphState.from_graph(nodes=nodes, edges=edges)
 
     assert node_map == {}
-    assert gs.physical_nodes == set()
-    assert gs.physical_edges == set()
+    assert gs.nodes == set()
+    assert gs.edges == set()
 
 
 def test_from_graph_single_node() -> None:
@@ -163,18 +163,18 @@ def test_from_graph_single_node() -> None:
     gs, node_map = GraphState.from_graph(nodes=["a"], edges=[])
 
     assert node_map == {"a": 0}
-    assert gs.physical_nodes == {0}
+    assert gs.nodes == {0}
 
 
 def test_from_base_graph_state_simple() -> None:
     """Test from_base_graph_state() basic copying."""
     # Create source graph
     src = GraphState()
-    n0 = src.add_physical_node()
-    n1 = src.add_physical_node()
-    n2 = src.add_physical_node()
-    src.add_physical_edge(n0, n1)
-    src.add_physical_edge(n1, n2)
+    n0 = src.add_node()
+    n1 = src.add_node()
+    n2 = src.add_node()
+    src.add_edge(n0, n1)
+    src.add_edge(n1, n2)
     src.register_input(n0, 0)
     src.register_output(n2, 0)
     src.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, 0.0))
@@ -184,8 +184,8 @@ def test_from_base_graph_state_simple() -> None:
     dst, node_map = GraphState.from_base_graph_state(src)
 
     assert node_map == {0: 0, 1: 1, 2: 2}
-    assert dst.physical_nodes == {0, 1, 2}
-    assert dst.physical_edges == {(0, 1), (1, 2)}
+    assert dst.nodes == {0, 1, 2}
+    assert dst.edges == {(0, 1), (1, 2)}
     assert dst.input_node_indices == {0: 0}
     assert dst.output_node_indices == {2: 0}
     # Check measurement bases
@@ -201,8 +201,8 @@ def test_from_base_graph_state_preserves_indices() -> None:
     """Test from_base_graph_state() preserves qubit indices."""
     # Create source graph with custom qubit indices
     src = GraphState()
-    n0 = src.add_physical_node()
-    n1 = src.add_physical_node()
+    n0 = src.add_node()
+    n1 = src.add_node()
     src.register_input(n0, 5)
     src.register_output(n1, 10)
 
@@ -217,17 +217,17 @@ def test_from_base_graph_state_independence() -> None:
     """Test that modifications to copied graph don't affect original."""
     # Create source graph
     src = GraphState()
-    src.add_physical_node()
-    src.add_physical_node()
+    src.add_node()
+    src.add_node()
 
     # Copy the graph
     dst, _ = GraphState.from_base_graph_state(src)
 
     # Modify copied graph
-    dst.add_physical_node()
+    dst.add_node()
 
-    assert len(src.physical_nodes) == 2
-    assert len(dst.physical_nodes) == 3
+    assert len(src.nodes) == 2
+    assert len(dst.nodes) == 3
 
 
 def test_from_base_graph_state_empty() -> None:
@@ -236,8 +236,8 @@ def test_from_base_graph_state_empty() -> None:
     dst, node_map = GraphState.from_base_graph_state(src)
 
     assert node_map == {}
-    assert dst.physical_nodes == set()
-    assert dst.physical_edges == set()
+    assert dst.nodes == set()
+    assert dst.edges == set()
 
 
 def test_from_graph_with_complex_structure() -> None:
@@ -260,7 +260,7 @@ def test_from_graph_with_complex_structure() -> None:
     assert len(node_map) == 5
     assert gs.input_node_indices == {node_map["n1"]: 0}
     assert gs.output_node_indices == {node_map["n5"]: 0}
-    assert len(gs.physical_edges) == 5
+    assert len(gs.edges) == 5
 
 
 def test_from_graph_preserves_node_order() -> None:
@@ -278,13 +278,13 @@ def test_from_base_graph_state_with_complex_graph() -> None:
     """Test from_base_graph_state() with a complex graph."""
     # Create source graph with multiple components
     src = GraphState()
-    nodes = [src.add_physical_node() for _ in range(5)]
+    nodes = [src.add_node() for _ in range(5)]
 
     # Add edges to create a specific structure
-    src.add_physical_edge(nodes[0], nodes[1])
-    src.add_physical_edge(nodes[1], nodes[2])
-    src.add_physical_edge(nodes[2], nodes[3])
-    src.add_physical_edge(nodes[3], nodes[4])
+    src.add_edge(nodes[0], nodes[1])
+    src.add_edge(nodes[1], nodes[2])
+    src.add_edge(nodes[2], nodes[3])
+    src.add_edge(nodes[3], nodes[4])
 
     # Register some inputs and outputs
     src.register_input(nodes[0], 0)
@@ -300,7 +300,7 @@ def test_from_base_graph_state_with_complex_graph() -> None:
     dst, _node_map = GraphState.from_base_graph_state(src)
 
     # Verify all structure is preserved
-    assert dst.physical_nodes == set(range(5))
-    assert len(dst.physical_edges) == 4
+    assert dst.nodes == set(range(5))
+    assert len(dst.edges) == 4
     assert len(dst.input_node_indices) == 2
     assert len(dst.output_node_indices) == 2

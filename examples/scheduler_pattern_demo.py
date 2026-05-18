@@ -17,10 +17,10 @@ from graphqomb.scheduler import Scheduler
 print("=== Scheduler-based Pattern Generation Demo ===\n")
 print("1. Creating sample graph state...")
 graph, xflow = generate_random_flow_graph(width=3, depth=3, edge_p=0.7)
-print(f"   Graph has {len(graph.physical_nodes)} nodes")
+print(f"   Graph has {len(graph.nodes)} nodes")
 print(f"   Input nodes: {list(graph.input_node_indices.keys())}")
 print(f"   Output nodes: {list(graph.output_node_indices.keys())}")
-print(f"   Edges: {len(graph.physical_edges)}")
+print(f"   Edges: {len(graph.edges)}")
 
 # %%
 # Demonstrate space-optimized scheduling

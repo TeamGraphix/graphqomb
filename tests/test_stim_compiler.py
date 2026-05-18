@@ -39,16 +39,16 @@ def create_simple_pattern_x_measurement() -> tuple[Pattern, int, int]:
         Pattern and expected node for X measurement
     """
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # X measurement: XY plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -70,16 +70,16 @@ def create_simple_pattern_y_measurement() -> tuple[Pattern, int, int]:
         Pattern and expected node for Y measurement
     """
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # Y measurement: XY plane with angle π/2
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
@@ -101,16 +101,16 @@ def create_simple_pattern_z_measurement() -> tuple[Pattern, int, int]:
         Pattern and expected node for Z measurement
     """
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # Z measurement: XZ plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XZ, 0.0))
@@ -241,16 +241,16 @@ def test_stim_compile_removed_legacy_noise_parameters() -> None:
 def test_stim_compile_with_detectors() -> None:
     """Test DETECTOR generation with parity check groups."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -335,16 +335,16 @@ def _normalize_detector(line: str) -> str:
 def test_stim_compile_with_heralded_noise_updates_detectors() -> None:
     """Heralded noise should shift rec indices used by detectors."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -396,16 +396,16 @@ def test_stim_compile_rejects_measurement_flip_outside_measurement(noise_model: 
 def test_stim_compile_with_logical_observables() -> None:
     """Issue #167: logical observables should compile without parity_check_group."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # X measurement: XY plane with angle 0
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -426,16 +426,16 @@ def test_stim_compile_with_logical_observables() -> None:
 def test_stim_compile_uses_logical_observables_from_qompile() -> None:
     """Stored logical observables should be emitted when stim_compile omits them."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(meas_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -451,16 +451,16 @@ def test_stim_compile_uses_logical_observables_from_qompile() -> None:
 def test_stim_compile_unsupported_basis() -> None:
     """Test that unsupported measurement basis raises ValueError."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # Non-Pauli measurement: XY plane with arbitrary angle
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.1))
@@ -478,14 +478,14 @@ def test_stim_compile_unsupported_basis() -> None:
 def test_stim_compile_unsupported_output_corrections() -> None:
     """Test that X/Z correction commands in a pattern raise NotImplementedError."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
 
     xflow = {in_node: {out_node}}
@@ -498,14 +498,14 @@ def test_stim_compile_unsupported_output_corrections() -> None:
 def test_stim_compile_empty_pattern() -> None:
     """Test compilation of minimal pattern."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
@@ -522,16 +522,16 @@ def test_stim_compile_empty_pattern() -> None:
 def test_stim_compile_axis_meas_basis() -> None:
     """Test compilation with AxisMeasBasis."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    meas_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    meas_node = graph.add_node()
+    out_node = graph.add_node()
 
     q_idx = 0
     graph.register_input(in_node, q_idx)
     graph.register_output(out_node, q_idx)
 
-    graph.add_physical_edge(in_node, meas_node)
-    graph.add_physical_edge(meas_node, out_node)
+    graph.add_edge(in_node, meas_node)
+    graph.add_edge(meas_node, out_node)
 
     # Use AxisMeasBasis instead of PlannerMeasBasis
     graph.assign_meas_basis(in_node, AxisMeasBasis(Axis.X, Sign.PLUS))
@@ -552,11 +552,11 @@ def test_stim_compile_with_tick_commands() -> None:
     """Test that TICK commands are properly compiled to Stim format."""
     # Create a simple graph and compile with TICK commands
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -641,15 +641,15 @@ def _cz_slices_from_stim(stim_str: str) -> dict[tuple[int, int], int]:
 def test_stim_compile_respects_manual_entangle_time() -> None:
     """Manual entanglement times should determine the CZ slice in both Pattern and Stim output."""
     graph = GraphState()
-    in_node = graph.add_physical_node()
-    mid_node = graph.add_physical_node()
-    out_node = graph.add_physical_node()
+    in_node = graph.add_node()
+    mid_node = graph.add_node()
+    out_node = graph.add_node()
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, mid_node)
-    graph.add_physical_edge(mid_node, out_node)
+    graph.add_edge(in_node, mid_node)
+    graph.add_edge(mid_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -686,15 +686,15 @@ def test_stim_compile_respects_manual_entangle_time() -> None:
 def test_stim_compile_with_coordinates() -> None:
     """Test that QUBIT_COORDS instructions are emitted for nodes with coordinates."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
-    mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(2.0, 0.0))
+    in_node = graph.add_node(coordinate=(0.0, 0.0))
+    mid_node = graph.add_node(coordinate=(1.0, 0.0))
+    out_node = graph.add_node(coordinate=(2.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, mid_node)
-    graph.add_physical_edge(mid_node, out_node)
+    graph.add_edge(in_node, mid_node)
+    graph.add_edge(mid_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))
@@ -712,13 +712,13 @@ def test_stim_compile_with_coordinates() -> None:
 def test_stim_compile_with_3d_coordinates() -> None:
     """Test that 3D coordinates are correctly emitted."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(0.0, 0.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(1.0, 1.0, 1.0))
+    in_node = graph.add_node(coordinate=(0.0, 0.0, 0.0))
+    out_node = graph.add_node(coordinate=(1.0, 1.0, 1.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
@@ -732,13 +732,13 @@ def test_stim_compile_with_3d_coordinates() -> None:
 def test_stim_compile_without_coordinates() -> None:
     """Test that no QUBIT_COORDS are emitted when emit_qubit_coords is False."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(1.0, 0.0))
+    in_node = graph.add_node(coordinate=(0.0, 0.0))
+    out_node = graph.add_node(coordinate=(1.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
@@ -751,15 +751,15 @@ def test_stim_compile_without_coordinates() -> None:
 def test_pattern_coordinates_property() -> None:
     """Test that Pattern.coordinates aggregates coordinates from N commands and input nodes."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
-    mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(2.0, 0.0))
+    in_node = graph.add_node(coordinate=(0.0, 0.0))
+    mid_node = graph.add_node(coordinate=(1.0, 0.0))
+    out_node = graph.add_node(coordinate=(2.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, mid_node)
-    graph.add_physical_edge(mid_node, out_node)
+    graph.add_edge(in_node, mid_node)
+    graph.add_edge(mid_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, 0.0))

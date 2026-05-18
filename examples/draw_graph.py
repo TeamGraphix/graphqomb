@@ -56,7 +56,7 @@ demo_graph, node_map = GraphState.from_graph(
 print("Demo graph with XZ and YZ measurement planes:")
 print(f"Input nodes: {list(demo_graph.input_node_indices.keys())}")
 print(f"Output nodes: {list(demo_graph.output_node_indices.keys())}")
-print(f"All physical nodes: {demo_graph.physical_nodes}")
+print(f"All nodes: {demo_graph.nodes}")
 print("Internal nodes with measurement bases:")
 for node, basis in demo_graph.meas_bases.items():
     print(f"  Node {node}: {basis.plane.name} plane, angle={basis.angle:.3f}")

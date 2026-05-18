@@ -21,16 +21,16 @@ def simple_graph_with_flows() -> tuple[GraphState, dict[int, set[int]], dict[int
         GraphState, xflow, and zflow
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     q_idx = 0
     graph.register_input(n0, q_idx)
     graph.register_output(n2, q_idx)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     # Z measurement on n0, X measurement on n1
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XZ, 0.0))
@@ -60,13 +60,13 @@ def simple_pauli_frame(
     """
     graph, xflow, zflow = simple_graph_with_flows
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
 @pytest.fixture
 def simple_nodes(simple_graph_with_flows: tuple[GraphState, dict[int, set[int]], dict[int, set[int]]]) -> list[int]:
-    """Get list of physical nodes from simple graph.
+    """Get list of nodes from simple graph.
 
     Parameters
     ----------
@@ -76,10 +76,10 @@ def simple_nodes(simple_graph_with_flows: tuple[GraphState, dict[int, set[int]],
     Returns
     -------
     list[int]
-        List of physical node IDs
+        List of node IDs
     """
     graph, _, _ = simple_graph_with_flows
-    return list(graph.physical_nodes)
+    return list(graph.nodes)
 
 
 @pytest.fixture
@@ -92,15 +92,15 @@ def x_axis_pauli_frame() -> PauliFrame:
         PauliFrame with X axis measurements
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     # X measurement (XY plane, angle 0)
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, 0.0))
@@ -110,7 +110,7 @@ def x_axis_pauli_frame() -> PauliFrame:
     zflow: dict[int, set[int]] = {}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
@@ -124,15 +124,15 @@ def y_axis_pauli_frame() -> PauliFrame:
         PauliFrame with Y axis measurements
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     # Y measurement (XY plane, angle pi/2)
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, math.pi / 2))
@@ -142,7 +142,7 @@ def y_axis_pauli_frame() -> PauliFrame:
     zflow = {n0: {n0}}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
@@ -156,15 +156,15 @@ def z_axis_pauli_frame() -> PauliFrame:
         PauliFrame with Z axis measurements
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     # Z measurement (XZ plane, angle 0)
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XZ, 0.0))
@@ -174,7 +174,7 @@ def z_axis_pauli_frame() -> PauliFrame:
     zflow: dict[int, set[int]] = {}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     return PauliFrame(graph, xflow, zflow, parity_check_group)
 
 
@@ -307,7 +307,7 @@ def test_collect_dependent_chain_x_axis(x_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for X axis measurement."""
     pframe = x_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.graphstate.nodes)
     n1 = nodes[1]
 
     # For X axis, parents come from inv_zflow
@@ -320,7 +320,7 @@ def test_collect_dependent_chain_y_axis(y_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for Y axis measurement."""
     pframe = y_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.graphstate.nodes)
     n1 = nodes[1]
 
     # For Y axis, parents come from symmetric difference of inv_xflow and inv_zflow
@@ -333,7 +333,7 @@ def test_collect_dependent_chain_z_axis(z_axis_pauli_frame: PauliFrame) -> None:
     """Test dependent chain collection for Z axis measurement."""
     pframe = z_axis_pauli_frame
     # Node 1 is the second node in the graph
-    nodes = list(pframe.graphstate.physical_nodes)
+    nodes = list(pframe.graphstate.nodes)
     n1 = nodes[1]
 
     # For Z axis, parents come from inv_xflow
@@ -345,15 +345,15 @@ def test_collect_dependent_chain_z_axis(z_axis_pauli_frame: PauliFrame) -> None:
 def test_detector_groups() -> None:
     """Test detector groups generation with parity check groups."""
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(n1, PlannerMeasBasis(Plane.XY, 0.0))
@@ -379,15 +379,15 @@ def test_detector_groups() -> None:
 def test_logical_observables_group() -> None:
     """Test logical observables group generation."""
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(n1, PlannerMeasBasis(Plane.XY, 0.0))
@@ -397,7 +397,7 @@ def test_logical_observables_group() -> None:
     zflow: dict[int, set[int]] = {n0: {n0, n2}}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # Get logical observables group
@@ -410,17 +410,17 @@ def test_logical_observables_group() -> None:
 def test_collect_dependent_chain_cache_hit() -> None:
     """Test that cache is correctly used when same node is queried multiple times."""
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n3, 0)
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
 
     # Mix of X and Z measurements
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XZ, 0.0))  # Z
@@ -431,7 +431,7 @@ def test_collect_dependent_chain_cache_hit() -> None:
     zflow = {n0: {n0}}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # First call to n2
@@ -464,21 +464,21 @@ def test_collect_dependent_chain_diamond_cancellation() -> None:
     Node n0 should be canceled out because it's reached via two paths.
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
-    n4 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
+    n4 = graph.add_node()
 
     graph.register_input(n0, 0)
     graph.register_output(n4, 0)
 
     # Diamond edges + edge to output
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n0, n2)
-    graph.add_physical_edge(n1, n3)
-    graph.add_physical_edge(n2, n3)
-    graph.add_physical_edge(n3, n4)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n0, n2)
+    graph.add_edge(n1, n3)
+    graph.add_edge(n2, n3)
+    graph.add_edge(n3, n4)
 
     # All Z measurements (XZ plane, angle 0) so parents come from inv_xflow
     graph.assign_meas_basis(n0, PlannerMeasBasis(Plane.XZ, 0.0))
@@ -491,7 +491,7 @@ def test_collect_dependent_chain_diamond_cancellation() -> None:
     zflow: dict[int, set[int]] = {}
 
     # Provide parity_check_group to enable _pauli_axis_cache initialization
-    parity_check_group = [set(graph.physical_nodes)]
+    parity_check_group = [set(graph.nodes)]
     pframe = PauliFrame(graph, xflow, zflow, parity_check_group)
 
     # Verify the chain for n3

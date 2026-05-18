@@ -330,7 +330,7 @@ def test_from_pyzx_builds_graphstate() -> None:
 
     assert graph.input_node_indices == {input_node: 0}
     assert graph.output_node_indices == {synthetic_output: 0}
-    assert graph.physical_edges == {
+    assert graph.edges == {
         tuple(sorted((input_node, first_node))),
         tuple(sorted((first_node, second_node))),
         tuple(sorted((second_node, output_node))),
@@ -371,4 +371,4 @@ def test_from_pyzx_recognizes_phase_gadget_as_yz_measurement() -> None:
     assert (3.0, 1.0) not in coord_to_node
     assert graph.meas_bases[hub_node].plane == Plane.YZ
     assert math.isclose(graph.meas_bases[hub_node].angle, math.pi / 4)
-    assert len(graph.physical_nodes) == 6
+    assert len(graph.nodes) == 6

@@ -36,7 +36,7 @@ def pattern_components() -> tuple[dict[int, int], dict[int, int], PauliFrame, li
         Pauli frame, and list of nodes.
     """
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(3)]
+    nodes = [graph.add_node() for _ in range(3)]
 
     graph.register_input(nodes[0], 0)
     graph.register_output(nodes[2], 0)
@@ -264,8 +264,8 @@ def test_idle_times_output_nodes_included_when_prepared() -> None:
     """Test that output nodes are included in idle_times when they are prepared."""
     # Create a graph where output node is also an input node
     graph = GraphState()
-    input_node = graph.add_physical_node()
-    output_node = graph.add_physical_node()
+    input_node = graph.add_node()
+    output_node = graph.add_node()
 
     graph.register_input(input_node, 0)
     graph.register_input(output_node, 1)  # Output node is also an input

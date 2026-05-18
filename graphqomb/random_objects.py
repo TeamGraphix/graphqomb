@@ -54,7 +54,7 @@ def generate_random_flow_graph(
 
     # input nodes
     for i in range(width):
-        node_index = graph.add_physical_node()
+        node_index = graph.add_node()
         graph.register_input(node_index, i)
         graph.assign_meas_basis(node_index, default_meas_basis())
 
@@ -62,21 +62,21 @@ def generate_random_flow_graph(
     for _ in range(depth - 2):
         node_indices_layer: list[int] = []
         for _ in range(width):
-            node_index = graph.add_physical_node()
+            node_index = graph.add_node()
             graph.assign_meas_basis(node_index, default_meas_basis())
-            graph.add_physical_edge(node_index - width, node_index)
+            graph.add_edge(node_index - width, node_index)
             flow[node_index - width] = {node_index}
             node_indices_layer.append(node_index)
 
         for w in range(width - 1):
             if rng.random() < edge_p:
-                graph.add_physical_edge(node_indices_layer[w], node_indices_layer[w + 1])
+                graph.add_edge(node_indices_layer[w], node_indices_layer[w + 1])
 
     # output nodes
     for i in range(width):
-        node_index = graph.add_physical_node()
+        node_index = graph.add_node()
         graph.register_output(node_index, i)
-        graph.add_physical_edge(node_index - width, node_index)
+        graph.add_edge(node_index - width, node_index)
         flow[node_index - width] = {node_index}
 
     return graph, flow

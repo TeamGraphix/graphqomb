@@ -151,10 +151,10 @@ class Scheduler:
     ) -> None:
         self.graph = graph
         self.dag = dag_from_flow(graph, xflow, zflow)
-        self.prepare_time = dict.fromkeys(graph.physical_nodes - graph.input_node_indices.keys())
-        self.measure_time = dict.fromkeys(graph.physical_nodes - graph.output_node_indices.keys())
-        # Initialize entangle_time for all physical edges
-        self.entangle_time = dict.fromkeys(graph.physical_edges)
+        self.prepare_time = dict.fromkeys(graph.nodes - graph.input_node_indices.keys())
+        self.measure_time = dict.fromkeys(graph.nodes - graph.output_node_indices.keys())
+        # Initialize entangle_time for all edges
+        self.entangle_time = dict.fromkeys(graph.edges)
 
     def num_slices(self) -> int:
         r"""Return the number of slices in the schedule.
@@ -228,16 +228,16 @@ class Scheduler:
 
         The graph is treated as undirected. For convenience, `entangle_time` accepts edges
         in either order: both ``(u, v)`` and ``(v, u)`` are recognized. If both keys are
-        provided, the canonical order (as returned by :attr:`BaseGraphState.physical_edges`)
+        provided, the canonical order (as returned by :attr:`BaseGraphState.edges`)
         takes precedence, even when the value is ``None``.
         """
         self.prepare_time = {
             node: prepare_time.get(node, None)
-            for node in self.graph.physical_nodes - self.graph.input_node_indices.keys()
+            for node in self.graph.nodes - self.graph.input_node_indices.keys()
         }
         self.measure_time = {
             node: measure_time.get(node, None)
-            for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
+            for node in self.graph.nodes - self.graph.output_node_indices.keys()
         }
         if entangle_time is not None:
             resolved_entangle_time: dict[tuple[int, int], int | None] = {}
@@ -264,7 +264,7 @@ class Scheduler:
         """
         input_nodes = self.graph.input_node_indices.keys()
         output_nodes = self.graph.output_node_indices.keys()
-        physical_nodes = self.graph.physical_nodes
+        nodes = self.graph.nodes
 
         # Input nodes should not be in prepare_time
         invalid_prep = input_nodes & self.prepare_time.keys()
@@ -279,8 +279,8 @@ class Scheduler:
             raise ValueError(msg)
 
         # Check expected node sets
-        expected_prep_nodes = physical_nodes - input_nodes
-        expected_meas_nodes = physical_nodes - output_nodes
+        expected_prep_nodes = nodes - input_nodes
+        expected_meas_nodes = nodes - output_nodes
 
         if self.prepare_time.keys() != expected_prep_nodes:
             missing = expected_prep_nodes - self.prepare_time.keys()
@@ -376,7 +376,7 @@ class Scheduler:
         Only schedules entanglement for edges with `None` time. Preserves manually set times.
         Validation of measurement causality is performed by `validate_schedule()`.
         """
-        for edge in self.graph.physical_edges:
+        for edge in self.graph.edges:
             node1, node2 = edge
 
             # Get preparation times (input nodes are considered prepared at time -1)
@@ -556,11 +556,11 @@ class Scheduler:
         prepare_time, measure_time = result
         prep_time = {
             node: prepare_time.get(node, None)
-            for node in self.graph.physical_nodes - self.graph.input_node_indices.keys()
+            for node in self.graph.nodes - self.graph.input_node_indices.keys()
         }
         meas_time = {
             node: measure_time.get(node, None)
-            for node in self.graph.physical_nodes - self.graph.output_node_indices.keys()
+            for node in self.graph.nodes - self.graph.output_node_indices.keys()
         }
 
         self.prepare_time = prep_time

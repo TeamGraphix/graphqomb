@@ -15,11 +15,11 @@ def test_simple_graph_scheduling() -> None:
     """Test scheduling a simple graph with solve_scheduler."""
     # Create a simple 3-node graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -45,13 +45,13 @@ def test_manual_vs_solve_scheduler_scheduling() -> None:
     """Test that manual and solve_scheduler scheduling both work."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    node3 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
-    graph.add_physical_edge(node2, node3)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    node3 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
+    graph.add_edge(node2, node3)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node3, qindex)
@@ -78,9 +78,9 @@ def test_manual_vs_solve_scheduler_scheduling() -> None:
 def test_solve_scheduler_failure_handling() -> None:
     """Test handling of solve_scheduler failures."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node1, qindex)
@@ -101,11 +101,11 @@ def test_schedule_config_options() -> None:
     """Test different ScheduleConfig options."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -138,11 +138,11 @@ def test_schedule_config_options() -> None:
 def test_minimize_space_cpsat_prepares_node_before_measuring_it() -> None:
     """Test CP-SAT MINIMIZE_SPACE enforces self preparation before measurement."""
     graph = GraphState()
-    input_node = graph.add_physical_node()
-    measured_node = graph.add_physical_node()
+    input_node = graph.add_node()
+    measured_node = graph.add_node()
     qindex = 0
 
-    graph.add_physical_edge(input_node, measured_node)
+    graph.add_edge(input_node, measured_node)
     graph.register_input(input_node, qindex)
     graph.register_output(input_node, qindex)
     graph.assign_meas_basis(measured_node, PlannerMeasBasis(Plane.YZ, 0.2))
@@ -168,11 +168,11 @@ def test_space_constrained_scheduling() -> None:
     """Test space-constrained time optimization."""
     # Create a larger graph to test constraints
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(5)]
+    nodes = [graph.add_node() for _ in range(5)]
 
     # Create a chain of nodes
     for i in range(4):
-        graph.add_physical_edge(nodes[i], nodes[i + 1])
+        graph.add_edge(nodes[i], nodes[i + 1])
 
     qindex = 0
     graph.register_input(nodes[0], qindex)
@@ -197,11 +197,11 @@ def test_schedule_compression() -> None:
     """Test that schedule compression reduces unnecessary time gaps."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -242,11 +242,11 @@ def test_solve_scheduler_with_automatic_compression() -> None:
     """Test that solve_scheduler results are automatically compressed."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -277,11 +277,11 @@ def test_validate_schedule_valid() -> None:
     """Test that validate_schedule correctly identifies valid schedules."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -306,11 +306,11 @@ def test_validate_schedule_invalid_node_sets() -> None:
     """Test that validate_schedule rejects schedules with wrong node sets."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -336,11 +336,11 @@ def test_validate_schedule_missing_times() -> None:
     """Test that validate_schedule rejects schedules with missing times."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -366,13 +366,13 @@ def test_validate_schedule_dag_violations() -> None:
     """Test that validate_schedule rejects schedules violating DAG constraints."""
     # Create a graph with flow dependencies
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    node3 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
-    graph.add_physical_edge(node2, node3)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    node3 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
+    graph.add_edge(node2, node3)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node3, qindex)
@@ -398,11 +398,11 @@ def test_validate_schedule_dag_violations() -> None:
 def test_qompile_validates_provided_scheduler() -> None:
     """Qompile should reject invalid schedules before pattern generation."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
 
     qindex = 0
     graph.register_input(node0, qindex)
@@ -425,11 +425,11 @@ def test_validate_schedule_same_time_prep_meas() -> None:
     """Test that validate_schedule rejects schedules with nodes prepared and measured at same time."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -448,11 +448,11 @@ def test_entangle_time_scheduling() -> None:
     """Test that entanglement times can be scheduled."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -481,11 +481,11 @@ def test_timeline_includes_entanglement() -> None:
     """Timeline should expose preparation, entanglement, and measurement sets."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -521,9 +521,9 @@ def test_timeline_includes_entanglement() -> None:
 def test_input_input_entanglement_is_scheduled_in_first_slice() -> None:
     """Input-input entanglement should be kept in an executable non-negative slice."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     graph.register_input(node0, 0)
     graph.register_input(node1, 1)
     graph.register_output(node0, 0)
@@ -542,9 +542,9 @@ def test_input_input_entanglement_is_scheduled_in_first_slice() -> None:
 def test_cpsat_input_input_entanglement_delays_input_measurement(strategy: Strategy) -> None:
     """CP-SAT schedules input-input entanglement before measuring input endpoints."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     graph.register_input(node0, 0)
     graph.register_input(node1, 1)
     graph.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
@@ -568,9 +568,9 @@ def test_cpsat_input_input_entanglement_delays_input_measurement(strategy: Strat
 def test_cpsat_minimize_time_all_input_output_edge_is_scheduled() -> None:
     """All-input-output graphs still schedule input-input entanglement."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     graph.register_input(node0, 0)
     graph.register_input(node1, 1)
     graph.register_output(node0, 0)
@@ -592,9 +592,9 @@ def test_cpsat_minimize_time_all_input_output_edge_is_scheduled() -> None:
 def test_validate_schedule_rejects_negative_executable_time() -> None:
     """Executable schedule times must be non-negative."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     graph.register_input(node0, 0)
     graph.register_output(node1, 0)
 
@@ -610,11 +610,11 @@ def test_qompile_with_tick_commands() -> None:
     """Test that qompile generates TICK commands with scheduler."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -643,11 +643,11 @@ def test_validate_entangle_time_constraints() -> None:
     """Test validation of entanglement time constraints."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -693,11 +693,11 @@ def test_simulator_with_tick_commands() -> None:
     """Test that PatternSimulator handles TICK commands correctly."""
     # Create a simple graph and compile with TICK commands
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -729,11 +729,11 @@ def test_simulator_with_tick_commands() -> None:
 def test_validate_entangle_at_measurement_time_invalid() -> None:
     """Test that entanglement at same time as measurement is invalid."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
 
     qindex = 0
     graph.register_input(node0, qindex)
@@ -759,11 +759,11 @@ def test_validate_entangle_at_measurement_time_invalid() -> None:
 def test_validate_entangle_before_measurement_valid() -> None:
     """Test that entanglement before measurement is valid."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
 
     qindex = 0
     graph.register_input(node0, qindex)
