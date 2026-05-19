@@ -144,6 +144,13 @@ def test_add_duplicate_edge(graph: GraphState) -> None:
         graph.add_edge(node_index1, node_index2)
 
 
+def test_add_edge_rejects_self_loop(graph: GraphState) -> None:
+    """Test that adding a self-loop edge raises an error."""
+    node_index = graph.add_node()
+    with pytest.raises(ValueError, match="Self-loops are not allowed"):
+        graph.add_edge(node_index, node_index)
+
+
 def test_add_edge_with_nonexistent_node(graph: GraphState) -> None:
     """Test adding an edge with a nonexistent node to the graph."""
     node_index1 = graph.add_node()
