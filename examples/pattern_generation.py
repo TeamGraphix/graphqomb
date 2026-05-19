@@ -18,8 +18,8 @@ from graphqomb.random_objects import generate_random_flow_graph
 # Generate a labelled graph state and its X-correction map.
 graphstate, xflow = generate_random_flow_graph(width=3, depth=5)
 
-print("graph nodes:", len(graphstate.physical_nodes))
-print("graph edges:", len(graphstate.physical_edges))
+print("graph nodes:", len(graphstate.nodes))
+print("graph edges:", len(graphstate.edges))
 
 # Lower the graph/feedforward IRs to an executable pattern.
 pattern = qompile(graphstate, xflow)

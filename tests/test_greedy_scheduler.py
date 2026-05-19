@@ -15,11 +15,11 @@ def test_greedy_minimize_time_simple() -> None:
     """Test greedy_minimize_time on a simple graph."""
     # Create a simple 3-node chain graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -47,9 +47,9 @@ def test_greedy_minimize_time_simple() -> None:
 def test_greedy_input_input_entanglement_delays_input_measurement(strategy: Strategy) -> None:
     """Greedy schedulers keep input-input entanglement before input measurement."""
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    graph.add_edge(node0, node1)
     graph.register_input(node0, 0)
     graph.register_input(node1, 1)
 
@@ -73,11 +73,11 @@ def test_greedy_minimize_space_simple() -> None:
     """Test greedy_minimize_space on a simple graph."""
     # Create a simple 3-node chain graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -123,7 +123,7 @@ def _compute_max_alive_qubits(
     max_alive = len(graph.input_node_indices)  # At least inputs are alive at t = -1
     for t in range(max_t + 1):
         alive_nodes: set[int] = set()
-        for node in graph.physical_nodes:
+        for node in graph.nodes:
             # Determine preparation time
             prep_t = -1 if node in graph.input_node_indices else prepare_time.get(node)
 
@@ -145,13 +145,13 @@ def test_greedy_minimize_time_with_max_qubit_count_respects_limit() -> None:
     """Verify that greedy_minimize_time respects max_qubit_count."""
     graph = GraphState()
     # chain graph: 0-1-2-3
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
 
     qindex = 0
     graph.register_input(n0, qindex)
@@ -179,11 +179,11 @@ def test_greedy_minimize_time_with_too_small_max_qubit_count_raises() -> None:
     """Verify that greedy_minimize_time raises RuntimeError when max_qubit_count is too small."""
     graph = GraphState()
     # chain graph: 0-1-2 (at least 2 qubits are needed)
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     qindex = 0
     graph.register_input(n0, qindex)
@@ -200,16 +200,16 @@ def test_greedy_minimize_time_with_too_small_max_qubit_count_raises() -> None:
 def test_greedy_minimize_time_does_not_fill_capacity_with_unrelated_nodes() -> None:
     """Avoid preparing zero-priority nodes that cause a false capacity deadlock."""
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(5)]
+    nodes = [graph.add_node() for _ in range(5)]
 
     # Connected graph:
     # 0(input) - 1 - 4(output)
     #           |
     #           3 - 2
-    graph.add_physical_edge(nodes[0], nodes[1])
-    graph.add_physical_edge(nodes[1], nodes[3])
-    graph.add_physical_edge(nodes[1], nodes[4])
-    graph.add_physical_edge(nodes[2], nodes[3])
+    graph.add_edge(nodes[0], nodes[1])
+    graph.add_edge(nodes[1], nodes[3])
+    graph.add_edge(nodes[1], nodes[4])
+    graph.add_edge(nodes[2], nodes[3])
 
     graph.register_input(nodes[0], 0)
     graph.register_output(nodes[4], 0)
@@ -231,16 +231,16 @@ def test_greedy_minimize_time_does_not_fill_capacity_with_unrelated_nodes() -> N
 def test_greedy_minimize_time_tail_outputs_preserve_capacity_limit() -> None:
     """Tail outputs should keep their existing prep times instead of being pulled earlier by ALAP."""
     graph = GraphState()
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
 
     # Connected graph:
     # 0(input) - 1 - 2(output) - 3(output)
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
 
     graph.register_input(n0, 0)
     graph.register_output(n2, 0)
@@ -265,11 +265,11 @@ def test_greedy_scheduler_via_solve_schedule() -> None:
     """Test greedy scheduler through Scheduler.solve_schedule with use_greedy=True."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -299,11 +299,11 @@ def test_greedy_vs_cpsat_correctness() -> None:
     """Test that greedy scheduler produces valid schedules compared to CP-SAT."""
     # Create a slightly larger graph
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(5)]
+    nodes = [graph.add_node() for _ in range(5)]
 
     # Create a chain
     for i in range(4):
-        graph.add_physical_edge(nodes[i], nodes[i + 1])
+        graph.add_edge(nodes[i], nodes[i + 1])
 
     qindex = 0
     graph.register_input(nodes[0], qindex)
@@ -343,7 +343,7 @@ def test_greedy_scheduler_larger_graph() -> None:
     # Build layered graph
     all_nodes: list[list[int]] = []
     for layer in range(num_layers):
-        layer_nodes = [graph.add_physical_node() for _ in range(nodes_per_layer)]
+        layer_nodes = [graph.add_node() for _ in range(nodes_per_layer)]
         all_nodes.append(layer_nodes)
 
         # Connect to previous layer (if not first layer)
@@ -351,7 +351,7 @@ def test_greedy_scheduler_larger_graph() -> None:
             for i, node in enumerate(layer_nodes):
                 # Connect to corresponding node in previous layer
                 prev_node = all_nodes[layer - 1][i]
-                graph.add_physical_edge(prev_node, node)
+                graph.add_edge(prev_node, node)
 
     # Register inputs (first layer) and outputs (last layer)
     for i, node in enumerate(all_nodes[0]):
@@ -385,13 +385,13 @@ def test_greedy_scheduler_both_strategies(strategy: Strategy) -> None:
     """Test greedy scheduler with both optimization strategies."""
     # Create a graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    node3 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
-    graph.add_physical_edge(node2, node3)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    node3 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
+    graph.add_edge(node2, node3)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node3, qindex)
@@ -412,11 +412,11 @@ def test_greedy_minimize_space_wrapper() -> None:
     """Test the greedy_minimize_space wrapper function."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -443,17 +443,17 @@ def test_greedy_scheduler_dag_constraints() -> None:
     """Test that greedy scheduler respects DAG constraints."""
     # Create a graph with more complex dependencies
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(6)]
+    nodes = [graph.add_node() for _ in range(6)]
 
     # Create edges forming a DAG structure
     #   0 -> 2 -> 4
     #        |
     #   1 -> 3 -> 5
-    graph.add_physical_edge(nodes[0], nodes[2])
-    graph.add_physical_edge(nodes[2], nodes[4])
-    graph.add_physical_edge(nodes[1], nodes[3])
-    graph.add_physical_edge(nodes[3], nodes[5])
-    graph.add_physical_edge(nodes[2], nodes[3])
+    graph.add_edge(nodes[0], nodes[2])
+    graph.add_edge(nodes[2], nodes[4])
+    graph.add_edge(nodes[1], nodes[3])
+    graph.add_edge(nodes[3], nodes[5])
+    graph.add_edge(nodes[2], nodes[3])
 
     graph.register_input(nodes[0], 0)
     graph.register_input(nodes[1], 1)
@@ -481,11 +481,11 @@ def test_greedy_scheduler_edge_constraints() -> None:
     """Test that greedy scheduler respects edge constraints (neighbor preparation)."""
     # Create a simple graph
     graph = GraphState()
-    node0 = graph.add_physical_node()
-    node1 = graph.add_physical_node()
-    node2 = graph.add_physical_node()
-    graph.add_physical_edge(node0, node1)
-    graph.add_physical_edge(node1, node2)
+    node0 = graph.add_node()
+    node1 = graph.add_node()
+    node2 = graph.add_node()
+    graph.add_edge(node0, node1)
+    graph.add_edge(node1, node2)
     qindex = 0
     graph.register_input(node0, qindex)
     graph.register_output(node2, qindex)
@@ -539,17 +539,17 @@ def test_greedy_minimize_time_3x3_grid_optimal() -> None:
     # Inputs: 0, 1, 2 (left column)
     # Outputs: 6, 7, 8 (right column)
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(9)]
+    nodes = [graph.add_node() for _ in range(9)]
 
     # Horizontal edges
     for row in range(3):
         for col in range(2):
-            graph.add_physical_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
+            graph.add_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
 
     # Vertical edges
     for row in range(2):
         for col in range(3):
-            graph.add_physical_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
+            graph.add_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
 
     # Register inputs (left column) and outputs (right column)
     for row in range(3):
@@ -583,13 +583,13 @@ def test_greedy_minimize_time_alap_preparation() -> None:
     """Test that greedy_minimize_time uses ALAP preparation to minimize active volume."""
     graph = GraphState()
     # Create a 4-node chain: 0-1-2-3
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
 
     graph.register_input(n0, 0)
     graph.register_output(n3, 0)
@@ -615,13 +615,13 @@ def test_alap_reduces_active_volume() -> None:
     """Test that ALAP preparation reduces active volume compared to ASAP."""
     graph = GraphState()
     # Create a chain graph: 0-1-2-3
-    n0 = graph.add_physical_node()
-    n1 = graph.add_physical_node()
-    n2 = graph.add_physical_node()
-    n3 = graph.add_physical_node()
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    n2 = graph.add_node()
+    n3 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
     graph.register_input(n0, 0)
     graph.register_output(n3, 0)
 
@@ -641,15 +641,15 @@ def test_alap_preserves_depth() -> None:
     """Test that ALAP does not increase depth."""
     # Create a 3x3 grid
     graph = GraphState()
-    nodes = [graph.add_physical_node() for _ in range(9)]
+    nodes = [graph.add_node() for _ in range(9)]
 
     # Horizontal and vertical edges
     for row in range(3):
         for col in range(2):
-            graph.add_physical_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
+            graph.add_edge(nodes[row + col * 3], nodes[row + (col + 1) * 3])
     for row in range(2):
         for col in range(3):
-            graph.add_physical_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
+            graph.add_edge(nodes[row + col * 3], nodes[row + 1 + col * 3])
 
     for row in range(3):
         graph.register_input(nodes[row], row)
@@ -673,14 +673,14 @@ def test_greedy_minimize_space_non_input_dag_root() -> None:
     causing a KeyError when removing from the alive set.
     """
     graph = GraphState()
-    n0 = graph.add_physical_node()  # input
-    n1 = graph.add_physical_node()  # non-input, DAG root (no feedforward dependency)
-    n2 = graph.add_physical_node()  # input
-    n3 = graph.add_physical_node()  # output
+    n0 = graph.add_node()  # input
+    n1 = graph.add_node()  # non-input, DAG root (no feedforward dependency)
+    n2 = graph.add_node()  # input
+    n3 = graph.add_node()  # output
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
-    graph.add_physical_edge(n2, n3)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
+    graph.add_edge(n2, n3)
 
     graph.register_input(n0, 0)
     graph.register_input(n2, 1)
@@ -706,12 +706,12 @@ def test_greedy_minimize_space_non_input_dag_root() -> None:
 def test_greedy_minimize_space_prepares_remaining_tail_nodes() -> None:
     """Remaining non-input nodes should receive a tail preparation time."""
     graph = GraphState()
-    n0 = graph.add_physical_node()  # input
-    n1 = graph.add_physical_node()  # output
-    n2 = graph.add_physical_node()  # output tail
+    n0 = graph.add_node()  # input
+    n1 = graph.add_node()  # output
+    n2 = graph.add_node()  # output tail
 
-    graph.add_physical_edge(n0, n1)
-    graph.add_physical_edge(n1, n2)
+    graph.add_edge(n0, n1)
+    graph.add_edge(n1, n2)
 
     graph.register_input(n0, 0)
     graph.register_output(n1, 0)

@@ -69,8 +69,8 @@ class PauliFrame:
         self.graphstate = graphstate
         self.xflow = {node: set(targets) for node, targets in xflow.items()}
         self.zflow = {node: set(targets) for node, targets in zflow.items()}
-        self.x_pauli = dict.fromkeys(graphstate.physical_nodes, False)
-        self.z_pauli = dict.fromkeys(graphstate.physical_nodes, False)
+        self.x_pauli = dict.fromkeys(graphstate.nodes, False)
+        self.z_pauli = dict.fromkeys(graphstate.nodes, False)
         self.parity_check_group = [set(item) for item in parity_check_group]
         self.logical_observables = {
             logical_idx: set(seed_nodes) for logical_idx, seed_nodes in logical_observables.items()

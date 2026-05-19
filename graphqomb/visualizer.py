@@ -131,7 +131,7 @@ def visualize(  # noqa: PLR0913
     # Draw nodes with special handling for Pauli measurements
     pauli_nodes = _find_pauli_nodes(graph)
 
-    for node in graph.physical_nodes:
+    for node in graph.nodes:
         if node in pauli_nodes:
             # Calculate accurate patch radius for this specific position
             x, y = node_pos[node]
@@ -142,7 +142,7 @@ def visualize(  # noqa: PLR0913
             node_color = node_colors.get(node, ColorMap.OUTPUT)  # Default to output color
             ax.scatter(*node_pos[node], color=node_color, s=node_size, zorder=2)
 
-    for edge in graph.physical_edges:
+    for edge in graph.edges:
         x0, y0 = node_pos[edge[0]]
         x1, y1 = node_pos[edge[1]]
         ax.plot(
@@ -157,7 +157,7 @@ def visualize(  # noqa: PLR0913
         pauli_nodes = _find_pauli_nodes(graph)
 
         # Draw labels manually for better center alignment
-        for node in graph.physical_nodes:
+        for node in graph.nodes:
             x, y = node_pos[node]
 
             # All nodes now have the same size, so use same font size calculation
@@ -263,7 +263,7 @@ def _determine_node_positions(
             node_pos[node] = (coord[0], coord[1] if len(coord) >= _MIN_2D_COORDS else 0.0)
 
         # For nodes without coordinates, calculate positions
-        missing_nodes = graph.physical_nodes - node_pos.keys()
+        missing_nodes = graph.nodes - node_pos.keys()
         if missing_nodes:
             # Calculate auto positions for all nodes
             auto_pos = _calc_node_positions(graph)
@@ -290,7 +290,7 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
     dict[int, tuple[float, float]]
         Mapping of node indices to their (x, y) positions.
     """
-    internal_nodes = graph.physical_nodes - graph.input_node_indices.keys() - graph.output_node_indices.keys()
+    internal_nodes = graph.nodes - graph.input_node_indices.keys() - graph.output_node_indices.keys()
 
     pos: dict[int, tuple[float, float]] = {}
 
@@ -306,9 +306,7 @@ def _calc_node_positions(graph: BaseGraphState) -> dict[int, tuple[float, float]
     # For internal nodes, use networkx layout to minimize crossings
     if internal_nodes:
         # Create subgraph of internal nodes and their connections
-        internal_edges = [
-            edge for edge in graph.physical_edges if edge[0] in internal_nodes and edge[1] in internal_nodes
-        ]
+        internal_edges = [edge for edge in graph.edges if edge[0] in internal_nodes and edge[1] in internal_nodes]
 
         if internal_edges:
             # Use spring layout for internal nodes

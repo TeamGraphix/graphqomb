@@ -97,7 +97,7 @@ def focus_gflow(
         msg = "Invalid flowlike object"
         raise TypeError(msg)
     check_flow(graph, flowlike)
-    outputs = graph.physical_nodes - set(flowlike)
+    outputs = graph.nodes - set(flowlike)
     dag = dag_from_flow(graph, flowlike)
     topo_order = list(TopologicalSorter(dag).static_order())
     topo_order.reverse()  # children first

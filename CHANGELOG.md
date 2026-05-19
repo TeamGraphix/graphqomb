@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Graph State API**: Replaced legacy `physical_*` graph methods/properties with standard graph-style `nodes`, `edges`, `add_node()`, `add_edge()`, `remove_node()`, `remove_edge()`, and count/query helpers.
+
 ## [0.3.1] - 2026-05-17
 
 ### Added

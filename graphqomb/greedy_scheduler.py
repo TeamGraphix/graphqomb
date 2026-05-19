@@ -64,14 +64,14 @@ def greedy_minimize_time(  # noqa: PLR0914
         If the scheduling cannot proceed due to cyclic dependencies
         or if the max_qubit_count constraint is too tight to allow any progress.
     """
-    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
+    unmeasured = graph.nodes - graph.output_node_indices.keys()
     input_nodes = set(graph.input_node_indices.keys())
     output_nodes = set(graph.output_node_indices.keys())
 
-    inv_dag = inverse_dag_from_dag(dag, graph.physical_nodes)
+    inv_dag = inverse_dag_from_dag(dag, graph.nodes)
 
     # Cache neighbors to avoid repeated set constructions in tight loops
-    neighbors_map = {node: graph.neighbors(node) for node in graph.physical_nodes}
+    neighbors_map = {node: graph.neighbors(node) for node in graph.nodes}
 
     # Single implementation for both bounded and unbounded capacity modes.
     prepare_time: dict[int, int] = {}
@@ -84,7 +84,7 @@ def greedy_minimize_time(  # noqa: PLR0914
     prepared: set[int] = set(input_nodes)
     alive: set[int] = set(input_nodes)
 
-    effective_max_qubit_count = max_qubit_count if max_qubit_count is not None else len(graph.physical_nodes)
+    effective_max_qubit_count = max_qubit_count if max_qubit_count is not None else len(graph.nodes)
 
     if len(alive) > effective_max_qubit_count:
         msg = "Initial number of active qubits exceeds max_qubit_count."
@@ -109,7 +109,7 @@ def greedy_minimize_time(  # noqa: PLR0914
         )
         prepared_in_phase2 = _phase2_prepare_nodes_with_slack(
             current_time,
-            physical_nodes=graph.physical_nodes,
+            nodes=graph.nodes,
             max_qubit_count=effective_max_qubit_count,
             inv_dag=inv_dag_mut,
             neighbors_map=neighbors_map,
@@ -143,13 +143,13 @@ def greedy_minimize_time(  # noqa: PLR0914
         current_time += 1
 
         # Safety check for infinite loops
-        if current_time > len(graph.physical_nodes) * 2:
+        if current_time > len(graph.nodes) * 2:
             msg = "Scheduling did not converge; possible cyclic dependency."
             raise RuntimeError(msg)
 
     _prepare_remaining_nodes_at_tail(
         current_time,
-        physical_nodes=graph.physical_nodes,
+        nodes=graph.nodes,
         input_nodes=input_nodes,
         max_qubit_count=effective_max_qubit_count,
         prepared=prepared,
@@ -166,7 +166,7 @@ def greedy_minimize_time(  # noqa: PLR0914
 def _prepare_remaining_nodes_at_tail(  # noqa: PLR0913
     current_time: int,
     *,
-    physical_nodes: AbstractSet[int],
+    nodes: AbstractSet[int],
     input_nodes: AbstractSet[int],
     max_qubit_count: int,
     prepared: set[int],
@@ -175,7 +175,7 @@ def _prepare_remaining_nodes_at_tail(  # noqa: PLR0913
 ) -> None:
     # Any remaining nodes are outputs that were never needed for a measurement.
     # With no future measurements to free qubits, they must all fit in the final live set.
-    remaining = physical_nodes - input_nodes - prepared
+    remaining = nodes - input_nodes - prepared
     if not remaining:
         return
 
@@ -254,7 +254,7 @@ def _has_initial_input_input_entanglement_wait(
 def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
     current_time: int,
     *,
-    physical_nodes: AbstractSet[int],
+    nodes: AbstractSet[int],
     max_qubit_count: int,
     inv_dag: Mapping[int, AbstractSet[int]],
     neighbors_map: Mapping[int, AbstractSet[int]],
@@ -269,7 +269,7 @@ def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
     if free_capacity <= 0:
         return False
 
-    unprepared = physical_nodes - prepared
+    unprepared = nodes - prepared
     if not unprepared:
         return False
 
@@ -397,9 +397,9 @@ def greedy_minimize_space(  # noqa: PLR0914
     prepare_time: dict[int, int] = {}
     measure_time: dict[int, int] = {}
 
-    unmeasured = graph.physical_nodes - graph.output_node_indices.keys()
+    unmeasured = graph.nodes - graph.output_node_indices.keys()
 
-    inv_dag = inverse_dag_from_dag(dag, graph.physical_nodes)
+    inv_dag = inverse_dag_from_dag(dag, graph.nodes)
     topo_order = topo_order_from_inv_dag(inv_dag)  # from parents to children
     topo_rank = {node: i for i, node in enumerate(topo_order)}
 
@@ -409,7 +409,7 @@ def greedy_minimize_space(  # noqa: PLR0914
     current_time = 0
 
     # Cache neighbors once as the graph is static during scheduling
-    neighbors_map = {node: graph.neighbors(node) for node in graph.physical_nodes}
+    neighbors_map = {node: graph.neighbors(node) for node in graph.nodes}
 
     measure_candidates: set[int] = {node for node in unmeasured if not inv_dag[node]}
 
@@ -462,7 +462,7 @@ def greedy_minimize_space(  # noqa: PLR0914
         current_time = meas_time + 1
 
     # Any nodes left here were never needed to unlock a measurement.
-    remaining = graph.physical_nodes - input_nodes - prepared
+    remaining = graph.nodes - input_nodes - prepared
     for node in sorted(remaining):
         prepare_time[node] = current_time
 

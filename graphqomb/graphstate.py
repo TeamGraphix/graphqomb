@@ -62,24 +62,24 @@ class BaseGraphState(ABC):
 
     @property
     @abc.abstractmethod
-    def physical_nodes(self) -> set[int]:
-        r"""Return set of physical nodes.
+    def nodes(self) -> set[int]:
+        r"""Return set of nodes.
 
         Returns
         -------
         `set`\[`int`\]
-            set of physical nodes.
+            set of nodes.
         """
 
     @property
     @abc.abstractmethod
-    def physical_edges(self) -> set[tuple[int, int]]:
-        r"""Return set of physical edges.
+    def edges(self) -> set[tuple[int, int]]:
+        r"""Return set of edges.
 
         Returns
         -------
         `set`\[`tuple`\[`int`, `int`\]`
-            set of physical edges.
+            set of edges.
         """
 
     @property
@@ -90,27 +90,29 @@ class BaseGraphState(ABC):
         Returns
         -------
         `types.MappingProxyType`\[`int`, `MeasBasis`\]
-            measurement bases of each physical node.
+            measurement bases of each node.
         """
 
     @abc.abstractmethod
-    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
-        r"""Add a physical node to the graph state.
+    def add_node(self, node: int | None = None, *, coordinate: tuple[float, ...] | None = None) -> int:
+        r"""Add a node to the graph state.
 
         Parameters
         ----------
+        node : `int` | `None`, optional
+            node index to add. If None, an index is generated.
         coordinate : `tuple`\[`float`, ...\] | `None`, optional
             coordinate tuple (2D or 3D), by default None
 
         Returns
         -------
         `int`
-            The node index internally generated
+            The added node index.
         """
 
     @abc.abstractmethod
-    def add_physical_edge(self, node1: int, node2: int) -> None:
-        """Add a physical edge to the graph state.
+    def add_edge(self, node1: int, node2: int) -> None:
+        """Add an edge to the graph state.
 
         Parameters
         ----------
@@ -119,6 +121,57 @@ class BaseGraphState(ABC):
         node2 : `int`
             node index
         """
+
+    def remove_node(self, node: int) -> None:
+        """Remove a node from the graph state."""
+        msg = f"{type(self).__name__} does not support node removal"
+        raise NotImplementedError(msg)
+
+    def remove_edge(self, node1: int, node2: int) -> None:
+        """Remove an edge from the graph state."""
+        msg = f"{type(self).__name__} does not support edge removal"
+        raise NotImplementedError(msg)
+
+    def has_node(self, node: int) -> bool:
+        """Return whether the graph state contains a node.
+
+        Returns
+        -------
+        `bool`
+            Whether the node exists.
+        """
+        return node in self.nodes
+
+    def has_edge(self, node1: int, node2: int) -> bool:
+        """Return whether the graph state contains an edge.
+
+        Returns
+        -------
+        `bool`
+            Whether the edge exists.
+        """
+        edge = (node1, node2) if node1 < node2 else (node2, node1)
+        return edge in self.edges
+
+    def number_of_nodes(self) -> int:
+        """Return the number of nodes.
+
+        Returns
+        -------
+        `int`
+            Number of nodes.
+        """
+        return len(self.nodes)
+
+    def number_of_edges(self) -> int:
+        """Return the number of edges.
+
+        Returns
+        -------
+        `int`
+            Number of edges.
+        """
+        return len(self.edges)
 
     @abc.abstractmethod
     def register_input(self, node: int, q_index: int) -> None:
@@ -192,21 +245,21 @@ class GraphState(BaseGraphState):
 
     __input_node_indices: dict[int, int]
     __output_node_indices: dict[int, int]
-    __physical_nodes: set[int]
-    __physical_edges: dict[int, set[int]]
+    __nodes: set[int]
+    __neighbors: dict[int, set[int]]
     __meas_bases: dict[int, MeasBasis]
     __local_cliffords: dict[int, LocalClifford]
     __coordinates: dict[int, tuple[float, ...]]
 
     __node_counter: int
 
-    _cached_physical_nodes: frozenset[int] | None = None
+    _cached_nodes: frozenset[int] | None = None
 
     def __init__(self) -> None:
         self.__input_node_indices = {}
         self.__output_node_indices = {}
-        self.__physical_nodes = set()
-        self.__physical_edges = {}
+        self.__nodes = set()
+        self.__neighbors = {}
         self.__meas_bases = {}
         self.__local_cliffords = {}
         self.__coordinates = {}
@@ -239,31 +292,31 @@ class GraphState(BaseGraphState):
 
     @property
     @typing_extensions.override
-    def physical_nodes(self) -> set[int]:
-        r"""Return set of physical nodes.
+    def nodes(self) -> set[int]:
+        r"""Return set of nodes.
 
         Returns
         -------
         `set`\[`int`\]
-            set of physical nodes.
+            set of nodes.
         """
-        if self._cached_physical_nodes is None:
-            self._cached_physical_nodes = frozenset(self.__physical_nodes)
-        return set(self._cached_physical_nodes)
+        if self._cached_nodes is None:
+            self._cached_nodes = frozenset(self.__nodes)
+        return set(self._cached_nodes)
 
     @property
     @typing_extensions.override
-    def physical_edges(self) -> set[tuple[int, int]]:
-        r"""Return set of physical edges.
+    def edges(self) -> set[tuple[int, int]]:
+        r"""Return set of edges.
 
         Returns
         -------
         `set`\[`tuple`\[`int`, `int`\]
-            set of physical edges.
+            set of edges.
         """
         edges: set[tuple[int, int]] = set()
-        for node1 in self.__physical_edges:
-            for node2 in self.__physical_edges[node1]:
+        for node1 in self.__neighbors:
+            for node2 in self.__neighbors[node1]:
                 if node1 < node2:
                     edges |= {(node1, node2)}
         return edges
@@ -276,7 +329,7 @@ class GraphState(BaseGraphState):
         Returns
         -------
         `types.MappingProxyType`\[`int`, `MeasBasis`\]
-            measurement bases of each physical node.
+            measurement bases of each node.
         """
         return MappingProxyType(self.__meas_bases)
 
@@ -317,14 +370,14 @@ class GraphState(BaseGraphState):
         self.__coordinates[node] = coord
 
     def _check_meas_basis(self) -> None:
-        """Check if the measurement basis is set for all physical nodes except output nodes.
+        """Check if the measurement basis is set for all nodes except output nodes.
 
         Raises
         ------
         ValueError
             If the measurement basis is not set for a node or the measurement plane is invalid.
         """
-        for v in self.physical_nodes - set(self.output_node_indices):
+        for v in self.nodes - set(self.output_node_indices):
             if self.meas_bases.get(v) is None:
                 msg = f"Measurement basis not set for node {v}"
                 raise ValueError(msg)
@@ -337,37 +390,48 @@ class GraphState(BaseGraphState):
         ValueError
             If the node does not exist in the graph state.
         """
-        if node not in self.__physical_nodes:
+        if node not in self.__nodes:
             msg = f"Node does not exist {node=}"
             raise ValueError(msg)
 
     @typing_extensions.override
-    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
-        r"""Add a physical node to the graph state.
+    def add_node(self, node: int | None = None, *, coordinate: tuple[float, ...] | None = None) -> int:
+        r"""Add a node to the graph state.
 
         Parameters
         ----------
+        node : `int` | `None`, optional
+            node index to add. If None, an index is generated.
         coordinate : `tuple`\[`float`, ...\] | `None`, optional
             coordinate tuple (2D or 3D), by default None
 
         Returns
         -------
         `int`
-            The node index internally generated.
+            The added node index.
+
+        Raises
+        ------
+        ValueError
+            If the node already exists.
         """
-        node = self.__node_counter
-        self.__physical_nodes |= {node}
-        self.__physical_edges[node] = set()
+        if node is None:
+            node = self.__node_counter
+        elif node in self.__nodes:
+            msg = f"Node already exists {node=}"
+            raise ValueError(msg)
+        self.__nodes |= {node}
+        self.__neighbors[node] = set()
         if coordinate is not None:
             self.__coordinates[node] = coordinate
-        self.__node_counter += 1
-        self._cached_physical_nodes = None
+        self.__node_counter = max(self.__node_counter, node + 1)
+        self._cached_nodes = None
 
         return node
 
     @typing_extensions.override
-    def add_physical_edge(self, node1: int, node2: int) -> None:
-        """Add a physical edge to the graph state.
+    def add_edge(self, node1: int, node2: int) -> None:
+        """Add an edge to the graph state.
 
         Parameters
         ----------
@@ -385,17 +449,18 @@ class GraphState(BaseGraphState):
         """
         self._ensure_node_exists(node1)
         self._ensure_node_exists(node2)
-        if node1 in self.__physical_edges[node2] or node2 in self.__physical_edges[node1]:
+        if node1 in self.__neighbors[node2] or node2 in self.__neighbors[node1]:
             msg = f"Edge already exists {node1=}, {node2=}"
             raise ValueError(msg)
         if node1 == node2:
             msg = "Self-loops are not allowed"
             raise ValueError(msg)
-        self.__physical_edges[node1] |= {node2}
-        self.__physical_edges[node2] |= {node1}
+        self.__neighbors[node1] |= {node2}
+        self.__neighbors[node2] |= {node1}
 
-    def remove_physical_node(self, node: int) -> None:
-        """Remove a physical node from the graph state.
+    @typing_extensions.override
+    def remove_node(self, node: int) -> None:
+        """Remove a node from the graph state.
 
         Parameters
         ----------
@@ -411,10 +476,10 @@ class GraphState(BaseGraphState):
         if node in self.input_node_indices:
             msg = "The input node cannot be removed"
             raise ValueError(msg)
-        self.__physical_nodes -= {node}
-        for neighbor in self.__physical_edges[node]:
-            self.__physical_edges[neighbor] -= {node}
-        del self.__physical_edges[node]
+        self.__nodes -= {node}
+        for neighbor in self.__neighbors[node]:
+            self.__neighbors[neighbor] -= {node}
+        del self.__neighbors[node]
 
         if node in self.output_node_indices:
             del self.__output_node_indices[node]
@@ -422,10 +487,11 @@ class GraphState(BaseGraphState):
         self.__local_cliffords.pop(node, None)
         self.__coordinates.pop(node, None)
 
-        self._cached_physical_nodes = None
+        self._cached_nodes = None
 
-    def remove_physical_edge(self, node1: int, node2: int) -> None:
-        """Remove a physical edge from the graph state.
+    @typing_extensions.override
+    def remove_edge(self, node1: int, node2: int) -> None:
+        """Remove an edge from the graph state.
 
         Parameters
         ----------
@@ -441,11 +507,11 @@ class GraphState(BaseGraphState):
         """
         self._ensure_node_exists(node1)
         self._ensure_node_exists(node2)
-        if node1 not in self.__physical_edges[node2] or node2 not in self.__physical_edges[node1]:
+        if node1 not in self.__neighbors[node2] or node2 not in self.__neighbors[node1]:
             msg = "Edge does not exist"
             raise ValueError(msg)
-        self.__physical_edges[node1] -= {node2}
-        self.__physical_edges[node2] -= {node1}
+        self.__neighbors[node1] -= {node2}
+        self.__neighbors[node2] -= {node1}
 
     @typing_extensions.override
     def register_input(self, node: int, q_index: int) -> None:
@@ -551,7 +617,7 @@ class GraphState(BaseGraphState):
             set of neighboring nodes
         """
         self._ensure_node_exists(node)
-        return self.__physical_edges[node].copy()
+        return self.__neighbors[node].copy()
 
     @typing_extensions.override
     def check_canonical_form(self) -> None:
@@ -569,7 +635,7 @@ class GraphState(BaseGraphState):
         if self.__local_cliffords:
             msg = "Clifford operators are applied."
             raise ValueError(msg)
-        for node in self.physical_nodes - self.output_node_indices.keys():
+        for node in self.nodes - self.output_node_indices.keys():
             if self.meas_bases.get(node) is None:
                 msg = "All non-output nodes must have measurement basis."
                 raise ValueError(msg)
@@ -617,14 +683,14 @@ class GraphState(BaseGraphState):
                 new_input_indices[input_node] = q_index
                 continue
 
-            new_node_index0 = self.add_physical_node()
+            new_node_index0 = self.add_node()
             new_input_indices[new_node_index0] = q_index
-            new_node_index1 = self.add_physical_node()
-            new_node_index2 = self.add_physical_node()
+            new_node_index1 = self.add_node()
+            new_node_index2 = self.add_node()
 
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, new_node_index2)
-            self.add_physical_edge(new_node_index2, input_node)
+            self.add_edge(new_node_index0, new_node_index1)
+            self.add_edge(new_node_index1, new_node_index2)
+            self.add_edge(new_node_index2, input_node)
 
             self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.alpha))
             self.assign_meas_basis(new_node_index1, PlannerMeasBasis(Plane.XY, lc.beta))
@@ -656,14 +722,14 @@ class GraphState(BaseGraphState):
                 new_output_index_map[output_node] = q_index
                 continue
 
-            new_node_index0 = self.add_physical_node()
-            new_node_index1 = self.add_physical_node()
-            new_node_index2 = self.add_physical_node()
+            new_node_index0 = self.add_node()
+            new_node_index1 = self.add_node()
+            new_node_index2 = self.add_node()
             new_output_index_map[new_node_index2] = q_index
 
-            self.add_physical_edge(output_node, new_node_index0)
-            self.add_physical_edge(new_node_index0, new_node_index1)
-            self.add_physical_edge(new_node_index1, new_node_index2)
+            self.add_edge(output_node, new_node_index0)
+            self.add_edge(new_node_index0, new_node_index1)
+            self.add_edge(new_node_index1, new_node_index2)
 
             self.assign_meas_basis(output_node, PlannerMeasBasis(Plane.XY, lc.alpha))
             self.assign_meas_basis(new_node_index0, PlannerMeasBasis(Plane.XY, lc.beta))
@@ -766,14 +832,14 @@ class GraphState(BaseGraphState):
         # Add nodes and create node mapping
         node_map: dict[NodeT, int] = {}
         for node in nodes_list:
-            new_node = graph_state.add_physical_node()
+            new_node = graph_state.add_node()
             node_map[node] = new_node
 
         # Add edges
         for node1, node2 in edges_list:
             idx1 = node_map[node1]
             idx2 = node_map[node2]
-            graph_state.add_physical_edge(idx1, idx2)
+            graph_state.add_edge(idx1, idx2)
 
         # Register inputs with sequential qubit indices
         if inputs is not None:
@@ -832,13 +898,13 @@ class GraphState(BaseGraphState):
 
         # Create node mapping
         node_map: dict[int, int] = {}
-        for node in base.physical_nodes:
-            new_node = graph_state.add_physical_node()
+        for node in base.nodes:
+            new_node = graph_state.add_node()
             node_map[node] = new_node
 
         # Add edges using node mapping
-        for node1, node2 in base.physical_edges:
-            graph_state.add_physical_edge(node_map[node1], node_map[node2])
+        for node1, node2 in base.edges:
+            graph_state.add_edge(node_map[node1], node_map[node2])
 
         # Register inputs with same qubit indices
         for input_node, q_index in base.input_node_indices.items():
@@ -966,10 +1032,10 @@ def compose(  # noqa: C901, PLR0912
     for output_node, q_index in graph2.output_node_indices.items():
         composed_graph.register_output(node_map2[output_node], q_index)
 
-    for u, v in graph1.physical_edges:
-        composed_graph.add_physical_edge(node_map1[u], node_map1[v])
-    for u, v in graph2.physical_edges:
-        composed_graph.add_physical_edge(node_map2[u], node_map2[v])
+    for u, v in graph1.edges:
+        composed_graph.add_edge(node_map1[u], node_map1[v])
+    for u, v in graph2.edges:
+        composed_graph.add_edge(node_map2[u], node_map2[v])
 
     # Copy coordinates from graph1
     for node, coord in graph1.coordinates.items():
@@ -1006,10 +1072,10 @@ def _copy_nodes(
         mapping from src node indices to dst node indices
     """
     node_map: dict[int, int] = {}
-    for node in src.physical_nodes:
+    for node in src.nodes:
         if node in exclude_nodes:
             continue
-        new_idx = dst.add_physical_node()
+        new_idx = dst.add_node()
         meas = src.meas_bases.get(node)
         if meas is not None:
             dst.assign_meas_basis(new_idx, meas)

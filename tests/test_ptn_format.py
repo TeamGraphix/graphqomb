@@ -36,15 +36,15 @@ def create_simple_pattern() -> Pattern:
         A compiled MBQC pattern for testing.
     """
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(0.0, 0.0))
-    mid_node = graph.add_physical_node(coordinate=(1.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(2.0, 0.0))
+    in_node = graph.add_node(coordinate=(0.0, 0.0))
+    mid_node = graph.add_node(coordinate=(1.0, 0.0))
+    out_node = graph.add_node(coordinate=(2.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
 
-    graph.add_physical_edge(in_node, mid_node)
-    graph.add_physical_edge(mid_node, out_node)
+    graph.add_edge(in_node, mid_node)
+    graph.add_edge(mid_node, out_node)
 
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(mid_node, PlannerMeasBasis(Plane.XY, math.pi / 2))
@@ -56,12 +56,12 @@ def create_simple_pattern() -> Pattern:
 def create_measured_output_pattern_with_observable() -> Pattern:
     """Create a stim-compatible pattern with a logical observable."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(10.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(20.0, 0.0))
+    in_node = graph.add_node(coordinate=(10.0, 0.0))
+    out_node = graph.add_node(coordinate=(20.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
@@ -71,12 +71,12 @@ def create_measured_output_pattern_with_observable() -> Pattern:
 def create_measured_output_pattern_with_detector() -> Pattern:
     """Create a stim-compatible pattern with a detector."""
     graph = GraphState()
-    in_node = graph.add_physical_node(coordinate=(30.0, 0.0))
-    out_node = graph.add_physical_node(coordinate=(40.0, 0.0))
+    in_node = graph.add_node(coordinate=(30.0, 0.0))
+    out_node = graph.add_node(coordinate=(40.0, 0.0))
 
     graph.register_input(in_node, 0)
     graph.register_output(out_node, 0)
-    graph.add_physical_edge(in_node, out_node)
+    graph.add_edge(in_node, out_node)
     graph.assign_meas_basis(in_node, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(out_node, PlannerMeasBasis(Plane.XY, 0.0))
 
@@ -160,7 +160,7 @@ def test_dumps_pauli_measurements() -> None:
 def test_dumps_formats_near_known_angle() -> None:
     """Angles near known constants should serialize canonically."""
     graph = GraphState()
-    node = graph.add_physical_node()
+    node = graph.add_node()
     pattern = Pattern(
         input_node_indices={},
         output_node_indices={},
@@ -174,8 +174,8 @@ def test_dumps_formats_near_known_angle() -> None:
 def test_dumps_preserves_xz_plane_x_pauli_sign() -> None:
     """Plane.XZ X measurements should serialize with the correct Pauli sign."""
     graph = GraphState()
-    plus_node = graph.add_physical_node()
-    minus_node = graph.add_physical_node()
+    plus_node = graph.add_node()
+    minus_node = graph.add_node()
     pattern = Pattern(
         input_node_indices={},
         output_node_indices={},
@@ -205,7 +205,7 @@ def test_dumps_preserves_xz_plane_x_pauli_sign() -> None:
 def test_dumps_preserves_consecutive_trailing_ticks() -> None:
     """Empty final timeslices should preserve consecutive trailing TICK commands."""
     graph = GraphState()
-    node = graph.add_physical_node()
+    node = graph.add_node()
     pattern = Pattern(
         input_node_indices={},
         output_node_indices={},
@@ -502,18 +502,18 @@ def test_dump_and_load_file(tmp_path: Path) -> None:
 def test_multiple_input_output_qubits() -> None:
     """Test pattern with multiple input/output qubits."""
     graph = GraphState()
-    in0 = graph.add_physical_node()
-    in1 = graph.add_physical_node()
-    out0 = graph.add_physical_node()
-    out1 = graph.add_physical_node()
+    in0 = graph.add_node()
+    in1 = graph.add_node()
+    out0 = graph.add_node()
+    out1 = graph.add_node()
 
     graph.register_input(in0, 0)
     graph.register_input(in1, 1)
     graph.register_output(out0, 0)
     graph.register_output(out1, 1)
 
-    graph.add_physical_edge(in0, out0)
-    graph.add_physical_edge(in1, out1)
+    graph.add_edge(in0, out0)
+    graph.add_edge(in1, out1)
 
     graph.assign_meas_basis(in0, PlannerMeasBasis(Plane.XY, 0.0))
     graph.assign_meas_basis(in1, PlannerMeasBasis(Plane.XY, 0.0))
@@ -659,8 +659,16 @@ Z 30
 
     assert result.input_node_indices == {10: 0}
     assert result.output_node_indices == {30: 0}
-    assert result.pauli_frame.graphstate.physical_nodes == {10, 20, 30}
-    assert result.pauli_frame.graphstate.physical_edges == {(10, 20), (20, 30)}
+    assert result.pauli_frame.graphstate.nodes == {10, 20, 30}
+    assert result.pauli_frame.graphstate.edges == {(10, 20), (20, 30)}
+    assert result.pauli_frame.graphstate.has_node(20)
+    assert result.pauli_frame.graphstate.has_edge(30, 20)
+    assert result.pauli_frame.graphstate.number_of_nodes() == 3
+    assert result.pauli_frame.graphstate.number_of_edges() == 2
+    with pytest.raises(NotImplementedError, match="read-only"):
+        result.pauli_frame.graphstate.add_node()
+    with pytest.raises(NotImplementedError, match="read-only"):
+        result.pauli_frame.graphstate.add_edge(10, 30)
     assert any(isinstance(cmd, N) and cmd.node == 20 for cmd in result.commands)
     assert any(isinstance(cmd, X) and cmd.node == 30 for cmd in result.commands)
 

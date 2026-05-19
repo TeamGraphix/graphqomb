@@ -22,9 +22,9 @@ from graphqomb.graphstate import GraphState
 
 def two_node_graph() -> tuple[GraphState, int, int]:
     graphstate = GraphState()
-    node1 = graphstate.add_physical_node()
-    node2 = graphstate.add_physical_node()
-    graphstate.add_physical_edge(node1, node2)
+    node1 = graphstate.add_node()
+    node2 = graphstate.add_node()
+    graphstate.add_edge(node1, node2)
     return graphstate, node1, node2
 
 
@@ -155,11 +155,11 @@ def test_propagate_correction_map_xy_plane() -> None:
     """Test propagate_correction_map with XY plane measurement."""
     # Create a simple graph with 3 nodes: parent -> target -> child
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    child = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, child)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    child = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, child)
 
     # Set measurement basis for target node (XY plane)
     graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.0))
@@ -187,11 +187,11 @@ def test_propagate_correction_map_yz_plane() -> None:
     """Test propagate_correction_map with YZ plane measurement."""
     # Create a simple graph with 3 nodes: parent -> target -> child
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    child = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, child)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    child = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, child)
 
     # Set measurement basis for target node (YZ plane)
     graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.YZ, 0.0))
@@ -218,11 +218,11 @@ def test_propagate_correction_map_xz_plane() -> None:
     """Test propagate_correction_map with XZ plane measurement."""
     # Create a simple graph with 3 nodes: parent -> target -> child
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    child = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, child)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    child = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, child)
 
     # Set measurement basis for target node (XZ plane)
     graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XZ, 0.0))
@@ -249,7 +249,7 @@ def test_propagate_correction_map_xz_plane() -> None:
 def test_propagate_correction_map_output_node_error() -> None:
     """Test that propagate_correction_map raises error for output nodes."""
     graphstate = GraphState()
-    node = graphstate.add_physical_node()
+    node = graphstate.add_node()
     graphstate.register_output(node, 0)
 
     xflow: dict[int, set[int]] = {node: set()}
@@ -263,11 +263,11 @@ def test_propagate_correction_map_zflow_none() -> None:
     """Test propagate_correction_map with zflow=None."""
     # Create a simple graph
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    child = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, child)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    child = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, child)
 
     # Set measurement basis
     graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.0))
@@ -296,11 +296,11 @@ def test_signal_shifting_simple() -> None:
     """Test signal_shifting on a simple graph."""
     # Create a linear graph: node0 -> node1 -> output
     graphstate = GraphState()
-    node0 = graphstate.add_physical_node()
-    node1 = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(node0, node1)
-    graphstate.add_physical_edge(node1, output)
+    node0 = graphstate.add_node()
+    node1 = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(node0, node1)
+    graphstate.add_edge(node1, output)
 
     # Set measurement bases
     graphstate.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
@@ -325,11 +325,11 @@ def test_signal_shifting_zflow_none() -> None:
     """Test signal_shifting with zflow=None."""
     # Create a simple graph
     graphstate = GraphState()
-    node0 = graphstate.add_physical_node()
-    node1 = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(node0, node1)
-    graphstate.add_physical_edge(node1, output)
+    node0 = graphstate.add_node()
+    node1 = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(node0, node1)
+    graphstate.add_edge(node1, output)
 
     # Set measurement bases
     graphstate.assign_meas_basis(node0, PlannerMeasBasis(Plane.XY, 0.0))
@@ -356,11 +356,11 @@ def test_pauli_simplification_x_axis_removes_x_correction() -> None:
     """Test that X-axis measurement removes X corrections from the flow."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set X-axis measurement basis for target
     graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.X, Sign.PLUS))
@@ -384,11 +384,11 @@ def test_pauli_simplification_z_axis_removes_z_correction() -> None:
     """Test that Z-axis measurement removes Z corrections from the flow."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set Z-axis measurement basis for target
     graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Z, Sign.PLUS))
@@ -412,11 +412,11 @@ def test_pauli_simplification_y_axis_removes_both_corrections() -> None:
     """Test that Y-axis measurement removes both X and Z corrections from the flow."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set Y-axis measurement basis for target
     graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Y, Sign.PLUS))
@@ -439,11 +439,11 @@ def test_pauli_simplification_y_axis_skip() -> None:
     """Test that Y-axis measurement skips if not both corrections are present."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set Y-axis measurement basis for target
     graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.Y, Sign.PLUS))
@@ -472,11 +472,11 @@ def test_pauli_simplification_non_pauli_leaves_unchanged() -> None:
     """Test that non-Pauli measurement angles leave corrections unchanged."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set non-Pauli measurement basis for target (XY plane, angle=pi/4)
     graphstate.assign_meas_basis(target, PlannerMeasBasis(Plane.XY, 0.25 * np.pi))
@@ -499,11 +499,11 @@ def test_pauli_simplification_preserves_original_flows() -> None:
     """Test that original xflow and zflow are not modified."""
     # Create a 3-node graph: parent -> target -> output
     graphstate = GraphState()
-    parent = graphstate.add_physical_node()
-    target = graphstate.add_physical_node()
-    output = graphstate.add_physical_node()
-    graphstate.add_physical_edge(parent, target)
-    graphstate.add_physical_edge(target, output)
+    parent = graphstate.add_node()
+    target = graphstate.add_node()
+    output = graphstate.add_node()
+    graphstate.add_edge(parent, target)
+    graphstate.add_edge(target, output)
 
     # Set X-axis measurement basis for target
     graphstate.assign_meas_basis(target, AxisMeasBasis(Axis.X, Sign.PLUS))

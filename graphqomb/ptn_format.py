@@ -529,8 +529,8 @@ class _LoadedGraphState(BaseGraphState):
 
     _input_node_indices: dict[int, int]
     _output_node_indices: dict[int, int]
-    _physical_nodes: set[int]
-    _physical_edges: set[tuple[int, int]]
+    _nodes: set[int]
+    _edges: set[tuple[int, int]]
     _meas_bases: dict[int, MeasBasis]
     _coordinates: dict[int, tuple[float, ...]]
     _neighbors: dict[int, set[int]] = field(init=False, repr=False)
@@ -538,14 +538,12 @@ class _LoadedGraphState(BaseGraphState):
     def __post_init__(self) -> None:
         self._input_node_indices = dict(self._input_node_indices)
         self._output_node_indices = dict(self._output_node_indices)
-        self._physical_nodes = set(self._physical_nodes)
-        self._physical_edges = {
-            (node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._physical_edges
-        }
+        self._nodes = set(self._nodes)
+        self._edges = {(node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._edges}
         self._meas_bases = dict(self._meas_bases)
         self._coordinates = dict(self._coordinates)
-        self._neighbors: dict[int, set[int]] = {node: set() for node in self._physical_nodes}
-        for node1, node2 in self._physical_edges:
+        self._neighbors: dict[int, set[int]] = {node: set() for node in self._nodes}
+        for node1, node2 in self._edges:
             self._neighbors.setdefault(node1, set()).add(node2)
             self._neighbors.setdefault(node2, set()).add(node1)
 
@@ -558,12 +556,12 @@ class _LoadedGraphState(BaseGraphState):
         return self._output_node_indices.copy()
 
     @property
-    def physical_nodes(self) -> set[int]:
-        return set(self._physical_nodes)
+    def nodes(self) -> set[int]:
+        return set(self._nodes)
 
     @property
-    def physical_edges(self) -> set[tuple[int, int]]:
-        return set(self._physical_edges)
+    def edges(self) -> set[tuple[int, int]]:
+        return set(self._edges)
 
     @property
     def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
@@ -573,11 +571,11 @@ class _LoadedGraphState(BaseGraphState):
     def coordinates(self) -> dict[int, tuple[float, ...]]:
         return self._coordinates.copy()
 
-    def add_physical_node(self, coordinate: tuple[float, ...] | None = None) -> int:
+    def add_node(self, node: int | None = None, *, coordinate: tuple[float, ...] | None = None) -> int:
         msg = "Loaded .ptn graph states are read-only"
         raise NotImplementedError(msg)
 
-    def add_physical_edge(self, node1: int, node2: int) -> None:
+    def add_edge(self, node1: int, node2: int) -> None:
         msg = "Loaded .ptn graph states are read-only"
         raise NotImplementedError(msg)
 
@@ -594,13 +592,13 @@ class _LoadedGraphState(BaseGraphState):
         raise NotImplementedError(msg)
 
     def neighbors(self, node: int) -> set[int]:
-        if node not in self._physical_nodes:
+        if node not in self._nodes:
             msg = f"Node does not exist node={node}"
             raise ValueError(msg)
         return self._neighbors.get(node, set()).copy()
 
     def check_canonical_form(self) -> None:
-        for node in self._physical_nodes - self._output_node_indices.keys():
+        for node in self._nodes - self._output_node_indices.keys():
             if node not in self._meas_bases:
                 msg = f"Measurement basis not set for node {node}"
                 raise ValueError(msg)
@@ -667,8 +665,8 @@ def _build_pattern(data: _PatternData) -> Pattern:
     graphstate = _LoadedGraphState(
         _input_node_indices=data.input_node_indices,
         _output_node_indices=data.output_node_indices,
-        _physical_nodes=nodes,
-        _physical_edges=edges,
+        _nodes=nodes,
+        _edges=edges,
         _meas_bases=meas_bases,
         _coordinates=coordinates,
     )

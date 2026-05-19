@@ -292,7 +292,7 @@ def test_circuit2graph_simple_circuit() -> None:
     assert len(graph.input_node_indices) == 2
     assert len(graph.output_node_indices) == 2
     # 2 input nodes + 2 J gate nodes = 4 total nodes
-    assert len(graph.physical_nodes) == 4
+    assert len(graph.nodes) == 4
 
     # Check gflow
     assert len(gflow) == 2  # Two J gates should have gflow
@@ -312,10 +312,10 @@ def test_circuit2graph_phase_gadget_circuit() -> None:
     assert len(graph.input_node_indices) == 3
     assert len(graph.output_node_indices) == 3
     # 3 input nodes + 1 phase gadget node = 4 total nodes
-    assert len(graph.physical_nodes) == 4
+    assert len(graph.nodes) == 4
 
     # Check phase gadget node has correct measurement basis
-    pg_nodes = [n for n in graph.physical_nodes if n not in graph.input_node_indices]
+    pg_nodes = [n for n in graph.nodes if n not in graph.input_node_indices]
     assert len(pg_nodes) == 1
     pg_node = pg_nodes[0]
     basis = graph.meas_bases[pg_node]
@@ -332,7 +332,7 @@ def test_circuit2graph_empty_circuit() -> None:
     # Check graph properties
     assert len(graph.input_node_indices) == 2
     assert len(graph.output_node_indices) == 2
-    assert len(graph.physical_nodes) == 2  # Only input/output nodes
+    assert len(graph.nodes) == 2  # Only input/output nodes
     assert len(gflow) == 0  # No gflow for empty circuit
 
     # Check scheduler
@@ -380,7 +380,7 @@ def test_circuit2graph_complex_circuit() -> None:
     assert len(graph.output_node_indices) == 4
 
     # Count nodes: 4 inputs + 4 J nodes + 1 phase gadget = 9
-    assert len(graph.physical_nodes) == 9
+    assert len(graph.nodes) == 9
 
     # Check gflow: 4 J gates + 1 phase gadget = 5 entries
     assert len(gflow) == 5
@@ -399,9 +399,7 @@ def test_circuit2graph_measurement_basis_assignment() -> None:
 
     # Find non-output nodes with measurement basis (J gates are applied to input nodes)
     measured_nodes = [
-        (n, basis)
-        for n in graph.physical_nodes
-        if n not in graph.output_node_indices and (basis := graph.meas_bases.get(n))
+        (n, basis) for n in graph.nodes if n not in graph.output_node_indices and (basis := graph.meas_bases.get(n))
     ]
 
     assert len(measured_nodes) == 2
@@ -424,7 +422,7 @@ def test_circuit2graph_circuit_with_macro_gates() -> None:
     assert len(graph.input_node_indices) == 2
     assert len(graph.output_node_indices) == 2
     # H expands to 1 J, CNOT expands to 2 J + 1 CZ = 3 nodes total
-    assert len(graph.physical_nodes) == 5  # 2 inputs + 3 new nodes
+    assert len(graph.nodes) == 5  # 2 inputs + 3 new nodes
 
 
 # circuit2graph scheduling tests
@@ -494,7 +492,7 @@ def test_circuit2graph_phase_gadget_timing() -> None:
     graph, _gflow, scheduler = circuit2graph(circuit)
 
     # Check that phase gadget node has valid timing
-    pg_nodes = [n for n in graph.physical_nodes if graph.meas_bases.get(n) and graph.meas_bases[n].plane == Plane.YZ]
+    pg_nodes = [n for n in graph.nodes if graph.meas_bases.get(n) and graph.meas_bases[n].plane == Plane.YZ]
     assert len(pg_nodes) == 1
     assert scheduler.prepare_time.get(pg_nodes[0]) is not None
     assert scheduler.measure_time.get(pg_nodes[0]) is not None
@@ -638,7 +636,7 @@ def test_circuit2graph_single_qubit_no_gates() -> None:
 
     graph, gflow, scheduler = circuit2graph(circuit)
 
-    assert len(graph.physical_nodes) == 1
+    assert len(graph.nodes) == 1
     assert len(gflow) == 0
     assert isinstance(scheduler, Scheduler)
 
@@ -671,7 +669,7 @@ def test_circuit2graph_deep_circuit() -> None:
     scheduler.validate_schedule()
 
     # Check expected number of nodes: 2 input + 20 J gates
-    assert len(graph.physical_nodes) == 22
+    assert len(graph.nodes) == 22
 
 
 def test_circuit2graph_scheduler_can_resolve_with_different_strategy() -> None:

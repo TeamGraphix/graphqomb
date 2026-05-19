@@ -86,8 +86,8 @@ class _Circuit2GraphContext:
         raise TypeError(msg)
 
     def _apply_j(self, instruction: J) -> None:
-        new_node = self.graph.add_physical_node()
-        self.graph.add_physical_edge(self.qindex2front_nodes[instruction.qubit], new_node)
+        new_node = self.graph.add_node()
+        self.graph.add_edge(self.qindex2front_nodes[instruction.qubit], new_node)
         self.graph.assign_meas_basis(
             self.qindex2front_nodes[instruction.qubit],
             PlannerMeasBasis(Plane.XY, -instruction.angle),
@@ -106,7 +106,7 @@ class _Circuit2GraphContext:
         self.qindex2front_nodes[instruction.qubit] = new_node
 
     def _apply_cz(self, instruction: CZ) -> None:
-        self.graph.add_physical_edge(
+        self.graph.add_edge(
             self.qindex2front_nodes[instruction.qubits[0]],
             self.qindex2front_nodes[instruction.qubits[1]],
         )
@@ -119,10 +119,10 @@ class _Circuit2GraphContext:
         self.qindex2timestep[instruction.qubits[1]] = aligned_time
 
     def _apply_phase_gadget(self, instruction: PhaseGadget) -> None:
-        new_node = self.graph.add_physical_node()
+        new_node = self.graph.add_node()
         self.graph.assign_meas_basis(new_node, PlannerMeasBasis(Plane.YZ, instruction.angle))
         for qubit in instruction.qubits:
-            self.graph.add_physical_edge(self.qindex2front_nodes[qubit], new_node)
+            self.graph.add_edge(self.qindex2front_nodes[qubit], new_node)
 
         self.gflow[new_node] = {new_node}
 
@@ -349,7 +349,7 @@ def circuit2graph(
 
     # input nodes
     for i in range(circuit.num_qubits):
-        node = graph.add_physical_node()
+        node = graph.add_node()
         graph.register_input(node, i)
         context.qindex2front_nodes[i] = node
         context.qindex2timestep[i] = 0

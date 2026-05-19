@@ -31,8 +31,8 @@ circuit.cz(1, 2)
 # %%
 # Convert the circuit into GraphQOMB's compiler IRs.
 graphstate, xflow, scheduler = circuit2graph(circuit)
-print("graph nodes:", len(graphstate.physical_nodes))
-print("graph edges:", len(graphstate.physical_edges))
+print("graph nodes:", len(graphstate.nodes))
+print("graph edges:", len(graphstate.edges))
 print("feedforward entries:", len(xflow))
 print("scheduled slices:", scheduler.num_slices())
 
