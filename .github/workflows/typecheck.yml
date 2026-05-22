@@ -15,17 +15,17 @@ jobs:
         tool: [mypy, pyright]
 
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6.2.0
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v8
         with:
           uv-version: "0.11.16"
           enable-cache: true
 
       - run: uv sync --locked --python 3.10 --extra dev
 
-      - run: uv run ${{ matrix.tool }}
+      - run: uv run --no-sync ${{ matrix.tool }}
