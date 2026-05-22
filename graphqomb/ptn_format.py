@@ -19,7 +19,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from graphqomb.command import TICK, Command, E, M, N, X, Z
+from graphqomb.command import TICK, Command, E, M, N
 from graphqomb.common import (
     Axis,
     AxisMeasBasis,
@@ -201,10 +201,6 @@ def _write_command(out: StringIO, cmd: Command) -> None:
         out.write(f"E {cmd.nodes[0]} {cmd.nodes[1]}\n")
     elif isinstance(cmd, M):
         _write_measurement(out, cmd)
-    elif isinstance(cmd, X):
-        out.write(f"X {cmd.node}\n")
-    elif isinstance(cmd, Z):
-        out.write(f"Z {cmd.node}\n")
 
 
 def _is_positive_pauli_measurement(meas_basis: MeasBasis, pauli_axis: Axis) -> bool:
@@ -612,7 +608,7 @@ def _command_nodes(cmd: Command) -> set[int]:
     `set`\[`int`\]
         Node ids referenced by the command.
     """
-    if isinstance(cmd, (N, M, X, Z)):
+    if isinstance(cmd, (N, M)):
         return {cmd.node}
     if isinstance(cmd, E):
         return set(cmd.nodes)
@@ -848,16 +844,6 @@ class _Parser:
             self._parse_e_command(parts)
         elif cmd_type == "M":
             self._parse_m_command(parts)
-        elif cmd_type == "X":
-            if len(parts) != 2:  # noqa: PLR2004
-                msg = "X command requires exactly one node"
-                raise ValueError(msg)
-            self.result.commands.append(X(node=_parse_int(parts[1], "node")))
-        elif cmd_type == "Z":
-            if len(parts) != 2:  # noqa: PLR2004
-                msg = "Z command requires exactly one node"
-                raise ValueError(msg)
-            self.result.commands.append(Z(node=_parse_int(parts[1], "node")))
         else:
             msg = f"Unknown command: {cmd_type}"
             raise ValueError(msg)

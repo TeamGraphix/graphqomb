@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from graphqomb.command import TICK, E, M, N, X, Z
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign, determine_pauli_axis
 from graphqomb.graphstate import GraphState
 from graphqomb.pattern import Pattern
@@ -83,7 +83,7 @@ def create_measured_output_pattern_with_detector() -> Pattern:
     return qompile(graph, {in_node: {out_node}}, parity_check_group=[{in_node}])
 
 
-def command_signature(cmd: Command) -> tuple[Any, ...]:  # noqa: PLR0911
+def command_signature(cmd: Command) -> tuple[Any, ...]:
     """Return a behavior-level signature for a pattern command."""
     if isinstance(cmd, N):
         return ("N", cmd.node, cmd.coordinate)
@@ -94,10 +94,6 @@ def command_signature(cmd: Command) -> tuple[Any, ...]:  # noqa: PLR0911
         if pauli_axis is not None:
             return ("M", cmd.node, pauli_axis, cmd.meas_basis.angle)
         return ("M", cmd.node, cmd.meas_basis.plane, cmd.meas_basis.angle)
-    if isinstance(cmd, X):
-        return ("X", cmd.node)
-    if isinstance(cmd, Z):
-        return ("Z", cmd.node)
     if isinstance(cmd, TICK):
         return ("TICK",)
     return ("UNKNOWN", type(cmd).__name__)
@@ -261,8 +257,6 @@ N 3 1.0 2.0
 E 0 1
 M 0 XY 0
 M 1 XY pi/2
-X 2
-Z 2
 """
     result = loads(ptn_str)
 
@@ -272,8 +266,6 @@ Z 2
     assert any(isinstance(c, N) and c.node == 3 and c.coordinate == (1.0, 2.0) for c in commands)
     assert any(isinstance(c, E) and c.nodes == (0, 1) for c in commands)
     assert any(isinstance(c, M) and c.node == 0 for c in commands)
-    assert any(isinstance(c, X) and c.node == 2 for c in commands)
-    assert any(isinstance(c, Z) and c.node == 2 for c in commands)
 
 
 def test_loads_timeslices() -> None:
@@ -648,9 +640,6 @@ E 20 30
 M 10 X +
 [2]
 M 20 Y -
-[3]
-X 30
-Z 30
 
 .xflow 10 -> 20
 .zflow 20 -> 30
@@ -670,7 +659,6 @@ Z 30
     with pytest.raises(NotImplementedError, match="read-only"):
         result.pauli_frame.graphstate.add_edge(10, 30)
     assert any(isinstance(cmd, N) and cmd.node == 20 for cmd in result.commands)
-    assert any(isinstance(cmd, X) and cmd.node == 30 for cmd in result.commands)
 
 
 @pytest.mark.parametrize(
@@ -684,6 +672,8 @@ Z 30
         (".version 1\n[1]\n[0]\n", "monotonically increasing"),
         (".version 1\n[0]\nM 0 XY pi/0\n", "denominator"),
         (".version 1\n.detector\n", "requires at least one node"),
+        (".version 1\n[0]\nX 0\n", "Unknown command: X"),
+        (".version 1\n[0]\nZ 0\n", "Unknown command: Z"),
     ],
 )
 def test_loads_rejects_malformed_input(ptn_str: str, message: str) -> None:

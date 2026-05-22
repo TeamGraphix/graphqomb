@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from graphqomb.command import TICK, E, M, N, X, Z
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import MeasBasis, Plane
 from graphqomb.gates import MultiGate, SingleGate, TwoQubitGate
 from graphqomb.pattern import is_runnable
@@ -28,6 +28,9 @@ if TYPE_CHECKING:
     from graphqomb.gates import Gate
     from graphqomb.pattern import Pattern
     from graphqomb.simulator_backend import BaseFullStateSimulator
+
+_X_MATRIX = np.asarray([[0, 1], [1, 0]], dtype=np.complex128)
+_Z_MATRIX = np.asarray([[1, 0], [0, -1]], dtype=np.complex128)
 
 
 class SimulatorBackend(Enum):
@@ -112,6 +115,8 @@ class PatternSimulator:
         The list of node indices in the pattern.
     results : `dict`\[`int`, `bool`\]
         The measurement results for each node.
+    output_results : `dict`\[`int`, `bool`\]
+        Measurement results for output nodes, keyed by logical output index.
     calc_prob : `bool`
         Whether to calculate probabilities.
     """
@@ -119,6 +124,7 @@ class PatternSimulator:
     state: BaseFullStateSimulator
     node_indices: list[int]
     results: dict[int, bool]
+    output_results: dict[int, bool]
     calc_prob: bool
     __pattern: Pattern
 
@@ -131,6 +137,7 @@ class PatternSimulator:
     ) -> None:
         self.node_indices = list(pattern.input_node_indices.keys())
         self.results = {}
+        self.output_results = {}
 
         self.calc_prob = calc_prob
         self.__pattern = pattern
@@ -194,31 +201,51 @@ class PatternSimulator:
 
         return basis
 
+    def _sample_measurement_result(
+        self,
+        node_id: int,
+        meas_basis: MeasBasis,
+        rng: np.random.Generator,
+    ) -> bool:
+        state = self.state.state()
+        norm_sq = float(np.real(np.vdot(state, state)))
+        basis_vector = meas_basis.vector()
+        projected = np.tensordot(basis_vector.conjugate(), state, axes=(0, node_id))
+        prob_false = float(np.real(np.vdot(projected, projected)) / norm_sq)
+        prob_false = min(1.0, max(0.0, prob_false))
+        return bool(rng.uniform() >= prob_false)
+
+    def _apply_output_pauli_frame(self, node: int) -> None:
+        node_id = self.node_indices.index(node)
+        if self.__pattern.pauli_frame.x_pauli[node]:
+            self.state.evolve(_X_MATRIX, node_id)
+        if self.__pattern.pauli_frame.z_pauli[node]:
+            self.state.evolve(_Z_MATRIX, node_id)
+
     @apply_cmd.register
     def _(self, cmd: M, *, rng: np.random.Generator) -> None:
         if self.calc_prob:
             raise NotImplementedError
-        result = rng.uniform() < 1 / 2
 
         node_id = self.node_indices.index(cmd.node)
-        self.state.measure(node_id, self._updated_measurement_basis(cmd), result)
+        if cmd.node in self.__pattern.output_node_indices:
+            self._apply_output_pauli_frame(cmd.node)
+            meas_basis = cmd.meas_basis
+        else:
+            meas_basis = self._updated_measurement_basis(cmd)
+
+        result = self._sample_measurement_result(node_id, meas_basis, rng)
+        self.state.measure(node_id, meas_basis, result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 
+        if cmd.node in self.__pattern.output_node_indices:
+            qindex = self.__pattern.output_node_indices[cmd.node]
+            self.output_results[qindex] = result
+            return
+
         if result:
             self.__pattern.pauli_frame.meas_flip(cmd.node)
-
-    @apply_cmd.register
-    def _(self, cmd: X, *, rng: np.random.Generator) -> None:  # noqa: ARG002
-        node_id = self.node_indices.index(cmd.node)
-        if self.__pattern.pauli_frame.x_pauli[cmd.node]:
-            self.state.evolve(np.asarray([[0, 1], [1, 0]]), node_id)
-
-    @apply_cmd.register
-    def _(self, cmd: Z, *, rng: np.random.Generator) -> None:  # noqa: ARG002
-        node_id = self.node_indices.index(cmd.node)
-        if self.__pattern.pauli_frame.z_pauli[cmd.node]:
-            self.state.evolve(np.asarray([[1, 0], [0, -1]]), node_id)
 
     @apply_cmd.register
     def _(self, cmd: TICK, *, rng: np.random.Generator) -> None:
@@ -239,6 +266,10 @@ class PatternSimulator:
         rng = ensure_rng(rng)
         for cmd in self.__pattern.commands:
             self.apply_cmd(cmd, rng=rng)
+
+        for node in self.node_indices:
+            if node in self.__pattern.output_node_indices:
+                self._apply_output_pauli_frame(node)
 
         # Create a mapping from current node indices to output node indices
         permutation = [self.__pattern.output_node_indices[node] for node in self.node_indices]

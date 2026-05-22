@@ -5,8 +5,6 @@ This module provides:
 - `N`: Preparation command.
 - `E`: Entanglement command.
 - `M`: Measurement command.
-- `X`: X correction command.
-- `Z`: Z correction command.
 - `TICK`: Time slice separator command.
 - `Command`: Type alias of all commands.
 """
@@ -77,39 +75,6 @@ class M:
 
 
 @dataclasses.dataclass
-class _Correction:
-    node: int
-
-
-@dataclasses.dataclass
-class X(_Correction):
-    """X correction command.
-
-    Attributes
-    ----------
-    node : `int`
-        The node index to apply the correction.
-    """
-
-    def __str__(self) -> str:
-        return f"X: node={self.node}"
-
-
-@dataclasses.dataclass
-class Z(_Correction):
-    """Z correction command.
-
-    Attributes
-    ----------
-    node : `int`
-        The node index to apply the correction.
-    """
-
-    def __str__(self) -> str:
-        return f"Z: node={self.node}"
-
-
-@dataclasses.dataclass
 class TICK:
     """Time slice separator command.
 
@@ -121,4 +86,4 @@ class TICK:
         return "TICK"
 
 
-Command = N | E | M | X | Z | TICK
+Command = N | E | M | TICK

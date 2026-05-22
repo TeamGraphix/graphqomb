@@ -10,7 +10,7 @@ from __future__ import annotations
 from io import StringIO
 from typing import TYPE_CHECKING
 
-from graphqomb.command import TICK, E, M, N, X, Z
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
 from graphqomb.noise_model import (
     Coordinate,
@@ -91,12 +91,6 @@ class _StimCompiler:
                 self._handle_measure(cmd.node, cmd.meas_basis)
             elif isinstance(cmd, TICK):
                 self._handle_tick()
-            elif isinstance(cmd, (X, Z)):
-                cmd_name = type(cmd).__name__
-                msg = (
-                    f"Unsupported command for stim compilation: {cmd_name}. X/Z correction commands are not supported."
-                )
-                raise NotImplementedError(msg)
             else:
                 msg = f"Unsupported command for stim compilation: {type(cmd).__name__}"
                 raise TypeError(msg)
@@ -275,7 +269,6 @@ def stim_compile(
     Stim only supports Clifford gates, therefore this compiler only supports
     Pauli measurements (X, Y, Z basis) which correspond to Clifford operations.
     Non-Pauli measurements will raise a ValueError.
-    Patterns containing X or Z correction commands will raise a NotImplementedError.
 
     Examples
     --------

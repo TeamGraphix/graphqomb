@@ -28,7 +28,9 @@ The lowered pattern combines:
 - a :class:`graphqomb.pauli_frame.PauliFrame` used for dependency tracking,
 - derived metrics such as depth, space usage, and active volume.
 
-Most scheduled work is serialized as prepare, entangle, and measure commands separated by ``TICK`` slice boundaries. In the current implementation, terminal ``X``/``Z`` correction commands may also remain for unmeasured outputs, so the executable command stream is close to, but not strictly limited to, ``N``, ``E``, ``M``, and ``TICK``.
+Most scheduled work is serialized as prepare, entangle, and measure commands separated by ``TICK`` slice boundaries.
+Pauli corrections are retained in the :class:`graphqomb.pauli_frame.PauliFrame` rather than emitted as terminal ``X``/``Z`` commands, so the executable command stream is limited to ``N``, ``E``, ``M``, and ``TICK``.
+The pattern simulator materializes pending output-frame corrections when returning an output statevector or an explicit output measurement result.
 
 Feedforward and causality
 -------------------------

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from graphqomb.command import TICK, E
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.noise_model import (
@@ -475,8 +475,8 @@ def test_stim_compile_unsupported_basis() -> None:
         stim_compile(pattern)
 
 
-def test_stim_compile_unsupported_output_corrections() -> None:
-    """Test that X/Z correction commands in a pattern raise NotImplementedError."""
+def test_stim_compile_unmeasured_output_has_no_correction_commands() -> None:
+    """Unmeasured outputs should compile without terminal correction commands."""
     graph = GraphState()
     in_node = graph.add_node()
     out_node = graph.add_node()
@@ -491,8 +491,13 @@ def test_stim_compile_unsupported_output_corrections() -> None:
     xflow = {in_node: {out_node}}
     pattern = qompile(graph, xflow)
 
-    with pytest.raises(NotImplementedError, match="X/Z correction commands are not supported"):
-        stim_compile(pattern)
+    assert all(isinstance(cmd, (N, E, M, TICK)) for cmd in pattern.commands)
+    assert all(not (isinstance(cmd, M) and cmd.node == out_node) for cmd in pattern.commands)
+
+    stim_str = stim_compile(pattern)
+
+    assert isinstance(stim_str, str)
+    assert stim_str
 
 
 def test_stim_compile_empty_pattern() -> None:
