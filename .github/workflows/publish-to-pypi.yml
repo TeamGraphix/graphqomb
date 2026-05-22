@@ -20,26 +20,26 @@ jobs:
       contents: write  # Required for creating GitHub releases
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: '3.13'
 
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
 
       - name: Build package
-        run: python -m build
+        run: uv run --with build==1.5.0 python -m build --installer uv
 
       - name: Check package
-        run: twine check dist/*
+        run: uv run --with twine==6.2.0 twine check dist/*
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1.14.0
 
       - name: Extract version from tag
         id: get_version
@@ -58,7 +58,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v3.0.0
         with:
           name: v${{ steps.get_version.outputs.VERSION }}
           body: ${{ steps.changelog.outputs.content }}

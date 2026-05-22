@@ -41,7 +41,33 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Quantum Computing",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dynamic = ["dependencies", "optional-dependencies"]
+dependencies = [
+    "matplotlib",
+    "networkx",
+    "numpy>=1.22,<3",
+    "ortools>=9,<10",
+    "typing-extensions",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==2.1.0",
+    "pre-commit==4.6.0",
+    "pyright==1.1.409",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "ruff==0.15.14",
+    "types-networkx==3.6.1.20260518",
+]
+doc = [
+    "furo>=2025.12.19",
+    "matplotlib>=3.7.0",
+    "sphinx>=8.1.3",
+    "sphinx-gallery>=0.17.0",
+]
+pyzx = [
+    "pyzx>=0.10",
+]
 
 [project.urls]
 Homepage = "https://github.com/TeamGraphix/graphqomb"
@@ -49,14 +75,6 @@ Documentation = "https://graphqomb.readthedocs.io/"
 Repository = "https://github.com/TeamGraphix/graphqomb"
 Changelog = "https://github.com/TeamGraphix/graphqomb/blob/master/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/TeamGraphix/graphqomb/issues"
-
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-
-[tool.setuptools.dynamic.optional-dependencies]
-dev = { file = ["requirements-dev.txt"] }
-doc = { file = ["docs/requirements.txt"] }
-pyzx = { file = ["requirements-pyzx.txt"] }
 
 [tool.setuptools.package-data]
 graphqomb = ["py.typed"]

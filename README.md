@@ -41,13 +41,13 @@ These are lowered with `qompile(...)` into a `Pattern` carrying:
 ### From PyPI
 
 ```bash
-pip install graphqomb
+uv add graphqomb
 ```
 
 Install optional PyZX integration:
 
 ```bash
-pip install "graphqomb[pyzx]"
+uv add "graphqomb[pyzx]"
 ```
 
 ### From Source
@@ -55,19 +55,19 @@ pip install "graphqomb[pyzx]"
 ```bash
 git clone https://github.com/TeamGraphix/graphqomb.git
 cd graphqomb
-pip install -e .
+uv sync
 ```
 
 Install development dependencies:
 
 ```bash
-pip install -e .[dev]
+uv sync --extra dev
 ```
 
 Install documentation dependencies:
 
 ```bash
-pip install -e .[doc]
+uv sync --extra doc
 ```
 
 ## Quick Start
@@ -118,24 +118,24 @@ GraphQOMB currently targets static, branch-free MBQC workflows. It is designed a
 ### Running Tests
 
 ```bash
-pytest
-pytest tests/test_specific.py
+uv run pytest
+uv run pytest tests/test_specific.py
 ```
 
 ### Code Quality
 
 ```bash
-ruff check
-ruff format
-mypy
-pyright
+uv run ruff check
+uv run ruff format
+uv run mypy
+uv run pyright
 ```
 
 ### Building Documentation
 
 ```bash
 cd docs
-make html
+uv run sphinx-build -W source build
 ```
 
 ## Contributing

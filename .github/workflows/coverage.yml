@@ -17,23 +17,26 @@ jobs:
     if: github.actor != 'dependabot[bot]'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.13"
 
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev,pyzx]
+        run: uv sync --locked --python 3.13 --extra dev --extra pyzx
 
       - name: Run pytest with coverage
-        run: pytest --cov=graphqomb --cov-report=term-missing --cov-report=xml --cov-branch
+        run: uv run pytest --cov=graphqomb --cov-report=term-missing --cov-report=xml --cov-branch
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml

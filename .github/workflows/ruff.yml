@@ -12,11 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
 
-      - uses: astral-sh/ruff-action@v3
+      - uses: actions/setup-python@v6.2.0
         with:
-          version-file: requirements-dev.txt
-          args: check ./graphqomb ./tests ./examples
+          python-version: "3.10"
 
-      - run: ruff format --check --diff
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
+
+      - run: uv sync --locked --python 3.10 --extra dev
+
+      - run: uv run ruff check ./graphqomb ./tests ./examples
+
+      - run: uv run ruff format --check --diff
