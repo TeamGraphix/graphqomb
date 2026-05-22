@@ -734,15 +734,18 @@ class _Parser:
             return
 
         try:
-            if line.startswith("."):
-                self._parse_directive(line)
-            elif line.startswith("[") and line.endswith("]"):
-                self._parse_timeslice(line)
-            else:
-                self._parse_command(line)
+            self._parse_content_line(line)
         except ValueError as exc:
             msg = f"Line {line_num}: {exc}"
             raise ValueError(msg) from exc
+
+    def _parse_content_line(self, line: str) -> None:
+        if line.startswith("."):
+            self._parse_directive(line)
+        elif line.startswith("[") and line.endswith("]"):
+            self._parse_timeslice(line)
+        else:
+            self._parse_command(line)
 
     def _parse_directive(self, line: str) -> None:
         """Parse a directive line (starts with '.').

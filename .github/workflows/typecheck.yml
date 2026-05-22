@@ -21,7 +21,11 @@ jobs:
         with:
           python-version: "3.10"
 
-      - run: |
-          python3 -m pip install -U pip
-          pip install .[dev]
-          ${{ matrix.tool }}
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
+
+      - run: uv sync --locked --python 3.10 --extra dev
+
+      - run: uv run --no-sync ${{ matrix.tool }}

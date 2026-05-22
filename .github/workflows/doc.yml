@@ -17,12 +17,15 @@ jobs:
         with:
           python-version: "3.13"
 
-      - run: pip install --upgrade pip
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
 
-      - run: pip install -v -e .[doc]
+      - run: uv sync --locked --python 3.13 --extra doc
 
       - name: Make docs
-        run: sphinx-build -W docs/source docs/build
+        run: uv run --no-sync sphinx-build -W docs/source docs/build
 
       - name: Save docs
         uses: actions/upload-artifact@v7
@@ -39,5 +42,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          uv-version: "0.11.16"
+          enable-cache: true
+
+      - run: uv sync --locked --python 3.12 --extra dev
+
       - name: Run language-agnostic linters
-        uses: pre-commit/action@v3.0.1
+        run: uv run --no-sync pre-commit run --all-files
