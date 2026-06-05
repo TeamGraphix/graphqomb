@@ -56,7 +56,7 @@ dev = [
     "pyright==1.1.409",
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
-    "ruff==0.15.15",
+    "ruff==0.15.16",
     "types-networkx==3.6.1.20260518",
 ]
 doc = [
