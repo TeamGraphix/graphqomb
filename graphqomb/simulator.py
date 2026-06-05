@@ -229,12 +229,12 @@ class PatternSimulator:
 
         node_id = self.node_indices.index(cmd.node)
         if cmd.node in self.__pattern.output_node_indices:
-            self._apply_output_pauli_frame(cmd.node)
-            meas_basis = cmd.meas_basis
+            meas_basis = self._updated_measurement_basis(cmd)
+            result = self._sample_measurement_result(node_id, meas_basis, rng)
         else:
             meas_basis = self._updated_measurement_basis(cmd)
+            result = rng.uniform() < 1 / 2
 
-        result = self._sample_measurement_result(node_id, meas_basis, rng)
         self.state.measure(node_id, meas_basis, result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
@@ -267,6 +267,8 @@ class PatternSimulator:
         for cmd in self.__pattern.commands:
             self.apply_cmd(cmd, rng=rng)
 
+        # Only remaining output nodes still have state-vector axes; measured outputs
+        # remain in output_node_indices but have been removed from node_indices.
         for node in self.node_indices:
             if node in self.__pattern.output_node_indices:
                 self._apply_output_pauli_frame(node)
