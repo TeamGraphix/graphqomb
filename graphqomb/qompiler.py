@@ -12,7 +12,7 @@ from __future__ import annotations
 from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 
-from graphqomb.command import TICK, Command, E, M, N, X, Z
+from graphqomb.command import TICK, Command, E, M, N
 from graphqomb.feedforward import check_flow, dag_from_flow
 from graphqomb.graphstate import odd_neighbors
 from graphqomb.pattern import Pattern
@@ -138,11 +138,7 @@ def _qompile(
         # Insert TICK between time slices
         commands.append(TICK())
 
-    for node in graph.output_node_indices:
-        if meas_basis := graph.meas_bases.get(node):
-            commands.append(M(node, meas_basis))
-        else:
-            commands.extend((X(node=node), Z(node=node)))
+    commands.extend(M(node, meas_bases[node]) for node in graph.output_node_indices if node in meas_bases)
 
     # Collect input node coordinates
     input_coords = {node: graph_coords[node] for node in graph.input_node_indices if node in graph_coords}

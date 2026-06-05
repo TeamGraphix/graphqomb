@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from graphqomb.command import TICK, E, M, N, X, Z
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 from graphqomb.pattern import Pattern
@@ -58,8 +58,6 @@ def test_pattern_depth_counts_tick_commands(
         E(nodes=(nodes[0], nodes[1])),
         M(node=nodes[1], meas_basis=meas_basis),
         TICK(),
-        X(node=nodes[2]),
-        Z(node=nodes[2]),
     )
 
     pattern = Pattern(
@@ -82,8 +80,6 @@ def test_pattern_depth_is_zero_without_ticks(
         N(node=nodes[0]),
         E(nodes=(nodes[0], nodes[1])),
         M(node=nodes[1], meas_basis=meas_basis),
-        X(node=nodes[2]),
-        Z(node=nodes[2]),
     )
 
     pattern = Pattern(

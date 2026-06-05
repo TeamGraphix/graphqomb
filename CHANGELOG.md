@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Development Tooling**: Use uv as the default dependency manager for local development, CI, documentation builds, and publishing workflows.
 - **Graph State API**: Replaced legacy `physical_*` graph methods/properties with standard graph-style `nodes`, `edges`, `add_node()`, `add_edge()`, `remove_node()`, `remove_edge()`, and count/query helpers.
+- **Pattern Simulator**: Materialize pending output Pauli-frame corrections when returning output statevectors or explicit output measurement results.
+
+### Removed
+
+- **Pattern Commands**: Removed explicit `graphqomb.command.X` and `graphqomb.command.Z` correction commands. Output corrections are now represented by `PauliFrame` only, and `.ptn` files containing `X`/`Z` command lines are rejected.
 
 ## [0.3.1] - 2026-05-17
 

@@ -15,7 +15,7 @@ import typing
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from graphqomb.command import TICK, Command, E, M, N, X, Z
+from graphqomb.command import TICK, Command, E, M, N
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -162,7 +162,7 @@ class Pattern(Sequence[Command]):
                 idle_times[cmd.node] = current_time - prepared_time[cmd.node]
 
         for output_node in self.output_node_indices:
-            if output_node in prepared_time:
+            if output_node in prepared_time and output_node not in idle_times:
                 idle_times[output_node] = current_time - prepared_time[output_node]
 
         return idle_times
@@ -253,7 +253,7 @@ def _ensure_no_operations_on_measured_qubits(pattern: Pattern) -> None:
             if not set(cmd.nodes).isdisjoint(measured):
                 msg = f"Entanglement operation targets a measured qubit: {cmd}"
                 raise ValueError(msg)
-        elif isinstance(cmd, (N, X, Z)):
+        elif isinstance(cmd, N):
             if cmd.node in measured:
                 msg = f"Operation on a measured qubit: {cmd}"
                 raise ValueError(msg)
@@ -286,7 +286,7 @@ def _ensure_no_unprepared_qubit_operations(pattern: Pattern) -> None:
             if cmd.nodes[0] not in prepared or cmd.nodes[1] not in prepared:
                 msg = f"Entanglement operation targets a qubit that hasn't been prepared yet: {cmd}"
                 raise ValueError(msg)
-        elif isinstance(cmd, (M, X, Z)) and cmd.node not in prepared:
+        elif isinstance(cmd, M) and cmd.node not in prepared:
             msg = f"Operation on a qubit that hasn't been prepared yet: {cmd}"
             raise ValueError(msg)
         elif isinstance(cmd, TICK):
@@ -295,7 +295,7 @@ def _ensure_no_unprepared_qubit_operations(pattern: Pattern) -> None:
 
 
 def _ensure_measurement_consistency(pattern: Pattern) -> None:
-    """Ensure that measurements are applied exactly to all non-output qubits and that no output qubit is ever measured.
+    """Ensure that measurements are applied exactly to all non-output qubits.
 
     Parameters
     ----------
@@ -305,7 +305,7 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
     Raises
     ------
     ValueError
-        If a measurement targets an output qubit, or if some non-output qubits are never measured.
+        If some non-output qubits are never measured.
     """
     output_nodes = set(pattern.output_node_indices)
     non_output_nodes = (
@@ -314,11 +314,8 @@ def _ensure_measurement_consistency(pattern: Pattern) -> None:
     measured: set[int] = set()
     for cmd in pattern:
         if isinstance(cmd, M):
-            if cmd.node in output_nodes:
-                msg = f"The command measures an output qubit: {cmd}"
-                raise ValueError(msg)
             measured.add(cmd.node)
-    if measured != non_output_nodes:
+    if not non_output_nodes.issubset(measured):
         missing = non_output_nodes - measured
         msg = f"Missing measurements on qubit(s): {sorted(missing)}"
         raise ValueError(msg)
@@ -346,7 +343,7 @@ def print_pattern(
     """
 
     def identity_filter(cmd: Command) -> Command | None:
-        return cmd if isinstance(cmd, (N, E, M, X, Z, TICK)) else None
+        return cmd if isinstance(cmd, (N, E, M, TICK)) else None
 
     if cmd_filter is None:
         cmd_filter = identity_filter
