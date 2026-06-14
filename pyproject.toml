@@ -46,6 +46,7 @@ dependencies = [
     "networkx",
     "numpy>=1.22,<3",
     "ortools>=9,<10",
+    "scipy>=1.15.3",
     "typing-extensions",
 ]
 
@@ -187,3 +188,8 @@ reportUnknownLambdaType = "information"
 reportUnknownMemberType = "information"
 reportUnknownParameterType = "information"
 reportUnknownVariableType = "information"
+
+[dependency-groups]
+dev = [
+    "scipy-stubs>=1.15.3.0",
+]
