@@ -1,0 +1,133 @@
+"""Tests for QEC graph-state builders."""
+
+from __future__ import annotations
+
+import math
+from typing import Any, cast
+
+import pytest
+from scipy.sparse import csr_array
+
+from graphqomb.common import Axis, AxisMeasBasis, Sign
+from graphqomb.qec.qeccode import StabilizerCode, build_graph_state
+
+
+def _matrix(data: list[list[int]]) -> csr_array[Any, tuple[int, int]]:
+    return cast("csr_array[Any, tuple[int, int]]", csr_array(data))
+
+
+def test_build_graph_state_connects_stabilizer_supports() -> None:
+    matrix = _matrix(
+        [
+            [0, 0, 0, 1, 0, 2],  # Z support on q0 and q2.
+            [0, 3, 0, 0, 0, 0],  # X support on q1.
+            [1, 0, 0, 1, 0, 0],  # X and Z support on q0.
+        ]
+    )
+    code = StabilizerCode(matrix)
+
+    result = build_graph_state(code)
+    graph = result.graph
+
+    for qubit in range(3):
+        assert graph.has_edge(result.data_nodes[qubit, 0], result.data_nodes[qubit, 1])
+
+    ancilla0 = result.ancilla_nodes[0]
+    assert graph.has_edge(ancilla0, result.data_nodes[0, 0])
+    assert graph.has_edge(ancilla0, result.data_nodes[2, 0])
+
+    ancilla1 = result.ancilla_nodes[1]
+    assert graph.has_edge(ancilla1, result.data_nodes[1, 1])
+
+    ancilla2 = result.ancilla_nodes[2]
+    assert graph.has_edge(ancilla2, result.data_nodes[0, 0])
+    assert graph.has_edge(ancilla2, result.data_nodes[0, 1])
+
+    assert graph.number_of_nodes() == 9
+    assert graph.number_of_edges() == 8
+
+
+def test_build_graph_state_assigns_x_measurement_to_all_nodes() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    result = build_graph_state(code)
+
+    for node in result.graph.nodes:
+        meas_basis = result.graph.meas_bases[node]
+        assert isinstance(meas_basis, AxisMeasBasis)
+        assert meas_basis.axis == Axis.X
+        assert meas_basis.sign == Sign.PLUS
+        assert math.isclose(meas_basis.angle, 0.0)
+
+
+def test_build_graph_state_returns_index_to_node_maps() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    result = build_graph_state(code)
+
+    assert set(result.data_nodes) == {(0, 0), (0, 1), (1, 0), (1, 1)}
+    assert set(result.ancilla_nodes) == {0}
+    assert set(result.data_nodes.values()).isdisjoint(result.ancilla_nodes.values())
+
+
+def test_build_graph_state_lifts_coordinates_to_shifted_3d_layers() -> None:
+    code = StabilizerCode(
+        _matrix([[0, 1, 1, 0]]),
+        qubit_coords={
+            0: (10.0, 20.0),
+            1: (30.0, 40.0, 999.0),
+        },
+    )
+
+    result = build_graph_state(code, z_base=5)
+    coords = result.graph.coordinates
+
+    assert set(result.data_nodes) == {(0, 5), (0, 6), (1, 5), (1, 6)}
+    assert coords[result.data_nodes[0, 5]] == (10.0, 20.0, 5.0)
+    assert coords[result.data_nodes[0, 6]] == (10.0, 20.0, 6.0)
+    assert coords[result.data_nodes[1, 5]] == (30.0, 40.0, 5.0)
+    assert coords[result.data_nodes[1, 6]] == (30.0, 40.0, 6.0)
+    assert coords[result.ancilla_nodes[0]] == (20.0, 30.0, 5.5)
+
+
+def test_build_graph_state_explicit_ancilla_coordinate_overrides_average() -> None:
+    code = StabilizerCode(
+        _matrix([[0, 1, 1, 0]]),
+        stabilizer_coords={0: (1.0, 2.0, 3.0)},
+        qubit_coords={
+            0: (10.0, 20.0),
+            1: (30.0, 40.0),
+        },
+    )
+
+    result = build_graph_state(code)
+
+    assert result.graph.coordinates[result.ancilla_nodes[0]] == (1.0, 2.0, 3.0)
+
+
+def test_build_graph_state_allows_missing_coordinates() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    result = build_graph_state(code)
+
+    assert result.graph.coordinates == {}
+
+
+def test_stabilizer_code_rejects_odd_column_matrix() -> None:
+    with pytest.raises(ValueError, match="even number of columns"):
+        StabilizerCode(_matrix([[1, 0, 1]]))
+
+
+def test_stabilizer_code_rejects_invalid_coordinate_lengths() -> None:
+    with pytest.raises(ValueError, match=r"qubit_coords\[0\] must have length 2 or 3"):
+        StabilizerCode(_matrix([[1, 0]]), qubit_coords={0: (1.0,)})
+
+    with pytest.raises(ValueError, match=r"stabilizer_coords\[0\] must have length 3"):
+        StabilizerCode(_matrix([[1, 0]]), stabilizer_coords={0: (1.0, 2.0)})
+
+
+def test_build_graph_state_rejects_non_integer_z_base() -> None:
+    code = StabilizerCode(_matrix([[1, 0]]))
+
+    with pytest.raises(TypeError, match="z_base must be an integer"):
+        build_graph_state(code, z_base=0.5)  # type: ignore[arg-type]
