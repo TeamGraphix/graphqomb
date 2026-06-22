@@ -1,0 +1,97 @@
+"""Tests for building QEC codes from Stim MPP layers."""
+
+from __future__ import annotations
+
+import pytest
+
+from graphqomb.qec.qeccode import build_graph_state
+from graphqomb.qec.stim_mpp import stabilizer_code_from_stim_text
+
+pytest.importorskip("stim")
+
+
+def test_stabilizer_code_from_stim_mpp_sets_x_z_and_y_support() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        QUBIT_COORDS(10, 20, 30) 0
+        QUBIT_COORDS(11, 21, 31) 1
+        QUBIT_COORDS(12, 22, 32) 2
+        MPP X0*Y1*Z2
+        """
+    )
+
+    matrix = (extraction.code.hx.toarray(), extraction.code.hz.toarray())
+
+    assert extraction.stim_to_column == {0: 0, 1: 1, 2: 2}
+    assert extraction.supports == (((0, "X"), (1, "Y"), (2, "Z")),)
+    assert matrix[0].tolist() == [[True, True, False]]
+    assert matrix[1].tolist() == [[False, True, True]]
+    assert extraction.code.qubit_coord == {
+        0: (10.0, 20.0),
+        1: (11.0, 21.0),
+        2: (12.0, 22.0),
+    }
+
+
+def test_stabilizer_code_from_stim_mpp_handles_sparse_stim_ids_and_multiple_products() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        QUBIT_COORDS(1, 2) 10
+        QUBIT_COORDS(3, 4) 12
+        QUBIT_COORDS(5, 6) 99
+        MPP X10*Y12 Z99
+        TICK
+        MPP Z10*Z12
+        """
+    )
+
+    hx = extraction.code.hx.toarray().tolist()
+    hz = extraction.code.hz.toarray().tolist()
+
+    assert extraction.stim_to_column == {10: 0, 12: 1, 99: 2}
+    assert extraction.column_to_stim == {0: 10, 1: 12, 2: 99}
+    assert extraction.supports == (((10, "X"), (12, "Y")), ((99, "Z"),))
+    assert hx == [[True, True, False], [False, False, False]]
+    assert hz == [[False, True, False], [False, False, True]]
+
+
+def test_stabilizer_code_from_stim_mpp_can_select_later_mpp_layer() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        QUBIT_COORDS(1, 2) 10
+        QUBIT_COORDS(3, 4) 12
+        MPP X10
+        TICK
+        MPP Z10*Z12
+        """,
+        mpp_layer=1,
+    )
+
+    assert extraction.stim_to_column == {10: 0, 12: 1}
+    assert extraction.supports == (((10, "Z"), (12, "Z")),)
+    assert extraction.code.hx.toarray().tolist() == [[False, False]]
+    assert extraction.code.hz.toarray().tolist() == [[True, True]]
+
+
+def test_stabilizer_code_from_stim_mpp_rejects_missing_layer() -> None:
+    with pytest.raises(ValueError, match=r"has 1 MPP layer"):
+        stabilizer_code_from_stim_text("MPP X0\n", mpp_layer=1)
+
+
+def test_stabilizer_code_from_stim_mpp_builds_graph_state() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        QUBIT_COORDS(2, 0) 2
+        MPP X0*Y1*Z2
+        MPP Z0*Z2
+        """
+    )
+
+    result = build_graph_state(extraction.code)
+
+    assert result.graph.number_of_nodes() == 8
+    assert result.graph.number_of_edges() == 9
+    assert result.graph.coordinates[result.data_nodes[0, 0]] == (0.0, 0.0, 0.0)
+    assert result.graph.coordinates[result.data_nodes[0, 1]] == (0.0, 0.0, 1.0)

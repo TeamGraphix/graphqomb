@@ -69,6 +69,9 @@ doc = [
 pyzx = [
     "pyzx>=0.10",
 ]
+stim = [
+    "stim>=1.15",
+]
 
 [project.urls]
 Homepage = "https://github.com/TeamGraphix/graphqomb"
