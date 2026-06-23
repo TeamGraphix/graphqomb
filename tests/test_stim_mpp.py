@@ -53,6 +53,8 @@ def test_stabilizer_code_from_stim_mpp_handles_sparse_stim_ids_and_multiple_prod
     assert extraction.supports == (((10, "X"), (12, "Y")), ((99, "Z"),))
     assert hx == [[True, True, False], [False, False, False]]
     assert hz == [[False, True, False], [False, False, True]]
+    assert extraction.detector_rows == ()
+    assert extraction.logical_observable_rows == {}
 
 
 def test_stabilizer_code_from_stim_mpp_can_select_later_mpp_layer() -> None:
@@ -95,3 +97,45 @@ def test_stabilizer_code_from_stim_mpp_builds_graph_state() -> None:
     assert result.graph.number_of_edges() == 9
     assert result.graph.coordinates[result.data_nodes[0, 0]] == (0.0, 0.0, 0.0)
     assert result.graph.coordinates[result.data_nodes[0, 1]] == (0.0, 0.0, 1.0)
+
+
+def test_stabilizer_code_from_stim_mpp_reads_detectors_and_observables() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        MPP X0*X1 Z2 X3
+        DETECTOR rec[-1] rec[-3]
+        OBSERVABLE_INCLUDE(5) rec[-2]
+        """
+    )
+
+    result = build_graph_state(extraction.code)
+
+    assert extraction.detector_rows == (frozenset({0, 2}),)
+    assert extraction.logical_observable_rows == {5: frozenset({1})}
+    assert extraction.detector_groups(result.ancilla_nodes) == [
+        {result.ancilla_nodes[0], result.ancilla_nodes[2]},
+    ]
+    assert extraction.logical_observables(result.ancilla_nodes) == {5: {result.ancilla_nodes[1]}}
+
+
+def test_stabilizer_code_from_stim_mpp_accumulates_observable_rows_by_parity() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        MPP X0 X1
+        OBSERVABLE_INCLUDE(2) rec[-1]
+        OBSERVABLE_INCLUDE(2) rec[-2] rec[-1]
+        """
+    )
+
+    assert extraction.logical_observable_rows == {2: frozenset({0})}
+
+
+def test_stabilizer_code_from_stim_mpp_rejects_mixed_external_detector_records() -> None:
+    with pytest.raises(ValueError, match="outside the selected MPP layer"):
+        stabilizer_code_from_stim_text(
+            """
+            M 99
+            MPP X0
+            DETECTOR rec[-1] rec[-2]
+            """
+        )
