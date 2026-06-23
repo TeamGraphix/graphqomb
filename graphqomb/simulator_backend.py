@@ -33,7 +33,7 @@ class QubitIndexManager:
 
     @property
     def num_qubits(self) -> int:
-        """Get the number of qubits managed by this manager.
+        """The number of qubits managed by this manager.
 
         Returns
         -------
@@ -167,7 +167,7 @@ class BaseSimulatorBackend(ABC):
     @property
     @abc.abstractmethod
     def num_qubits(self) -> int:
-        """Get the number of qubits in the state.
+        """The number of qubits in the state.
 
         Returns
         -------

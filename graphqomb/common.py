@@ -64,13 +64,13 @@ class MeasBasis(ABC):
     @property
     @abc.abstractmethod
     def plane(self) -> Plane:
-        """Return the measurement plane."""
+        """The measurement plane."""
         raise NotImplementedError
 
     @property
     @abc.abstractmethod
     def angle(self) -> float:
-        """Return the measurement angle."""
+        """The measurement angle."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -99,7 +99,7 @@ class PlannerMeasBasis(MeasBasis):
     @property
     @typing_extensions.override
     def plane(self) -> Plane:
-        """Return the measurement plane.
+        """The measurement plane.
 
         Returns
         -------
@@ -111,7 +111,7 @@ class PlannerMeasBasis(MeasBasis):
     @property
     @typing_extensions.override
     def angle(self) -> float:
-        """Return the measurement angle.
+        """The measurement angle.
 
         Returns
         -------
@@ -185,7 +185,7 @@ class AxisMeasBasis(MeasBasis):
     @property
     @typing_extensions.override
     def plane(self) -> Plane:
-        """Return the measurement plane.
+        """The measurement plane.
 
         Returns
         -------
@@ -213,7 +213,7 @@ class AxisMeasBasis(MeasBasis):
     @property
     @typing_extensions.override
     def angle(self) -> float:
-        """Return the measurement angle.
+        """The measurement angle.
 
         Returns
         -------

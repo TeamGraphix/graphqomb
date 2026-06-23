@@ -105,7 +105,7 @@ class Pattern(Sequence[Command]):
 
     @property
     def coordinates(self) -> dict[int, tuple[float, ...]]:
-        r"""Get all node coordinates from N commands and input coordinates.
+        r"""All node coordinates from N commands and input coordinates.
 
         Returns
         -------
