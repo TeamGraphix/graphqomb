@@ -61,7 +61,7 @@ class StateVector(BaseFullStateSimulator):
     @property
     @typing_extensions.override
     def num_qubits(self) -> int:
-        """Get the number of qubits in the state vector.
+        """The number of qubits in the state vector.
 
         Returns
         -------

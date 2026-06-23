@@ -41,7 +41,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def input_node_indices(self) -> dict[int, int]:
-        r"""Return map of input nodes to logical qubit indices.
+        r"""Map of input nodes to logical qubit indices.
 
         Returns
         -------
@@ -52,7 +52,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def output_node_indices(self) -> dict[int, int]:
-        r"""Return map of output nodes to logical qubit indices.
+        r"""Map of output nodes to logical qubit indices.
 
         Returns
         -------
@@ -63,7 +63,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def nodes(self) -> set[int]:
-        r"""Return set of nodes.
+        r"""Set of nodes.
 
         Returns
         -------
@@ -74,7 +74,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def edges(self) -> set[tuple[int, int]]:
-        r"""Return set of edges.
+        r"""Set of edges.
 
         Returns
         -------
@@ -85,7 +85,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
-        r"""Return measurement bases.
+        r"""Measurement bases.
 
         Returns
         -------
@@ -231,7 +231,7 @@ class BaseGraphState(ABC):
     @property
     @abc.abstractmethod
     def coordinates(self) -> dict[int, tuple[float, ...]]:
-        r"""Return node coordinates.
+        r"""Node coordinates.
 
         Returns
         -------
@@ -269,7 +269,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def input_node_indices(self) -> dict[int, int]:
-        r"""Return map of input nodes to logical qubit indices.
+        r"""Map of input nodes to logical qubit indices.
 
         Returns
         -------
@@ -281,7 +281,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def output_node_indices(self) -> dict[int, int]:
-        r"""Return map of output nodes to logical qubit indices.
+        r"""Map of output nodes to logical qubit indices.
 
         Returns
         -------
@@ -293,7 +293,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def nodes(self) -> set[int]:
-        r"""Return set of nodes.
+        r"""Set of nodes.
 
         Returns
         -------
@@ -307,7 +307,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def edges(self) -> set[tuple[int, int]]:
-        r"""Return set of edges.
+        r"""Set of edges.
 
         Returns
         -------
@@ -324,7 +324,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def meas_bases(self) -> MappingProxyType[int, MeasBasis]:
-        r"""Return measurement bases.
+        r"""Measurement bases.
 
         Returns
         -------
@@ -335,7 +335,7 @@ class GraphState(BaseGraphState):
 
     @property
     def local_cliffords(self) -> dict[int, LocalClifford]:
-        r"""Return local clifford nodes.
+        r"""Local clifford nodes.
 
         Returns
         -------
@@ -347,7 +347,7 @@ class GraphState(BaseGraphState):
     @property
     @typing_extensions.override
     def coordinates(self) -> dict[int, tuple[float, ...]]:
-        r"""Return node coordinates.
+        r"""Node coordinates.
 
         Returns
         -------
