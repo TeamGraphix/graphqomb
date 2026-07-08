@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
 import typing_extensions
 
-from graphqomb.common import MeasBasis, Plane, PlannerMeasBasis
+from graphqomb.common import Axis, MeasBasis, Plane, PlannerMeasBasis
 from graphqomb.euler import update_lc_basis, update_lc_lc
 
 if TYPE_CHECKING:
@@ -48,6 +48,17 @@ class BaseGraphState(ABC):
         `dict`\[`int`, `int`\]
             qubit indices map of input nodes.
         """
+
+    @property
+    def input_initialization_axes(self) -> dict[int, Axis]:
+        r"""Input initialization Pauli axes.
+
+        Returns
+        -------
+        `dict`\[`int`, `Axis`\]
+            map of input nodes to Pauli initialization axes.
+        """
+        return dict.fromkeys(self.input_node_indices, Axis.X)
 
     @property
     @abc.abstractmethod
@@ -174,7 +185,7 @@ class BaseGraphState(ABC):
         return len(self.edges)
 
     @abc.abstractmethod
-    def register_input(self, node: int, q_index: int) -> None:
+    def register_input(self, node: int, q_index: int, *, init_axis: Axis = Axis.X) -> None:
         """Mark the node as an input node.
 
         Parameters
@@ -183,6 +194,8 @@ class BaseGraphState(ABC):
             node index
         q_index : `int`
             logical qubit index
+        init_axis : `Axis`, optional
+            Pauli axis for positive-eigenstate initialization, by default Axis.X
         """
 
     @abc.abstractmethod
@@ -244,6 +257,7 @@ class GraphState(BaseGraphState):
     """Minimal implementation of GraphState."""
 
     __input_node_indices: dict[int, int]
+    __input_initialization_axes: dict[int, Axis]
     __output_node_indices: dict[int, int]
     __nodes: set[int]
     __neighbors: dict[int, set[int]]
@@ -257,6 +271,7 @@ class GraphState(BaseGraphState):
 
     def __init__(self) -> None:
         self.__input_node_indices = {}
+        self.__input_initialization_axes = {}
         self.__output_node_indices = {}
         self.__nodes = set()
         self.__neighbors = {}
@@ -277,6 +292,18 @@ class GraphState(BaseGraphState):
             qubit indices map of input nodes.
         """
         return self.__input_node_indices.copy()
+
+    @property
+    @typing_extensions.override
+    def input_initialization_axes(self) -> dict[int, Axis]:
+        r"""Input initialization Pauli axes.
+
+        Returns
+        -------
+        `dict`\[`int`, `Axis`\]
+            map of input nodes to Pauli initialization axes.
+        """
+        return {node: self.__input_initialization_axes.get(node, Axis.X) for node in self.__input_node_indices}
 
     @property
     @typing_extensions.override
@@ -483,6 +510,7 @@ class GraphState(BaseGraphState):
 
         if node in self.output_node_indices:
             del self.__output_node_indices[node]
+        self.__input_initialization_axes.pop(node, None)
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
         self.__coordinates.pop(node, None)
@@ -514,7 +542,7 @@ class GraphState(BaseGraphState):
         self.__neighbors[node2] -= {node1}
 
     @typing_extensions.override
-    def register_input(self, node: int, q_index: int) -> None:
+    def register_input(self, node: int, q_index: int, *, init_axis: Axis = Axis.X) -> None:
         """Mark the node as an input node.
 
         Parameters
@@ -523,6 +551,8 @@ class GraphState(BaseGraphState):
             node index
         q_index : `int`
             logical qubit index
+        init_axis : `Axis`, optional
+            Pauli axis for positive-eigenstate initialization, by default Axis.X
 
         Raises
         ------
@@ -536,7 +566,44 @@ class GraphState(BaseGraphState):
         if q_index in self.input_node_indices.values():
             msg = "The q_index already exists in input qubit indices"
             raise ValueError(msg)
+        self._check_input_initialization_axis(init_axis)
         self.__input_node_indices[node] = q_index
+        self.__input_initialization_axes[node] = init_axis
+
+    def assign_input_initialization_axis(self, node: int, axis: Axis) -> None:
+        """Assign a Pauli initialization axis to an input node.
+
+        Parameters
+        ----------
+        node : `int`
+            input node index
+        axis : `Axis`
+            Pauli axis for positive-eigenstate initialization
+
+        Raises
+        ------
+        ValueError
+            If the node does not exist or is not registered as an input.
+        """
+        self._ensure_node_exists(node)
+        if node not in self.__input_node_indices:
+            msg = f"Node is not registered as an input node: {node}"
+            raise ValueError(msg)
+        self._check_input_initialization_axis(axis)
+        self.__input_initialization_axes[node] = axis
+
+    @staticmethod
+    def _check_input_initialization_axis(axis: Axis) -> None:
+        """Validate an input initialization axis.
+
+        Raises
+        ------
+        TypeError
+            If the axis is not an Axis value.
+        """
+        if not isinstance(axis, Axis):
+            msg = "Input initialization axis must be one of Axis.X, Axis.Y, Axis.Z"
+            raise TypeError(msg)
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:
@@ -677,14 +744,18 @@ class GraphState(BaseGraphState):
         """
         node_index_addition_map: dict[int, LocalCliffordExpansion] = {}
         new_input_indices: dict[int, int] = {}
+        new_input_initialization_axes: dict[int, Axis] = {}
         for input_node, q_index in self.input_node_indices.items():
+            init_axis = self.input_initialization_axes[input_node]
             lc = self._pop_local_clifford(input_node)
             if lc is None:
                 new_input_indices[input_node] = q_index
+                new_input_initialization_axes[input_node] = init_axis
                 continue
 
             new_node_index0 = self.add_node()
             new_input_indices[new_node_index0] = q_index
+            new_input_initialization_axes[new_node_index0] = init_axis
             new_node_index1 = self.add_node()
             new_node_index2 = self.add_node()
 
@@ -701,8 +772,13 @@ class GraphState(BaseGraphState):
             )
 
         self.__input_node_indices = {}
+        self.__input_initialization_axes = {}
         for new_input_index, q_index in new_input_indices.items():
-            self.register_input(new_input_index, q_index)
+            self.register_input(
+                new_input_index,
+                q_index,
+                init_axis=new_input_initialization_axes[new_input_index],
+            )
 
         return node_index_addition_map
 
@@ -754,6 +830,7 @@ class GraphState(BaseGraphState):
         outputs: Sequence[NodeT] | None = None,
         meas_bases: Mapping[NodeT, MeasBasis] | None = None,
         coordinates: Mapping[NodeT, tuple[float, ...]] | None = None,
+        input_initialization_axes: Mapping[NodeT, Axis] | None = None,
     ) -> tuple[GraphState, dict[NodeT, int]]:
         r"""Create a graph state from nodes and edges with arbitrary node types.
 
@@ -778,6 +855,8 @@ class GraphState(BaseGraphState):
             Default is None (no bases assigned initially).
         coordinates : `collections.abc.Mapping`\[NodeT, `tuple`\[`float`, ...\]\] | `None`, optional
             Coordinates for nodes (2D or 3D). Default is None (no coordinates).
+        input_initialization_axes : `collections.abc.Mapping`\[NodeT, `Axis`\] | `None`, optional
+            Pauli initialization axes for input nodes. Default is None (all inputs use Axis.X).
 
         Returns
         -------
@@ -844,7 +923,10 @@ class GraphState(BaseGraphState):
         # Register inputs with sequential qubit indices
         if inputs is not None:
             for q_index, input_node in enumerate(inputs):
-                graph_state.register_input(node_map[input_node], q_index)
+                init_axis = (
+                    Axis.X if input_initialization_axes is None else input_initialization_axes.get(input_node, Axis.X)
+                )
+                graph_state.register_input(node_map[input_node], q_index, init_axis=init_axis)
 
         # Register outputs with sequential qubit indices
         if outputs is not None:
@@ -908,7 +990,11 @@ class GraphState(BaseGraphState):
 
         # Register inputs with same qubit indices
         for input_node, q_index in base.input_node_indices.items():
-            graph_state.register_input(node_map[input_node], q_index)
+            graph_state.register_input(
+                node_map[input_node],
+                q_index,
+                init_axis=base.input_initialization_axes.get(input_node, Axis.X),
+            )
 
         # Register outputs with same qubit indices
         for output_node, q_index in base.output_node_indices.items():
@@ -1018,11 +1104,19 @@ def compose(  # noqa: C901, PLR0912
 
     # Register input nodes with preserved qindices
     for input_node, q_index in graph1.input_node_indices.items():
-        composed_graph.register_input(node_map1[input_node], q_index)
+        composed_graph.register_input(
+            node_map1[input_node],
+            q_index,
+            init_axis=graph1.input_initialization_axes.get(input_node, Axis.X),
+        )
 
     for input_node, q_index in graph2.input_node_indices.items():
         if q_index not in target_q_indices:
-            composed_graph.register_input(node_map2[input_node], q_index)
+            composed_graph.register_input(
+                node_map2[input_node],
+                q_index,
+                init_axis=graph2.input_initialization_axes.get(input_node, Axis.X),
+            )
 
     # Register output nodes with preserved qindices
     for output_node, q_index in graph1.output_node_indices.items():

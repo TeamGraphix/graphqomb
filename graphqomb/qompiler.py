@@ -149,4 +149,5 @@ def _qompile(
         commands=tuple(commands),
         pauli_frame=pauli_frame,
         input_coordinates=input_coords,
+        input_initialization_axes=graph.input_initialization_axes,
     )

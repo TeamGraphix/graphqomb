@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import Axis, Plane, PlannerMeasBasis
 from graphqomb.graphstate import GraphState
 
 
@@ -74,6 +74,22 @@ def test_from_graph_with_multiple_inputs_outputs() -> None:
 
     assert gs.input_node_indices == {node_map[inputs[0]]: 0, node_map[inputs[1]]: 1}
     assert gs.output_node_indices == {node_map[outputs[0]]: 0, node_map[outputs[1]]: 1}
+
+
+def test_from_graph_with_input_initialization_axes() -> None:
+    """Test from_graph() preserves specified input initialization axes."""
+    nodes = ["a", "b", "c"]
+    edges = [("a", "c"), ("b", "c")]
+    inputs = ["a", "b"]
+
+    gs, node_map = GraphState.from_graph(
+        nodes=nodes,
+        edges=edges,
+        inputs=inputs,
+        input_initialization_axes={"a": Axis.Y, "b": Axis.Z},
+    )
+
+    assert gs.input_initialization_axes == {node_map["a"]: Axis.Y, node_map["b"]: Axis.Z}
 
 
 def test_from_graph_with_meas_bases() -> None:
@@ -211,6 +227,19 @@ def test_from_base_graph_state_preserves_indices() -> None:
 
     assert dst.input_node_indices[node_map[n0]] == 5
     assert dst.output_node_indices[node_map[n1]] == 10
+
+
+def test_from_base_graph_state_preserves_input_initialization_axes() -> None:
+    """Test from_base_graph_state() preserves input initialization axes."""
+    src = GraphState()
+    n0 = src.add_node()
+    n1 = src.add_node()
+    src.register_input(n0, 0, init_axis=Axis.Y)
+    src.register_input(n1, 1, init_axis=Axis.Z)
+
+    dst, node_map = GraphState.from_base_graph_state(src)
+
+    assert dst.input_initialization_axes == {node_map[n0]: Axis.Y, node_map[n1]: Axis.Z}
 
 
 def test_from_base_graph_state_independence() -> None:

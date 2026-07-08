@@ -136,6 +136,52 @@ def test_stim_compile_basic_pattern() -> None:
     assert stim_str.count("\n") > 0
 
 
+@pytest.mark.parametrize(
+    ("init_axis", "expected_reset"),
+    [
+        (Axis.X, "RX"),
+        (Axis.Y, "RY"),
+        (Axis.Z, "R"),
+    ],
+)
+def test_stim_compile_uses_input_initialization_axis(init_axis: Axis, expected_reset: str) -> None:
+    """Input initialization axes choose the corresponding Stim reset instruction."""
+    graph = GraphState()
+    in_node = graph.add_node()
+    out_node = graph.add_node()
+
+    graph.register_input(in_node, 0, init_axis=init_axis)
+    graph.register_output(out_node, 0)
+    graph.add_edge(in_node, out_node)
+    graph.assign_meas_basis(in_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pattern = qompile(graph, {in_node: {out_node}})
+    stim_lines = stim_compile(pattern).splitlines()
+
+    assert f"{expected_reset} {in_node}" in stim_lines
+
+
+def test_stim_compile_keeps_non_input_preparations_in_x_basis() -> None:
+    """Only input reset instructions use the input initialization axis."""
+    graph = GraphState()
+    in_node = graph.add_node()
+    mid_node = graph.add_node()
+    out_node = graph.add_node()
+
+    graph.register_input(in_node, 0, init_axis=Axis.Z)
+    graph.register_output(out_node, 0)
+    graph.add_edge(in_node, mid_node)
+    graph.add_edge(mid_node, out_node)
+    graph.assign_meas_basis(in_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(mid_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pattern = qompile(graph, {in_node: {mid_node}, mid_node: {out_node}})
+    stim_lines = stim_compile(pattern).splitlines()
+
+    assert f"R {in_node}" in stim_lines
+    assert f"RX {mid_node}" in stim_lines
+
+
 def test_stim_compile_x_measurement() -> None:
     """Test X measurement compilation."""
     pattern, meas_node, in_node = create_simple_pattern_x_measurement()
