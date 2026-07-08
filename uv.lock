@@ -744,8 +744,21 @@ stim = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
     { name = "scipy-stubs", version = "1.15.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy-stubs", version = "1.17.1.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "types-networkx" },
+]
+pyzx = [
+    { name = "pyzx" },
+]
+stim = [
+    { name = "stim" },
 ]
 
 [package.metadata]
@@ -773,7 +786,18 @@ requires-dist = [
 provides-extras = ["dev", "doc", "pyzx", "stim"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "scipy-stubs", specifier = ">=1.15.3.0" }]
+dev = [
+    { name = "mypy", specifier = "==2.1.0" },
+    { name = "pre-commit", specifier = "==4.6.0" },
+    { name = "pyright", specifier = "==1.1.410" },
+    { name = "pytest", specifier = "==9.0.3" },
+    { name = "pytest-cov", specifier = "==7.1.0" },
+    { name = "ruff", specifier = "==0.15.17" },
+    { name = "scipy-stubs", specifier = ">=1.15.3.0" },
+    { name = "types-networkx", specifier = "==3.6.1.20260518" },
+]
+pyzx = [{ name = "pyzx", specifier = ">=0.10" }]
+stim = [{ name = "stim", specifier = ">=1.15" }]
 
 [[package]]
 name = "identify"

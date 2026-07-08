@@ -192,7 +192,23 @@ reportUnknownMemberType = "information"
 reportUnknownParameterType = "information"
 reportUnknownVariableType = "information"
 
+[tool.uv]
+default-groups = ["dev", "stim", "pyzx"]
+
 [dependency-groups]
 dev = [
+    "mypy==2.1.0",
+    "pre-commit==4.6.0",
+    "pyright==1.1.410",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "ruff==0.15.17",
     "scipy-stubs>=1.15.3.0",
+    "types-networkx==3.6.1.20260518",
+]
+stim = [
+    "stim>=1.15",
+]
+pyzx = [
+    "pyzx>=0.10",
 ]
