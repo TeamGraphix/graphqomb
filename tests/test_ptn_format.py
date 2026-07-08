@@ -104,7 +104,6 @@ def assert_pattern_equivalent(actual: Pattern, expected: Pattern) -> None:
     assert actual.input_node_indices == expected.input_node_indices
     assert actual.output_node_indices == expected.output_node_indices
     assert actual.input_coordinates == expected.input_coordinates
-    assert actual.input_initialization_axes == expected.input_initialization_axes
     assert actual.pauli_frame.xflow == expected.pauli_frame.xflow
     assert actual.pauli_frame.zflow == expected.pauli_frame.zflow
     assert actual.pauli_frame.parity_check_group == expected.pauli_frame.parity_check_group
@@ -117,100 +116,11 @@ def test_dumps_basic() -> None:
     pattern = create_simple_pattern()
     ptn_str = dumps(pattern)
 
-    assert ".version 2" in ptn_str
+    assert ".version 1" in ptn_str
     assert ".input" in ptn_str
     assert ".output" in ptn_str
     assert "#======== QUANTUM ========" in ptn_str
     assert "#======== CLASSICAL ========" in ptn_str
-
-
-def test_dumps_omits_default_input_basis() -> None:
-    """Default X-basis input initialization is implicit in .ptn output."""
-    pattern = create_simple_pattern()
-
-    assert ".input_basis" not in dumps(pattern)
-
-
-def test_ptn_roundtrip_preserves_input_initialization_axes() -> None:
-    """Non-default input initialization axes survive .ptn roundtrip."""
-    graph = GraphState()
-    in0 = graph.add_node()
-    in1 = graph.add_node()
-    out0 = graph.add_node()
-    out1 = graph.add_node()
-
-    graph.register_input(in0, 0, init_axis=Axis.Y)
-    graph.register_input(in1, 1, init_axis=Axis.Z)
-    graph.register_output(out0, 0)
-    graph.register_output(out1, 1)
-    graph.add_edge(in0, out0)
-    graph.add_edge(in1, out1)
-    graph.assign_meas_basis(in0, AxisMeasBasis(Axis.X, Sign.PLUS))
-    graph.assign_meas_basis(in1, AxisMeasBasis(Axis.X, Sign.PLUS))
-
-    pattern = qompile(graph, {in0: {out0}, in1: {out1}})
-    ptn_str = dumps(pattern)
-    loaded = loads(ptn_str)
-
-    assert ".input_basis" in ptn_str
-    assert loaded.input_initialization_axes == {in0: Axis.Y, in1: Axis.Z}
-
-
-def test_ptn_loads_legacy_input_without_input_basis_as_x() -> None:
-    """Existing .ptn files without .input_basis default inputs to X initialization."""
-    ptn_str = """# GraphQOMB Pattern Format v1
-.version 1
-.input 0:0
-.output 1:0
-
-[0]
-E 0 1
-M 0 X +
-
-.xflow 0 -> 1
-"""
-
-    loaded = loads(ptn_str)
-
-    assert loaded.input_initialization_axes == {0: Axis.X}
-
-
-def test_ptn_load_rejects_input_basis_for_non_input_node() -> None:
-    """Input basis directives can only reference input nodes."""
-    ptn_str = """# GraphQOMB Pattern Format v2
-.version 2
-.input 0:0
-.input_basis 1:Z
-.output 1:0
-
-[0]
-E 0 1
-M 0 X +
-
-.xflow 0 -> 1
-"""
-
-    with pytest.raises(ValueError, match="Input basis specified for non-input node"):
-        loads(ptn_str)
-
-
-def test_ptn_load_rejects_input_basis_in_legacy_version() -> None:
-    """Version 1 .ptn files cannot use the version 2 input-basis directive."""
-    ptn_str = """# GraphQOMB Pattern Format v1
-.version 1
-.input 0:0
-.input_basis 0:Z
-.output 1:0
-
-[0]
-E 0 1
-M 0 X +
-
-.xflow 0 -> 1
-"""
-
-    with pytest.raises(ValueError, match=r"\.input_basis requires \.ptn version 2"):
-        loads(ptn_str)
 
 
 def test_dumps_contains_commands() -> None:

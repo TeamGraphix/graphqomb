@@ -13,15 +13,10 @@ from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
 
 
-def _single_output_pattern(
-    *,
-    measured: bool,
-    axis: Axis = Axis.Z,
-    init_axis: Axis = Axis.X,
-) -> tuple[Pattern, int]:
+def _single_output_pattern(*, measured: bool, axis: Axis = Axis.Z) -> tuple[Pattern, int]:
     graph = GraphState()
     node = graph.add_node()
-    graph.register_input(node, 0, init_axis=init_axis)
+    graph.register_input(node, 0)
     graph.register_output(node, 0)
 
     pauli_frame = PauliFrame(graph, xflow={}, zflow={})
@@ -31,39 +26,8 @@ def _single_output_pattern(
         output_node_indices=graph.output_node_indices,
         commands=commands,
         pauli_frame=pauli_frame,
-        input_initialization_axes=graph.input_initialization_axes,
     )
     return pattern, node
-
-
-def test_pattern_simulator_initializes_input_in_x_basis() -> None:
-    """PatternSimulator initializes X-axis inputs as |+>."""
-    pattern, _ = _single_output_pattern(measured=False, init_axis=Axis.X)
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-
-    simulator.simulate()
-
-    np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 1.0]) / np.sqrt(2))
-
-
-def test_pattern_simulator_initializes_input_in_y_basis() -> None:
-    """PatternSimulator initializes Y-axis inputs as |Y+>."""
-    pattern, _ = _single_output_pattern(measured=False, init_axis=Axis.Y)
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-
-    simulator.simulate()
-
-    np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 1.0j]) / np.sqrt(2))
-
-
-def test_pattern_simulator_initializes_input_in_z_basis() -> None:
-    """PatternSimulator initializes Z-axis inputs as |0>."""
-    pattern, _ = _single_output_pattern(measured=False, init_axis=Axis.Z)
-    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
-
-    simulator.simulate()
-
-    np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 0.0]))
 
 
 def test_pattern_simulator_applies_output_x_frame_to_statevector() -> None:

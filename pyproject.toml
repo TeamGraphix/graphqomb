@@ -58,7 +58,6 @@ dev = [
     "pytest==9.0.3",
     "pytest-cov==7.1.0",
     "ruff==0.15.17",
-    "stim>=1.15",
     "types-networkx==3.6.1.20260518",
 ]
 doc = [

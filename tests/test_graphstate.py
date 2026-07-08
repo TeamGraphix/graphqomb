@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from graphqomb.common import Axis, Plane, PlannerMeasBasis
+from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.euler import LocalClifford
 from graphqomb.graphstate import GraphState, bipartite_edges, compose, odd_neighbors
 
@@ -100,42 +100,6 @@ def test_add_node_input_output(graph: GraphState) -> None:
     assert node_index in graph.output_node_indices
     assert graph.input_node_indices[node_index] == q_index
     assert graph.output_node_indices[node_index] == q_index
-
-
-def test_register_input_defaults_to_x_initialization_axis(graph: GraphState) -> None:
-    """Input nodes default to positive X-basis initialization."""
-    node_index = graph.add_node()
-
-    graph.register_input(node_index, 0)
-
-    assert graph.input_initialization_axes == {node_index: Axis.X}
-
-
-def test_register_input_accepts_pauli_initialization_axis(graph: GraphState) -> None:
-    """Input nodes can be initialized in a positive Pauli eigenstate."""
-    node_index = graph.add_node()
-
-    graph.register_input(node_index, 0, init_axis=Axis.Y)
-
-    assert graph.input_initialization_axes == {node_index: Axis.Y}
-
-
-def test_assign_input_initialization_axis_updates_input(graph: GraphState) -> None:
-    """Input initialization axes can be assigned after input registration."""
-    node_index = graph.add_node()
-    graph.register_input(node_index, 0)
-
-    graph.assign_input_initialization_axis(node_index, Axis.Z)
-
-    assert graph.input_initialization_axes == {node_index: Axis.Z}
-
-
-def test_assign_input_initialization_axis_rejects_non_input(graph: GraphState) -> None:
-    """Only registered input nodes can receive an input initialization axis."""
-    node_index = graph.add_node()
-
-    with pytest.raises(ValueError, match="Node is not registered as an input node"):
-        graph.assign_input_initialization_axis(node_index, Axis.Z)
 
 
 def test_ensure_node_exists_raises(graph: GraphState) -> None:

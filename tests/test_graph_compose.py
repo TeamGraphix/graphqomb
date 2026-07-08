@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphqomb.common import Axis, Plane, PlannerMeasBasis
+from graphqomb.common import Plane, PlannerMeasBasis
 from graphqomb.graphstate import BaseGraphState, GraphState, compose
 
 
@@ -168,36 +168,6 @@ def test_compose_preserves_measurement_bases() -> None:
     # Check that measurement basis is preserved for output node from graph1
     mapped_node2: int = node_map1[node2]
     assert composed.meas_bases[mapped_node2] == meas_basis
-
-
-def test_compose_preserves_surviving_input_initialization_axes() -> None:
-    """Composition preserves initialization axes for inputs that remain inputs."""
-    graph1 = GraphState()
-    g1_in = graph1.add_node()
-    g1_out = graph1.add_node()
-    graph1.add_edge(g1_in, g1_out)
-    graph1.register_input(g1_in, 0, init_axis=Axis.Y)
-    graph1.register_output(g1_out, 1)
-    graph1.assign_meas_basis(g1_in, PlannerMeasBasis(Plane.XY, 0.0))
-
-    graph2 = GraphState()
-    g2_in_connected = graph2.add_node()
-    g2_in_survives = graph2.add_node()
-    g2_out = graph2.add_node()
-    graph2.add_edge(g2_in_connected, g2_out)
-    graph2.add_edge(g2_in_survives, g2_out)
-    graph2.register_input(g2_in_connected, 1, init_axis=Axis.Z)
-    graph2.register_input(g2_in_survives, 2, init_axis=Axis.Z)
-    graph2.register_output(g2_out, 3)
-    graph2.assign_meas_basis(g2_in_connected, PlannerMeasBasis(Plane.XY, 0.0))
-    graph2.assign_meas_basis(g2_in_survives, PlannerMeasBasis(Plane.XY, 0.0))
-
-    composed, node_map1, node_map2 = compose(graph1, graph2)
-
-    assert composed.input_initialization_axes == {
-        node_map1[g1_in]: Axis.Y,
-        node_map2[g2_in_survives]: Axis.Z,
-    }
 
 
 def test_compose_full_connection() -> None:

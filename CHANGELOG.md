@@ -10,15 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **QEC Stim MPP Import**: Added utilities for building `StabilizerCode` inputs from Stim `MPP` layers, including sparse Stim qubit id mapping, coordinate import, multi-layer selection, detector/logical-observable import, and the optional `graphqomb[stim]` extra.
-- **Input Initialization Bases**: Added per-input positive Pauli eigenstate initialization via `GraphState.register_input(..., init_axis=...)` and `assign_input_initialization_axis()`, with `X+`, `Y+`, and `Z+` propagated through `qompile()`, `Pattern`, `PatternSimulator`, and Stim export.
 
 ### Changed
 
 - **Development Tooling**: Use uv as the default dependency manager for local development, CI, documentation builds, and publishing workflows.
 - **Graph State API**: Replaced legacy `physical_*` graph methods/properties with standard graph-style `nodes`, `edges`, `add_node()`, `add_edge()`, `remove_node()`, `remove_edge()`, and count/query helpers.
 - **Pattern Simulator**: Materialize pending output Pauli-frame corrections when returning output statevectors or explicit output measurement results.
-- **PTN Format**: Bumped exported `.ptn` files to format version 2 to record non-default input initialization bases with `.input_basis`; version 1 files remain readable and default inputs to `X+`.
-- **Stim Compiler**: Input reset instructions now follow the stored initialization basis (`RX`, `RY`, or `R`) while non-input preparations remain `RX`.
 
 ### Removed
 

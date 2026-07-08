@@ -122,34 +122,6 @@ class StateVector(BaseFullStateSimulator):
         return StateVector(np.full((2,) * num_qubits, 1 / math.sqrt(2**num_qubits), dtype=np.complex128))
 
     @staticmethod
-    def from_product_states(states: Sequence[ArrayLike]) -> StateVector:
-        r"""Create a state vector from one-qubit product states.
-
-        Parameters
-        ----------
-        states : sequence of array-like
-            One-qubit state vectors in external qubit order.
-
-        Returns
-        -------
-        `StateVector`
-            The resulting product state vector.
-
-        Raises
-        ------
-        ValueError
-            If any one-qubit state does not have exactly two amplitudes.
-        """
-        result = np.asarray(1.0, dtype=np.complex128)
-        for state in states:
-            one_qubit_state = np.asarray(state, dtype=np.complex128)
-            if one_qubit_state.size != 2:  # noqa: PLR2004
-                msg = "Each product-state factor must have exactly two amplitudes."
-                raise ValueError(msg)
-            result = np.asarray(np.kron(result, one_qubit_state.reshape(2)), dtype=np.complex128)
-        return StateVector(result)
-
-    @staticmethod
     def tensor_product(a: StateVector, b: StateVector) -> StateVector:
         """Tensor product with other state vector, self ⊗ other.
 
