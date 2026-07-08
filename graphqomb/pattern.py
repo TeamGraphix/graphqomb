@@ -20,7 +20,30 @@ from graphqomb.command import TICK, Command, E, M, N
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+    from graphqomb.common import Axis
     from graphqomb.pauli_frame import PauliFrame
+
+
+def _empty_input_coordinates() -> dict[int, tuple[float, ...]]:
+    r"""Return an empty input-coordinate map.
+
+    Returns
+    -------
+    `dict`\[`int`, `tuple`\[`float`, ...\]\]
+        Empty input-coordinate map.
+    """
+    return {}
+
+
+def _empty_input_initialization_axes() -> dict[int, Axis]:
+    r"""Return an empty input-initialization axis map.
+
+    Returns
+    -------
+    `dict`\[`int`, `Axis`\]
+        Empty input-initialization axis map.
+    """
+    return {}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -39,13 +62,16 @@ class Pattern(Sequence[Command]):
         Pauli frame of the pattern to track the Pauli state of each node
     input_coordinates : `dict`\[`int`, `tuple`\[`float`, ...\]\]
         Coordinates for input nodes (2D or 3D)
+    input_initialization_axes : `dict`\[`int`, `Axis`\]
+        Pauli initialization axes for input nodes. Missing inputs default to Axis.X.
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
-    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict)
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=_empty_input_coordinates)
+    input_initialization_axes: dict[int, Axis] = dataclasses.field(default_factory=_empty_input_initialization_axes)
 
     def __len__(self) -> int:
         return len(self.commands)

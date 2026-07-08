@@ -339,10 +339,7 @@ def _mpp_fragment(
 ) -> _Fragment:
     text = _stim_text_with_coords(block, coordinate_by_stim_id=context.coordinate_by_stim_id)
     extraction = stabilizer_code_from_stim_text(text, coord_dims=context.coord_dims)
-    qubit_indices = {
-        column: context.stim_to_qubit[stim_id]
-        for column, stim_id in extraction.column_to_stim.items()
-    }
+    qubit_indices = {column: context.stim_to_qubit[stim_id] for column, stim_id in extraction.column_to_stim.items()}
     z_base = 2 * block_index
     result = build_graph_state(extraction.code, z_base=z_base, data_as_io=True, qubit_indices=qubit_indices)
     xflow, zflow = _mpp_flow(result, z_base=z_base)

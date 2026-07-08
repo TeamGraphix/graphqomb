@@ -725,6 +725,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "stim" },
     { name = "types-networkx" },
 ]
 doc = [
@@ -766,6 +767,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "sphinx", marker = "extra == 'doc'", specifier = ">=8.1.3" },
     { name = "sphinx-gallery", marker = "extra == 'doc'", specifier = ">=0.17.0" },
+    { name = "stim", marker = "extra == 'dev'", specifier = ">=1.15" },
     { name = "stim", marker = "extra == 'stim'", specifier = ">=1.15" },
     { name = "types-networkx", marker = "extra == 'dev'", specifier = "==3.6.1.20260518" },
     { name = "typing-extensions" },
