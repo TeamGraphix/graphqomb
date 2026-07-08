@@ -74,6 +74,28 @@ def test_build_graph_state_returns_index_to_node_maps() -> None:
     assert set(result.data_nodes.values()).isdisjoint(result.ancilla_nodes.values())
 
 
+def test_build_graph_state_registers_custom_data_io_indices() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    result = build_graph_state(code, data_as_io=True, qubit_indices={0: 10, 1: 12})
+
+    assert result.graph.input_node_indices == {result.data_nodes[0, 0]: 10, result.data_nodes[1, 0]: 12}
+    assert result.graph.output_node_indices == {result.data_nodes[0, 1]: 10, result.data_nodes[1, 1]: 12}
+    assert result.data_nodes[0, 1] not in result.graph.meas_bases
+    assert result.data_nodes[1, 1] not in result.graph.meas_bases
+
+
+def test_build_graph_state_registers_type_ii_chain_endpoints_as_io() -> None:
+    code = StabilizerCode(_matrix([[1, 1]]))
+
+    result = build_graph_state(code, y_foliation=YFoliation.TYPE_II, data_as_io=True)
+
+    assert result.graph.input_node_indices == {result.data_nodes[0, 0]: 0}
+    assert result.graph.output_node_indices == {result.data_nodes[0, 2]: 0}
+    assert result.data_nodes[0, 1] in result.graph.meas_bases
+    assert result.data_nodes[0, 2] not in result.graph.meas_bases
+
+
 def test_build_graph_state_type_ii_routes_y_support_through_three_node_y_chain() -> None:
     code = StabilizerCode(
         _matrix(
