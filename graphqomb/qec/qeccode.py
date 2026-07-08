@@ -64,7 +64,21 @@ class StabilizerGraphStateBuildResult(NamedTuple):
     ancilla_nodes: dict[int, int]
 
 
-def build_graph_state(code: StabilizerCode, z_base: int = 0) -> StabilizerGraphStateBuildResult:
+class _DataLayerConfig(NamedTuple):
+    lower_z: int
+    upper_z: int
+    meas_basis: AxisMeasBasis
+    data_as_io: bool
+    qubit_indices: Mapping[int, int] | None
+
+
+def build_graph_state(
+    code: StabilizerCode,
+    z_base: int = 0,
+    *,
+    data_as_io: bool = False,
+    qubit_indices: Mapping[int, int] | None = None,
+) -> StabilizerGraphStateBuildResult:
     """Build a two-layer graph-state unit from a stabilizer code.
 
     Parameters
@@ -75,6 +89,12 @@ def build_graph_state(code: StabilizerCode, z_base: int = 0) -> StabilizerGraphS
     z_base : `int`, optional
         Lower data-layer index. The builder creates layers `z_base` and
         `z_base + 1`, by default 0.
+    data_as_io : `bool`, optional
+        Whether to register lower data nodes as inputs and upper data nodes as
+        outputs, by default False.
+    qubit_indices : `collections.abc.Mapping`[`int`, `int`] | `None`, optional
+        Mapping from stabilizer-code qubit columns to graph qindices when
+        ``data_as_io`` is enabled. If omitted, code qubit columns are used.
 
     Returns
     -------
@@ -95,7 +115,17 @@ def build_graph_state(code: StabilizerCode, z_base: int = 0) -> StabilizerGraphS
 
     lower_z = z_base
     upper_z = z_base + 1
-    data_nodes = _add_layered_data_nodes(graph, code, lower_z, upper_z, x_meas_basis)
+    data_nodes = _add_layered_data_nodes(
+        graph,
+        code,
+        _DataLayerConfig(
+            lower_z=lower_z,
+            upper_z=upper_z,
+            meas_basis=x_meas_basis,
+            data_as_io=data_as_io,
+            qubit_indices=qubit_indices,
+        ),
+    )
     ancilla_nodes = _add_ancilla_nodes(graph, code, data_nodes, (lower_z, upper_z), x_meas_basis)
 
     return StabilizerGraphStateBuildResult(graph, data_nodes, ancilla_nodes)
@@ -104,9 +134,7 @@ def build_graph_state(code: StabilizerCode, z_base: int = 0) -> StabilizerGraphS
 def _add_layered_data_nodes(
     graph: GraphState,
     code: StabilizerCode,
-    lower_z: int,
-    upper_z: int,
-    meas_basis: AxisMeasBasis,
+    config: _DataLayerConfig,
 ) -> dict[tuple[int, int], int]:
     """Add layered data nodes.
 
@@ -117,13 +145,18 @@ def _add_layered_data_nodes(
     """
     data_nodes: dict[tuple[int, int], int] = {}
     for qubit in range(code.num_qubits):
-        lower_node = graph.add_node(coordinate=_data_coordinate(code, qubit, lower_z))
-        upper_node = graph.add_node(coordinate=_data_coordinate(code, qubit, upper_z))
+        lower_node = graph.add_node(coordinate=_data_coordinate(code, qubit, config.lower_z))
+        upper_node = graph.add_node(coordinate=_data_coordinate(code, qubit, config.upper_z))
         graph.add_edge(lower_node, upper_node)
-        graph.assign_meas_basis(lower_node, meas_basis)
-        graph.assign_meas_basis(upper_node, meas_basis)
-        data_nodes[qubit, lower_z] = lower_node
-        data_nodes[qubit, upper_z] = upper_node
+        graph.assign_meas_basis(lower_node, config.meas_basis)
+        if config.data_as_io:
+            q_index = config.qubit_indices[qubit] if config.qubit_indices is not None else qubit
+            graph.register_input(lower_node, q_index)
+            graph.register_output(upper_node, q_index)
+        else:
+            graph.assign_meas_basis(upper_node, config.meas_basis)
+        data_nodes[qubit, config.lower_z] = lower_node
+        data_nodes[qubit, config.upper_z] = upper_node
 
     return data_nodes
 
