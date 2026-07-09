@@ -50,12 +50,12 @@ class StabilizerCode:
 
     @property
     def num_stabilizers(self) -> int:
-        """Return the number of stabilizers."""
+        """Number of stabilizers."""
         return int(self.hx.shape[0])
 
     @property
     def num_qubits(self) -> int:
-        """Return the number of qubits."""
+        """Number of qubits."""
         return int(self.hx.shape[1])
 
 

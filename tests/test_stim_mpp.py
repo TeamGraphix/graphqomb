@@ -2,18 +2,12 @@
 
 from __future__ import annotations
 
-import importlib.util
-
 import pytest
 
-from graphqomb.qec import stim_mpp
 from graphqomb.qec.qeccode import build_graph_state
 from graphqomb.qec.stim_mpp import stabilizer_code_from_stim_text
 
-requires_stim = pytest.mark.skipif(importlib.util.find_spec("stim") is None, reason="requires stim")
 
-
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_sets_x_z_and_y_support() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -37,7 +31,6 @@ def test_stabilizer_code_from_stim_mpp_sets_x_z_and_y_support() -> None:
     }
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_preserves_3d_coordinates_when_requested() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -54,7 +47,6 @@ def test_stabilizer_code_from_stim_mpp_preserves_3d_coordinates_when_requested()
     }
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_handles_sparse_stim_ids_and_multiple_products() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -79,7 +71,6 @@ def test_stabilizer_code_from_stim_mpp_handles_sparse_stim_ids_and_multiple_prod
     assert extraction.logical_observable_rows == {}
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_can_select_later_mpp_layer() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -98,13 +89,11 @@ def test_stabilizer_code_from_stim_mpp_can_select_later_mpp_layer() -> None:
     assert extraction.code.hz.toarray().tolist() == [[True, True]]
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_rejects_missing_layer() -> None:
     with pytest.raises(ValueError, match=r"has 1 MPP layer"):
         stabilizer_code_from_stim_text("MPP X0\n", mpp_layer=1)
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_builds_graph_state() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -124,7 +113,6 @@ def test_stabilizer_code_from_stim_mpp_builds_graph_state() -> None:
     assert result.graph.coordinates[result.data_nodes[0, 1]] == (0.0, 0.0, 1.0)
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_reads_detectors_and_observables() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -144,7 +132,6 @@ def test_stabilizer_code_from_stim_mpp_reads_detectors_and_observables() -> None
     assert extraction.logical_observables(result.ancilla_nodes) == {5: {result.ancilla_nodes[1]}}
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_accumulates_observable_rows_by_parity() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -157,7 +144,6 @@ def test_stabilizer_code_from_stim_mpp_accumulates_observable_rows_by_parity() -
     assert extraction.logical_observable_rows == {2: frozenset({0})}
 
 
-@requires_stim
 def test_stabilizer_code_from_stim_mpp_rejects_mixed_external_detector_records() -> None:
     with pytest.raises(ValueError, match="outside the selected MPP layer"):
         stabilizer_code_from_stim_text(
@@ -167,18 +153,3 @@ def test_stabilizer_code_from_stim_mpp_rejects_mixed_external_detector_records()
             DETECTOR rec[-1] rec[-2]
             """
         )
-
-
-def test_stabilizer_code_from_stim_mpp_reports_missing_optional_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fail_stim_import(name: str, package: str | None = None) -> object:
-        del package
-        if name == "stim":
-            msg = "stim is not installed"
-            raise ImportError(msg)
-        msg = f"Unexpected import: {name}"
-        raise AssertionError(msg)
-
-    monkeypatch.setattr(stim_mpp.importlib, "import_module", fail_stim_import)
-
-    with pytest.raises(ImportError, match="requires the optional 'stim' dependency"):
-        stabilizer_code_from_stim_text("MPP X0\n")

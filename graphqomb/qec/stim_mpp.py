@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, TypeGuard, cast
+from typing import TYPE_CHECKING
 
+import stim
 from scipy.sparse import csr_array, lil_array
 
 from graphqomb.qec.qeccode import StabilizerCode
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-    import stim
 
 
 PauliSupport = tuple[tuple[int, str], ...]
@@ -24,12 +22,6 @@ PauliSupport = tuple[tuple[int, str], ...]
 class _MppProductRecord:
     record_index: int
     support: PauliSupport
-
-
-class _StimModule(Protocol):
-    Circuit: type[stim.Circuit]
-    CircuitInstruction: type[stim.CircuitInstruction]
-    CircuitRepeatBlock: type[stim.CircuitRepeatBlock]
 
 
 @dataclass(frozen=True)
@@ -143,10 +135,9 @@ def stabilizer_code_from_stim_text(
         msg = "coord_dims must be 2 or 3."
         raise ValueError(msg)
 
-    stim_module = _load_stim()
-    circuit = stim_module.Circuit(text).flattened()
-    coordinate_by_stim_id = _extract_qubit_coordinates(circuit, coord_dims=coord_dims, stim_module=stim_module)
-    layers = _extract_mpp_layers(circuit, stim_module=stim_module)
+    circuit = stim.Circuit(text).flattened()
+    coordinate_by_stim_id = _extract_qubit_coordinates(circuit, coord_dims=coord_dims)
+    layers = _extract_mpp_layers(circuit)
     if mpp_layer >= len(layers):
         msg = f"Stim circuit has {len(layers)} MPP layer(s); cannot select layer {mpp_layer}."
         raise ValueError(msg)
@@ -160,7 +151,6 @@ def stabilizer_code_from_stim_text(
     detector_rows, logical_observable_rows = _extract_selected_mpp_annotations(
         circuit,
         record_to_row=record_to_row,
-        stim_module=stim_module,
     )
 
     matrix, stim_to_column, column_to_stim, qubit_coords = _build_stabilizer_data(
@@ -200,31 +190,14 @@ def _build_stabilizer_data(
     return matrix.tocsr(), stim_to_column, column_to_stim, qubit_coords
 
 
-def _load_stim() -> _StimModule:
-    try:
-        module = importlib.import_module("stim")
-    except ImportError as exc:
-        msg = "Stim MPP parsing requires the optional 'stim' dependency. Install stim or graphqomb[stim]."
-        raise ImportError(msg) from exc
-    return cast("_StimModule", module)
-
-
-def _is_circuit_instruction(
-    instruction: stim.CircuitInstruction | stim.CircuitRepeatBlock,
-    stim_module: _StimModule,
-) -> TypeGuard[stim.CircuitInstruction]:
-    return isinstance(instruction, stim_module.CircuitInstruction)
-
-
 def _extract_qubit_coordinates(
     circuit: stim.Circuit,
     *,
     coord_dims: int,
-    stim_module: _StimModule,
 ) -> dict[int, tuple[float, ...]]:
     coordinates: dict[int, tuple[float, ...]] = {}
     for instruction in circuit:
-        if not _is_circuit_instruction(instruction, stim_module):
+        if not isinstance(instruction, stim.CircuitInstruction):
             msg = "Flattened Stim circuit unexpectedly contains a repeat block."
             raise TypeError(msg)
         if instruction.name != "QUBIT_COORDS":
@@ -239,13 +212,13 @@ def _extract_qubit_coordinates(
     return coordinates
 
 
-def _extract_mpp_layers(circuit: stim.Circuit, *, stim_module: _StimModule) -> list[list[_MppProductRecord]]:
+def _extract_mpp_layers(circuit: stim.Circuit) -> list[list[_MppProductRecord]]:
     layers: list[list[_MppProductRecord]] = []
     current_layer: list[_MppProductRecord] | None = None
     measurement_count = 0
 
     for instruction in circuit:
-        if not _is_circuit_instruction(instruction, stim_module):
+        if not isinstance(instruction, stim.CircuitInstruction):
             msg = "Flattened Stim circuit unexpectedly contains a repeat block."
             raise TypeError(msg)
         if instruction.name == "MPP":
@@ -273,14 +246,13 @@ def _extract_selected_mpp_annotations(
     circuit: stim.Circuit,
     *,
     record_to_row: Mapping[int, int],
-    stim_module: _StimModule,
 ) -> tuple[tuple[frozenset[int], ...], dict[int, frozenset[int]]]:
     detector_rows: list[frozenset[int]] = []
     logical_observable_rows: dict[int, set[int]] = {}
     measurement_count = 0
 
     for instruction in circuit:
-        if not _is_circuit_instruction(instruction, stim_module):
+        if not isinstance(instruction, stim.CircuitInstruction):
             msg = "Flattened Stim circuit unexpectedly contains a repeat block."
             raise TypeError(msg)
 
