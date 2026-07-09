@@ -126,6 +126,8 @@ def test_stabilizer_code_from_stim_mpp_reads_detectors_and_observables() -> None
 
     assert extraction.detector_rows == (frozenset({0, 2}),)
     assert extraction.logical_observable_rows == {5: frozenset({1})}
+    assert extraction.detector_record_indices == (frozenset({0, 2}),)
+    assert extraction.logical_observable_record_indices == {5: frozenset({1})}
     assert extraction.detector_groups(result.ancilla_nodes) == [
         {result.ancilla_nodes[0], result.ancilla_nodes[2]},
     ]
@@ -142,14 +144,33 @@ def test_stabilizer_code_from_stim_mpp_accumulates_observable_rows_by_parity() -
     )
 
     assert extraction.logical_observable_rows == {2: frozenset({0})}
+    assert extraction.logical_observable_record_indices == {2: frozenset({0})}
 
 
-def test_stabilizer_code_from_stim_mpp_rejects_mixed_external_detector_records() -> None:
-    with pytest.raises(ValueError, match="outside the selected MPP layer"):
-        stabilizer_code_from_stim_text(
-            """
-            M 99
-            MPP X0
-            DETECTOR rec[-1] rec[-2]
-            """
-        )
+def test_stabilizer_code_from_stim_mpp_keeps_selected_rows_when_detector_refs_external_records() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        M 99
+        MPP X0
+        DETECTOR rec[-1] rec[-2]
+        """
+    )
+
+    assert extraction.detector_rows == (frozenset({0}),)
+    assert extraction.detector_record_indices == (frozenset({0, 1}),)
+
+
+def test_stabilizer_code_from_stim_mpp_can_select_all_mpp_layers() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        MPP X0
+        TICK
+        MPP Z0
+        DETECTOR rec[-1] rec[-2]
+        """,
+        mpp_layer=None,
+    )
+
+    assert extraction.supports == (((0, "X"),), ((0, "Z"),))
+    assert extraction.detector_rows == (frozenset({0, 1}),)
+    assert extraction.detector_record_indices == (frozenset({0, 1}),)

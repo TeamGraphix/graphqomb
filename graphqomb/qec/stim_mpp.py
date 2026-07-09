@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -24,9 +24,13 @@ class _MppProductRecord:
     support: PauliSupport
 
 
+def _empty_logical_observable_record_indices() -> dict[int, frozenset[int]]:
+    return {}
+
+
 @dataclass(frozen=True)
 class StimMppExtraction:
-    """Stabilizer-code data extracted from one Stim MPP layer.
+    """Stabilizer-code data extracted from Stim MPP products.
 
     Attributes
     ----------
@@ -39,10 +43,19 @@ class StimMppExtraction:
     supports : `tuple`[`PauliSupport`, ...]
         Original Stim Pauli supports, one support per stabilizer row.
     detector_rows : `tuple`[`frozenset`[`int`], ...]
-        Detector groups as selected-MPP stabilizer row indices.
+        Detector groups as selected-MPP stabilizer row indices. If a Stim
+        detector also references measurements outside the selected MPP products,
+        only rows represented in this extraction are included here.
     logical_observable_rows : `dict`[`int`, `frozenset`[`int`]]
         Logical observables as selected-MPP stabilizer row indices, keyed by
-        Stim logical observable index.
+        Stim logical observable index. External measurement records are ignored
+        in this row view.
+    detector_record_indices : `tuple`[`frozenset`[`int`], ...]
+        Absolute Stim measurement-record indices for detectors that touch at
+        least one MPP product represented in this extraction.
+    logical_observable_record_indices : `dict`[`int`, `frozenset`[`int`]]
+        Absolute Stim measurement-record indices for logical observables that
+        touch at least one MPP product represented in this extraction.
     """
 
     code: StabilizerCode
@@ -51,6 +64,10 @@ class StimMppExtraction:
     supports: tuple[PauliSupport, ...]
     detector_rows: tuple[frozenset[int], ...]
     logical_observable_rows: dict[int, frozenset[int]]
+    detector_record_indices: tuple[frozenset[int], ...] = ()
+    logical_observable_record_indices: dict[int, frozenset[int]] = field(
+        default_factory=_empty_logical_observable_record_indices
+    )
 
     def detector_groups(self, ancilla_nodes: Mapping[int, int]) -> list[set[int]]:
         """Return detector groups mapped to graph node ids for ``qompile``.
@@ -86,13 +103,21 @@ class StimMppExtraction:
         }
 
 
+@dataclass(frozen=True)
+class _StimMppAnnotations:
+    detector_rows: tuple[frozenset[int], ...]
+    logical_observable_rows: dict[int, frozenset[int]]
+    detector_record_indices: tuple[frozenset[int], ...]
+    logical_observable_record_indices: dict[int, frozenset[int]]
+
+
 def stabilizer_code_from_stim_file(
     path: str | Path,
     *,
-    mpp_layer: int = 0,
+    mpp_layer: int | None = 0,
     coord_dims: int = 2,
 ) -> StimMppExtraction:
-    """Build a stabilizer code from an MPP layer in a Stim file.
+    """Build a stabilizer code from MPP products in a Stim file.
 
     Returns
     -------
@@ -109,14 +134,16 @@ def stabilizer_code_from_stim_file(
 def stabilizer_code_from_stim_text(
     text: str,
     *,
-    mpp_layer: int = 0,
+    mpp_layer: int | None = 0,
     coord_dims: int = 2,
 ) -> StimMppExtraction:
-    """Build a stabilizer code from an MPP layer in Stim text.
+    """Build a stabilizer code from MPP products in Stim text.
 
-    The selected MPP layer is interpreted as a parity-check matrix using the
-    ``[Hx | Hz]`` convention. ``X`` and ``Y`` targets set entries in ``Hx``;
-    ``Z`` and ``Y`` targets set entries in ``Hz``.
+    The selected MPP products are interpreted as a parity-check matrix using
+    the ``[Hx | Hz]`` convention. ``X`` and ``Y`` targets set entries in
+    ``Hx``; ``Z`` and ``Y`` targets set entries in ``Hz``. By default,
+    ``mpp_layer=0`` selects the first contiguous MPP layer. Pass
+    ``mpp_layer=None`` to select all MPP products in the flattened Stim file.
 
     Returns
     -------
@@ -128,7 +155,7 @@ def stabilizer_code_from_stim_text(
     ValueError
         If the requested MPP layer or coordinate format is invalid.
     """
-    if mpp_layer < 0:
+    if mpp_layer is not None and mpp_layer < 0:
         msg = "mpp_layer must be non-negative."
         raise ValueError(msg)
     if coord_dims not in {2, 3}:
@@ -138,17 +165,15 @@ def stabilizer_code_from_stim_text(
     circuit = stim.Circuit(text).flattened()
     coordinate_by_stim_id = _extract_qubit_coordinates(circuit, coord_dims=coord_dims)
     layers = _extract_mpp_layers(circuit)
-    if mpp_layer >= len(layers):
-        msg = f"Stim circuit has {len(layers)} MPP layer(s); cannot select layer {mpp_layer}."
-        raise ValueError(msg)
 
-    selected_layer = layers[mpp_layer]
+    selected_layer = _select_mpp_products(layers, mpp_layer=mpp_layer)
     supports = tuple(product.support for product in selected_layer)
     if not supports:
-        msg = f"MPP layer {mpp_layer} is empty."
+        layer_label = "file" if mpp_layer is None else f"layer {mpp_layer}"
+        msg = f"MPP {layer_label} is empty."
         raise ValueError(msg)
     record_to_row = {product.record_index: row for row, product in enumerate(selected_layer)}
-    detector_rows, logical_observable_rows = _extract_selected_mpp_annotations(
+    annotations = _extract_selected_mpp_annotations(
         circuit,
         record_to_row=record_to_row,
     )
@@ -163,8 +188,10 @@ def stabilizer_code_from_stim_text(
         stim_to_column=stim_to_column,
         column_to_stim=column_to_stim,
         supports=supports,
-        detector_rows=detector_rows,
-        logical_observable_rows=logical_observable_rows,
+        detector_rows=annotations.detector_rows,
+        logical_observable_rows=annotations.logical_observable_rows,
+        detector_record_indices=annotations.detector_record_indices,
+        logical_observable_record_indices=annotations.logical_observable_record_indices,
     )
 
 
@@ -242,13 +269,28 @@ def _extract_mpp_layers(circuit: stim.Circuit) -> list[list[_MppProductRecord]]:
     return layers
 
 
+def _select_mpp_products(
+    layers: Sequence[Sequence[_MppProductRecord]],
+    *,
+    mpp_layer: int | None,
+) -> list[_MppProductRecord]:
+    if mpp_layer is None:
+        return [product for layer in layers for product in layer]
+    if mpp_layer >= len(layers):
+        msg = f"Stim circuit has {len(layers)} MPP layer(s); cannot select layer {mpp_layer}."
+        raise ValueError(msg)
+    return list(layers[mpp_layer])
+
+
 def _extract_selected_mpp_annotations(
     circuit: stim.Circuit,
     *,
     record_to_row: Mapping[int, int],
-) -> tuple[tuple[frozenset[int], ...], dict[int, frozenset[int]]]:
+) -> _StimMppAnnotations:
     detector_rows: list[frozenset[int]] = []
+    detector_record_indices: list[frozenset[int]] = []
     logical_observable_rows: dict[int, set[int]] = {}
+    logical_observable_record_indices: dict[int, set[int]] = {}
     measurement_count = 0
 
     for instruction in circuit:
@@ -257,7 +299,7 @@ def _extract_selected_mpp_annotations(
             raise TypeError(msg)
 
         if instruction.name == "DETECTOR":
-            rows = _record_targets_to_selected_mpp_rows(
+            rows, record_indices = _record_targets_to_selected_mpp_rows(
                 instruction.targets_copy(),
                 measurement_count=measurement_count,
                 record_to_row=record_to_row,
@@ -265,9 +307,10 @@ def _extract_selected_mpp_annotations(
             )
             if rows is not None:
                 detector_rows.append(frozenset(rows))
+                detector_record_indices.append(record_indices)
         elif instruction.name == "OBSERVABLE_INCLUDE":
             logical_idx = _observable_index(instruction)
-            rows = _record_targets_to_selected_mpp_rows(
+            rows, record_indices = _record_targets_to_selected_mpp_rows(
                 instruction.targets_copy(),
                 measurement_count=measurement_count,
                 record_to_row=record_to_row,
@@ -275,12 +318,23 @@ def _extract_selected_mpp_annotations(
             )
             if rows is not None:
                 logical_observable_rows.setdefault(logical_idx, set()).symmetric_difference_update(rows)
+                logical_observable_record_indices.setdefault(logical_idx, set()).symmetric_difference_update(
+                    record_indices
+                )
 
         measurement_count += instruction.num_measurements
 
-    return tuple(detector_rows), {
-        logical_idx: frozenset(rows) for logical_idx, rows in sorted(logical_observable_rows.items())
-    }
+    return _StimMppAnnotations(
+        detector_rows=tuple(detector_rows),
+        logical_observable_rows={
+            logical_idx: frozenset(rows) for logical_idx, rows in sorted(logical_observable_rows.items())
+        },
+        detector_record_indices=tuple(detector_record_indices),
+        logical_observable_record_indices={
+            logical_idx: frozenset(records)
+            for logical_idx, records in sorted(logical_observable_record_indices.items())
+        },
+    )
 
 
 def _record_targets_to_selected_mpp_rows(
@@ -289,19 +343,22 @@ def _record_targets_to_selected_mpp_rows(
     measurement_count: int,
     record_to_row: Mapping[int, int],
     instruction_name: str,
-) -> set[int] | None:
+) -> tuple[set[int] | None, frozenset[int]]:
     rows: set[int] = set()
+    record_indices: set[int] = set()
     saw_selected_record = False
-    saw_external_record = False
 
     for target in targets:
         if not target.is_measurement_record_target:
             msg = f"{instruction_name} contains unsupported target {target!r}; only rec targets are supported."
             raise ValueError(msg)
         record_index = measurement_count + int(target.value)
+        if record_index in record_indices:
+            record_indices.remove(record_index)
+        else:
+            record_indices.add(record_index)
         row = record_to_row.get(record_index)
         if row is None:
-            saw_external_record = True
             continue
         saw_selected_record = True
         if row in rows:
@@ -309,12 +366,9 @@ def _record_targets_to_selected_mpp_rows(
         else:
             rows.add(row)
 
-    if saw_selected_record and saw_external_record:
-        msg = f"{instruction_name} references measurement records outside the selected MPP layer."
-        raise ValueError(msg)
-    if not saw_selected_record and saw_external_record:
-        return None
-    return rows
+    if not saw_selected_record:
+        return None, frozenset(record_indices)
+    return rows, frozenset(record_indices)
 
 
 def _observable_index(instruction: stim.CircuitInstruction) -> int:
