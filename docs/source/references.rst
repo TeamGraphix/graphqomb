@@ -21,6 +21,8 @@ Module reference
     pauli_frame
     qompiler
     scheduler
+    qec
+    stim_mpp
     stim_compiler
     noise_model
     visualizer

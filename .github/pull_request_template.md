@@ -5,7 +5,7 @@ Before submitting, please check the following:
 - Format added code by `uv run ruff`
 - Type checking by `uv run mypy` and `uv run pyright`
 - Make sure the checks (github actions) pass.
-- Check that the docs compile without errors (run `uv run sphinx-build -W docs/source docs/build` after `uv sync --extra doc`.)
+- Check that the docs compile without errors (run `uv run sphinx-build -W docs/source docs/build` after `uv sync --extra doc --extra stim`.)
 
 Then, please fill in below:
 

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 
 _TYPE_II_CHAIN_LENGTH = 3
+Coordinate = tuple[float, ...]
 
 
 class YFoliation(Enum):
@@ -31,17 +32,9 @@ class StabilizerCode:
         self,
         stabilizer_matrix: csr_array,
         *,
-        stabilizer_coords: Mapping[int, tuple[float, ...]] | None = None,
-        qubit_coords: Mapping[int, tuple[float, ...]] | None = None,
+        stabilizer_coords: Mapping[int, Coordinate] | None = None,
+        qubit_coords: Mapping[int, Coordinate] | None = None,
     ) -> None:
-        if stabilizer_matrix.shape[1] % 2 != 0:
-            msg = "Stabilizer matrix must have an even number of columns."
-            raise ValueError(msg)
-        if stabilizer_coords is not None:
-            _validate_coordinate_lengths(stabilizer_coords, expected_lengths={3}, label="stabilizer_coords")
-        if qubit_coords is not None:
-            _validate_coordinate_lengths(qubit_coords, expected_lengths={2, 3}, label="qubit_coords")
-
         self.hx = csr_array(stabilizer_matrix[:, : stabilizer_matrix.shape[1] // 2])
         self.hz = csr_array(stabilizer_matrix[:, stabilizer_matrix.shape[1] // 2 :])
 
@@ -60,7 +53,14 @@ class StabilizerCode:
 
 
 class StabilizerGraphStateBuildResult(NamedTuple):
-    """Result of building a graph state from a stabilizer code."""
+    """Result of building a graph state from a stabilizer code.
+
+    ``graph`` is the constructed graph state with data and ancilla nodes,
+    edges, coordinates, and measurement bases. ``data_nodes`` maps each
+    ``(physical_qubit, data_layer)`` pair to its graph node id.
+    ``ancilla_nodes`` maps each stabilizer row index to its ancilla graph node
+    id.
+    """
 
     graph: GraphState
     data_nodes: dict[tuple[int, int], int]
@@ -97,8 +97,8 @@ def build_graph_state(
         Stabilizer code to convert. The X support is connected to the upper
         data layer and the Z support is connected to the lower data layer.
     z_base : `int`, optional
-        Lower data-layer index. The builder creates layers `z_base` and
-        `z_base + 1`, by default 0.
+        Lower data-layer index. The builder creates layers ``z_base`` and
+        ``z_base + 1``, by default 0.
     y_foliation : `YFoliation`, optional
         Foliation variant. Type II uses a three-node Y-measured data chain only
         for qubits that have an Hx=Hz=1 support in at least one stabilizer row.
@@ -145,6 +145,8 @@ def _data_layer_plan(
     y_chain_qubits: set[int] = _qubits_with_y_support(code) if y_foliation is YFoliation.TYPE_II else set()
 
     for qubit in range(code.num_qubits):
+        layers: tuple[int, ...]
+        coordinate_zs: tuple[float, ...]
         if qubit in y_chain_qubits:
             layers = (z_base, z_base + 1, z_base + 2)
             coordinate_zs = (
@@ -291,26 +293,6 @@ def _qubits_with_y_support(code: StabilizerCode) -> set[int]:
     for stabilizer in range(code.num_stabilizers):
         y_qubits.update(set(_row_support(hx, stabilizer)) & set(_row_support(hz, stabilizer)))
     return y_qubits
-
-
-def _validate_coordinate_lengths(
-    coordinates: Mapping[int, tuple[float, ...]],
-    *,
-    expected_lengths: set[int],
-    label: str,
-) -> None:
-    """Validate coordinate tuple lengths.
-
-    Raises
-    ------
-    ValueError
-        If any coordinate has an invalid length.
-    """
-    for index, coord in coordinates.items():
-        if len(coord) not in expected_lengths:
-            expected = " or ".join(str(length) for length in sorted(expected_lengths))
-            msg = f"{label}[{index}] must have length {expected}."
-            raise ValueError(msg)
 
 
 def _data_coordinate(code: StabilizerCode, qubit: int, z: float) -> tuple[float, float, float] | None:

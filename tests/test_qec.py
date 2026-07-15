@@ -186,17 +186,15 @@ def test_build_graph_state_allows_missing_coordinates() -> None:
     assert result.graph.coordinates == {}
 
 
-def test_stabilizer_code_rejects_odd_column_matrix() -> None:
-    with pytest.raises(ValueError, match="even number of columns"):
-        StabilizerCode(_matrix([[1, 0, 1]]))
+def test_stabilizer_code_preserves_higher_dimensional_coordinates() -> None:
+    code = StabilizerCode(
+        _matrix([[1, 0]]),
+        stabilizer_coords={0: (1.0, 2.0, 3.0, 4.0)},
+        qubit_coords={0: (5.0, 6.0, 7.0, 8.0)},
+    )
 
-
-def test_stabilizer_code_rejects_invalid_coordinate_lengths() -> None:
-    with pytest.raises(ValueError, match=r"qubit_coords\[0\] must have length 2 or 3"):
-        StabilizerCode(_matrix([[1, 0]]), qubit_coords={0: (1.0,)})
-
-    with pytest.raises(ValueError, match=r"stabilizer_coords\[0\] must have length 3"):
-        StabilizerCode(_matrix([[1, 0]]), stabilizer_coords={0: (1.0, 2.0)})
+    assert code.stabilizer_coord == {0: (1.0, 2.0, 3.0, 4.0)}
+    assert code.qubit_coord == {0: (5.0, 6.0, 7.0, 8.0)}
 
 
 def test_build_graph_state_rejects_non_integer_z_base() -> None:

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import stim
 from scipy.sparse import csr_array, lil_array
 
-from graphqomb.qec.qeccode import StabilizerCode
+from graphqomb.qec.qeccode import Coordinate, StabilizerCode
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -24,36 +24,32 @@ class _MppProductRecord:
     support: PauliSupport
 
 
-def _empty_logical_observable_record_indices() -> dict[int, frozenset[int]]:
-    return {}
-
-
 @dataclass(frozen=True)
 class StimMppExtraction:
     """Stabilizer-code data extracted from Stim MPP products.
 
     Attributes
     ----------
-    code : `StabilizerCode`
+    code : StabilizerCode
         Dense-column stabilizer code using the ``[Hx | Hz]`` convention.
-    stim_to_column : `dict`[`int`, `int`]
+    stim_to_column : dict[int, int]
         Mapping from original Stim qubit ids to dense matrix columns.
-    column_to_stim : `dict`[`int`, `int`]
+    column_to_stim : dict[int, int]
         Inverse dense-column mapping.
-    supports : `tuple`[`PauliSupport`, ...]
+    supports : tuple[PauliSupport, ...]
         Original Stim Pauli supports, one support per stabilizer row.
-    detector_rows : `tuple`[`frozenset`[`int`], ...]
+    detector_rows : tuple[frozenset[int], ...]
         Detector groups as selected-MPP stabilizer row indices. If a Stim
         detector also references measurements outside the selected MPP products,
         only rows represented in this extraction are included here.
-    logical_observable_rows : `dict`[`int`, `frozenset`[`int`]]
+    logical_observable_rows : dict[int, frozenset[int]]
         Logical observables as selected-MPP stabilizer row indices, keyed by
         Stim logical observable index. External measurement records are ignored
         in this row view.
-    detector_record_indices : `tuple`[`frozenset`[`int`], ...]
+    detector_record_indices : tuple[frozenset[int], ...]
         Absolute Stim measurement-record indices for detectors that touch at
         least one MPP product represented in this extraction.
-    logical_observable_record_indices : `dict`[`int`, `frozenset`[`int`]]
+    logical_observable_record_indices : dict[int, frozenset[int]]
         Absolute Stim measurement-record indices for logical observables that
         touch at least one MPP product represented in this extraction.
     """
@@ -65,21 +61,19 @@ class StimMppExtraction:
     detector_rows: tuple[frozenset[int], ...]
     logical_observable_rows: dict[int, frozenset[int]]
     detector_record_indices: tuple[frozenset[int], ...] = ()
-    logical_observable_record_indices: dict[int, frozenset[int]] = field(
-        default_factory=_empty_logical_observable_record_indices
-    )
+    logical_observable_record_indices: dict[int, frozenset[int]] = field(default_factory=dict)
 
     def detector_groups(self, ancilla_nodes: Mapping[int, int]) -> list[set[int]]:
         """Return detector groups mapped to graph node ids for ``qompile``.
 
         Parameters
         ----------
-        ancilla_nodes : `collections.abc.Mapping`[`int`, `int`]
+        ancilla_nodes : collections.abc.Mapping[int, int]
             Mapping from selected-MPP stabilizer rows to graph node ids.
 
         Returns
         -------
-        `list`[`set`[`int`]]
+        list[set[int]]
             Detector groups suitable for ``qompile(..., parity_check_group=...)``.
         """
         return [_map_rows_to_nodes(rows, ancilla_nodes, "detector") for rows in self.detector_rows]
@@ -89,12 +83,12 @@ class StimMppExtraction:
 
         Parameters
         ----------
-        ancilla_nodes : `collections.abc.Mapping`[`int`, `int`]
+        ancilla_nodes : collections.abc.Mapping[int, int]
             Mapping from selected-MPP stabilizer rows to graph node ids.
 
         Returns
         -------
-        `dict`[`int`, `set`[`int`]]
+        dict[int, set[int]]
             Logical observables suitable for ``qompile(..., logical_observables=...)``.
         """
         return {
@@ -118,6 +112,9 @@ def stabilizer_code_from_stim_file(
     coord_dims: int = 2,
 ) -> StimMppExtraction:
     """Build a stabilizer code from MPP products in a Stim file.
+
+    Signed MPP products are not supported. A Stim target inversion such as
+    ``!X0`` raises ``ValueError`` because stabilizer signs are not retained.
 
     Returns
     -------
@@ -144,6 +141,9 @@ def stabilizer_code_from_stim_text(
     ``Hx``; ``Z`` and ``Y`` targets set entries in ``Hz``. By default,
     ``mpp_layer=0`` selects the first contiguous MPP layer. Pass
     ``mpp_layer=None`` to select all MPP products in the flattened Stim file.
+    Signed MPP products are not supported because ``StabilizerCode`` does not
+    retain stabilizer signs. A Stim target inversion such as ``!X0`` is
+    therefore rejected instead of being silently discarded.
 
     Returns
     -------
@@ -153,15 +153,12 @@ def stabilizer_code_from_stim_text(
     Raises
     ------
     ValueError
-        If the requested MPP layer or coordinate format is invalid.
+        If the requested MPP layer or coordinate format is invalid, or if an
+        MPP product is signed using an inverted Pauli target.
     """
     if mpp_layer is not None and mpp_layer < 0:
         msg = "mpp_layer must be non-negative."
         raise ValueError(msg)
-    if coord_dims not in {2, 3}:
-        msg = "coord_dims must be 2 or 3."
-        raise ValueError(msg)
-
     circuit = stim.Circuit(text).flattened()
     coordinate_by_stim_id = _extract_qubit_coordinates(circuit, coord_dims=coord_dims)
     layers = _extract_mpp_layers(circuit)
@@ -197,8 +194,8 @@ def stabilizer_code_from_stim_text(
 
 def _build_stabilizer_data(
     supports: Sequence[PauliSupport],
-    coordinate_by_stim_id: Mapping[int, tuple[float, ...]],
-) -> tuple[csr_array, dict[int, int], dict[int, int], dict[int, tuple[float, ...]]]:
+    coordinate_by_stim_id: Mapping[int, Coordinate],
+) -> tuple[csr_array, dict[int, int], dict[int, int], dict[int, Coordinate]]:
     stim_ids = sorted({qid for support in supports for qid, _pauli in support})
     stim_to_column = {qid: column for column, qid in enumerate(stim_ids)}
     column_to_stim = {column: qid for qid, column in stim_to_column.items()}
@@ -221,8 +218,8 @@ def _extract_qubit_coordinates(
     circuit: stim.Circuit,
     *,
     coord_dims: int,
-) -> dict[int, tuple[float, ...]]:
-    coordinates: dict[int, tuple[float, ...]] = {}
+) -> dict[int, Coordinate]:
+    coordinates: dict[int, Coordinate] = {}
     for instruction in circuit:
         if not isinstance(instruction, stim.CircuitInstruction):
             msg = "Flattened Stim circuit unexpectedly contains a repeat block."
@@ -393,6 +390,9 @@ def _mpp_targets_to_products(targets: Sequence[stim.GateTarget]) -> list[PauliSu
             expect_pauli = True
             continue
 
+        if target.is_inverted_result_target:
+            msg = "Signed MPP products are not supported; inverted Pauli targets cannot be imported."
+            raise ValueError(msg)
         pauli = _target_pauli(target)
         if current and not expect_pauli:
             products.append(tuple(current))

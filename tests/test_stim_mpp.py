@@ -47,6 +47,18 @@ def test_stabilizer_code_from_stim_mpp_preserves_3d_coordinates_when_requested()
     }
 
 
+def test_stabilizer_code_from_stim_mpp_preserves_higher_dimensional_coordinates() -> None:
+    extraction = stabilizer_code_from_stim_text(
+        """
+        QUBIT_COORDS(10, 20, 30, 40) 0
+        MPP X0
+        """,
+        coord_dims=4,
+    )
+
+    assert extraction.code.qubit_coord == {0: (10.0, 20.0, 30.0, 40.0)}
+
+
 def test_stabilizer_code_from_stim_mpp_handles_sparse_stim_ids_and_multiple_products() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
@@ -92,6 +104,11 @@ def test_stabilizer_code_from_stim_mpp_can_select_later_mpp_layer() -> None:
 def test_stabilizer_code_from_stim_mpp_rejects_missing_layer() -> None:
     with pytest.raises(ValueError, match=r"has 1 MPP layer"):
         stabilizer_code_from_stim_text("MPP X0\n", mpp_layer=1)
+
+
+def test_stabilizer_code_from_stim_mpp_rejects_signed_product() -> None:
+    with pytest.raises(ValueError, match="Signed MPP products are not supported"):
+        stabilizer_code_from_stim_text("MPP !X0*Y1\n")
 
 
 def test_stabilizer_code_from_stim_mpp_builds_graph_state() -> None:
