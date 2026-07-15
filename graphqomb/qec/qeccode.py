@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from scipy.sparse import csr_array
 
@@ -30,7 +30,7 @@ class StabilizerCode:
 
     def __init__(
         self,
-        stabilizer_matrix: csr_array,
+        stabilizer_matrix: csr_array[Any, tuple[int, int]],
         *,
         stabilizer_coords: Mapping[int, Coordinate] | None = None,
         qubit_coords: Mapping[int, Coordinate] | None = None,

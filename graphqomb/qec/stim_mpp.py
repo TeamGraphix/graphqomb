@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import stim
 from scipy.sparse import csr_array, lil_array
 
@@ -195,13 +196,13 @@ def stabilizer_code_from_stim_text(
 def _build_stabilizer_data(
     supports: Sequence[PauliSupport],
     coordinate_by_stim_id: Mapping[int, Coordinate],
-) -> tuple[csr_array, dict[int, int], dict[int, int], dict[int, Coordinate]]:
+) -> tuple[csr_array[Any, tuple[int, int]], dict[int, int], dict[int, int], dict[int, Coordinate]]:
     stim_ids = sorted({qid for support in supports for qid, _pauli in support})
     stim_to_column = {qid: column for column, qid in enumerate(stim_ids)}
     column_to_stim = {column: qid for qid, column in stim_to_column.items()}
 
     num_qubits = len(stim_ids)
-    matrix = lil_array((len(supports), 2 * num_qubits), dtype=bool)
+    matrix = lil_array((len(supports), 2 * num_qubits), dtype=np.bool_)
     for row, support in enumerate(supports):
         for stim_id, pauli in support:
             column = stim_to_column[stim_id]
@@ -211,7 +212,8 @@ def _build_stabilizer_data(
                 matrix[row, num_qubits + column] = True
 
     qubit_coords = {stim_to_column[qid]: coord for qid, coord in coordinate_by_stim_id.items() if qid in stim_to_column}
-    return matrix.tocsr(), stim_to_column, column_to_stim, qubit_coords
+    stabilizer_matrix = csr_array(matrix, shape=(len(supports), 2 * num_qubits))
+    return stabilizer_matrix, stim_to_column, column_to_stim, qubit_coords
 
 
 def _extract_qubit_coordinates(
