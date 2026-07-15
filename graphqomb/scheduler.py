@@ -175,7 +175,7 @@ class Scheduler:
 
     @property
     def timeline(self) -> list[TimeSlice]:
-        r"""Get the per-slice operations for preparation, entanglement, and measurement.
+        r"""Per-slice operations for preparation, entanglement, and measurement.
 
         Returns
         -------

@@ -148,7 +148,7 @@ class BaseCircuit(ABC):
     @property
     @abstractmethod
     def num_qubits(self) -> int:
-        """Get the number of qubits in the circuit.
+        """The number of qubits in the circuit.
 
         Returns
         -------
@@ -193,7 +193,7 @@ class MBQCCircuit(BaseCircuit):
     @property
     @typing_extensions.override
     def num_qubits(self) -> int:
-        """Get the number of qubits in the circuit.
+        """The number of qubits in the circuit.
 
         Returns
         -------
@@ -275,7 +275,7 @@ class Circuit(BaseCircuit):
     @property
     @typing_extensions.override
     def num_qubits(self) -> int:
-        """Get the number of qubits in the circuit.
+        """The number of qubits in the circuit.
 
         Returns
         -------

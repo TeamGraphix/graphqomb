@@ -272,14 +272,14 @@ class Coordinate:
 
     @property
     def xy(self) -> tuple[float, float] | None:
-        """Return the first two dimensions as (x, y), or None if fewer than 2 dimensions."""
+        """The first two dimensions as (x, y), or None if fewer than 2 dimensions."""
         if len(self.values) < 2:  # noqa: PLR2004
             return None
         return (self.values[0], self.values[1])
 
     @property
     def xyz(self) -> tuple[float, float, float] | None:
-        """Return the first three dimensions as (x, y, z), or None if fewer than 3 dimensions."""
+        """The first three dimensions as (x, y, z), or None if fewer than 3 dimensions."""
         if len(self.values) < 3:  # noqa: PLR2004
             return None
         return (self.values[0], self.values[1], self.values[2])
