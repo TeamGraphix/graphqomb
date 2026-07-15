@@ -109,7 +109,7 @@ def build_graph_state(
     data_as_io : `bool`, optional
         Whether to register the first data nodes as inputs and the last data
         nodes as outputs, by default False.
-    qubit_indices : `collections.abc.Mapping`[`int`, `int`] | `None`, optional
+    qubit_indices : collections.abc.Mapping[int, int] | None, optional
         Mapping from stabilizer-code qubit columns to graph qindices when
         ``data_as_io`` is enabled. If omitted, code qubit columns are used.
 
