@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **QEC Stim MPP Import**: Added utilities for building `StabilizerCode` inputs from unsigned Stim `MPP` layers, including sparse Stim qubit id mapping, coordinate import, multi-layer selection, detector/logical-observable import, and the optional `graphqomb[stim]` extra. Signed products using inverted Pauli targets are rejected because stabilizer signs are not retained.
+
 ### Changed
 
 - **Development Tooling**: Use uv as the default dependency manager for local development, CI, documentation builds, and publishing workflows.

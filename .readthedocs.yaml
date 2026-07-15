@@ -21,3 +21,4 @@ python:
       command: sync
       extras:
         - doc
+        - stim

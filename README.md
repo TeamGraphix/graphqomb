@@ -50,6 +50,12 @@ Install optional PyZX integration:
 uv add "graphqomb[pyzx]"
 ```
 
+Install optional Stim integration:
+
+```bash
+uv add "graphqomb[stim]"
+```
+
 ### From Source
 
 ```bash
@@ -107,6 +113,8 @@ If you already have a graph-state design and explicit feedforward maps, you can 
 - **Architecture overview**: https://graphqomb.readthedocs.io/en/latest/architecture.html
 - **Example gallery**: https://graphqomb.readthedocs.io/en/latest/gallery/index.html
 - **API reference**: https://graphqomb.readthedocs.io/en/latest/references.html
+- **QEC graph-state builder reference**: https://graphqomb.readthedocs.io/en/latest/qec.html
+- **Stim MPP import reference**: https://graphqomb.readthedocs.io/en/latest/stim_mpp.html
 - **Stim compiler reference**: https://graphqomb.readthedocs.io/en/latest/stim_compiler.html
 
 ## Current Scope

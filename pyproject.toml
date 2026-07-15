@@ -46,6 +46,7 @@ dependencies = [
     "networkx",
     "numpy>=1.22,<3",
     "ortools>=9,<10",
+    "scipy>=1.15.3",
     "typing-extensions",
 ]
 
@@ -57,6 +58,7 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.15.20",
+    "scipy-stubs>=1.15.3.0",
     "types-networkx==3.6.1.20260624",
 ]
 doc = [
@@ -67,6 +69,9 @@ doc = [
 ]
 pyzx = [
     "pyzx>=0.10",
+]
+stim = [
+    "stim>=1.15",
 ]
 
 [project.urls]
