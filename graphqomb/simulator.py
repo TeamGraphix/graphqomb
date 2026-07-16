@@ -125,7 +125,8 @@ class PatternSimulator:
     output_results : `dict`\[`int`, `bool`\]
         Measurement results for output nodes, keyed by logical output index.
     calc_prob : `bool`
-        Whether to calculate probabilities.
+        Whether to sample every measurement from its exact Born probability.
+        If False, non-output measurements use the legacy 50/50 assumption.
     """
 
     state: BaseFullStateSimulator
@@ -140,7 +141,7 @@ class PatternSimulator:
         pattern: Pattern,
         backend: SimulatorBackend,
         *,
-        calc_prob: bool = False,
+        calc_prob: bool = True,
     ) -> None:
         self.node_indices = list(pattern.input_node_indices.keys())
         self.results = {}
@@ -234,15 +235,11 @@ class PatternSimulator:
 
     @apply_cmd.register
     def _(self, cmd: M, *, rng: np.random.Generator) -> None:
-        if self.calc_prob:
-            raise NotImplementedError
-
         node_id = self.node_indices.index(cmd.node)
-        if cmd.node in self.__pattern.output_node_indices:
-            meas_basis = self._updated_measurement_basis(cmd)
+        meas_basis = self._updated_measurement_basis(cmd)
+        if self.calc_prob or cmd.node in self.__pattern.output_node_indices:
             result = self._sample_measurement_result(node_id, meas_basis, rng)
         else:
-            meas_basis = self._updated_measurement_basis(cmd)
             result = rng.uniform() < 1 / 2
 
         self.state.measure(node_id, meas_basis, result)

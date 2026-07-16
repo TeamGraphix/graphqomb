@@ -465,6 +465,13 @@ def test_stim_text_to_pattern_uses_last_leading_reset() -> None:
     assert result.pattern.input_initialization_axes[input_node] == Axis.Y
 
 
+def test_stim_text_to_pattern_allows_initial_reset_after_other_qubit_operation() -> None:
+    result = stim_text_to_pattern("H 0\nR 1")
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 1)
+
+    assert result.pattern.input_initialization_axes[input_node] == Axis.Z
+
+
 @pytest.mark.parametrize("instruction", ["R", "RX", "RY"])
 def test_stim_text_to_pattern_rejects_reset_after_quantum_operation(instruction: str) -> None:
     with pytest.raises(ValueError, match="only initial resets are supported"):

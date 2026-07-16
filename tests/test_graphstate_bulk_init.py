@@ -92,6 +92,27 @@ def test_from_graph_with_input_initialization_axes() -> None:
     assert gs.input_initialization_axes == {node_map["a"]: Axis.Y, node_map["b"]: Axis.Z}
 
 
+def test_from_graph_rejects_initialization_axis_for_non_input_node() -> None:
+    """Input initialization axes cannot silently target non-input nodes."""
+    with pytest.raises(ValueError, match="specified for non-input node"):
+        GraphState.from_graph(
+            nodes=["input", "not-input"],
+            edges=[],
+            inputs=["input"],
+            input_initialization_axes={"not-input": Axis.Z},
+        )
+
+
+def test_from_graph_rejects_initialization_axes_without_inputs() -> None:
+    """Initialization axes require corresponding input registrations."""
+    with pytest.raises(ValueError, match="specified for non-input node"):
+        GraphState.from_graph(
+            nodes=["node"],
+            edges=[],
+            input_initialization_axes={"node": Axis.Y},
+        )
+
+
 def test_from_graph_with_meas_bases() -> None:
     """Test from_graph() with measurement bases."""
     nodes = ["a", "b", "c"]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from graphqomb.command import M
+from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.pattern import Pattern
@@ -36,6 +36,31 @@ def _single_output_pattern(
     return pattern, node
 
 
+def _deterministic_non_output_measurement_pattern() -> tuple[Pattern, int]:
+    """Create a pattern whose Z-initialized input has deterministic Z outcome."""
+    graph = GraphState()
+    input_node = graph.add_node()
+    output_node = graph.add_node()
+    graph.add_edge(input_node, output_node)
+    graph.register_input(input_node, 0, init_axis=Axis.Z)
+    graph.register_output(output_node, 0)
+    graph.assign_meas_basis(input_node, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    pattern = Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices=graph.output_node_indices,
+        commands=(
+            N(output_node),
+            E((input_node, output_node)),
+            M(input_node, graph.meas_bases[input_node]),
+            TICK(),
+        ),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={input_node: {output_node}}),
+        input_initialization_axes=graph.input_initialization_axes,
+    )
+    return pattern, input_node
+
+
 def test_pattern_simulator_initializes_input_in_x_basis() -> None:
     """PatternSimulator initializes X-axis inputs as |+>."""
     pattern, _ = _single_output_pattern(measured=False, init_axis=Axis.X)
@@ -64,6 +89,49 @@ def test_pattern_simulator_initializes_input_in_z_basis() -> None:
     simulator.simulate()
 
     np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 0.0]))
+
+
+def test_pattern_simulator_samples_non_output_from_exact_probability_by_default() -> None:
+    """Non-output measurements use the current state instead of a 50/50 assumption."""
+    pattern, input_node = _deterministic_non_output_measurement_pattern()
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+
+    simulator.simulate(rng=np.random.default_rng(2))
+
+    assert simulator.results == {input_node: False}
+    np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 1.0]) / np.sqrt(2))
+
+
+def test_pattern_simulator_samples_y_initialized_non_output_exactly() -> None:
+    """A Y-initialized input measured in Y has a deterministic positive outcome."""
+    graph = GraphState()
+    input_node = graph.add_node()
+    graph.register_input(input_node, 0, init_axis=Axis.Y)
+    graph.assign_meas_basis(input_node, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    pattern = Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices={},
+        commands=(M(input_node, graph.meas_bases[input_node]),),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+        input_initialization_axes=graph.input_initialization_axes,
+    )
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+
+    simulator.simulate(rng=np.random.default_rng(2))
+
+    assert simulator.results == {input_node: False}
+    np.testing.assert_allclose(simulator.state.state(), np.asarray(1.0))
+
+
+def test_pattern_simulator_can_use_legacy_uniform_non_output_sampling() -> None:
+    """calc_prob=False preserves the legacy 50/50 non-output sampling behavior."""
+    pattern, input_node = _deterministic_non_output_measurement_pattern()
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector, calc_prob=False)
+
+    simulator.simulate(rng=np.random.default_rng(2))
+
+    assert simulator.results == {input_node: True}
+    np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, -1.0]) / np.sqrt(2))
 
 
 def test_pattern_simulator_applies_output_x_frame_to_statevector() -> None:

@@ -8,17 +8,32 @@ Install the optional Stim integration before importing this module:
    uv add "graphqomb[stim]"
 
 The circuit importer converts supported Stim circuits into GraphQOMB
-measurement patterns. It accepts Clifford unitary blocks and Pauli measurement
-blocks separated by ``TICK``. The supported Pauli measurement instructions are
-``M``/``MZ``, ``MX``, ``MY``, ``MXX``, ``MYY``, ``MZZ``, and ``MPP``.
+measurement patterns. It accepts initial Pauli resets, Clifford unitary blocks,
+and Pauli measurement blocks separated by ``TICK``. The supported Pauli
+measurement instructions are ``M``/``MZ``, ``MX``, ``MY``, ``MXX``, ``MYY``,
+``MZZ``, and ``MPP``.
+
+Initial reset instructions
+--------------------------
+
+Leading reset instructions determine the positive Pauli eigenstate used for an
+input: ``R``/``RZ`` initializes ``Z+``, ``RX`` initializes ``X+``, and ``RY``
+initializes ``Y+``. A reset is initial when its target qubit has not previously
+participated in a unitary or measurement operation. Operations on other qubits
+do not prevent a later initial reset. Repeated leading resets are accepted, and
+the last reset on each qubit determines its initialization state.
+
+Mid-circuit resets are rejected because GraphQOMB patterns do not currently
+represent multiple lifetimes for one logical qubit. Combined measurement-reset
+instructions (``MR``/``MRZ``, ``MRX``, and ``MRY``) remain unsupported.
 
 Single-qubit measurements assign an ``AxisMeasBasis`` directly to the measured
 graph node. They do not create an ``MPP`` extraction or an ancillary parity
 measurement node. Inverted single-qubit measurement targets select the minus
 sign of that node's basis. A direct single-qubit measurement terminates that
 qubit's lifetime: a later quantum operation on the same qubit is rejected,
-while operations on other qubits may continue. Reset and qubit reuse are not
-supported.
+while operations on other qubits may continue. A measured qubit cannot begin a
+new lifetime later in the circuit.
 
 Two-qubit measurements are parity measurements and are lowered to equivalent
 unsigned ``MPP`` products. Inverted targets in ``MXX``, ``MYY``, ``MZZ``, and
@@ -56,11 +71,6 @@ to Pauli measurements are also omitted while retaining the ideal measurement.
 Heralded noise records are retained as ideal zero-valued record positions so
 that later ``DETECTOR`` and ``OBSERVABLE_INCLUDE`` references remain aligned.
 
-Reset instructions (``R``/``RZ``, ``RX``, and ``RY``) and combined
-measurement-reset instructions (``MR``/``MRZ``, ``MRX``, and ``MRY``) are not
-handled by this importer. Consequently, a directly measured qubit cannot begin
-a new lifetime later in the circuit.
-
 .. code-block:: python
 
    from graphqomb.qec.qeccode import YFoliation
@@ -68,6 +78,8 @@ a new lifetime later in the circuit.
 
    result = stim_text_to_pattern(
        """
+       RY 0
+       R 1 2
        MX 0
        MYY 1 2
        DETECTOR rec[-2] rec[-1]

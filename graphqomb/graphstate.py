@@ -867,7 +867,8 @@ class GraphState(BaseGraphState):
         Raises
         ------
         ValueError
-            If duplicate nodes, invalid edges, or invalid input/output nodes.
+            If duplicate nodes, invalid edges, invalid input/output nodes, or
+            initialization axes are specified for non-input nodes.
         """
         # Convert nodes to list to preserve order
         nodes_list = list(nodes)
@@ -885,6 +886,15 @@ class GraphState(BaseGraphState):
                 if input_node not in node_set:
                     msg = f"Input node {input_node} not in nodes collection"
                     raise ValueError(msg)
+        input_set: set[NodeT] = set() if inputs is None else set(inputs)
+        if input_initialization_axes is not None:
+            non_input_initialization_nodes = set(input_initialization_axes) - input_set
+            if non_input_initialization_nodes:
+                msg = (
+                    "Input initialization axes specified for non-input node(s): "
+                    f"{sorted(non_input_initialization_nodes, key=repr)}"
+                )
+                raise ValueError(msg)
 
         # Validate outputs
         if outputs is not None:

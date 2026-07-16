@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Development Tooling**: Use uv as the default dependency manager for local development, CI, documentation builds, and publishing workflows.
 - **Graph State API**: Replaced legacy `physical_*` graph methods/properties with standard graph-style `nodes`, `edges`, `add_node()`, `add_edge()`, `remove_node()`, `remove_edge()`, and count/query helpers.
 - **Pattern Simulator**: Materialize pending output Pauli-frame corrections when returning output statevectors or explicit output measurement results.
+- **Pattern Simulator**: Sample all measurements from exact Born probabilities by default, with `calc_prob=False` retaining the legacy 50/50 assumption for non-output measurements.
 - **PTN Format**: Bumped exported `.ptn` files to format version 2 to record non-default input initialization bases with `.input_basis`; version 1 files remain readable and default inputs to `X+`.
 - **Stim Compiler**: Input reset instructions now follow the stored initialization basis (`RX`, `RY`, or `R`) while non-input preparations remain `RX`.
 
