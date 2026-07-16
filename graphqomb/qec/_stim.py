@@ -276,10 +276,7 @@ def pauli_products_commute(left: PauliSupport, right: PauliSupport) -> bool:
         Whether the two products commute.
     """
     right_by_qubit = dict(right)
-    anticommuting_overlaps = sum(
-        qubit in right_by_qubit and pauli != right_by_qubit[qubit]
-        for qubit, pauli in left
-    )
+    anticommuting_overlaps = sum(qubit in right_by_qubit and pauli != right_by_qubit[qubit] for qubit, pauli in left)
     return anticommuting_overlaps % 2 == 0
 
 

@@ -570,17 +570,10 @@ def _unitary_fragment(
     context: _ImportContext,
 ) -> _Fragment:
     active_stim_ids = sorted(
-        {
-            plain_qubit_target(target, instruction.name)
-            for instruction in block
-            for target in instruction.targets_copy()
-        }
+        {plain_qubit_target(target, instruction.name) for instruction in block for target in instruction.targets_copy()}
     )
     stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(active_stim_ids)}
-    local_to_global = {
-        local_index: context.stim_to_qubit[stim_id]
-        for stim_id, local_index in stim_to_local.items()
-    }
+    local_to_global = {local_index: context.stim_to_qubit[stim_id] for stim_id, local_index in stim_to_local.items()}
     circuit = Circuit(len(active_stim_ids))
     for instruction in block:
         _append_unitary_instruction(circuit, instruction, stim_to_local)
@@ -696,8 +689,7 @@ def _validate_commuting_mpp_supports(supports: Sequence[PauliSupport]) -> None:
     for (left_index, left), (right_index, right) in combinations(enumerate(supports), 2):
         if not pauli_products_commute(left, right):
             msg = (
-                "MPP products within one TICK block must commute; "
-                f"products {left_index} and {right_index} anticommute."
+                f"MPP products within one TICK block must commute; products {left_index} and {right_index} anticommute."
             )
             raise ValueError(msg)
 
