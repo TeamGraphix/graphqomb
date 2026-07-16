@@ -50,7 +50,8 @@ def test_stabilizer_code_from_stim_mpp_preserves_3d_coordinates_when_requested()
 def test_stabilizer_code_from_stim_mpp_preserves_higher_dimensional_coordinates() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
-        QUBIT_COORDS(10, 20, 30, 40) 0
+        QUBIT_COORDS(10, 20) 0
+        QUBIT_COORDS(30, 40) 0
         MPP X0
         """,
         coord_dims=4,
@@ -191,3 +192,8 @@ def test_stabilizer_code_from_stim_mpp_can_select_all_mpp_layers() -> None:
     assert extraction.supports == (((0, "X"),), ((0, "Z"),))
     assert extraction.detector_rows == (frozenset({0, 1}),)
     assert extraction.detector_record_indices == (frozenset({0, 1}),)
+
+
+def test_stabilizer_code_from_stim_mpp_rejects_record_before_beginning_of_time() -> None:
+    with pytest.raises(ValueError, match="before the beginning of time"):
+        stabilizer_code_from_stim_text("DETECTOR rec[-1]\nMPP X0")

@@ -80,9 +80,38 @@ def test_build_graph_state_registers_custom_data_io_indices() -> None:
     result = build_graph_state(code, data_as_io=True, qubit_indices={0: 10, 1: 12})
 
     assert result.graph.input_node_indices == {result.data_nodes[0, 0]: 10, result.data_nodes[1, 0]: 12}
-    assert result.graph.output_node_indices == {result.data_nodes[0, 1]: 10, result.data_nodes[1, 1]: 12}
-    assert result.data_nodes[0, 1] not in result.graph.meas_bases
-    assert result.data_nodes[1, 1] not in result.graph.meas_bases
+    assert result.graph.output_node_indices == {result.data_nodes[0, 2]: 10, result.data_nodes[1, 2]: 12}
+    assert set(result.data_nodes) == {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)}
+    for qubit in range(2):
+        _assert_axis_meas_basis(result.graph.meas_bases[result.data_nodes[qubit, 0]], Axis.X)
+        _assert_axis_meas_basis(result.graph.meas_bases[result.data_nodes[qubit, 1]], Axis.X)
+        assert result.data_nodes[qubit, 2] not in result.graph.meas_bases
+        assert result.graph.has_edge(result.data_nodes[qubit, 0], result.data_nodes[qubit, 1])
+        assert result.graph.has_edge(result.data_nodes[qubit, 1], result.data_nodes[qubit, 2])
+
+
+@pytest.mark.parametrize(
+    ("qubit_indices", "message"),
+    [
+        ({0: 10}, "map every stabilizer-code qubit"),
+        ({0: 10, 1: 10}, "values must be unique"),
+    ],
+)
+def test_build_graph_state_rejects_invalid_custom_data_io_indices(
+    qubit_indices: dict[int, int],
+    message: str,
+) -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    with pytest.raises(ValueError, match=message):
+        build_graph_state(code, data_as_io=True, qubit_indices=qubit_indices)
+
+
+def test_build_graph_state_rejects_qubit_indices_without_data_io() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    with pytest.raises(ValueError, match="data_as_io=True"):
+        build_graph_state(code, qubit_indices={0: 10, 1: 12})
 
 
 def test_build_graph_state_registers_type_ii_chain_endpoints_as_io() -> None:
@@ -91,8 +120,23 @@ def test_build_graph_state_registers_type_ii_chain_endpoints_as_io() -> None:
     result = build_graph_state(code, y_foliation=YFoliation.TYPE_II, data_as_io=True)
 
     assert result.graph.input_node_indices == {result.data_nodes[0, 0]: 0}
+    assert result.graph.output_node_indices == {result.data_nodes[0, 3]: 0}
+    assert set(result.data_nodes) == {(0, 0), (0, 1), (0, 2), (0, 3)}
+    for layer in range(3):
+        _assert_axis_meas_basis(result.graph.meas_bases[result.data_nodes[0, layer]], Axis.Y)
+    assert result.data_nodes[0, 3] not in result.graph.meas_bases
+    assert result.graph.has_edge(result.data_nodes[0, 2], result.data_nodes[0, 3])
+
+
+def test_build_graph_state_type_ii_keeps_separate_output_for_non_y_support() -> None:
+    code = StabilizerCode(_matrix([[1, 0]]))
+
+    result = build_graph_state(code, y_foliation=YFoliation.TYPE_II, data_as_io=True)
+
+    assert set(result.data_nodes) == {(0, 0), (0, 1), (0, 2)}
     assert result.graph.output_node_indices == {result.data_nodes[0, 2]: 0}
-    assert result.data_nodes[0, 1] in result.graph.meas_bases
+    _assert_axis_meas_basis(result.graph.meas_bases[result.data_nodes[0, 0]], Axis.X)
+    _assert_axis_meas_basis(result.graph.meas_bases[result.data_nodes[0, 1]], Axis.X)
     assert result.data_nodes[0, 2] not in result.graph.meas_bases
 
 
@@ -163,6 +207,17 @@ def test_build_graph_state_type_ii_aligns_three_node_chain_output_z_with_two_nod
     assert coords[result.data_nodes[0, 6]] == (10.0, 20.0, 5.5)
     assert coords[result.data_nodes[0, 7]] == (10.0, 20.0, 6.0)
     assert coords[result.ancilla_nodes[0]] == (10.0, 20.0, 5.5)
+
+
+@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
+def test_build_graph_state_places_separate_io_output_at_end_of_unit(y_foliation: YFoliation) -> None:
+    code = StabilizerCode(_matrix([[1, 1]]), qubit_coords={0: (10.0, 20.0)})
+
+    result = build_graph_state(code, z_base=5, y_foliation=y_foliation, data_as_io=True)
+    output_node = next(iter(result.graph.output_node_indices))
+
+    assert result.graph.coordinates[output_node] == (10.0, 20.0, 7.0)
+    assert output_node not in result.graph.meas_bases
 
 
 def test_build_graph_state_lifts_coordinates_to_shifted_3d_layers() -> None:

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **QEC Stim MPP Import**: Added utilities for building `StabilizerCode` inputs from unsigned Stim `MPP` layers, including sparse Stim qubit id mapping, coordinate import, multi-layer selection, detector/logical-observable import, and the optional `graphqomb[stim]` extra. Signed products using inverted Pauli targets are rejected because stabilizer signs are not retained.
+- **Stim Circuit Import**: Added `stim_file_to_pattern()`, `stim_text_to_pattern()`, and `stim_circuit_to_pattern()` for converting supported Stim circuits into GraphQOMB patterns. The importer handles Clifford unitary blocks and `TICK`-separated Pauli measurements (`M`/`MZ`, `MX`, `MY`, `MXX`, `MYY`, `MZZ`, and `MPP`), assigns single-qubit measurement bases directly to their graph nodes, terminates each qubit lifetime at its direct measurement while allowing disjoint qubits to continue, validates that same-block MPP products commute, supports Type I and Type II Y foliation, causally lowers commuting MPP groups, composes each MPP unit through a separate unmeasured output layer, and resolves detector/logical-observable records once across the full flattened circuit. Circuit-level noise and measurement-error probabilities are intentionally omitted because GraphQOMB uses an MBQC-specific noise model; reset, measurement-reset, and feedback instructions remain unsupported.
 - **Input Initialization Bases**: Added per-input positive Pauli eigenstate initialization via `GraphState.register_input(..., init_axis=...)` and `assign_input_initialization_axis()`, with `X+`, `Y+`, and `Z+` propagated through `qompile()`, `Pattern`, `PatternSimulator`, and Stim export.
 
 ### Changed
@@ -19,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pattern Simulator**: Materialize pending output Pauli-frame corrections when returning output statevectors or explicit output measurement results.
 - **PTN Format**: Bumped exported `.ptn` files to format version 2 to record non-default input initialization bases with `.input_basis`; version 1 files remain readable and default inputs to `X+`.
 - **Stim Compiler**: Input reset instructions now follow the stored initialization basis (`RX`, `RY`, or `R`) while non-input preparations remain `RX`.
+
+### Fixed
+
+- **Stim Compiler**: Preserve minus-signed axis measurement bases using inverted Stim measurement targets.
+- **State Vector Array Conversion**: Convert to a real NumPy dtype without warnings when every amplitude is real-valued, and reject the conversion when it would discard nonzero imaginary amplitudes.
 
 ### Removed
 
