@@ -468,15 +468,28 @@ def test_stim_text_to_pattern_allows_disjoint_qubit_after_single_measurement() -
     assert np.isclose(abs(np.vdot([1, 0], simulator.state.state())), 1.0, atol=1e-9)
 
 
-def test_stim_text_to_pattern_assigns_inverted_single_measurement_basis_sign() -> None:
-    result = stim_text_to_pattern("MY !0")
+@pytest.mark.parametrize(
+    ("instruction", "expected_axis", "compiled_instruction"),
+    [
+        ("MX !0", Axis.X, "MX !0"),
+        ("MY !0", Axis.Y, "MY !0"),
+        ("M !0", Axis.Z, "MZ !0"),
+    ],
+)
+def test_stim_text_to_pattern_preserves_inverted_single_measurement(
+    instruction: str,
+    expected_axis: Axis,
+    compiled_instruction: str,
+) -> None:
+    result = stim_text_to_pattern(instruction)
     measurements = [command for command in result.pattern.commands if isinstance(command, M)]
 
     assert result.mpp_extractions == ()
     assert len(measurements) == 1
     assert isinstance(measurements[0].meas_basis, AxisMeasBasis)
-    assert measurements[0].meas_basis.axis == Axis.Y
+    assert measurements[0].meas_basis.axis == expected_axis
     assert measurements[0].meas_basis.sign == Sign.MINUS
+    assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
 
 
 def test_stim_text_to_pattern_rejects_inverted_pair_measurement_result() -> None:

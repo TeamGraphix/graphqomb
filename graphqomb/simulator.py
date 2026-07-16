@@ -277,6 +277,7 @@ class PatternSimulator:
         # outputs. Reorder by each qindex's relative position, not by the qindex
         # value itself.
         output_qindices = [self.__pattern.output_node_indices[node] for node in self.node_indices]
-        permutation = sorted(range(len(output_qindices)), key=output_qindices.__getitem__)
+        qindex_rank = {qindex: rank for rank, qindex in enumerate(sorted(output_qindices))}
+        permutation = [qindex_rank[qindex] for qindex in output_qindices]
 
         self.state.reorder(permutation)

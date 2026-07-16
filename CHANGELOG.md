@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Stim Compiler**: Preserve minus-signed axis measurement bases using inverted Stim measurement targets.
 - **State Vector Array Conversion**: Convert to a real NumPy dtype without warnings when every amplitude is real-valued, and reject the conversion when it would discard nonzero imaginary amplitudes.
 
 ### Removed

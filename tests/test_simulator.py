@@ -102,3 +102,28 @@ def test_pattern_simulator_reorders_remaining_outputs_after_terminal_measurement
 
     assert set(simulator.output_results) == {0}
     np.testing.assert_allclose(simulator.state.state(), np.asarray([1, 1]) / np.sqrt(2))
+
+
+def test_pattern_simulator_reorders_outputs_by_qindex_rank() -> None:
+    """A non-self-inverse output permutation should preserve qindex ordering."""
+    graph = GraphState()
+    for qindex in (2, 0, 1):
+        node = graph.add_node()
+        graph.register_input(node, qindex)
+        graph.register_output(node, qindex)
+    pattern = Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices=graph.output_node_indices,
+        commands=(),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+    )
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    initial_state = np.zeros((2, 2, 2), dtype=np.complex128)
+    initial_state[0, 1, 0] = 1
+    simulator.state = StateVector(initial_state)
+
+    simulator.simulate()
+
+    expected_state = np.zeros((2, 2, 2), dtype=np.complex128)
+    expected_state[1, 0, 0] = 1
+    np.testing.assert_allclose(simulator.state.state(), expected_state)
