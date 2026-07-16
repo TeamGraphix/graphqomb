@@ -438,8 +438,41 @@ def test_stim_text_to_pattern_rejects_mixed_measurement_and_unitary_block(measur
         stim_text_to_pattern(f"H 0\n{measurement}\n")
 
 
-@pytest.mark.parametrize("instruction", ["R 0", "RX 0", "RY 0", "MR 0", "MRX 0", "MRY 0"])
-def test_stim_text_to_pattern_defers_reset_instructions(instruction: str) -> None:
+@pytest.mark.parametrize(
+    ("instruction", "expected_axis", "compiled_instruction"),
+    [
+        ("R 0", Axis.Z, "R 0"),
+        ("RX 0", Axis.X, "RX 0"),
+        ("RY 0", Axis.Y, "RY 0"),
+    ],
+)
+def test_stim_text_to_pattern_imports_initial_reset(
+    instruction: str,
+    expected_axis: Axis,
+    compiled_instruction: str,
+) -> None:
+    result = stim_text_to_pattern(instruction)
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 0)
+
+    assert result.pattern.input_initialization_axes[input_node] == expected_axis
+    assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
+
+
+def test_stim_text_to_pattern_uses_last_leading_reset() -> None:
+    result = stim_text_to_pattern("R 0\nRY 0\nH 0")
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 0)
+
+    assert result.pattern.input_initialization_axes[input_node] == Axis.Y
+
+
+@pytest.mark.parametrize("instruction", ["R", "RX", "RY"])
+def test_stim_text_to_pattern_rejects_reset_after_quantum_operation(instruction: str) -> None:
+    with pytest.raises(ValueError, match="only initial resets are supported"):
+        stim_text_to_pattern(f"H 0\n{instruction} 0")
+
+
+@pytest.mark.parametrize("instruction", ["MR 0", "MRX 0", "MRY 0"])
+def test_stim_text_to_pattern_defers_measurement_reset_instructions(instruction: str) -> None:
     with pytest.raises(ValueError, match="Unsupported Stim instruction"):
         stim_text_to_pattern(instruction)
 

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 
 _UNITARY_GATES = frozenset({"H", "S", "SQRT_Z", "S_DAG", "SQRT_Z_DAG", "X", "Y", "Z", "CX", "CNOT", "CZ", "SWAP"})
+_RESET_AXES = {"R": Axis.Z, "RX": Axis.X, "RY": Axis.Y}
 _SINGLE_PAULI_MEASUREMENT_AXES = {"M": Axis.Z, "MX": Axis.X, "MY": Axis.Y}
 _PAIR_PAULI_MEASUREMENT_AXES = {"MXX": "X", "MYY": "Y", "MZZ": "Z"}
 _PAULI_PRODUCT_MEASUREMENT_GATES = frozenset({"MPP", *_PAIR_PAULI_MEASUREMENT_AXES})
@@ -80,6 +81,7 @@ class _Fragment:
 class _ImportContext:
     stim_to_qubit: Mapping[int, int]
     coordinate_by_stim_id: Mapping[int, tuple[float, ...]]
+    input_initialization_axes: Mapping[int, Axis]
     detector_record_indices: Sequence[frozenset[int]]
     logical_observable_record_indices: Mapping[int, frozenset[int]]
     schedule_strategy: CircuitScheduleStrategy
@@ -159,12 +161,16 @@ def stim_circuit_to_pattern(
 ) -> StimImportResult:
     """Import a supported Stim circuit into a GraphQOMB pattern.
 
-    The importer supports Clifford unitary blocks and Pauli measurement blocks.
-    Stim noise instructions and measurement-error probabilities are omitted
-    because circuit-level noise is outside the GraphQOMB import model. Pauli
-    measurement blocks must be separated from unitary blocks by TICK. A direct
-    single-qubit measurement terminates that qubit's lifetime; other qubits may
-    continue, but the measured qubit cannot be used by a later operation.
+    The importer supports initial Pauli resets, Clifford unitary blocks, and
+    Pauli measurement blocks. Stim ``R``, ``RX``, and ``RY`` instructions are
+    imported as positive Z-, X-, and Y-eigenstate input initialization,
+    respectively, when they occur before any other quantum operation on the
+    target qubit. Stim noise instructions and measurement-error probabilities
+    are omitted because circuit-level noise is outside the GraphQOMB import
+    model. Pauli measurement blocks must be separated from unitary blocks by
+    TICK. A direct single-qubit measurement terminates that qubit's lifetime;
+    other qubits may continue, but the measured qubit cannot be used by a later
+    operation.
 
     Returns
     -------
@@ -191,9 +197,11 @@ def stim_circuit_to_pattern(
     coordinate_by_stim_id = extract_qubit_coordinates(idealized.circuit, coord_dims=coord_dims)
     stim_to_qubit = _stim_to_qubit_map(idealized.circuit)
     qubit_to_stim = {qubit: stim_id for stim_id, qubit in stim_to_qubit.items()}
+    input_initialization_axes = _input_initialization_axes(analysis.blocks)
     context = _ImportContext(
         stim_to_qubit=stim_to_qubit,
         coordinate_by_stim_id=coordinate_by_stim_id,
+        input_initialization_axes=input_initialization_axes,
         detector_record_indices=analysis.detector_record_indices,
         logical_observable_record_indices=analysis.logical_observable_record_indices,
         schedule_strategy=schedule_strategy,
@@ -400,6 +408,55 @@ def _fragments_from_blocks(
     return fragments
 
 
+def _input_initialization_axes(
+    blocks: Sequence[Sequence[_AnalyzedInstruction]],
+) -> dict[int, Axis]:
+    """Collect leading Stim resets as input initialization axes.
+
+    Repeated resets before a qubit's first non-reset quantum operation are
+    allowed; the final reset determines the imported initialization axis.
+
+    Returns
+    -------
+    `dict`[`int`, `Axis`]
+        Map from Stim qubit ids to positive Pauli initialization axes.
+
+    Raises
+    ------
+    ValueError
+        If a reset occurs after another quantum operation on the same qubit.
+    """
+    initialization_axes: dict[int, Axis] = {}
+    used_qubits: set[int] = set()
+    quantum_operation_names = {
+        *_UNITARY_GATES,
+        *_SINGLE_PAULI_MEASUREMENT_AXES,
+        "MPP",
+    }
+
+    for block in blocks:
+        for analyzed in block:
+            instruction = analyzed.instruction
+            instruction_qubits = {
+                int(target.qubit_value) for target in instruction.targets_copy() if target.qubit_value is not None
+            }
+            reset_axis = _RESET_AXES.get(instruction.name)
+            if reset_axis is not None:
+                reset_after_use = used_qubits & instruction_qubits
+                if reset_after_use:
+                    msg = (
+                        f"Stim reset instruction {instruction.name} targets qubit(s) {sorted(reset_after_use)} "
+                        "after another quantum operation; only initial resets are supported."
+                    )
+                    raise ValueError(msg)
+                for stim_id in instruction_qubits:
+                    initialization_axes[stim_id] = reset_axis
+            elif instruction.name in quantum_operation_names:
+                used_qubits.update(instruction_qubits)
+
+    return initialization_axes
+
+
 def _validate_blocks(blocks: Sequence[Sequence[_AnalyzedInstruction]]) -> None:
     """Validate supported instructions and required TICK separation.
 
@@ -415,6 +472,7 @@ def _validate_blocks(blocks: Sequence[Sequence[_AnalyzedInstruction]]) -> None:
             for analyzed in block
             if (
                 analyzed.instruction.name not in _UNITARY_GATES
+                and analyzed.instruction.name not in _RESET_AXES
                 and analyzed.instruction.name not in _SINGLE_PAULI_MEASUREMENT_AXES
                 and analyzed.instruction.name != "MPP"
             )
@@ -559,7 +617,11 @@ def _identity_fragment(context: _ImportContext) -> _Fragment:
     graph = GraphState()
     for stim_id, qubit_index in sorted(context.stim_to_qubit.items()):
         node = graph.add_node(coordinate=context.coordinate_by_stim_id.get(stim_id))
-        graph.register_input(node, qubit_index)
+        graph.register_input(
+            node,
+            qubit_index,
+            init_axis=context.input_initialization_axes.get(stim_id, Axis.X),
+        )
         graph.register_output(node, qubit_index)
     return _Fragment(graph=graph, xflow={}, record_nodes={})
 
