@@ -90,6 +90,30 @@ def test_build_graph_state_registers_custom_data_io_indices() -> None:
         assert result.graph.has_edge(result.data_nodes[qubit, 1], result.data_nodes[qubit, 2])
 
 
+@pytest.mark.parametrize(
+    ("qubit_indices", "message"),
+    [
+        ({0: 10}, "map every stabilizer-code qubit"),
+        ({0: 10, 1: 10}, "values must be unique"),
+    ],
+)
+def test_build_graph_state_rejects_invalid_custom_data_io_indices(
+    qubit_indices: dict[int, int],
+    message: str,
+) -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    with pytest.raises(ValueError, match=message):
+        build_graph_state(code, data_as_io=True, qubit_indices=qubit_indices)
+
+
+def test_build_graph_state_rejects_qubit_indices_without_data_io() -> None:
+    code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
+
+    with pytest.raises(ValueError, match="data_as_io=True"):
+        build_graph_state(code, qubit_indices={0: 10, 1: 12})
+
+
 def test_build_graph_state_registers_type_ii_chain_endpoints_as_io() -> None:
     code = StabilizerCode(_matrix([[1, 1]]))
 

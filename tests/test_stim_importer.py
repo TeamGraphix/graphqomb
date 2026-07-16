@@ -12,6 +12,7 @@ from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.graphstate import odd_neighbors
 from graphqomb.qec.qeccode import YFoliation
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
+from graphqomb.statevec import StateVector
 from graphqomb.stim_compiler import stim_compile
 from graphqomb.stim_importer import stim_circuit_to_pattern, stim_file_to_pattern, stim_text_to_pattern
 
@@ -38,11 +39,13 @@ def test_stim_text_to_pattern_imports_unitary_clifford_block() -> None:
 
 
 def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None:
-    expected = np.asarray([1.0, 0.0], dtype=np.complex128)
+    initial = np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2)
+    expected = np.asarray([1 + 1j, 1 - 1j], dtype=np.complex128) / 2
 
     for seed in range(8):
-        pattern = stim_text_to_pattern("H 0\nTICK\nS 0\n").pattern
+        pattern = stim_text_to_pattern("S 0\nTICK\nH 0\n").pattern
         simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+        simulator.state = StateVector(initial)
         simulator.simulate(rng=np.random.default_rng(seed))
 
         overlap = np.vdot(expected, simulator.state.state())
@@ -53,7 +56,8 @@ def test_stim_text_to_pattern_preserves_sparse_qubit_coordinates() -> None:
     result = stim_text_to_pattern(
         """
         QUBIT_COORDS(1, 2) 10
-        QUBIT_COORDS(3, 4) 99
+        QUBIT_COORDS(3) 99
+        QUBIT_COORDS(4) 99
         H 99
         """
     )
@@ -61,6 +65,53 @@ def test_stim_text_to_pattern_preserves_sparse_qubit_coordinates() -> None:
     assert result.stim_to_qubit == {10: 0, 99: 1}
     assert result.pattern.input_coordinates
     assert set(result.pattern.input_coordinates.values()) == {(1.0, 2.0), (3.0, 4.0)}
+
+
+@pytest.mark.parametrize(
+    ("instruction", "initial", "expected"),
+    [
+        ("H 0", [1, 0], [1 / np.sqrt(2), 1 / np.sqrt(2)]),
+        ("S 0", [1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), 1j / np.sqrt(2)]),
+        ("S_DAG 0", [1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), -1j / np.sqrt(2)]),
+        ("X 0", [1, 0], [0, 1]),
+        ("Y 0", [1, 0], [0, 1j]),
+        ("Z 0", [1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), -1 / np.sqrt(2)]),
+    ],
+)
+def test_stim_text_to_pattern_preserves_supported_single_qubit_gates(
+    instruction: str,
+    initial: list[complex],
+    expected: list[complex],
+) -> None:
+    pattern = stim_text_to_pattern(instruction).pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.state = StateVector(initial)
+
+    simulator.simulate(rng=np.random.default_rng(3))
+
+    assert np.isclose(abs(np.vdot(expected, simulator.state.state())), 1.0, atol=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("instruction", "initial", "expected"),
+    [
+        ("CX 0 1", [0, 0, 1, 0], [0, 0, 0, 1]),
+        ("CZ 0 1", [0.5, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, -0.5]),
+        ("SWAP 0 1", [0, 0, 1, 0], [0, 1, 0, 0]),
+    ],
+)
+def test_stim_text_to_pattern_preserves_supported_two_qubit_gates(
+    instruction: str,
+    initial: list[complex],
+    expected: list[complex],
+) -> None:
+    pattern = stim_text_to_pattern(instruction).pattern
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    simulator.state = StateVector(initial)
+
+    simulator.simulate(rng=np.random.default_rng(3))
+
+    assert np.isclose(abs(np.vdot(expected, simulator.state.state())), 1.0, atol=1e-9)
 
 
 def test_stim_text_to_pattern_imports_tick_separated_mpp_block() -> None:
@@ -96,6 +147,11 @@ def test_stim_text_to_pattern_combines_commuting_mpp_instructions_in_one_tick_bl
     assert len(result.mpp_extractions) == 1
     assert result.mpp_extractions[0].supports == (((0, "X"),), ((1, "Z"),))
     assert len(result.pattern.pauli_frame.parity_check_group) == 2
+
+
+def test_stim_text_to_pattern_rejects_anticommuting_mpp_in_one_tick_block() -> None:
+    with pytest.raises(ValueError, match="must commute"):
+        stim_text_to_pattern("MPP X0\nMPP Z0")
 
 
 @pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
@@ -389,13 +445,27 @@ def test_stim_text_to_pattern_defers_reset_instructions(instruction: str) -> Non
 
 
 def test_stim_text_to_pattern_rejects_qubit_reuse_after_single_measurement() -> None:
-    with pytest.raises(ValueError, match="reset import is required before reuse"):
+    with pytest.raises(ValueError, match="terminate those qubit lifetimes"):
         stim_text_to_pattern("M 0\nTICK\nMPP X0")
 
 
-def test_stim_text_to_pattern_rejects_unitary_block_after_single_measurement() -> None:
-    with pytest.raises(ValueError, match="reset import is required to establish"):
-        stim_text_to_pattern("M 0\nTICK\nH 1")
+def test_stim_text_to_pattern_rejects_unitary_reuse_after_single_measurement() -> None:
+    with pytest.raises(ValueError, match="terminate those qubit lifetimes"):
+        stim_text_to_pattern("M 0\nTICK\nH 0")
+
+
+def test_stim_text_to_pattern_allows_disjoint_qubit_after_single_measurement() -> None:
+    result = stim_text_to_pattern("M 0\nTICK\nH 1")
+    measured_nodes = {command.node for command in result.pattern.commands if isinstance(command, M)}
+    simulator = PatternSimulator(result.pattern, SimulatorBackend.StateVector)
+
+    simulator.simulate(rng=np.random.default_rng(3))
+
+    assert result.stim_to_qubit == {0: 0, 1: 1}
+    assert set(result.pattern.output_node_indices.values()) == {0, 1}
+    assert any(result.pattern.output_node_indices[node] == 0 for node in measured_nodes)
+    assert set(simulator.output_results) == {0}
+    assert np.isclose(abs(np.vdot([1, 0], simulator.state.state())), 1.0, atol=1e-9)
 
 
 def test_stim_text_to_pattern_assigns_inverted_single_measurement_basis_sign() -> None:

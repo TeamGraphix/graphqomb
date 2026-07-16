@@ -273,7 +273,10 @@ class PatternSimulator:
             if node in self.__pattern.output_node_indices:
                 self._apply_output_pauli_frame(node)
 
-        # Create a mapping from current node indices to output node indices
-        permutation = [self.__pattern.output_node_indices[node] for node in self.node_indices]
+        # Measured outputs can leave sparse qindices among the remaining quantum
+        # outputs. Reorder by each qindex's relative position, not by the qindex
+        # value itself.
+        output_qindices = [self.__pattern.output_node_indices[node] for node in self.node_indices]
+        permutation = sorted(range(len(output_qindices)), key=output_qindices.__getitem__)
 
         self.state.reorder(permutation)

@@ -78,3 +78,27 @@ def test_pattern_simulator_measures_output_z_frame_in_x_basis() -> None:
 
     assert simulator.results == {node: True}
     assert simulator.output_results == {0: True}
+
+
+def test_pattern_simulator_reorders_remaining_outputs_after_terminal_measurement() -> None:
+    """A measured output may leave sparse qindices for quantum outputs."""
+    graph = GraphState()
+    measured_node = graph.add_node()
+    quantum_node = graph.add_node()
+    graph.register_input(measured_node, 0)
+    graph.register_input(quantum_node, 1)
+    graph.register_output(measured_node, 0)
+    graph.register_output(quantum_node, 1)
+    graph.assign_meas_basis(measured_node, AxisMeasBasis(Axis.Z, Sign.PLUS))
+    pattern = Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices=graph.output_node_indices,
+        commands=(M(measured_node, AxisMeasBasis(Axis.Z, Sign.PLUS)),),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+    )
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+
+    simulator.simulate(rng=np.random.default_rng(3))
+
+    assert set(simulator.output_results) == {0}
+    np.testing.assert_allclose(simulator.state.state(), np.asarray([1, 1]) / np.sqrt(2))

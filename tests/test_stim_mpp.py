@@ -50,7 +50,8 @@ def test_stabilizer_code_from_stim_mpp_preserves_3d_coordinates_when_requested()
 def test_stabilizer_code_from_stim_mpp_preserves_higher_dimensional_coordinates() -> None:
     extraction = stabilizer_code_from_stim_text(
         """
-        QUBIT_COORDS(10, 20, 30, 40) 0
+        QUBIT_COORDS(10, 20) 0
+        QUBIT_COORDS(30, 40) 0
         MPP X0
         """,
         coord_dims=4,

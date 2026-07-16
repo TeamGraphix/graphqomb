@@ -19,8 +19,9 @@ ancilla nodes.
 
 Set ``coord_dims`` to the number of leading ``QUBIT_COORDS`` components to
 retain. The importer does not restrict this value to two or three dimensions;
-each referenced coordinate declaration must contain at least the requested
-number of components.
+each referenced qubit's final accumulated coordinate must contain at least the
+requested number of components. Repeated declarations are combined according
+to Stim's coordinate semantics.
 
 .. code-block:: python
 
@@ -33,6 +34,10 @@ number of components.
 
 API reference
 -------------
+
+.. autoclass:: graphqomb.qec.stim_mpp.StimMppExtraction
+   :members:
+   :show-inheritance:
 
 .. automodule:: graphqomb.qec.stim_mpp
    :members:

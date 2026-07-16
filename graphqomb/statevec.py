@@ -59,7 +59,7 @@ class StateVector(BaseFullStateSimulator):
         state = self.state()
         if dtype is not None:
             target_dtype = np.dtype(dtype)
-            if np.issubdtype(target_dtype, np.floating):
+            if target_dtype.kind in "bifu":
                 if np.any(state.imag != 0):
                     msg = "Cannot convert a state vector with nonzero imaginary amplitudes to a real dtype."
                     raise ValueError(msg)

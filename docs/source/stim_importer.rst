@@ -15,8 +15,10 @@ blocks separated by ``TICK``. The supported Pauli measurement instructions are
 Single-qubit measurements assign an ``AxisMeasBasis`` directly to the measured
 graph node. They do not create an ``MPP`` extraction or an ancillary parity
 measurement node. Inverted single-qubit measurement targets select the minus
-sign of that node's basis. Until reset import establishes a new qubit lifetime,
-a directly measured qubit cannot be used by a later quantum operation.
+sign of that node's basis. A direct single-qubit measurement terminates that
+qubit's lifetime: a later quantum operation on the same qubit is rejected,
+while operations on other qubits may continue. Reset and qubit reuse are not
+supported.
 
 Two-qubit measurements are parity measurements and are lowered to equivalent
 unsigned ``MPP`` products. Inverted targets in ``MXX``, ``MYY``, ``MZZ``, and
@@ -24,7 +26,8 @@ unsigned ``MPP`` products. Inverted targets in ``MXX``, ``MYY``, ``MZZ``, and
 corresponding parity offset.
 
 All ``MPP`` instructions within one ``TICK`` block are represented by one
-combined extraction and are assumed to commute. The importer uses one compact
+combined extraction and are validated to commute. Anticommuting products in
+the same block are rejected. The importer uses one compact
 stabilizer-measurement unit when its correction flow is causal. If the compact
 unit has a cyclic Pauli flow, the commuting products are lowered to equivalent
 sequential units instead. Non-commuting measurements must be separated by
@@ -55,7 +58,8 @@ that later ``DETECTOR`` and ``OBSERVABLE_INCLUDE`` references remain aligned.
 
 Reset instructions (``R``/``RZ``, ``RX``, and ``RY``) and combined
 measurement-reset instructions (``MR``/``MRZ``, ``MRX``, and ``MRY``) are not
-handled by this importer.
+handled by this importer. Consequently, a directly measured qubit cannot begin
+a new lifetime later in the circuit.
 
 .. code-block:: python
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from graphlib import CycleError, TopologicalSorter
-from itertools import pairwise
+from itertools import combinations, pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,12 +16,18 @@ from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.feedforward import dag_from_flow
 from graphqomb.gates import CNOT, CZ, SWAP, Gate, H, Rz, S, X, Y, Z
 from graphqomb.graphstate import GraphState, compose
-from graphqomb.qec.qeccode import StabilizerGraphStateBuildResult, YFoliation, build_graph_state
-from graphqomb.qec.stim_mpp import (
+from graphqomb.qec._stim import (
+    PauliSupport,
     StimMppExtraction,
-    _mpp_targets_to_products,
-    _stim_mpp_extraction_from_records,
+    extract_qubit_coordinates,
+    mpp_targets_to_products,
+    observable_index,
+    pauli_products_commute,
+    plain_qubit_target,
+    record_targets_to_absolute_indices,
+    stim_mpp_extraction_from_records,
 )
+from graphqomb.qec.qeccode import StabilizerGraphStateBuildResult, YFoliation, build_graph_state
 from graphqomb.qompiler import qompile
 
 if TYPE_CHECKING:
@@ -156,7 +162,9 @@ def stim_circuit_to_pattern(
     The importer supports Clifford unitary blocks and Pauli measurement blocks.
     Stim noise instructions and measurement-error probabilities are omitted
     because circuit-level noise is outside the GraphQOMB import model. Pauli
-    measurement blocks must be separated from unitary blocks by TICK.
+    measurement blocks must be separated from unitary blocks by TICK. A direct
+    single-qubit measurement terminates that qubit's lifetime; other qubits may
+    continue, but the measured qubit cannot be used by a later operation.
 
     Returns
     -------
@@ -180,7 +188,7 @@ def stim_circuit_to_pattern(
     ):
         msg = "DETECTOR and OBSERVABLE_INCLUDE require at least one imported measurement instruction."
         raise ValueError(msg)
-    coordinate_by_stim_id = _extract_qubit_coordinates(idealized.circuit, coord_dims=coord_dims)
+    coordinate_by_stim_id = extract_qubit_coordinates(idealized.circuit, coord_dims=coord_dims)
     stim_to_qubit = _stim_to_qubit_map(idealized.circuit)
     qubit_to_stim = {qubit: stim_id for stim_id, qubit in stim_to_qubit.items()}
     context = _ImportContext(
@@ -274,8 +282,6 @@ def _analyze_circuit(circuit: stim.Circuit) -> _CircuitAnalysis:
     ------
     TypeError
         If a flattened circuit unexpectedly contains a repeat block.
-    ValueError
-        If an annotation has an invalid record target or SHIFT_COORDS is used.
     """
     blocks: list[tuple[_AnalyzedInstruction, ...]] = []
     current_block: list[_AnalyzedInstruction] = []
@@ -293,15 +299,22 @@ def _analyze_circuit(circuit: stim.Circuit) -> _CircuitAnalysis:
             continue
         if instruction.name == "QUBIT_COORDS":
             continue
-        if instruction.name == "SHIFT_COORDS":
-            msg = "SHIFT_COORDS is not supported by stim_circuit_to_pattern."
-            raise ValueError(msg)
         if instruction.name == "DETECTOR":
-            detector_record_indices.append(_annotation_record_indices(instruction, measurement_count=measurement_count))
+            detector_record_indices.append(
+                record_targets_to_absolute_indices(
+                    instruction.targets_copy(),
+                    measurement_count=measurement_count,
+                    instruction_name=instruction.name,
+                )
+            )
         elif instruction.name == "OBSERVABLE_INCLUDE":
-            logical_idx = _observable_index(instruction)
+            logical_idx = observable_index(instruction)
             logical_record_indices.setdefault(logical_idx, set()).symmetric_difference_update(
-                _annotation_record_indices(instruction, measurement_count=measurement_count)
+                record_targets_to_absolute_indices(
+                    instruction.targets_copy(),
+                    measurement_count=measurement_count,
+                    instruction_name=f"OBSERVABLE_INCLUDE({logical_idx})",
+                )
             )
         elif instruction.name != "MPAD":
             record_indices = tuple(range(measurement_count, measurement_count + instruction.num_measurements))
@@ -349,7 +362,7 @@ def _append_ideal_pauli_measurements(
                 product_targets.append(stim.target_combiner())
             product_targets.append(
                 target_factory(
-                    _plain_qubit_target(target, instruction.name),
+                    plain_qubit_target(target, instruction.name),
                     invert=target.is_inverted_result_target,
                 )
             )
@@ -364,7 +377,7 @@ def _fragments_from_blocks(
     _validate_blocks(blocks)
     _validate_single_measurement_lifetimes(blocks)
 
-    fragments: list[_Fragment] = []
+    fragments = [_identity_fragment(context)]
     mpp_layer_index = 0
     for block in blocks:
         unitary_instructions = tuple(
@@ -384,7 +397,7 @@ def _fragments_from_blocks(
                     len(analyzed.record_indices) for analyzed in block if analyzed.instruction.name == "MPP"
                 )
 
-    return fragments or [_unitary_fragment((), context=context)]
+    return fragments
 
 
 def _validate_blocks(blocks: Sequence[Sequence[_AnalyzedInstruction]]) -> None:
@@ -428,20 +441,17 @@ def _validate_single_measurement_lifetimes(
     Raises
     ------
     ValueError
-        If a measured qubit is reused, or a unitary block follows a direct
-        measurement before reset support can establish new qubit lifetimes.
+        If a quantum operation reuses a directly measured qubit.
     """
     measured_qubits: set[int] = set()
     for block in blocks:
         for analyzed in block:
             instruction = analyzed.instruction
-            if instruction.name in _UNITARY_GATES and measured_qubits:
-                msg = (
-                    "Unitary instructions after a single-qubit measurement are not supported; "
-                    "reset import is required to establish the following qubit lifetimes."
-                )
-                raise ValueError(msg)
-            if instruction.name != "MPP" and instruction.name not in _SINGLE_PAULI_MEASUREMENT_AXES:
+            if (
+                instruction.name not in _UNITARY_GATES
+                and instruction.name != "MPP"
+                and instruction.name not in _SINGLE_PAULI_MEASUREMENT_AXES
+            ):
                 continue
 
             instruction_qubits = {
@@ -451,7 +461,7 @@ def _validate_single_measurement_lifetimes(
             if reused_qubits:
                 msg = (
                     f"Stim qubit(s) {sorted(reused_qubits)} are used after a single-qubit measurement; "
-                    "reset import is required before reuse."
+                    "single-qubit measurements terminate those qubit lifetimes."
                 )
                 raise ValueError(msg)
             if instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES:
@@ -524,7 +534,7 @@ def _single_measurement_fragment(
     seen_qubits: set[int] = set()
     axis = _SINGLE_PAULI_MEASUREMENT_AXES[instruction.name]
     for target, record_index in zip(targets, record_indices, strict=True):
-        stim_id = _plain_qubit_target(target, instruction.name)
+        stim_id = plain_qubit_target(target, instruction.name)
         if stim_id in seen_qubits:
             msg = f"{instruction.name} measures qubit {stim_id} more than once in one instruction."
             raise ValueError(msg)
@@ -545,27 +555,76 @@ def _single_measurement_fragment(
     )
 
 
+def _identity_fragment(context: _ImportContext) -> _Fragment:
+    graph = GraphState()
+    for stim_id, qubit_index in sorted(context.stim_to_qubit.items()):
+        node = graph.add_node(coordinate=context.coordinate_by_stim_id.get(stim_id))
+        graph.register_input(node, qubit_index)
+        graph.register_output(node, qubit_index)
+    return _Fragment(graph=graph, xflow={}, record_nodes={})
+
+
 def _unitary_fragment(
     block: Sequence[stim.CircuitInstruction],
     *,
     context: _ImportContext,
 ) -> _Fragment:
-    circuit = Circuit(len(context.stim_to_qubit))
+    active_stim_ids = sorted(
+        {
+            plain_qubit_target(target, instruction.name)
+            for instruction in block
+            for target in instruction.targets_copy()
+        }
+    )
+    stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(active_stim_ids)}
+    local_to_global = {
+        local_index: context.stim_to_qubit[stim_id]
+        for stim_id, local_index in stim_to_local.items()
+    }
+    circuit = Circuit(len(active_stim_ids))
     for instruction in block:
-        _append_unitary_instruction(circuit, instruction, context.stim_to_qubit)
+        _append_unitary_instruction(circuit, instruction, stim_to_local)
 
-    graph, xflow, _scheduler = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
+    local_graph, local_xflow, _scheduler = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
+    graph, node_map = _copy_graph_with_qindices(local_graph, local_to_global)
     _apply_stim_coordinates(
         graph,
         stim_to_qubit=context.stim_to_qubit,
         coordinate_by_stim_id=context.coordinate_by_stim_id,
     )
-    xflow_sets = {node: set(targets) for node, targets in xflow.items()}
     return _Fragment(
         graph=graph,
-        xflow=xflow_sets,
+        xflow=_remap_flow(local_xflow, node_map),
         record_nodes={},
     )
+
+
+def _copy_graph_with_qindices(
+    graph: GraphState,
+    local_to_global: Mapping[int, int],
+) -> tuple[GraphState, dict[int, int]]:
+    """Copy a graph while replacing its input and output qindices.
+
+    Returns
+    -------
+    tuple[GraphState, dict[int, int]]
+        Copied graph and source-to-copy node map.
+    """
+    copied = GraphState()
+    node_map = {node: copied.add_node() for node in sorted(graph.nodes)}
+    for node1, node2 in graph.edges:
+        copied.add_edge(node_map[node1], node_map[node2])
+    for node, q_index in graph.input_node_indices.items():
+        copied.register_input(node_map[node], local_to_global[q_index])
+    for node, q_index in graph.output_node_indices.items():
+        copied.register_output(node_map[node], local_to_global[q_index])
+    for node, meas_basis in graph.meas_bases.items():
+        copied.assign_meas_basis(node_map[node], meas_basis)
+    for node, local_clifford in graph.local_cliffords.items():
+        copied.apply_local_clifford(node_map[node], local_clifford)
+    for node, coordinate in graph.coordinates.items():
+        copied.set_coordinate(node_map[node], coordinate)
+    return copied, node_map
 
 
 def _append_unitary_instruction(
@@ -574,7 +633,7 @@ def _append_unitary_instruction(
     stim_to_qubit: Mapping[int, int],
 ) -> None:
     for group in instruction.target_groups():
-        qubits = [_plain_qubit_target(target, instruction.name) for target in group]
+        qubits = [plain_qubit_target(target, instruction.name) for target in group]
         mapped = [stim_to_qubit[qubit] for qubit in qubits]
         single_factory = _SINGLE_QUBIT_GATE_FACTORIES.get(instruction.name)
         two_factory = _TWO_QUBIT_GATE_FACTORIES.get(instruction.name)
@@ -594,10 +653,11 @@ def _mpp_fragment(
     context: _ImportContext,
 ) -> _Fragment:
     supports = tuple(
-        support for analyzed in block for support in _mpp_targets_to_products(analyzed.instruction.targets_copy())
+        support for analyzed in block for support in mpp_targets_to_products(analyzed.instruction.targets_copy())
     )
+    _validate_commuting_mpp_supports(supports)
     record_indices = tuple(record_index for analyzed in block for record_index in analyzed.record_indices)
-    extraction = _stim_mpp_extraction_from_records(
+    extraction = stim_mpp_extraction_from_records(
         supports,
         record_indices,
         coordinate_by_stim_id=context.coordinate_by_stim_id,
@@ -616,7 +676,7 @@ def _mpp_fragment(
 
     serialized_fragments = [
         _mpp_graph_fragment(
-            _stim_mpp_extraction_from_records(
+            stim_mpp_extraction_from_records(
                 (support,),
                 (record_index,),
                 coordinate_by_stim_id=context.coordinate_by_stim_id,
@@ -630,6 +690,16 @@ def _mpp_fragment(
         for row, (support, record_index) in enumerate(zip(supports, record_indices, strict=True))
     ]
     return _with_mpp_extraction(_compose_fragments(serialized_fragments), extraction)
+
+
+def _validate_commuting_mpp_supports(supports: Sequence[PauliSupport]) -> None:
+    for (left_index, left), (right_index, right) in combinations(enumerate(supports), 2):
+        if not pauli_products_commute(left, right):
+            msg = (
+                "MPP products within one TICK block must commute; "
+                f"products {left_index} and {right_index} anticommute."
+            )
+            raise ValueError(msg)
 
 
 def _mpp_graph_fragment(
@@ -739,59 +809,6 @@ def _measurement_annotations_from_analysis(
     return parity_check_groups, logical_observables
 
 
-def _annotation_record_indices(
-    instruction: stim.CircuitInstruction,
-    *,
-    measurement_count: int,
-) -> frozenset[int]:
-    """Resolve an annotation's relative record targets to absolute indices.
-
-    Returns
-    -------
-    `frozenset`[`int`]
-        Absolute measurement-record indices after parity cancellation.
-
-    Raises
-    ------
-    ValueError
-        If the annotation contains a non-record target.
-    """
-    record_indices: set[int] = set()
-    for target in instruction.targets_copy():
-        if not target.is_measurement_record_target:
-            msg = f"{instruction.name} contains unsupported target {target!r}; only rec targets are supported."
-            raise ValueError(msg)
-        record_index = measurement_count + int(target.value)
-        if not 0 <= record_index < measurement_count:
-            msg = f"{instruction.name} refers to measurement record {record_index} before the beginning of time."
-            raise ValueError(msg)
-        if record_index in record_indices:
-            record_indices.remove(record_index)
-        else:
-            record_indices.add(record_index)
-    return frozenset(record_indices)
-
-
-def _observable_index(instruction: stim.CircuitInstruction) -> int:
-    """Return the logical-observable index from a Stim annotation.
-
-    Returns
-    -------
-    `int`
-        Logical-observable index.
-
-    Raises
-    ------
-    ValueError
-        If the instruction does not contain one integer argument.
-    """
-    args = instruction.gate_args_copy()
-    if len(args) != 1 or not args[0].is_integer():
-        msg = "OBSERVABLE_INCLUDE must have one integer observable index."
-        raise ValueError(msg)
-    return int(args[0])
-
-
 def _record_indices_to_nodes(
     record_indices: frozenset[int],
     record_nodes: Mapping[int, int],
@@ -835,46 +852,16 @@ def _apply_stim_coordinates(
             graph.set_coordinate(node, coord)
 
 
-def _extract_qubit_coordinates(
-    circuit: stim.Circuit,
-    *,
-    coord_dims: int,
-) -> dict[int, tuple[float, ...]]:
-    coordinates: dict[int, tuple[float, ...]] = {}
-    for instruction in circuit:
-        if not isinstance(instruction, stim.CircuitInstruction):
-            msg = "Flattened Stim circuit unexpectedly contains a repeat block."
-            raise TypeError(msg)
-        if instruction.name != "QUBIT_COORDS":
-            continue
-        args = instruction.gate_args_copy()
-        if len(args) < coord_dims:
-            msg = f"QUBIT_COORDS has {len(args)} coordinate(s), fewer than requested coord_dims={coord_dims}."
-            raise ValueError(msg)
-        coord = tuple(float(value) for value in args[:coord_dims])
-        for target in instruction.targets_copy():
-            coordinates[_plain_qubit_target(target, instruction.name)] = coord
-    return coordinates
-
-
 def _stim_to_qubit_map(circuit: stim.Circuit) -> dict[int, int]:
     stim_ids: set[int] = set()
     for instruction in circuit:
         if not isinstance(instruction, stim.CircuitInstruction):
             msg = "Flattened Stim circuit unexpectedly contains a repeat block."
             raise TypeError(msg)
-        if instruction.name in {"TICK", "DETECTOR", "OBSERVABLE_INCLUDE", "MPAD", "SHIFT_COORDS"}:
+        if instruction.name in {"TICK", "DETECTOR", "OBSERVABLE_INCLUDE", "MPAD"}:
             continue
         for target in instruction.targets_copy():
             qubit_value = target.qubit_value
             if qubit_value is not None:
                 stim_ids.add(int(qubit_value))
     return {stim_id: qubit for qubit, stim_id in enumerate(sorted(stim_ids))}
-
-
-def _plain_qubit_target(target: stim.GateTarget, instruction_name: str) -> int:
-    qubit_value = target.qubit_value
-    if qubit_value is None or not target.is_qubit_target:
-        msg = f"{instruction_name} contains unsupported target {target!r}; only plain qubit targets are supported."
-        raise ValueError(msg)
-    return int(qubit_value)

@@ -124,10 +124,30 @@ def build_graph_state(
     ------
     TypeError
         If z_base is not an integer.
+    ValueError
+        If ``qubit_indices`` is invalid for the requested data I/O layout.
     """
     if not isinstance(z_base, int):
         msg = "z_base must be an integer."
         raise TypeError(msg)
+    if qubit_indices is not None:
+        if not data_as_io:
+            msg = "qubit_indices can only be used when data_as_io=True."
+            raise ValueError(msg)
+        expected_qubits = set(range(code.num_qubits))
+        provided_qubits = set(qubit_indices)
+        if provided_qubits != expected_qubits:
+            missing = sorted(expected_qubits - provided_qubits)
+            unexpected = sorted(provided_qubits - expected_qubits)
+            msg = (
+                "qubit_indices must map every stabilizer-code qubit exactly once; "
+                f"missing={missing}, unexpected={unexpected}."
+            )
+            raise ValueError(msg)
+        qindices = list(qubit_indices.values())
+        if len(qindices) != len(set(qindices)):
+            msg = "qubit_indices values must be unique."
+            raise ValueError(msg)
 
     graph = GraphState()
     x_meas_basis = AxisMeasBasis(Axis.X, Sign.PLUS)
