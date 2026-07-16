@@ -55,8 +55,16 @@ class StateVector(BaseFullStateSimulator):
         # Internal qubit ordering: maps external qubit index to internal index
         self.__qindex_mng = QubitIndexManager(num_qubits)
 
-    def __array__(self, dtype: DTypeLike | None = None, copy: bool | None = None) -> NDArray[np.complex128]:
-        return np.asarray(self.state(), dtype=dtype, copy=copy)
+    def __array__(self, dtype: DTypeLike | None = None, copy: bool | None = None) -> NDArray[np.generic]:
+        state = self.state()
+        if dtype is not None:
+            target_dtype = np.dtype(dtype)
+            if np.issubdtype(target_dtype, np.floating):
+                if np.any(state.imag != 0):
+                    msg = "Cannot convert a state vector with nonzero imaginary amplitudes to a real dtype."
+                    raise ValueError(msg)
+                return np.asarray(state.real, dtype=target_dtype, copy=copy)
+        return np.asarray(state, dtype=dtype, copy=copy)
 
     @property
     @typing_extensions.override

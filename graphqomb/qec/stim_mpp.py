@@ -99,9 +99,7 @@ class StimMppExtraction:
 
 
 @dataclass(frozen=True)
-class _StimMppAnnotations:
-    detector_rows: tuple[frozenset[int], ...]
-    logical_observable_rows: dict[int, frozenset[int]]
+class _StimRecordAnnotations:
     detector_record_indices: tuple[frozenset[int], ...]
     logical_observable_record_indices: dict[int, frozenset[int]]
 
@@ -170,26 +168,70 @@ def stabilizer_code_from_stim_text(
         layer_label = "file" if mpp_layer is None else f"layer {mpp_layer}"
         msg = f"MPP {layer_label} is empty."
         raise ValueError(msg)
-    record_to_row = {product.record_index: row for row, product in enumerate(selected_layer)}
-    annotations = _extract_selected_mpp_annotations(
-        circuit,
-        record_to_row=record_to_row,
+    annotations = _extract_stim_record_annotations(circuit)
+    return _stim_mpp_extraction_from_records(
+        supports,
+        tuple(product.record_index for product in selected_layer),
+        coordinate_by_stim_id=coordinate_by_stim_id,
+        detector_record_indices=annotations.detector_record_indices,
+        logical_observable_record_indices=annotations.logical_observable_record_indices,
     )
+
+
+def _stim_mpp_extraction_from_records(
+    supports: Sequence[PauliSupport],
+    record_indices: Sequence[int],
+    *,
+    coordinate_by_stim_id: Mapping[int, Coordinate],
+    detector_record_indices: Sequence[frozenset[int]],
+    logical_observable_record_indices: Mapping[int, frozenset[int]],
+) -> StimMppExtraction:
+    """Build an MPP extraction from globally indexed measurement records.
+
+    Returns
+    -------
+    `StimMppExtraction`
+        Selected MPP rows with whole-circuit record annotations.
+
+    Raises
+    ------
+    ValueError
+        If support and record counts differ.
+    """
+    if len(supports) != len(record_indices):
+        msg = "MPP support count does not match its measurement-record count."
+        raise ValueError(msg)
+
+    record_to_row = {record_index: row for row, record_index in enumerate(record_indices)}
+    selected_detector_rows: list[frozenset[int]] = []
+    selected_detector_records: list[frozenset[int]] = []
+    for records in detector_record_indices:
+        rows = frozenset(record_to_row[record] for record in records if record in record_to_row)
+        if rows:
+            selected_detector_rows.append(rows)
+            selected_detector_records.append(records)
+
+    selected_logical_rows: dict[int, frozenset[int]] = {}
+    selected_logical_records: dict[int, frozenset[int]] = {}
+    for logical_idx, records in logical_observable_record_indices.items():
+        rows = frozenset(record_to_row[record] for record in records if record in record_to_row)
+        if rows:
+            selected_logical_rows[logical_idx] = rows
+            selected_logical_records[logical_idx] = records
 
     matrix, stim_to_column, column_to_stim, qubit_coords = _build_stabilizer_data(
         supports,
         coordinate_by_stim_id,
     )
-
     return StimMppExtraction(
         code=StabilizerCode(matrix, qubit_coords=qubit_coords),
         stim_to_column=stim_to_column,
         column_to_stim=column_to_stim,
-        supports=supports,
-        detector_rows=annotations.detector_rows,
-        logical_observable_rows=annotations.logical_observable_rows,
-        detector_record_indices=annotations.detector_record_indices,
-        logical_observable_record_indices=annotations.logical_observable_record_indices,
+        supports=tuple(supports),
+        detector_rows=tuple(selected_detector_rows),
+        logical_observable_rows=selected_logical_rows,
+        detector_record_indices=tuple(selected_detector_records),
+        logical_observable_record_indices=selected_logical_records,
     )
 
 
@@ -281,14 +323,8 @@ def _select_mpp_products(
     return list(layers[mpp_layer])
 
 
-def _extract_selected_mpp_annotations(
-    circuit: stim.Circuit,
-    *,
-    record_to_row: Mapping[int, int],
-) -> _StimMppAnnotations:
-    detector_rows: list[frozenset[int]] = []
+def _extract_stim_record_annotations(circuit: stim.Circuit) -> _StimRecordAnnotations:
     detector_record_indices: list[frozenset[int]] = []
-    logical_observable_rows: dict[int, set[int]] = {}
     logical_observable_record_indices: dict[int, set[int]] = {}
     measurement_count = 0
 
@@ -298,36 +334,24 @@ def _extract_selected_mpp_annotations(
             raise TypeError(msg)
 
         if instruction.name == "DETECTOR":
-            rows, record_indices = _record_targets_to_selected_mpp_rows(
+            record_indices = _record_targets_to_absolute_indices(
                 instruction.targets_copy(),
                 measurement_count=measurement_count,
-                record_to_row=record_to_row,
                 instruction_name=instruction.name,
             )
-            if rows is not None:
-                detector_rows.append(frozenset(rows))
-                detector_record_indices.append(record_indices)
+            detector_record_indices.append(record_indices)
         elif instruction.name == "OBSERVABLE_INCLUDE":
             logical_idx = _observable_index(instruction)
-            rows, record_indices = _record_targets_to_selected_mpp_rows(
+            record_indices = _record_targets_to_absolute_indices(
                 instruction.targets_copy(),
                 measurement_count=measurement_count,
-                record_to_row=record_to_row,
                 instruction_name=f"OBSERVABLE_INCLUDE({logical_idx})",
             )
-            if rows is not None:
-                logical_observable_rows.setdefault(logical_idx, set()).symmetric_difference_update(rows)
-                logical_observable_record_indices.setdefault(logical_idx, set()).symmetric_difference_update(
-                    record_indices
-                )
+            logical_observable_record_indices.setdefault(logical_idx, set()).symmetric_difference_update(record_indices)
 
         measurement_count += instruction.num_measurements
 
-    return _StimMppAnnotations(
-        detector_rows=tuple(detector_rows),
-        logical_observable_rows={
-            logical_idx: frozenset(rows) for logical_idx, rows in sorted(logical_observable_rows.items())
-        },
+    return _StimRecordAnnotations(
         detector_record_indices=tuple(detector_record_indices),
         logical_observable_record_indices={
             logical_idx: frozenset(records)
@@ -336,38 +360,27 @@ def _extract_selected_mpp_annotations(
     )
 
 
-def _record_targets_to_selected_mpp_rows(
+def _record_targets_to_absolute_indices(
     targets: Sequence[stim.GateTarget],
     *,
     measurement_count: int,
-    record_to_row: Mapping[int, int],
     instruction_name: str,
-) -> tuple[set[int] | None, frozenset[int]]:
-    rows: set[int] = set()
+) -> frozenset[int]:
     record_indices: set[int] = set()
-    saw_selected_record = False
 
     for target in targets:
         if not target.is_measurement_record_target:
             msg = f"{instruction_name} contains unsupported target {target!r}; only rec targets are supported."
             raise ValueError(msg)
         record_index = measurement_count + int(target.value)
+        if not 0 <= record_index < measurement_count:
+            msg = f"{instruction_name} refers to measurement record {record_index} before the beginning of time."
+            raise ValueError(msg)
         if record_index in record_indices:
             record_indices.remove(record_index)
         else:
             record_indices.add(record_index)
-        row = record_to_row.get(record_index)
-        if row is None:
-            continue
-        saw_selected_record = True
-        if row in rows:
-            rows.remove(row)
-        else:
-            rows.add(row)
-
-    if not saw_selected_record:
-        return None, frozenset(record_indices)
-    return rows, frozenset(record_indices)
+    return frozenset(record_indices)
 
 
 def _observable_index(instruction: stim.CircuitInstruction) -> int:

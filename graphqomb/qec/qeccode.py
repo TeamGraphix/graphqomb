@@ -71,6 +71,7 @@ class _DataLayerPlan(NamedTuple):
     """Data-node layer layout for graph-state construction."""
 
     data_layers: dict[int, tuple[int, ...]]
+    measurement_layers: dict[int, tuple[int, ...]]
     coordinate_z_by_layer: dict[tuple[int, int], float]
     meas_basis_by_qubit: dict[int, AxisMeasBasis]
     y_foliation: YFoliation
@@ -101,14 +102,15 @@ def build_graph_state(
         Stabilizer code to convert. The X support is connected to the upper
         data layer and the Z support is connected to the lower data layer.
     z_base : `int`, optional
-        Lower data-layer index. The builder creates layers ``z_base`` and
-        ``z_base + 1``, by default 0.
+        Lower stabilizer-measurement data-layer index, by default 0. Type I
+        uses two measurement layers; Type II uses three for Y support. When
+        ``data_as_io`` is enabled, a separate output layer is appended.
     y_foliation : `YFoliation`, optional
         Foliation variant. Type II uses a three-node Y-measured data chain only
         for qubits that have an Hx=Hz=1 support in at least one stabilizer row.
     data_as_io : `bool`, optional
-        Whether to register the first data nodes as inputs and the last data
-        nodes as outputs, by default False.
+        Whether to register the first stabilizer-measurement data nodes as
+        inputs and append separate unmeasured output nodes, by default False.
     qubit_indices : collections.abc.Mapping[int, int] | None, optional
         Mapping from stabilizer-code qubit columns to graph qindices when
         ``data_as_io`` is enabled. If omitted, code qubit columns are used.
@@ -152,6 +154,7 @@ def _data_layer_plan(
     qubit_indices: Mapping[int, int] | None,
 ) -> _DataLayerPlan:
     data_layers: dict[int, tuple[int, ...]] = {}
+    measurement_layers: dict[int, tuple[int, ...]] = {}
     coordinate_z_by_layer: dict[tuple[int, int], float] = {}
     meas_basis_by_qubit: dict[int, AxisMeasBasis] = {}
     x_meas_basis = AxisMeasBasis(Axis.X, Sign.PLUS)
@@ -159,28 +162,37 @@ def _data_layer_plan(
     y_chain_qubits: set[int] = _qubits_with_y_support(code) if y_foliation is YFoliation.TYPE_II else set()
 
     for qubit in range(code.num_qubits):
-        layers: tuple[int, ...]
-        coordinate_zs: tuple[float, ...]
+        measured_layers: tuple[int, ...]
+        measured_coordinate_zs: tuple[float, ...]
         if qubit in y_chain_qubits:
-            layers = (z_base, z_base + 1, z_base + 2)
-            coordinate_zs = (
+            measured_layers = (z_base, z_base + 1, z_base + 2)
+            measured_coordinate_zs = (
                 float(z_base),
                 float(z_base) + 0.5,
                 float(z_base + 1),
             )
             meas_basis = y_meas_basis
         else:
-            layers = (z_base, z_base + 1)
-            coordinate_zs = (float(z_base), float(z_base + 1))
+            measured_layers = (z_base, z_base + 1)
+            measured_coordinate_zs = (float(z_base), float(z_base + 1))
             meas_basis = x_meas_basis
 
+        if data_as_io:
+            layers = (*measured_layers, measured_layers[-1] + 1)
+            coordinate_zs = (*measured_coordinate_zs, float(z_base + 2))
+        else:
+            layers = measured_layers
+            coordinate_zs = measured_coordinate_zs
+
         data_layers[qubit] = layers
+        measurement_layers[qubit] = measured_layers
         meas_basis_by_qubit[qubit] = meas_basis
         for layer, coordinate_z in zip(layers, coordinate_zs, strict=True):
             coordinate_z_by_layer[qubit, layer] = coordinate_z
 
     return _DataLayerPlan(
         data_layers=data_layers,
+        measurement_layers=measurement_layers,
         coordinate_z_by_layer=coordinate_z_by_layer,
         meas_basis_by_qubit=meas_basis_by_qubit,
         y_foliation=y_foliation,
@@ -205,20 +217,21 @@ def _add_layered_data_nodes(
     for qubit in range(code.num_qubits):
         previous_node: int | None = None
         layers = data_layer_plan.data_layers[qubit]
+        measured_layers = set(data_layer_plan.measurement_layers[qubit])
         for layer in layers:
             node = graph.add_node(
                 coordinate=_data_coordinate(code, qubit, data_layer_plan.coordinate_z_by_layer[qubit, layer])
             )
             if previous_node is not None:
                 graph.add_edge(previous_node, node)
-            if not data_layer_plan.data_as_io or layer != layers[-1]:
+            if layer in measured_layers:
                 graph.assign_meas_basis(node, data_layer_plan.meas_basis_by_qubit[qubit])
             data_nodes[qubit, layer] = node
             previous_node = node
 
         if data_layer_plan.data_as_io:
             q_index = data_layer_plan.qubit_indices[qubit] if data_layer_plan.qubit_indices is not None else qubit
-            graph.register_input(data_nodes[qubit, layers[0]], q_index)
+            graph.register_input(data_nodes[qubit, data_layer_plan.measurement_layers[qubit][0]], q_index)
             graph.register_output(data_nodes[qubit, layers[-1]], q_index)
 
     return data_nodes
@@ -278,7 +291,7 @@ def _connect_stabilizer_support(
 ) -> list[int]:
     connected_data_nodes: list[int] = []
     for qubit in sorted(support.hx | support.hz):
-        layers = data_layer_plan.data_layers[qubit]
+        layers = data_layer_plan.measurement_layers[qubit]
         if data_layer_plan.y_foliation is YFoliation.TYPE_II and len(layers) == _TYPE_II_CHAIN_LENGTH:
             layer = _type_ii_support_layer(layers, has_x=qubit in support.hx, has_z=qubit in support.hz)
             data_node = data_nodes[qubit, layer]

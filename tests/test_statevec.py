@@ -515,10 +515,18 @@ def test_array_method_with_dtype() -> None:
     assert arr_complex64.dtype == np.complex64
     assert np.allclose(arr_complex64.flatten(), state.astype(np.complex64))
 
-    # Test with float64 dtype (should keep real part only)
+    # A state with real-valued amplitudes can be converted without warning
     arr_float = np.array(sv, dtype=np.float64)
     assert arr_float.dtype == np.float64
     assert np.allclose(arr_float.flatten(), state.real.astype(np.float64))
+
+
+def test_array_method_rejects_real_dtype_for_complex_amplitudes() -> None:
+    """Test that conversion to a real dtype does not discard imaginary amplitudes."""
+    sv = StateVector(np.array([1, 1j], dtype=np.complex128))
+
+    with pytest.raises(ValueError, match="nonzero imaginary amplitudes"):
+        np.array(sv, dtype=np.float64)
 
 
 def test_array_method_preserves_shape() -> None:

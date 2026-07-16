@@ -115,6 +115,7 @@ If you already have a graph-state design and explicit feedforward maps, you can 
 - **API reference**: https://graphqomb.readthedocs.io/en/latest/references.html
 - **QEC graph-state builder reference**: https://graphqomb.readthedocs.io/en/latest/qec.html
 - **Stim MPP import reference**: https://graphqomb.readthedocs.io/en/latest/stim_mpp.html
+- **Stim circuit import reference**: https://graphqomb.readthedocs.io/en/latest/stim_importer.html
 - **Stim compiler reference**: https://graphqomb.readthedocs.io/en/latest/stim_compiler.html
 
 ## Current Scope
