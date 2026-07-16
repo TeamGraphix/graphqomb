@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **QEC Stim MPP Import**: Added utilities for building `StabilizerCode` inputs from unsigned Stim `MPP` layers, including sparse Stim qubit id mapping, coordinate import, multi-layer selection, detector/logical-observable import, and the optional `graphqomb[stim]` extra. Signed products using inverted Pauli targets are rejected because stabilizer signs are not retained.
+- **Stim Circuit Import**: Added `stim_file_to_pattern()`, `stim_text_to_pattern()`, and `stim_circuit_to_pattern()` for converting supported noiseless Stim circuits into GraphQOMB patterns. The importer handles Clifford unitary blocks and `TICK`-separated `MPP` blocks, preserves qubit coordinates and detector/logical-observable metadata, and returns the Stim-to-GraphQOMB qubit mapping. Noise, reset, feedback, and ordinary measurement instructions are not yet supported.
 
 ### Changed
 
