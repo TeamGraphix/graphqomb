@@ -11,7 +11,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, E, M, N
-from graphqomb.common import Axis, MeasBasis, determine_pauli_axis
+from graphqomb.common import Axis, AxisMeasBasis, MeasBasis, Sign, determine_pauli_axis
 from graphqomb.noise_model import (
     Coordinate,
     EntangleEvent,
@@ -156,10 +156,12 @@ class _StimCompiler:
 
         # Emit measurement with optional flip probability
         meas_instr = {Axis.X: "MX", Axis.Y: "MY", Axis.Z: "MZ"}[axis]
+        is_inverted = isinstance(meas_basis, AxisMeasBasis) and meas_basis.sign is Sign.MINUS
+        meas_target = f"!{node}" if is_inverted else str(node)
         if meas_flip_p > 0.0:
-            self._stim_io.write(f"{meas_instr}({meas_flip_p}) {node}\n")
+            self._stim_io.write(f"{meas_instr}({meas_flip_p}) {meas_target}\n")
         else:
-            self._stim_io.write(f"{meas_instr} {node}\n")
+            self._stim_io.write(f"{meas_instr} {meas_target}\n")
 
         self._meas_order[node] = self._rec_index
         self._rec_index += 1
