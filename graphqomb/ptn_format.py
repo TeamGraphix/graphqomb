@@ -472,72 +472,6 @@ def _parse_arrow_mapping(line: str, label: str) -> tuple[int, set[int]]:
     return source, targets
 
 
-def _empty_node_index_map() -> dict[int, int]:
-    r"""Return an empty node-to-qubit-index map.
-
-    Returns
-    -------
-    `dict`\[`int`, `int`\]
-        Empty node-to-qubit-index map.
-    """
-    return {}
-
-
-def _empty_coordinates() -> dict[int, tuple[float, ...]]:
-    r"""Return an empty coordinate map.
-
-    Returns
-    -------
-    `dict`\[`int`, `tuple`\[`float`, ...\]\]
-        Empty coordinate map.
-    """
-    return {}
-
-
-def _empty_input_initialization_axes() -> dict[int, Axis]:
-    r"""Return an empty input-initialization axis map.
-
-    Returns
-    -------
-    `dict`\[`int`, `Axis`\]
-        Empty input-initialization axis map.
-    """
-    return {}
-
-
-def _empty_commands() -> list[Command]:
-    r"""Return an empty command list.
-
-    Returns
-    -------
-    `list`\[`Command`\]
-        Empty command list.
-    """
-    return []
-
-
-def _empty_node_set_map() -> dict[int, set[int]]:
-    r"""Return an empty node-to-node-set map.
-
-    Returns
-    -------
-    `dict`\[`int`, `set`\[`int`\]\]
-        Empty node-to-node-set map.
-    """
-    return {}
-
-
-def _empty_node_groups() -> list[set[int]]:
-    r"""Return an empty node group list.
-
-    Returns
-    -------
-    `list`\[`set`\[`int`\]\]
-        Empty node group list.
-    """
-    return []
-
-
 @dataclass(slots=True)
 class _PatternData:
     """Container for parsed pattern data from .ptn format.
@@ -562,15 +496,15 @@ class _PatternData:
         Parity check groups for error detection.
     """
 
-    input_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
-    output_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
-    input_coordinates: dict[int, tuple[float, ...]] = field(default_factory=_empty_coordinates)
-    input_initialization_axes: dict[int, Axis] = field(default_factory=_empty_input_initialization_axes)
-    commands: list[Command] = field(default_factory=_empty_commands)
-    xflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
-    zflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
-    parity_check_groups: list[set[int]] = field(default_factory=_empty_node_groups)
-    logical_observables: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
+    input_node_indices: dict[int, int] = field(default_factory=dict[int, int])
+    output_node_indices: dict[int, int] = field(default_factory=dict[int, int])
+    input_coordinates: dict[int, tuple[float, ...]] = field(default_factory=dict[int, tuple[float, ...]])
+    input_initialization_axes: dict[int, Axis] = field(default_factory=dict[int, Axis])
+    commands: list[Command] = field(default_factory=list[Command])
+    xflow: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
+    zflow: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
+    parity_check_groups: list[set[int]] = field(default_factory=list[set[int]])
+    logical_observables: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
 
 
 @dataclass(slots=True)
@@ -605,7 +539,7 @@ class _LoadedGraphState(BaseGraphState):
 
     @property
     def input_initialization_axes(self) -> dict[int, Axis]:
-        return {node: self._input_initialization_axes.get(node, Axis.X) for node in self._input_node_indices}
+        return self._input_initialization_axes.copy()
 
     @property
     def output_node_indices(self) -> dict[int, int]:

@@ -42,14 +42,17 @@ corresponding parity offset.
 
 All ``MPP`` instructions within one ``TICK`` block are represented by one
 combined extraction and are validated to commute. Anticommuting products in
-the same block are rejected. The importer uses one compact
-stabilizer-measurement unit when its correction flow is causal. If the compact
-unit has a cyclic Pauli flow, the commuting products are lowered to equivalent
-sequential units instead. Non-commuting measurements must be separated by
-``TICK`` in the source circuit. Each unit has a distinct unmeasured output
-layer, which is composed with the next unitary or measurement fragment by qubit
-index. Pass ``y_foliation=YFoliation.TYPE_II`` to any of the three import entry
-points to use the three-layer Y-measurement construction; Type I is the default.
+the same block are rejected. Only data-wire nodes contribute to the
+X-correction flow; MPP ancilla nodes do not produce X corrections. After
+composing all graph fragments, the importer derives the Z-correction flow from
+the odd neighborhood of the complete X-correction flow, then applies Pauli
+simplification to both correction maps. The simplified maps are passed directly
+to ``qompile()`` without an importer-specific fallback. Non-commuting
+measurements must be separated by ``TICK`` in the source circuit. Each unit has
+a distinct unmeasured output layer, which is composed with the next unitary or
+measurement fragment by qubit index. Pass
+``y_foliation=YFoliation.TYPE_II`` to any of the three import entry points to use
+the three-layer Y-measurement construction; Type I is the default.
 
 The flattened ideal circuit is analyzed once for measurement records. Records
 from single-qubit measurements, pair measurements, ``MPP``, and ideal-zero

@@ -16,34 +16,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, Command, E, M, N
+from graphqomb.common import Axis
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-    from graphqomb.common import Axis
     from graphqomb.pauli_frame import PauliFrame
-
-
-def _empty_input_coordinates() -> dict[int, tuple[float, ...]]:
-    r"""Return an empty input-coordinate map.
-
-    Returns
-    -------
-    `dict`\[`int`, `tuple`\[`float`, ...\]\]
-        Empty input-coordinate map.
-    """
-    return {}
-
-
-def _empty_input_initialization_axes() -> dict[int, Axis]:
-    r"""Return an empty input-initialization axis map.
-
-    Returns
-    -------
-    `dict`\[`int`, `Axis`\]
-        Empty input-initialization axis map.
-    """
-    return {}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -70,8 +48,8 @@ class Pattern(Sequence[Command]):
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
-    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=_empty_input_coordinates)
-    input_initialization_axes: dict[int, Axis] = dataclasses.field(default_factory=_empty_input_initialization_axes)
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict[int, tuple[float, ...]])
+    input_initialization_axes: dict[int, Axis] = dataclasses.field(default_factory=dict[int, Axis])
 
     def __len__(self) -> int:
         return len(self.commands)

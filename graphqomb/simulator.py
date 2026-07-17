@@ -175,8 +175,15 @@ class PatternSimulator:
             The command to apply.
         rng : `numpy.random.Generator`
             Random number generator to use.
+
+        Raises
+        ------
+        TypeError
+            If the command type is not supported by the simulator.
         """
-        self.apply_cmd(cmd, rng=rng)
+        _ = self, rng
+        msg = f"Unsupported command for pattern simulation: {type(cmd).__name__}"
+        raise TypeError(msg)
 
     @apply_cmd.register
     def _(self, cmd: N, *, rng: np.random.Generator) -> None:  # noqa: ARG002

@@ -303,7 +303,7 @@ class GraphState(BaseGraphState):
         `dict`\[`int`, `Axis`\]
             map of input nodes to Pauli initialization axes.
         """
-        return {node: self.__input_initialization_axes.get(node, Axis.X) for node in self.__input_node_indices}
+        return self.__input_initialization_axes.copy()
 
     @property
     @typing_extensions.override
@@ -510,7 +510,6 @@ class GraphState(BaseGraphState):
 
         if node in self.output_node_indices:
             del self.__output_node_indices[node]
-        self.__input_initialization_axes.pop(node, None)
         self.__meas_bases.pop(node, None)
         self.__local_cliffords.pop(node, None)
         self.__coordinates.pop(node, None)
@@ -556,6 +555,8 @@ class GraphState(BaseGraphState):
 
         Raises
         ------
+        TypeError
+            If `init_axis` is not an `Axis` value.
         ValueError
             If the node is already registered as an input node.
         """
@@ -566,44 +567,11 @@ class GraphState(BaseGraphState):
         if q_index in self.input_node_indices.values():
             msg = "The q_index already exists in input qubit indices"
             raise ValueError(msg)
-        self._check_input_initialization_axis(init_axis)
-        self.__input_node_indices[node] = q_index
-        self.__input_initialization_axes[node] = init_axis
-
-    def assign_input_initialization_axis(self, node: int, axis: Axis) -> None:
-        """Assign a Pauli initialization axis to an input node.
-
-        Parameters
-        ----------
-        node : `int`
-            input node index
-        axis : `Axis`
-            Pauli axis for positive-eigenstate initialization
-
-        Raises
-        ------
-        ValueError
-            If the node does not exist or is not registered as an input.
-        """
-        self._ensure_node_exists(node)
-        if node not in self.__input_node_indices:
-            msg = f"Node is not registered as an input node: {node}"
-            raise ValueError(msg)
-        self._check_input_initialization_axis(axis)
-        self.__input_initialization_axes[node] = axis
-
-    @staticmethod
-    def _check_input_initialization_axis(axis: Axis) -> None:
-        """Validate an input initialization axis.
-
-        Raises
-        ------
-        TypeError
-            If the axis is not an Axis value.
-        """
-        if not isinstance(axis, Axis):
+        if not isinstance(init_axis, Axis):
             msg = "Input initialization axis must be one of Axis.X, Axis.Y, Axis.Z"
             raise TypeError(msg)
+        self.__input_node_indices[node] = q_index
+        self.__input_initialization_axes[node] = init_axis
 
     @typing_extensions.override
     def register_output(self, node: int, q_index: int) -> None:

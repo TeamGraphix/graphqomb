@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
@@ -120,22 +121,13 @@ def test_register_input_accepts_pauli_initialization_axis(graph: GraphState) -> 
     assert graph.input_initialization_axes == {node_index: Axis.Y}
 
 
-def test_assign_input_initialization_axis_updates_input(graph: GraphState) -> None:
-    """Input initialization axes can be assigned after input registration."""
+def test_register_input_rejects_non_axis_initialization(graph: GraphState) -> None:
+    """Input registration rejects values outside the Axis enum."""
     node_index = graph.add_node()
-    graph.register_input(node_index, 0)
+    invalid_axis: Any = "X"
 
-    graph.assign_input_initialization_axis(node_index, Axis.Z)
-
-    assert graph.input_initialization_axes == {node_index: Axis.Z}
-
-
-def test_assign_input_initialization_axis_rejects_non_input(graph: GraphState) -> None:
-    """Only registered input nodes can receive an input initialization axis."""
-    node_index = graph.add_node()
-
-    with pytest.raises(ValueError, match="Node is not registered as an input node"):
-        graph.assign_input_initialization_axis(node_index, Axis.Z)
+    with pytest.raises(TypeError, match="Input initialization axis must be one of"):
+        graph.register_input(node_index, 0, init_axis=invalid_axis)
 
 
 def test_ensure_node_exists_raises(graph: GraphState) -> None:

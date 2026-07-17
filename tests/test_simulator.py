@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+import pytest
 
 from graphqomb.command import TICK, E, M, N
 from graphqomb.common import Axis, AxisMeasBasis, Sign
@@ -59,6 +62,16 @@ def _deterministic_non_output_measurement_pattern() -> tuple[Pattern, int]:
         input_initialization_axes=graph.input_initialization_axes,
     )
     return pattern, input_node
+
+
+def test_pattern_simulator_rejects_unsupported_command() -> None:
+    """Unsupported commands fail explicitly instead of recursing."""
+    pattern, _ = _single_output_pattern(measured=False)
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+    unsupported_command: Any = None
+
+    with pytest.raises(TypeError, match="Unsupported command for pattern simulation: NoneType"):
+        simulator.apply_cmd(unsupported_command, rng=np.random.default_rng(0))
 
 
 def test_pattern_simulator_initializes_input_in_x_basis() -> None:

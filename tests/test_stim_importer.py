@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+import graphqomb.stim_importer as stim_importer_module
 from graphqomb.command import M
 from graphqomb.common import Axis, AxisMeasBasis, Sign
-from graphqomb.graphstate import odd_neighbors
+from graphqomb.graphstate import BaseGraphState, odd_neighbors
 from graphqomb.qec.qeccode import YFoliation
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
@@ -210,13 +211,54 @@ def test_stim_text_to_pattern_advances_z_once_per_mpp_tick_block() -> None:
     assert np.isclose(max(z_coordinates), 4.0)
 
 
-def test_stim_text_to_pattern_uses_automatic_zflow_for_mpp_graph() -> None:
-    result = stim_text_to_pattern("MPP X0*Z1")
-    graph = result.pattern.pauli_frame.graphstate
+def test_stim_text_to_pattern_simplifies_complete_flow_after_deriving_zflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[BaseGraphState, dict[int, set[int]], dict[int, set[int]]]] = []
+    simplify = stim_importer_module.pauli_simplification
 
-    assert result.pattern.pauli_frame.xflow
-    for node, correction_nodes in result.pattern.pauli_frame.xflow.items():
-        assert result.pattern.pauli_frame.zflow[node] == odd_neighbors(correction_nodes, graph)
+    def capture_flow(
+        graph: BaseGraphState,
+        xflow: dict[int, set[int]],
+        zflow: dict[int, set[int]],
+    ) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+        calls.append((graph, xflow, zflow))
+        return simplify(graph, xflow, zflow)
+
+    monkeypatch.setattr(stim_importer_module, "pauli_simplification", capture_flow)
+
+    result = stim_text_to_pattern("H 0\nTICK\nMPP X0")
+
+    assert len(calls) == 1
+    graph, xflow, zflow = calls[0]
+    assert graph is result.pattern.pauli_frame.graphstate
+    assert zflow == {node: odd_neighbors(targets, graph) for node, targets in xflow.items()}
+
+
+def test_stim_text_to_pattern_excludes_mpp_ancilla_from_xflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[int, set[int]]] = []
+    simplify = stim_importer_module.pauli_simplification
+
+    def capture_flow(
+        graph: BaseGraphState,
+        xflow: dict[int, set[int]],
+        zflow: dict[int, set[int]],
+    ) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
+        calls.append(xflow)
+        return simplify(graph, xflow, zflow)
+
+    monkeypatch.setattr(stim_importer_module, "pauli_simplification", capture_flow)
+
+    result = stim_text_to_pattern("MPP X0\nDETECTOR rec[-1]")
+
+    assert len(calls) == 1
+    xflow = calls[0]
+    ancilla_nodes = result.pattern.pauli_frame.parity_check_group[0]
+    assert len(ancilla_nodes) == 1
+    assert set(xflow) == set(result.pattern.pauli_frame.graphstate.meas_bases) - ancilla_nodes
+    assert all(targets.isdisjoint(ancilla_nodes) for targets in xflow.values())
 
 
 def test_stim_text_to_pattern_appends_output_after_type_i_mpp_measurements() -> None:
