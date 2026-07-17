@@ -38,7 +38,7 @@ class TimeSlice(NamedTuple):
     measure_nodes: set[int]  #: Set of node indices to measure in this time slice.
 
 
-def compress_schedule(  # noqa: C901, PLR0912
+def compress_schedule(  # ruff:ignore[complex-structure, too-many-branches]
     prepare_time: Mapping[int, int | None],
     measure_time: Mapping[int, int | None],
     entangle_time: Mapping[tuple[int, int], int | None] | None = None,

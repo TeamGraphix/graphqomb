@@ -130,7 +130,7 @@ class LocalUnitary:
 
     def print_angles(self) -> None:
         """Print the Euler angles."""
-        print(f"alpha: {self.alpha}, beta: {self.beta}, gamma: {self.gamma}")  # noqa: T201
+        print(f"alpha: {self.alpha}, beta: {self.beta}, gamma: {self.gamma}")  # ruff:ignore[print]
 
     def conjugate(self) -> LocalUnitary:
         """Return the conjugate of the `LocalUnitary` object.

@@ -41,7 +41,7 @@ def is_focused(flowlike: Mapping[int, int] | Mapping[int, AbstractSet[int]], gra
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     meas_bases = graph.meas_bases
     outputs = set(graph.output_node_indices)
 
@@ -88,7 +88,7 @@ def focus_gflow(
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     if _is_flow(flowlike):
         flowlike = {key: {value} for key, value in flowlike.items()}
     elif _is_gflow(flowlike):

@@ -168,12 +168,12 @@ class PatternSimulator:
         self.apply_cmd(cmd, rng=rng)
 
     @apply_cmd.register
-    def _(self, cmd: N, *, rng: np.random.Generator) -> None:  # noqa: ARG002
+    def _(self, cmd: N, *, rng: np.random.Generator) -> None:  # ruff:ignore[unused-method-argument]
         self.state.add_node(1)
         self.node_indices.append(cmd.node)
 
     @apply_cmd.register
-    def _(self, cmd: E, *, rng: np.random.Generator) -> None:  # noqa: ARG002
+    def _(self, cmd: E, *, rng: np.random.Generator) -> None:  # ruff:ignore[unused-method-argument]
         node_id1 = self.node_indices.index(cmd.nodes[0])
         node_id2 = self.node_indices.index(cmd.nodes[1])
         self.state.entangle(node_id1, node_id2)

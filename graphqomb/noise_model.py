@@ -273,14 +273,14 @@ class Coordinate:
     @property
     def xy(self) -> tuple[float, float] | None:
         """The first two dimensions as (x, y), or None if fewer than 2 dimensions."""
-        if len(self.values) < 2:  # noqa: PLR2004
+        if len(self.values) < 2:  # ruff:ignore[magic-value-comparison]
             return None
         return (self.values[0], self.values[1])
 
     @property
     def xyz(self) -> tuple[float, float, float] | None:
         """The first three dimensions as (x, y, z), or None if fewer than 3 dimensions."""
-        if len(self.values) < 3:  # noqa: PLR2004
+        if len(self.values) < 3:  # ruff:ignore[magic-value-comparison]
             return None
         return (self.values[0], self.values[1], self.values[2])
 
@@ -758,7 +758,7 @@ class NoiseModel:
 
     """
 
-    def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
+    def on_prepare(self, event: PrepareEvent) -> Sequence[NoiseOp]:  # ruff:ignore[unused-method-argument, no-self-use]
         r"""Return noise operations to inject at qubit preparation.
 
         Parameters
@@ -773,7 +773,7 @@ class NoiseModel:
         """
         return []
 
-    def on_entangle(self, event: EntangleEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
+    def on_entangle(self, event: EntangleEvent) -> Sequence[NoiseOp]:  # ruff:ignore[unused-method-argument, no-self-use]
         r"""Return noise operations to inject at entanglement.
 
         Parameters
@@ -788,7 +788,7 @@ class NoiseModel:
         """
         return []
 
-    def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
+    def on_measure(self, event: MeasureEvent) -> Sequence[NoiseOp]:  # ruff:ignore[unused-method-argument, no-self-use]
         r"""Return noise operations to inject at measurement.
 
         Parameters
@@ -803,7 +803,7 @@ class NoiseModel:
         """
         return []
 
-    def on_idle(self, event: IdleEvent) -> Sequence[NoiseOp]:  # noqa: ARG002, PLR6301
+    def on_idle(self, event: IdleEvent) -> Sequence[NoiseOp]:  # ruff:ignore[unused-method-argument, no-self-use]
         r"""Return noise operations to inject during idle periods.
 
         Parameters
@@ -819,7 +819,7 @@ class NoiseModel:
         return []
 
 
-def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # noqa: PLR0911, C901
+def noise_op_to_stim(op: NoiseOp) -> tuple[str, int]:  # ruff:ignore[too-many-return-statements, complex-structure]
     r"""Convert a NoiseOp into a Stim instruction line and record delta.
 
     Parameters
@@ -913,7 +913,7 @@ def _normalize_pauli_channel_2_sequence(probabilities: Sequence[float]) -> tuple
 def _normalize_pauli_channel_2_targets(targets: Sequence[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
     normalized: list[tuple[int, int]] = []
     for pair in targets:
-        if len(pair) != 2:  # noqa: PLR2004
+        if len(pair) != 2:  # ruff:ignore[magic-value-comparison]
             msg = f"PAULI_CHANNEL_2 targets must be pairs, got: {pair!r}"
             raise ValueError(msg)
         normalized.append((pair[0], pair[1]))
@@ -923,7 +923,7 @@ def _normalize_pauli_channel_2_targets(targets: Sequence[tuple[int, int]]) -> tu
 def _flatten_pairs(pairs: Sequence[tuple[int, int]]) -> tuple[int, ...]:
     flat: list[int] = []
     for pair in pairs:
-        if len(pair) != 2:  # noqa: PLR2004
+        if len(pair) != 2:  # ruff:ignore[magic-value-comparison]
             msg = f"PAULI_CHANNEL_2 targets must be pairs, got: {pair!r}"
             raise ValueError(msg)
         flat.extend(pair)

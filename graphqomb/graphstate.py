@@ -746,7 +746,7 @@ class GraphState(BaseGraphState):
         return node_index_addition_map
 
     @classmethod
-    def from_graph(  # noqa: C901, PLR0912, PLR0913, PLR0917
+    def from_graph(  # ruff:ignore[complex-structure, too-many-branches, too-many-arguments, too-many-positional-arguments]
         cls,
         nodes: Iterable[NodeT],
         edges: Iterable[tuple[NodeT, NodeT]],
@@ -946,7 +946,7 @@ class ExpansionMaps(NamedTuple):
     output_node_map: dict[int, LocalCliffordExpansion]
 
 
-def compose(  # noqa: C901, PLR0912
+def compose(  # ruff:ignore[complex-structure, too-many-branches]
     graph1: BaseGraphState, graph2: BaseGraphState
 ) -> tuple[GraphState, dict[int, int], dict[int, int]]:
     r"""Compose two graph states sequentially.

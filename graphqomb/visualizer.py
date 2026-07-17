@@ -63,7 +63,7 @@ class FigureSetup(NamedTuple):
     fig_height: float
 
 
-def visualize(  # noqa: PLR0913
+def visualize(  # ruff:ignore[too-many-arguments]
     graph: BaseGraphState,
     *,
     ax: Axes | None = None,

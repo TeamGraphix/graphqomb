@@ -60,7 +60,7 @@ class _PyZXModule(Protocol):
     EdgeType: _PyZXEdgeTypeNamespace
     VertexType: _PyZXVertexTypeNamespace
 
-    def Graph(self) -> _PyZXTestDiagram: ...  # noqa: N802
+    def Graph(self) -> _PyZXTestDiagram: ...  # ruff:ignore[invalid-function-name]
 
 
 zx = pytest.importorskip("pyzx")

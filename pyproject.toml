@@ -57,7 +57,7 @@ dev = [
     "pyright==1.1.411",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.15.20",
+    "ruff==0.15.22",
     "scipy-stubs>=1.15.3.0",
     "types-networkx==3.6.1.20260624",
 ]
@@ -93,20 +93,20 @@ preview = true
 select = ["ALL"]
 ignore = [
   # Conflicts with ruff format
-  "COM812",
-  "COM819",
-  "D206",
-  "D300",
-  "E111",
-  "E114",
-  "E117",
-  "ISC001",
-  "ISC002",
-  "Q000",
-  "Q001",
-  "Q002",
-  "Q003",
-  "W191",
+  "missing-trailing-comma",
+  "prohibited-trailing-comma",
+  "docstring-tab-indentation",
+  "triple-single-quotes",
+  "indentation-with-invalid-multiple",
+  "indentation-with-invalid-multiple-comment",
+  "over-indented",
+  "single-line-implicit-string-concatenation",
+  "multi-line-implicit-string-concatenation",
+  "bad-quotes-inline-string",
+  "bad-quotes-multiline-string",
+  "bad-quotes-docstring",
+  "avoidable-escaped-quote",
+  "tab-indentation",
 
   # Not necessary for this project
   "AIR",
@@ -116,11 +116,11 @@ ignore = [
 
   # Manually disabled
   "CPY",     # copyright missing
-  "D105",    # undocumented magic method
+  "undocumented-magic-method",    # undocumented magic method
   "ERA",     # commented-out code
   "FBT",     # boolean-trap
   "FIX",     # fixme
-  "PLR0904", # too-many-public-methods
+  "too-many-public-methods", # too-many-public-methods
 ]
 
 [tool.ruff.lint.pylint]
@@ -136,20 +136,20 @@ docstring-code-format = true
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = [
-  "S101",    # `assert` detected
-  "SLF001",  # private method
-  "PLC2701", # private method
-  "PLR2004", # magic value in test
-  "PLR6301", # method could be static
-  "D100",
-  "D103",
-  "D104",
-  "D400",
-  "D417",    # return not documented (numpy style)
-  "DOC201",  # return not documented (pydoclint)
+  "assert",    # `assert` detected
+  "private-member-access",  # private method
+  "import-private-name", # private method
+  "magic-value-comparison", # magic value in test
+  "no-self-use", # method could be static
+  "undocumented-public-module",
+  "undocumented-public-function",
+  "undocumented-public-package",
+  "missing-trailing-period",
+  "undocumented-param",    # return not documented (numpy style)
+  "docstring-missing-returns",  # return not documented (pydoclint)
 ]
 "examples/*.py" = [
-  "T201", # print
+  "print", # print
   "D",
 ]
 

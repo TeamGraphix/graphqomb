@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def qompile(  # noqa: PLR0913
+def qompile(  # ruff:ignore[too-many-arguments]
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,
