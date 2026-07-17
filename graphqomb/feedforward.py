@@ -83,7 +83,7 @@ def dag_from_flow(
     ------
     TypeError
         If the flowlike object is not a Flow or GFlow
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     dag: dict[int, set[int]] = {}
     output_nodes = set(graph.output_node_indices)
     non_output_nodes = graph.nodes - output_nodes
@@ -202,7 +202,7 @@ def check_flow(
         The  X correction flow (flow and gflow are included)
     zflow : `collections.abc.Mapping`\[`int`, `int`\] | `collections.abc.Mapping`\[`int`, `collections.abc.Set`\[`int`\]\] | `None`
         The  Z correction flow. If `None`, it is generated from xflow by odd neighbors.
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     dag = dag_from_flow(graph, xflow, zflow)
     check_dag(dag)
 
@@ -245,7 +245,7 @@ def signal_shifting(
     return new_xflow, new_zflow
 
 
-def propagate_correction_map(  # noqa: C901, PLR0912
+def propagate_correction_map(  # ruff:ignore[complex-structure, too-many-branches]
     target_node: int,
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
@@ -331,7 +331,7 @@ def propagate_correction_map(  # noqa: C901, PLR0912
     return new_xflow, new_zflow
 
 
-def pauli_simplification(  # noqa: C901, PLR0912
+def pauli_simplification(  # ruff:ignore[complex-structure, too-many-branches]
     graph: BaseGraphState,
     xflow: Mapping[int, AbstractSet[int]],
     zflow: Mapping[int, AbstractSet[int]] | None = None,

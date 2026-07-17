@@ -166,7 +166,7 @@ class CZ(TwoQubitGate):
         """
         return [self]
 
-    def matrix(  # noqa: PLR6301
+    def matrix(  # ruff:ignore[no-self-use]
         self,
     ) -> NDArray[np.complex128]:
         r"""Get the `matrix` representation of the gate.
@@ -267,7 +267,7 @@ class Identity(SingleGate):
         """
         return [J(self.qubit, 0), J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -308,7 +308,7 @@ class X(SingleGate):
         """
         return [J(self.qubit, 0), J(self.qubit, math.pi)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -354,7 +354,7 @@ class Y(SingleGate):
             J(self.qubit, 0),
         ]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -395,7 +395,7 @@ class Z(SingleGate):
         """
         return [J(self.qubit, math.pi), J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -436,7 +436,7 @@ class H(SingleGate):
         """
         return [J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -478,7 +478,7 @@ class S(SingleGate):
         """
         return [J(self.qubit, math.pi / 2), J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -519,7 +519,7 @@ class T(SingleGate):
         """
         return [J(self.qubit, math.pi / 4), J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -560,7 +560,7 @@ class Tdg(SingleGate):
         """
         return [J(self.qubit, -math.pi / 4), J(self.qubit, 0)]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -830,7 +830,7 @@ class CNOT(TwoQubitGate):
             J(target, 0),
         ]
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -885,7 +885,7 @@ class SWAP(TwoQubitGate):
             unit_gates.extend(macro_gate.unit_gates())
         return unit_gates
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -1170,7 +1170,7 @@ class Toffoli(MultiGate):
             unit_gates.extend(macro_gate.unit_gates())
         return unit_gates
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns
@@ -1238,7 +1238,7 @@ class CCZ(MultiGate):
             unit_gates.extend(macro_gate.unit_gates())
         return unit_gates
 
-    def matrix(self) -> NDArray[np.complex128]:  # noqa: PLR6301
+    def matrix(self) -> NDArray[np.complex128]:  # ruff:ignore[no-self-use]
         r"""Get the `matrix` representation of the gate.
 
         Returns

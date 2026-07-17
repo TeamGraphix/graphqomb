@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from graphqomb.graphstate import BaseGraphState
 
 
-def greedy_minimize_time(  # noqa: PLR0914
+def greedy_minimize_time(  # ruff:ignore[too-many-locals]
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
     max_qubit_count: int | None = None,
@@ -163,7 +163,7 @@ def greedy_minimize_time(  # noqa: PLR0914
     return prepare_time, measure_time
 
 
-def _prepare_remaining_nodes_at_tail(  # noqa: PLR0913
+def _prepare_remaining_nodes_at_tail(  # ruff:ignore[too-many-arguments]
     current_time: int,
     *,
     nodes: AbstractSet[int],
@@ -191,7 +191,7 @@ def _prepare_remaining_nodes_at_tail(  # noqa: PLR0913
     alive.update(remaining)
 
 
-def _phase1_measure_ready_nodes(  # noqa: PLR0913
+def _phase1_measure_ready_nodes(  # ruff:ignore[too-many-arguments]
     current_time: int,
     *,
     dag: Mapping[int, AbstractSet[int]],
@@ -251,7 +251,7 @@ def _has_initial_input_input_entanglement_wait(
     return False
 
 
-def _phase2_prepare_nodes_with_slack(  # noqa: PLR0913
+def _phase2_prepare_nodes_with_slack(  # ruff:ignore[too-many-arguments]
     current_time: int,
     *,
     nodes: AbstractSet[int],
@@ -364,7 +364,7 @@ def _get_prep_candidates_with_priority(
     return scores
 
 
-def greedy_minimize_space(  # noqa: PLR0914
+def greedy_minimize_space(  # ruff:ignore[too-many-locals]
     graph: BaseGraphState,
     dag: Mapping[int, AbstractSet[int]],
 ) -> tuple[dict[int, int], dict[int, int]]:

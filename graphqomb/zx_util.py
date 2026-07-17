@@ -9,7 +9,7 @@ This module provides:
 """
 # ignore D102: Undocumented public method especially for Protocols, which are primarily for internal use
 # and may not be directly instantiated by users.
-# ruff: noqa: D102
+# ruff:file-ignore[undocumented-public-method]
 
 from __future__ import annotations
 

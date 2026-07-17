@@ -36,5 +36,5 @@ def ensure_rng(rng: Generator | None = None) -> Generator:
         return stored
     rng = np.random.default_rng()
     # MEMO: Cannot perform type check
-    setattr(_rng_local, "rng", rng)  # noqa: B010
+    setattr(_rng_local, "rng", rng)  # ruff:ignore[set-attr-with-constant]
     return rng

@@ -365,7 +365,7 @@ def _parse_node_qubit_pairs(parts: Sequence[str]) -> dict[int, int]:
     result: dict[int, int] = {}
     for part in parts:
         pair = part.split(":")
-        if len(pair) != 2:  # noqa: PLR2004
+        if len(pair) != 2:  # ruff:ignore[magic-value-comparison]
             msg = f"Invalid node:qubit pair: {part!r}"
             raise ValueError(msg)
         node_str, qidx_str = pair
@@ -419,7 +419,7 @@ def _parse_arrow_mapping(line: str, label: str) -> tuple[int, set[int]]:
         If the mapping is malformed.
     """
     parts = line.split("->")
-    if len(parts) != 2:  # noqa: PLR2004
+    if len(parts) != 2:  # ruff:ignore[magic-value-comparison]
         msg = f"{label} must contain exactly one '->'"
         raise ValueError(msg)
     source_part = parts[0].strip()
@@ -860,7 +860,7 @@ class _Parser:
             msg = "N command requires a node and optional 2D or 3D coordinates"
             raise ValueError(msg)
         node = _parse_int(parts[1], "node")
-        coord: tuple[float, ...] | None = _parse_coord(parts[2:]) if len(parts) > 2 else None  # noqa: PLR2004
+        coord: tuple[float, ...] | None = _parse_coord(parts[2:]) if len(parts) > 2 else None  # ruff:ignore[magic-value-comparison]
         self.result.commands.append(N(node=node, coordinate=coord))
 
     def _parse_e_command(self, parts: Sequence[str]) -> None:
@@ -871,7 +871,7 @@ class _Parser:
         ValueError
             If the command is malformed.
         """
-        if len(parts) != 3:  # noqa: PLR2004
+        if len(parts) != 3:  # ruff:ignore[magic-value-comparison]
             msg = "E command requires exactly two nodes"
             raise ValueError(msg)
         node1 = _parse_int(parts[1], "node")
@@ -886,7 +886,7 @@ class _Parser:
         ValueError
             If the command is malformed.
         """
-        if len(parts) != 4:  # noqa: PLR2004
+        if len(parts) != 4:  # ruff:ignore[magic-value-comparison]
             msg = "M command requires a node, basis, and angle/sign"
             raise ValueError(msg)
         node = _parse_int(parts[1], "node")
