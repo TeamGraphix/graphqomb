@@ -131,6 +131,19 @@ def test_tensor_product(state_vector: StateVector) -> None:
     assert np.allclose(result.state().flatten(), expected_state)
 
 
+def test_from_product_states_preserves_external_qubit_order() -> None:
+    """Distinct product-state factors retain their external qubit order."""
+    y_plus = np.asarray([1.0, 1.0j], dtype=np.complex128) / np.sqrt(2)
+    z_plus = np.asarray([1.0, 0.0], dtype=np.complex128)
+
+    result = StateVector.from_product_states((y_plus, z_plus))
+
+    expected = np.asarray([1.0, 0.0, 1.0j, 0.0], dtype=np.complex128) / np.sqrt(2)
+    assert result.state().shape == (2, 2)
+    assert result.state().dtype == np.complex128
+    np.testing.assert_allclose(result.state().reshape(-1), expected)
+
+
 def test_normalize(state_vector: StateVector) -> None:
     state_vector.normalize()
     expected_norm = 1.0

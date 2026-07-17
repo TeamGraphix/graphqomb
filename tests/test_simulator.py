@@ -91,6 +91,32 @@ def test_pattern_simulator_initializes_input_in_z_basis() -> None:
     np.testing.assert_allclose(simulator.state.state(), np.asarray([1.0, 0.0]))
 
 
+def test_pattern_simulator_reorders_mixed_input_axes_by_logical_qindex() -> None:
+    """Mixed input states are returned in logical output-qubit order."""
+    graph = GraphState()
+    y_input = graph.add_node()
+    z_input = graph.add_node()
+    graph.register_input(y_input, 1, init_axis=Axis.Y)
+    graph.register_input(z_input, 0, init_axis=Axis.Z)
+    graph.register_output(y_input, 1)
+    graph.register_output(z_input, 0)
+    pattern = Pattern(
+        input_node_indices=graph.input_node_indices,
+        output_node_indices=graph.output_node_indices,
+        commands=(),
+        pauli_frame=PauliFrame(graph, xflow={}, zflow={}),
+        input_initialization_axes=graph.input_initialization_axes,
+    )
+    simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+
+    simulator.simulate()
+
+    expected = np.asarray([1.0, 1.0j, 0.0, 0.0], dtype=np.complex128).reshape(2, 2) / np.sqrt(2)
+    assert simulator.state.state().shape == (2, 2)
+    assert simulator.state.state().dtype == np.complex128
+    np.testing.assert_allclose(simulator.state.state(), expected)
+
+
 def test_pattern_simulator_samples_non_output_from_exact_probability_by_default() -> None:
     """Non-output measurements use the current state instead of a 50/50 assumption."""
     pattern, input_node = _deterministic_non_output_measurement_pattern()
