@@ -154,10 +154,23 @@ def test_stim_text_to_pattern_rejects_anticommuting_mpp_in_one_tick_block() -> N
         stim_text_to_pattern("MPP X0\nMPP Z0")
 
 
-@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
-def test_stim_text_to_pattern_serializes_cyclic_commuting_mpp_flow(y_foliation: YFoliation) -> None:
+@pytest.mark.parametrize(
+    ("y_foliation", "expected_node_count"),
+    [(YFoliation.TYPE_I, 27), (YFoliation.TYPE_II, 28)],
+)
+def test_stim_text_to_pattern_builds_commuting_mpp_block_at_common_z(
+    y_foliation: YFoliation,
+    expected_node_count: int,
+) -> None:
     result = stim_text_to_pattern(
         """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        QUBIT_COORDS(2, 0) 2
+        QUBIT_COORDS(3, 0) 3
+        QUBIT_COORDS(4, 0) 4
+        QUBIT_COORDS(5, 0) 5
+        QUBIT_COORDS(6, 0) 6
         MPP X0*X1*X4*X5
         MPP Z0*Z1*Z2*Z3
         MPP Y0*X2*Z4*Z6
@@ -167,11 +180,34 @@ def test_stim_text_to_pattern_serializes_cyclic_commuting_mpp_flow(y_foliation: 
         """,
         y_foliation=y_foliation,
     )
+    graph = result.pattern.pauli_frame.graphstate
+    z_coordinates = {coordinate[2] for coordinate in graph.coordinates.values()}
 
     assert len(result.mpp_extractions) == 1
     assert len(result.mpp_extractions[0].supports) == 6
+    assert graph.number_of_nodes() == expected_node_count
+    assert np.isclose(min(z_coordinates), 0.0)
+    assert np.isclose(max(z_coordinates), 2.0)
     assert set(result.pattern.input_node_indices.values()) == set(range(7))
     assert set(result.pattern.output_node_indices.values()) == set(range(7))
+
+
+def test_stim_text_to_pattern_advances_z_once_per_mpp_tick_block() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        MPP X0
+        MPP X1
+        TICK
+        MPP X0*X1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    z_coordinates = {coordinate[2] for coordinate in graph.coordinates.values()}
+
+    assert len(result.mpp_extractions) == 2
+    assert np.isclose(max(z_coordinates), 4.0)
 
 
 def test_stim_text_to_pattern_uses_automatic_zflow_for_mpp_graph() -> None:

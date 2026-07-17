@@ -15,7 +15,7 @@ from graphqomb.circuit import Circuit, CircuitScheduleStrategy, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.feedforward import dag_from_flow
 from graphqomb.gates import CNOT, CZ, SWAP, Gate, H, Rz, S, X, Y, Z
-from graphqomb.graphstate import GraphState, compose
+from graphqomb.graphstate import GraphState, compose, odd_neighbors
 from graphqomb.qec._stim import (
     PauliSupport,
     StimMppExtraction,
@@ -73,6 +73,8 @@ class StimImportResult:
 class _Fragment:
     graph: GraphState
     xflow: dict[int, set[int]]
+    zflow: dict[int, set[int]]
+    auto_zflow_nodes: set[int]
     record_nodes: dict[int, int]
     mpp_extractions: tuple[StimMppExtraction, ...] = ()
 
@@ -218,7 +220,7 @@ def stim_circuit_to_pattern(
     pattern = qompile(
         fragment.graph,
         fragment.xflow,
-        None,
+        _resolve_zflow(fragment),
         parity_check_group=parity_check_groups,
         logical_observables=logical_observables,
     )
@@ -401,9 +403,7 @@ def _fragments_from_blocks(
             )
             fragments.extend(measurement_fragments)
             if any(analyzed.instruction.name == "MPP" for analyzed in block):
-                mpp_layer_index += sum(
-                    len(analyzed.record_indices) for analyzed in block if analyzed.instruction.name == "MPP"
-                )
+                mpp_layer_index += 1
 
     return fragments
 
@@ -609,6 +609,8 @@ def _single_measurement_fragment(
     return _Fragment(
         graph=graph,
         xflow={},
+        zflow={},
+        auto_zflow_nodes=set(),
         record_nodes=record_nodes,
     )
 
@@ -623,7 +625,13 @@ def _identity_fragment(context: _ImportContext) -> _Fragment:
             init_axis=context.input_initialization_axes.get(stim_id, Axis.X),
         )
         graph.register_output(node, qubit_index)
-    return _Fragment(graph=graph, xflow={}, record_nodes={})
+    return _Fragment(
+        graph=graph,
+        xflow={},
+        zflow={},
+        auto_zflow_nodes=set(),
+        record_nodes={},
+    )
 
 
 def _unitary_fragment(
@@ -647,9 +655,12 @@ def _unitary_fragment(
         stim_to_qubit=context.stim_to_qubit,
         coordinate_by_stim_id=context.coordinate_by_stim_id,
     )
+    xflow = _remap_flow(local_xflow, node_map)
     return _Fragment(
         graph=graph,
-        xflow=_remap_flow(local_xflow, node_map),
+        xflow=xflow,
+        zflow={},
+        auto_zflow_nodes=set(xflow),
         record_nodes={},
     )
 
@@ -726,25 +737,9 @@ def _mpp_fragment(
         z_base=z_base,
         context=context,
     )
-    if _has_causal_flow(fragment):
-        return _with_mpp_extraction(fragment, extraction)
-
-    serialized_fragments = [
-        _mpp_graph_fragment(
-            stim_mpp_extraction_from_records(
-                (support,),
-                (record_index,),
-                coordinate_by_stim_id=context.coordinate_by_stim_id,
-                detector_record_indices=context.detector_record_indices,
-                logical_observable_record_indices=context.logical_observable_record_indices,
-            ),
-            record_indices=(record_index,),
-            z_base=z_base + 2 * row,
-            context=context,
-        )
-        for row, (support, record_index) in enumerate(zip(supports, record_indices, strict=True))
-    ]
-    return _with_mpp_extraction(_compose_fragments(serialized_fragments), extraction)
+    if not _has_causal_flow(fragment):
+        fragment = _without_mpp_measurement_dependencies(fragment)
+    return _with_mpp_extraction(fragment, extraction)
 
 
 def _validate_commuting_mpp_supports(supports: Sequence[PauliSupport]) -> None:
@@ -778,6 +773,8 @@ def _mpp_graph_fragment(
     return _Fragment(
         graph=result.graph,
         xflow=xflow,
+        zflow={},
+        auto_zflow_nodes=set(xflow),
         record_nodes={record_indices[row]: node for row, node in result.ancilla_nodes.items()},
     )
 
@@ -790,10 +787,36 @@ def _has_causal_flow(fragment: _Fragment) -> bool:
     return True
 
 
+def _without_mpp_measurement_dependencies(fragment: _Fragment) -> _Fragment:
+    """Keep a parallel MPP graph causal without serializing its code rows.
+
+    A common-layer stabilizer graph can produce cyclic odd-neighborhood
+    dependencies even when its MPP products commute. Those dependencies would
+    impose an artificial order between Pauli measurements from the same Stim
+    TICK. Use explicit empty Z-correction sets for that fragment instead of
+    rebuilding each stabilizer row at a different z coordinate.
+
+    Returns
+    -------
+    `_Fragment`
+        The unchanged graph with non-ordering Z-correction sets.
+    """
+    return _Fragment(
+        graph=fragment.graph,
+        xflow=fragment.xflow,
+        zflow={node: set() for node in fragment.xflow},
+        auto_zflow_nodes=set(),
+        record_nodes=fragment.record_nodes,
+        mpp_extractions=fragment.mpp_extractions,
+    )
+
+
 def _with_mpp_extraction(fragment: _Fragment, extraction: StimMppExtraction) -> _Fragment:
     return _Fragment(
         graph=fragment.graph,
         xflow=fragment.xflow,
+        zflow=fragment.zflow,
+        auto_zflow_nodes=fragment.auto_zflow_nodes,
         record_nodes=fragment.record_nodes,
         mpp_extractions=(extraction,),
     )
@@ -832,11 +855,21 @@ def _compose_fragments(fragments: Sequence[_Fragment]) -> _Fragment:
         current = _Fragment(
             graph=graph,
             xflow=_remap_flow(current.xflow, node_map1) | _remap_flow(fragment.xflow, node_map2),
+            zflow=_remap_flow(current.zflow, node_map1) | _remap_flow(fragment.zflow, node_map2),
+            auto_zflow_nodes=_remap_node_set(current.auto_zflow_nodes, node_map1)
+            | _remap_node_set(fragment.auto_zflow_nodes, node_map2),
             record_nodes=_remap_record_nodes(current.record_nodes, node_map1)
             | _remap_record_nodes(fragment.record_nodes, node_map2),
             mpp_extractions=(*current.mpp_extractions, *fragment.mpp_extractions),
         )
     return current
+
+
+def _resolve_zflow(fragment: _Fragment) -> dict[int, set[int]]:
+    zflow = {node: set(targets) for node, targets in fragment.zflow.items()}
+    for node in fragment.auto_zflow_nodes:
+        zflow[node] = odd_neighbors(fragment.xflow[node], fragment.graph)
+    return zflow
 
 
 def _measurement_annotations_from_analysis(
