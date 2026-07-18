@@ -124,13 +124,15 @@ def check_dag(dag: Mapping[int, Iterable[int]]) -> None:
     Raises
     ------
     ValueError
-        If the flowlike object is not causal with respect to the graph state
+        If the graph contains a cycle
     """
-    for node, children in dag.items():
-        for child in children:
-            if node in dag[child]:
-                msg = f"Cycle detected in the graph: {node} -> {child}"
-                raise ValueError(msg)
+    inv_dag = inverse_dag_from_dag(dag)
+    try:
+        tuple(TopologicalSorter(inv_dag).static_order())
+    except CycleError as exc:
+        cycle = " -> ".join(map(str, exc.args[1]))
+        msg = f"Cycle detected in the graph: {cycle}"
+        raise ValueError(msg) from exc
 
 
 def inverse_dag_from_dag(

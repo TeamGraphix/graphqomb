@@ -12,7 +12,6 @@ import stim
 
 from graphqomb.circuit import Circuit, CircuitScheduleStrategy, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Sign
-from graphqomb.feedforward import pauli_simplification
 from graphqomb.gates import CNOT, CZ, SWAP, Gate, H, Rz, S, X, Y, Z
 from graphqomb.graphstate import GraphState, compose, odd_neighbors
 from graphqomb.qec._stim import (
@@ -209,6 +208,7 @@ def stim_circuit_to_pattern(
 
     fragments = _fragments_from_blocks(analysis.blocks, context=context)
     fragment = _compose_fragments(fragments)
+    fragment = _apply_single_measurements(fragment, analysis.blocks, context=context)
     parity_check_groups, logical_observables = _measurement_annotations_from_analysis(
         analysis,
         record_nodes=fragment.record_nodes,
@@ -216,11 +216,8 @@ def stim_circuit_to_pattern(
     )
     pattern = qompile(
         fragment.graph,
-        *pauli_simplification(
-            fragment.graph,
-            fragment.xflow,
-            {node: odd_neighbors(targets, fragment.graph) for node, targets in fragment.xflow.items()},
-        ),
+        fragment.xflow,
+        {node: odd_neighbors(targets, fragment.graph) for node, targets in fragment.xflow.items()},
         parity_check_group=parity_check_groups,
         logical_observables=logical_observables,
     )
@@ -388,22 +385,50 @@ def _fragments_from_blocks(
     _validate_single_measurement_lifetimes(blocks)
 
     fragments = [_identity_fragment(context)]
-    mpp_layer_index = 0
+    z_base = 0
+    live_stim_ids = set(context.stim_to_qubit)
     for block in blocks:
+        directly_measured_stim_ids = {
+            plain_qubit_target(target, analyzed.instruction.name)
+            for analyzed in block
+            if analyzed.instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES
+            for target in analyzed.instruction.targets_copy()
+        }
         unitary_instructions = tuple(
             analyzed.instruction for analyzed in block if analyzed.instruction.name in _UNITARY_GATES
         )
         if unitary_instructions:
-            fragments.append(_unitary_fragment(unitary_instructions, context=context))
-        else:
-            measurement_fragments = _measurement_fragments_from_block(
-                block,
-                mpp_layer_index=mpp_layer_index,
+            fragment, z_base = _unitary_fragment(
+                unitary_instructions,
+                live_stim_ids=live_stim_ids,
+                z_base=z_base,
                 context=context,
             )
-            fragments.extend(measurement_fragments)
-            if any(analyzed.instruction.name == "MPP" for analyzed in block):
-                mpp_layer_index += 1
+            fragments.append(fragment)
+        else:
+            mpp_stim_ids = {
+                stim_id
+                for analyzed in block
+                if analyzed.instruction.name == "MPP"
+                for support in mpp_targets_to_products(analyzed.instruction.targets_copy())
+                for stim_id, _axis in support
+            }
+            mpp_fragment = _mpp_fragment_from_block(
+                block,
+                z_base=z_base,
+                io_stim_ids=(live_stim_ids - directly_measured_stim_ids) | mpp_stim_ids,
+                context=context,
+            )
+            if mpp_fragment is not None:
+                fragments.append(mpp_fragment)
+                z_base += 2
+            elif directly_measured_stim_ids:
+                continuing_stim_ids = live_stim_ids - directly_measured_stim_ids
+                if continuing_stim_ids:
+                    z_base += 1
+                    fragments.append(_relocation_fragment(continuing_stim_ids, z=z_base, context=context))
+
+        live_stim_ids.difference_update(directly_measured_stim_ids)
 
     return fragments
 
@@ -526,97 +551,36 @@ def _validate_single_measurement_lifetimes(
                 measured_qubits.update(instruction_qubits)
 
 
-def _measurement_fragments_from_block(
+def _mpp_fragment_from_block(
     block: Sequence[_AnalyzedInstruction],
     *,
-    mpp_layer_index: int,
+    z_base: int,
+    io_stim_ids: set[int],
     context: _ImportContext,
-) -> list[_Fragment]:
-    """Build direct and product measurement fragments in record order.
+) -> _Fragment | None:
+    """Build the combined MPP fragment in a measurement block.
 
     Returns
     -------
-    `list`[`_Fragment`]
-        Measurement fragments in source order.
+    `_Fragment` | `None`
+        Combined MPP fragment, or `None` when the block has no MPP instruction.
     """
-    fragments: list[_Fragment] = []
     mpp_items = tuple(analyzed for analyzed in block if analyzed.instruction.name == "MPP")
-    mpp_added = False
-    for analyzed in block:
-        instruction = analyzed.instruction
-        if instruction.name == "MPP" and not mpp_added:
-            fragments.append(
-                _mpp_fragment(
-                    mpp_items,
-                    mpp_layer_index=mpp_layer_index,
-                    context=context,
-                )
-            )
-            mpp_added = True
-        elif instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES:
-            fragments.append(
-                _single_measurement_fragment(
-                    instruction,
-                    record_indices=analyzed.record_indices,
-                    context=context,
-                )
-            )
-    return fragments
-
-
-def _single_measurement_fragment(
-    instruction: stim.CircuitInstruction,
-    *,
-    record_indices: Sequence[int],
-    context: _ImportContext,
-) -> _Fragment:
-    """Build a fragment by assigning a basis directly to each measured node.
-
-    Returns
-    -------
-    `_Fragment`
-        Direct-measurement graph fragment and record-to-node mapping.
-
-    Raises
-    ------
-    ValueError
-        If target counts differ or a qubit is repeated in the instruction.
-    """
-    targets = instruction.targets_copy()
-    if len(targets) != len(record_indices):
-        msg = f"{instruction.name} target count does not match its measurement-record count."
-        raise ValueError(msg)
-
-    graph = GraphState()
-    record_nodes: dict[int, int] = {}
-    seen_qubits: set[int] = set()
-    axis = _SINGLE_PAULI_MEASUREMENT_AXES[instruction.name]
-    for target, record_index in zip(targets, record_indices, strict=True):
-        stim_id = plain_qubit_target(target, instruction.name)
-        if stim_id in seen_qubits:
-            msg = f"{instruction.name} measures qubit {stim_id} more than once in one instruction."
-            raise ValueError(msg)
-        seen_qubits.add(stim_id)
-
-        node = graph.add_node(coordinate=context.coordinate_by_stim_id.get(stim_id))
-        qubit_index = context.stim_to_qubit[stim_id]
-        graph.register_input(node, qubit_index)
-        graph.register_output(node, qubit_index)
-        sign = Sign.MINUS if target.is_inverted_result_target else Sign.PLUS
-        graph.assign_meas_basis(node, AxisMeasBasis(axis, sign))
-        record_nodes[record_index] = node
-
-    return _Fragment(
-        graph=graph,
-        xflow={},
-        record_nodes=record_nodes,
+    if not mpp_items:
+        return None
+    return _mpp_fragment(
+        mpp_items,
+        z_base=z_base,
+        io_stim_ids=io_stim_ids,
+        context=context,
     )
 
 
 def _identity_fragment(context: _ImportContext) -> _Fragment:
     graph = GraphState()
     for stim_id, qubit_index in sorted(context.stim_to_qubit.items()):
-        node = graph.add_node(coordinate=context.coordinate_by_stim_id.get(stim_id))
+        coord = context.coordinate_by_stim_id.get(stim_id)
+        node = graph.add_node(coordinate=_coordinate_at_z(coord, 0) if coord is not None else None)
         graph.register_input(
             node,
             qubit_index,
@@ -633,29 +597,99 @@ def _identity_fragment(context: _ImportContext) -> _Fragment:
 def _unitary_fragment(
     block: Sequence[stim.CircuitInstruction],
     *,
+    live_stim_ids: set[int],
+    z_base: int,
     context: _ImportContext,
-) -> _Fragment:
-    active_stim_ids = sorted(
-        {plain_qubit_target(target, instruction.name) for instruction in block for target in instruction.targets_copy()}
-    )
-    stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(active_stim_ids)}
+) -> tuple[_Fragment, int]:
+    ordered_stim_ids = sorted(live_stim_ids)
+    stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(ordered_stim_ids)}
     local_to_global = {local_index: context.stim_to_qubit[stim_id] for stim_id, local_index in stim_to_local.items()}
-    circuit = Circuit(len(active_stim_ids))
+    circuit = Circuit(len(ordered_stim_ids))
     for instruction in block:
         _append_unitary_instruction(circuit, instruction, stim_to_local)
 
-    local_graph, local_xflow, _scheduler = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
+    local_graph, local_xflow, _ = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
     graph, node_map = _copy_graph_with_qindices(local_graph, local_to_global)
-    _apply_stim_coordinates(
+    xflow = _remap_flow(local_xflow, node_map)
+    z_span = _apply_unitary_coordinates(
         graph,
-        stim_to_qubit=context.stim_to_qubit,
-        coordinate_by_stim_id=context.coordinate_by_stim_id,
+        xflow,
+        z_base=z_base,
+        context=context,
     )
-    return _Fragment(
-        graph=graph,
-        xflow=_remap_flow(local_xflow, node_map),
-        record_nodes={},
+    return (
+        _Fragment(
+            graph=graph,
+            xflow=xflow,
+            record_nodes={},
+        ),
+        z_base + z_span,
     )
+
+
+def _apply_unitary_coordinates(
+    graph: GraphState,
+    xflow: Mapping[int, set[int]],
+    *,
+    z_base: int,
+    context: _ImportContext,
+) -> int:
+    """Place a transpiled gate block between common input and output Z layers.
+
+    Qubit chains with gates are stretched across the block's maximum transpiled
+    depth. An idle qubit remains a single input/output node and is relocated to
+    the common output layer without adding graph nodes or edges.
+
+    Returns
+    -------
+    `int`
+        Z span occupied by the gate block.
+
+    Raises
+    ------
+    ValueError
+        If the transpiled unitary graph does not consist of data-wire chains.
+    """
+    output_node_by_qubit = {qubit: node for node, qubit in graph.output_node_indices.items()}
+    chains: dict[int, list[int]] = {}
+    chain_nodes: set[int] = set()
+    for input_node, qubit in graph.input_node_indices.items():
+        output_node = output_node_by_qubit[qubit]
+        chain = [input_node]
+        visited = {input_node}
+        while chain[-1] != output_node:
+            targets = xflow.get(chain[-1])
+            if targets is None or len(targets) != 1:
+                msg = f"Transpiled unitary wire for qubit {qubit} is not a single X-flow chain."
+                raise ValueError(msg)
+            next_node = next(iter(targets))
+            if next_node in visited:
+                msg = f"Transpiled unitary wire for qubit {qubit} contains an X-flow cycle."
+                raise ValueError(msg)
+            chain.append(next_node)
+            visited.add(next_node)
+        chains[qubit] = chain
+        chain_nodes.update(chain)
+
+    if chain_nodes != graph.nodes:
+        msg = "Transpiled unitary graph contains a node outside its data-wire X-flow chains."
+        raise ValueError(msg)
+
+    max_chain_depth = max((len(chain) - 1 for chain in chains.values()), default=0)
+    z_span = max(1, max_chain_depth)
+    qubit_to_stim = {qubit: stim_id for stim_id, qubit in context.stim_to_qubit.items()}
+    for qubit, chain in chains.items():
+        coord = context.coordinate_by_stim_id.get(qubit_to_stim[qubit])
+        if coord is None:
+            continue
+        depth = len(chain) - 1
+        if depth == 0:
+            graph.set_coordinate(chain[0], _coordinate_at_z(coord, z_base + z_span))
+            continue
+        for layer, node in enumerate(chain):
+            z = z_base + z_span * layer / depth
+            graph.set_coordinate(node, _coordinate_at_z(coord, z))
+    return z_span
 
 
 def _copy_graph_with_qindices(
@@ -708,7 +742,8 @@ def _append_unitary_instruction(
 def _mpp_fragment(
     block: Sequence[_AnalyzedInstruction],
     *,
-    mpp_layer_index: int,
+    z_base: int,
+    io_stim_ids: set[int],
     context: _ImportContext,
 ) -> _Fragment:
     supports = tuple(
@@ -723,11 +758,11 @@ def _mpp_fragment(
         detector_record_indices=context.detector_record_indices,
         logical_observable_record_indices=context.logical_observable_record_indices,
     )
-    z_base = 2 * mpp_layer_index
     fragment = _mpp_graph_fragment(
         extraction,
         record_indices=record_indices,
         z_base=z_base,
+        io_stim_ids=io_stim_ids,
         context=context,
     )
     return _with_mpp_extraction(fragment, extraction)
@@ -747,6 +782,7 @@ def _mpp_graph_fragment(
     *,
     record_indices: Sequence[int],
     z_base: int,
+    io_stim_ids: set[int],
     context: _ImportContext,
 ) -> _Fragment:
     qubit_indices = {column: context.stim_to_qubit[stim_id] for column, stim_id in extraction.column_to_stim.items()}
@@ -757,6 +793,13 @@ def _mpp_graph_fragment(
         data_as_io=True,
         qubit_indices=qubit_indices,
     )
+    active_stim_ids = set(extraction.stim_to_column)
+    _add_relocated_io_nodes(
+        result.graph,
+        io_stim_ids - active_stim_ids,
+        z=z_base + 2,
+        context=context,
+    )
     xflow = _mpp_flow(result)
     if len(record_indices) != len(result.ancilla_nodes):
         msg = "Imported MPP record count does not match the generated ancilla-node count."
@@ -766,6 +809,31 @@ def _mpp_graph_fragment(
         xflow=xflow,
         record_nodes={record_indices[row]: node for row, node in result.ancilla_nodes.items()},
     )
+
+
+def _relocation_fragment(stim_ids: set[int], *, z: int, context: _ImportContext) -> _Fragment:
+    graph = GraphState()
+    _add_relocated_io_nodes(graph, stim_ids, z=z, context=context)
+    return _Fragment(graph=graph, xflow={}, record_nodes={})
+
+
+def _add_relocated_io_nodes(
+    graph: GraphState,
+    stim_ids: set[int],
+    *,
+    z: int,
+    context: _ImportContext,
+) -> None:
+    for stim_id in sorted(stim_ids):
+        coord = context.coordinate_by_stim_id.get(stim_id)
+        node = graph.add_node(coordinate=_coordinate_at_z(coord, z) if coord is not None else None)
+        qubit = context.stim_to_qubit[stim_id]
+        graph.register_input(node, qubit)
+        graph.register_output(node, qubit)
+
+
+def _coordinate_at_z(coord: tuple[float, ...], z: float) -> tuple[float, float, float]:
+    return (float(coord[0]), float(coord[1]), float(z))
 
 
 def _with_mpp_extraction(fragment: _Fragment, extraction: StimMppExtraction) -> _Fragment:
@@ -801,6 +869,59 @@ def _compose_fragments(fragments: Sequence[_Fragment]) -> _Fragment:
             mpp_extractions=(*current.mpp_extractions, *fragment.mpp_extractions),
         )
     return current
+
+
+def _apply_single_measurements(
+    fragment: _Fragment,
+    blocks: Sequence[Sequence[_AnalyzedInstruction]],
+    *,
+    context: _ImportContext,
+) -> _Fragment:
+    """Assign direct measurements to existing data-lane output nodes.
+
+    Returns
+    -------
+    `_Fragment`
+        Fragment with terminal measurement bases and record mappings applied.
+
+    Raises
+    ------
+    ValueError
+        If target counts differ or a qubit is repeated in one instruction.
+    """
+    output_node_by_qubit = {qubit: node for node, qubit in fragment.graph.output_node_indices.items()}
+    record_nodes = dict(fragment.record_nodes)
+
+    for block in blocks:
+        for analyzed in block:
+            instruction = analyzed.instruction
+            if instruction.name not in _SINGLE_PAULI_MEASUREMENT_AXES:
+                continue
+            targets = instruction.targets_copy()
+            if len(targets) != len(analyzed.record_indices):
+                msg = f"{instruction.name} target count does not match its measurement-record count."
+                raise ValueError(msg)
+
+            seen_qubits: set[int] = set()
+            axis = _SINGLE_PAULI_MEASUREMENT_AXES[instruction.name]
+            for target, record_index in zip(targets, analyzed.record_indices, strict=True):
+                stim_id = plain_qubit_target(target, instruction.name)
+                if stim_id in seen_qubits:
+                    msg = f"{instruction.name} measures qubit {stim_id} more than once in one instruction."
+                    raise ValueError(msg)
+                seen_qubits.add(stim_id)
+
+                node = output_node_by_qubit[context.stim_to_qubit[stim_id]]
+                sign = Sign.MINUS if target.is_inverted_result_target else Sign.PLUS
+                fragment.graph.assign_meas_basis(node, AxisMeasBasis(axis, sign))
+                record_nodes[record_index] = node
+
+    return _Fragment(
+        graph=fragment.graph,
+        xflow=fragment.xflow,
+        record_nodes=record_nodes,
+        mpp_extractions=fragment.mpp_extractions,
+    )
 
 
 def _measurement_annotations_from_analysis(
@@ -854,20 +975,6 @@ def _remap_node_set(nodes: set[int], node_map: Mapping[int, int]) -> set[int]:
 
 def _remap_record_nodes(record_nodes: Mapping[int, int], node_map: Mapping[int, int]) -> dict[int, int]:
     return {record_index: node_map[node] for record_index, node in record_nodes.items()}
-
-
-def _apply_stim_coordinates(
-    graph: GraphState,
-    *,
-    stim_to_qubit: Mapping[int, int],
-    coordinate_by_stim_id: Mapping[int, tuple[float, ...]],
-) -> None:
-    qubit_to_stim = {qubit: stim_id for stim_id, qubit in stim_to_qubit.items()}
-    for node, q_index in graph.input_node_indices.items() | graph.output_node_indices.items():
-        stim_id = qubit_to_stim[q_index]
-        coord = coordinate_by_stim_id.get(stim_id)
-        if coord is not None:
-            graph.set_coordinate(node, coord)
 
 
 def _stim_to_qubit_map(circuit: stim.Circuit) -> dict[int, int]:

@@ -64,6 +64,84 @@ def test_build_graph_state_assigns_x_measurement_to_all_nodes() -> None:
         _assert_axis_meas_basis(result.graph.meas_bases[node], Axis.X)
 
 
+@pytest.mark.parametrize(
+    ("stabilizer_row", "expected_axis"),
+    [
+        ([1, 0, 0, 0, 0, 0], Axis.X),  # Zero Y supports.
+        ([1, 0, 0, 1, 0, 0], Axis.Y),  # One Y support.
+        ([1, 1, 0, 1, 1, 0], Axis.X),  # Two Y supports.
+        ([1, 1, 1, 1, 1, 1], Axis.Y),  # Three Y supports.
+    ],
+)
+def test_build_graph_state_type_i_selects_ancilla_basis_from_y_support_parity(
+    stabilizer_row: list[int],
+    expected_axis: Axis,
+) -> None:
+    code = StabilizerCode(_matrix([stabilizer_row]))
+
+    result = build_graph_state(code, y_foliation=YFoliation.TYPE_I)
+
+    _assert_axis_meas_basis(result.graph.meas_bases[result.ancilla_nodes[0]], expected_axis)
+
+
+@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
+@pytest.mark.parametrize(
+    "stabilizer_matrix",
+    [
+        pytest.param(
+            [
+                [1, 0, 0, 1],  # X0 Z1.
+                [0, 1, 1, 0],  # Z0 X1.
+            ],
+            id="xz-order",
+        ),
+        pytest.param(
+            [
+                [1, 0, 1, 1],  # Y0 Z1.
+                [0, 1, 1, 1],  # Z0 Y1.
+            ],
+            id="yz-order",
+        ),
+    ],
+)
+def test_build_graph_state_connects_ancillas_for_odd_twisted_order_pairs(
+    y_foliation: YFoliation,
+    stabilizer_matrix: list[list[int]],
+) -> None:
+    result = build_graph_state(StabilizerCode(_matrix(stabilizer_matrix)), y_foliation=y_foliation)
+
+    assert result.graph.has_edge(result.ancilla_nodes[0], result.ancilla_nodes[1])
+
+
+@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
+@pytest.mark.parametrize(
+    "stabilizer_matrix",
+    [
+        pytest.param(
+            [
+                [0, 0, 1, 1],  # Z0 Z1.
+                [1, 1, 0, 0],  # X0 X1: the same order occurs twice.
+            ],
+            id="same-order-twice",
+        ),
+        pytest.param(
+            [
+                [0, 0, 1, 1, 1, 1, 0, 0],  # Z0 Z1 X2 X3.
+                [1, 1, 0, 0, 0, 0, 1, 1],  # X0 X1 Z2 Z3: two twists in each direction.
+            ],
+            id="even-twisted-pairs",
+        ),
+    ],
+)
+def test_build_graph_state_omits_ancilla_edge_without_odd_twisted_order_pairs(
+    y_foliation: YFoliation,
+    stabilizer_matrix: list[list[int]],
+) -> None:
+    result = build_graph_state(StabilizerCode(_matrix(stabilizer_matrix)), y_foliation=y_foliation)
+
+    assert not result.graph.has_edge(result.ancilla_nodes[0], result.ancilla_nodes[1])
+
+
 def test_build_graph_state_returns_index_to_node_maps() -> None:
     code = StabilizerCode(_matrix([[1, 0, 0, 1]]))
 

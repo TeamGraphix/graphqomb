@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum, auto
+from itertools import product
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from scipy.sparse import csr_array
@@ -11,10 +12,11 @@ from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 
 _TYPE_II_CHAIN_LENGTH = 3
+_BOTH_ORDER_DIRECTIONS = 0b11
 Coordinate = tuple[float, ...]
 
 
@@ -106,8 +108,13 @@ def build_graph_state(
         uses two measurement layers; Type II uses three for Y support. When
         ``data_as_io`` is enabled, a separate output layer is appended.
     y_foliation : `YFoliation`, optional
-        Foliation variant. Type II uses a three-node Y-measured data chain only
-        for qubits that have an Hx=Hz=1 support in at least one stabilizer row.
+        Foliation variant. Type I measures each stabilizer ancilla in X when
+        its row has an even number of Y supports, including zero, and in Y
+        when the number is odd. Type II uses a three-node Y-measured data chain
+        only for qubits that have an Hx=Hz=1 support in at least one stabilizer
+        row. Both variants add a CZ between stabilizer ancillas when an odd
+        number of shared-data-qubit pairs have opposite local interaction
+        order under Z-before-Y-before-X ordering.
     data_as_io : `bool`, optional
         Whether to register the first stabilizer-measurement data nodes as
         inputs and append separate unmeasured output nodes, by default False.
@@ -272,23 +279,31 @@ def _add_ancilla_nodes(
         Mapping from stabilizer row index to graph node.
     """
     ancilla_nodes: dict[int, int] = {}
+    supports: list[_StabilizerSupport] = []
+    y_meas_basis = AxisMeasBasis(Axis.Y, Sign.PLUS)
     hx = code.hx.copy()
     hz = code.hz.copy()
     hx.eliminate_zeros()
     hz.eliminate_zeros()
     for stabilizer in range(code.num_stabilizers):
+        support = _StabilizerSupport(
+            hx=set(_row_support(hx, stabilizer)),
+            hz=set(_row_support(hz, stabilizer)),
+        )
+        supports.append(support)
         explicit_ancilla_coord = _explicit_ancilla_coordinate(code, stabilizer)
         ancilla_node = graph.add_node(coordinate=explicit_ancilla_coord)
-        graph.assign_meas_basis(ancilla_node, meas_basis)
+        has_odd_y_support = len(support.hx & support.hz) % 2 == 1
+        ancilla_meas_basis = (
+            y_meas_basis if data_layer_plan.y_foliation is YFoliation.TYPE_I and has_odd_y_support else meas_basis
+        )
+        graph.assign_meas_basis(ancilla_node, ancilla_meas_basis)
         ancilla_nodes[stabilizer] = ancilla_node
 
         connected_data_nodes = _connect_stabilizer_support(
             graph,
             ancilla_node=ancilla_node,
-            support=_StabilizerSupport(
-                hx=set(_row_support(hx, stabilizer)),
-                hz=set(_row_support(hz, stabilizer)),
-            ),
+            support=support,
             data_nodes=data_nodes,
             data_layer_plan=data_layer_plan,
         )
@@ -298,7 +313,67 @@ def _add_ancilla_nodes(
             if inferred_coord is not None:
                 graph.set_coordinate(ancilla_node, inferred_coord)
 
+    for left_stabilizer, right_stabilizer in _twisted_stabilizer_pairs(supports):
+        graph.add_edge(ancilla_nodes[left_stabilizer], ancilla_nodes[right_stabilizer])
+
     return ancilla_nodes
+
+
+def _twisted_stabilizer_pairs(supports: Sequence[_StabilizerSupport]) -> list[tuple[int, int]]:
+    """Return stabilizer pairs whose ancillas require a CZ edge.
+
+    Local interactions on each shared data qubit are ordered Z, Y, then X.
+    For a stabilizer pair, let ``forward`` and ``reverse`` be the numbers of
+    shared qubits with the two possible strict orders. The number of twisted
+    qubit pairs is ``forward * reverse``, so only the parity of each direction
+    is required. Equal-Pauli overlaps have no strict order and are ignored.
+
+    Candidate stabilizer pairs are generated from per-qubit incidence lists,
+    avoiding a scan over all stabilizer pairs when supports are sparse.
+
+    Returns
+    -------
+    `list`[`tuple`[`int`, `int`]]
+        Sorted stabilizer-row pairs requiring an ancilla CZ edge.
+    """
+    stabilizers_by_qubit_and_order: dict[int, tuple[list[int], list[int], list[int]]] = {}
+    order_groups: tuple[list[int], list[int], list[int]] | None
+    for stabilizer, support in enumerate(supports):
+        qubits_by_order = (
+            support.hz - support.hx,
+            support.hx & support.hz,
+            support.hx - support.hz,
+        )
+        for order, qubits in enumerate(qubits_by_order):
+            for qubit in qubits:
+                order_groups = stabilizers_by_qubit_and_order.get(qubit)
+                if order_groups is None:
+                    order_groups = ([], [], [])
+                    stabilizers_by_qubit_and_order[qubit] = order_groups
+                order_groups[order].append(stabilizer)
+
+    order_parity_by_pair: dict[tuple[int, int], int] = {}
+    for order_groups in stabilizers_by_qubit_and_order.values():
+        ordered_group_pairs = (
+            (order_groups[0], order_groups[1]),
+            (order_groups[0], order_groups[2]),
+            (order_groups[1], order_groups[2]),
+        )
+        for earlier_group, later_group in ordered_group_pairs:
+            for earlier_stabilizer, later_stabilizer in product(earlier_group, later_group):
+                if earlier_stabilizer < later_stabilizer:
+                    pair = (earlier_stabilizer, later_stabilizer)
+                    direction_bit = 0b01
+                else:
+                    pair = (later_stabilizer, earlier_stabilizer)
+                    direction_bit = 0b10
+                parity = order_parity_by_pair.get(pair, 0) ^ direction_bit
+                if parity == 0:
+                    del order_parity_by_pair[pair]
+                else:
+                    order_parity_by_pair[pair] = parity
+
+    return sorted(pair for pair, parity in order_parity_by_pair.items() if parity == _BOTH_ORDER_DIRECTIONS)
 
 
 def _connect_stabilizer_support(

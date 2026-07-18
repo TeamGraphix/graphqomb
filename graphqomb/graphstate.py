@@ -556,7 +556,7 @@ class GraphState(BaseGraphState):
         Raises
         ------
         TypeError
-            If `init_axis` is not an `Axis` value.
+            If ``init_axis`` is not an `Axis` value.
         ValueError
             If the node is already registered as an input node.
         """
