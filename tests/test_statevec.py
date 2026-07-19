@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.statevec import StateVector
 
 if TYPE_CHECKING:
@@ -120,6 +120,46 @@ def test_measure(state_vector: StateVector) -> None:
 
     assert state_vector.num_qubits == 2
     assert np.allclose(state_vector.state().flatten(), expected_state)
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "expected_result", "expected_projection_count"),
+    [
+        ([1.0, 0.0], False, 1),
+        ([0.0, 1.0], True, 2),
+    ],
+)
+def test_sample_measure_reuses_sampled_projection(
+    monkeypatch: pytest.MonkeyPatch,
+    initial_state: list[float],
+    expected_result: bool,
+    expected_projection_count: int,
+) -> None:
+    """Reuse the sampled projection and collapse onto the sampled basis state."""
+    state_vector = StateVector(initial_state)
+    original_tensordot = np.tensordot
+    projection_count = 0
+
+    def counting_tensordot(
+        a: NDArray[np.complex128],
+        b: NDArray[np.complex128],
+        axes: tuple[int, int],
+    ) -> NDArray[np.complex128]:
+        nonlocal projection_count
+        projection_count += 1
+        return np.asarray(original_tensordot(a, b, axes=axes), dtype=np.complex128)
+
+    monkeypatch.setattr(np, "tensordot", counting_tensordot)
+
+    result = state_vector.sample_measure(
+        0,
+        AxisMeasBasis(Axis.Z, Sign.PLUS),
+        np.random.default_rng(0),
+    )
+
+    assert result is expected_result
+    assert projection_count == expected_projection_count
+    np.testing.assert_allclose(state_vector.state(), np.asarray(1.0))
 
 
 def test_tensor_product(state_vector: StateVector) -> None:

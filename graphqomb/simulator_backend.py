@@ -15,10 +15,11 @@ import typing
 from abc import ABC
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    import numpy as np
     from numpy.typing import NDArray
 
     from graphqomb.common import MeasBasis
@@ -214,6 +215,41 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         `numpy.typing.NDArray`\[`numpy.complex128`\]
             The current state vector.
         """
+
+    def sample_measure(
+        self,
+        qubit: int,
+        meas_basis: MeasBasis,
+        rng: np.random.Generator,
+    ) -> bool:
+        """Sample and apply a measurement.
+
+        Backends can override this method to reuse the sampled projection when
+        collapsing the state.
+
+        Parameters
+        ----------
+        qubit : `int`
+            The qubit to measure.
+        meas_basis : `MeasBasis`
+            The measurement basis to use.
+        rng : `numpy.random.Generator`
+            Random number generator used to sample the outcome.
+
+        Returns
+        -------
+        `bool`
+            The sampled measurement result.
+        """
+        state = self.state()
+        norm_sq = float(np.real(np.vdot(state, state)))
+        basis_vector = meas_basis.vector()
+        projected = np.tensordot(basis_vector.conjugate(), state, axes=(0, qubit))
+        prob_false = float(np.real(np.vdot(projected, projected)) / norm_sq)
+        prob_false = min(1.0, max(0.0, prob_false))
+        result = bool(rng.uniform() >= prob_false)
+        self.measure(qubit, meas_basis, result)
+        return result
 
     @abc.abstractmethod
     def norm(self) -> float:

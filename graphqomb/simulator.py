@@ -219,20 +219,6 @@ class PatternSimulator:
 
         return basis
 
-    def _sample_measurement_result(
-        self,
-        node_id: int,
-        meas_basis: MeasBasis,
-        rng: np.random.Generator,
-    ) -> bool:
-        state = self.state.state()
-        norm_sq = float(np.real(np.vdot(state, state)))
-        basis_vector = meas_basis.vector()
-        projected = np.tensordot(basis_vector.conjugate(), state, axes=(0, node_id))
-        prob_false = float(np.real(np.vdot(projected, projected)) / norm_sq)
-        prob_false = min(1.0, max(0.0, prob_false))
-        return bool(rng.uniform() >= prob_false)
-
     def _apply_output_pauli_frame(self, node: int) -> None:
         node_id = self.node_indices.index(node)
         if self.__pattern.pauli_frame.x_pauli[node]:
@@ -245,11 +231,10 @@ class PatternSimulator:
         node_id = self.node_indices.index(cmd.node)
         meas_basis = self._updated_measurement_basis(cmd)
         if self.calc_prob or cmd.node in self.__pattern.output_node_indices:
-            result = self._sample_measurement_result(node_id, meas_basis, rng)
+            result = self.state.sample_measure(node_id, meas_basis, rng)
         else:
             result = rng.uniform() < 1 / 2
-
-        self.state.measure(node_id, meas_basis, result)
+            self.state.measure(node_id, meas_basis, result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 

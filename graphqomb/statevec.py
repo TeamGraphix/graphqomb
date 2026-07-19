@@ -228,6 +228,47 @@ class StateVector(BaseFullStateSimulator):
         self.normalize()
 
     @typing_extensions.override
+    def sample_measure(
+        self,
+        qubit: int,
+        meas_basis: MeasBasis,
+        rng: np.random.Generator,
+    ) -> bool:
+        """Sample and apply a measurement without repeating the sampled projection.
+
+        Parameters
+        ----------
+        qubit : `int`
+            The qubit to measure.
+        meas_basis : `MeasBasis`
+            The measurement basis to use.
+        rng : `numpy.random.Generator`
+            Random number generator used to sample the outcome.
+
+        Returns
+        -------
+        `bool`
+            The sampled measurement result.
+        """
+        internal_qubit = self.__qindex_mng.external_to_internal(qubit)
+        norm_sq = float(np.real(np.vdot(self.__state, self.__state)))
+        basis_vector = meas_basis.vector()
+        projected = np.tensordot(basis_vector.conjugate(), self.__state, axes=(0, internal_qubit))
+        projected_norm_sq = float(np.real(np.vdot(projected, projected)))
+        prob_false = projected_norm_sq / norm_sq
+        prob_false = min(1.0, max(0.0, prob_false))
+        result = bool(rng.uniform() >= prob_false)
+
+        if result:
+            basis_vector = meas_basis.flip().vector()
+            projected = np.tensordot(basis_vector.conjugate(), self.__state, axes=(0, internal_qubit))
+            projected_norm_sq = float(np.real(np.vdot(projected, projected)))
+
+        self.__state = np.asarray(projected / math.sqrt(projected_norm_sq), dtype=np.complex128)
+        self.__qindex_mng.remove_qubit(internal_qubit)
+        return result
+
+    @typing_extensions.override
     def add_node(self, num_qubits: int) -> None:
         """Add plus state to the end of state vector.
 
