@@ -151,7 +151,7 @@ class StateVector(BaseFullStateSimulator):
         result = np.asarray(1.0, dtype=np.complex128)
         for state in states:
             one_qubit_state = np.asarray(state, dtype=np.complex128)
-            if one_qubit_state.size != 2:  # noqa: PLR2004
+            if one_qubit_state.size != 2:  # ruff:ignore[PLR2004]
                 msg = "Each product-state factor must have exactly two amplitudes."
                 raise ValueError(msg)
             result = np.asarray(np.kron(result, one_qubit_state.reshape(2)), dtype=np.complex128)
