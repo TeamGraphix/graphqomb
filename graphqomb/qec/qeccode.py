@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from enum import Enum, auto
-from itertools import product
+from itertools import combinations
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from scipy.sparse import csr_array
@@ -16,7 +17,6 @@ if TYPE_CHECKING:
 
 
 _TYPE_II_CHAIN_LENGTH = 3
-_BOTH_ORDER_DIRECTIONS = 0b11
 Coordinate = tuple[float, ...]
 
 
@@ -279,18 +279,9 @@ def _add_ancilla_nodes(
         Mapping from stabilizer row index to graph node.
     """
     ancilla_nodes: dict[int, int] = {}
-    supports: list[_StabilizerSupport] = []
+    supports = _stabilizer_supports(code)
     y_meas_basis = AxisMeasBasis(Axis.Y, Sign.PLUS)
-    hx = code.hx.copy()
-    hz = code.hz.copy()
-    hx.eliminate_zeros()
-    hz.eliminate_zeros()
-    for stabilizer in range(code.num_stabilizers):
-        support = _StabilizerSupport(
-            hx=set(_row_support(hx, stabilizer)),
-            hz=set(_row_support(hz, stabilizer)),
-        )
-        supports.append(support)
+    for stabilizer, support in enumerate(supports):
         explicit_ancilla_coord = _explicit_ancilla_coordinate(code, stabilizer)
         ancilla_node = graph.add_node(coordinate=explicit_ancilla_coord)
         has_odd_y_support = len(support.hx & support.hz) % 2 == 1
@@ -336,8 +327,7 @@ def _twisted_stabilizer_pairs(supports: Sequence[_StabilizerSupport]) -> list[tu
     `list`[`tuple`[`int`, `int`]]
         Sorted stabilizer-row pairs requiring an ancilla CZ edge.
     """
-    stabilizers_by_qubit_and_order: dict[int, tuple[list[int], list[int], list[int]]] = {}
-    order_groups: tuple[list[int], list[int], list[int]] | None
+    incidences_by_qubit: dict[int, list[tuple[int, int]]] = defaultdict(list)
     for stabilizer, support in enumerate(supports):
         qubits_by_order = (
             support.hz - support.hx,
@@ -346,34 +336,19 @@ def _twisted_stabilizer_pairs(supports: Sequence[_StabilizerSupport]) -> list[tu
         )
         for order, qubits in enumerate(qubits_by_order):
             for qubit in qubits:
-                order_groups = stabilizers_by_qubit_and_order.get(qubit)
-                if order_groups is None:
-                    order_groups = ([], [], [])
-                    stabilizers_by_qubit_and_order[qubit] = order_groups
-                order_groups[order].append(stabilizer)
+                incidences_by_qubit[qubit].append((stabilizer, order))
 
-    order_parity_by_pair: dict[tuple[int, int], int] = {}
-    for order_groups in stabilizers_by_qubit_and_order.values():
-        ordered_group_pairs = (
-            (order_groups[0], order_groups[1]),
-            (order_groups[0], order_groups[2]),
-            (order_groups[1], order_groups[2]),
-        )
-        for earlier_group, later_group in ordered_group_pairs:
-            for earlier_stabilizer, later_stabilizer in product(earlier_group, later_group):
-                if earlier_stabilizer < later_stabilizer:
-                    pair = (earlier_stabilizer, later_stabilizer)
-                    direction_bit = 0b01
-                else:
-                    pair = (later_stabilizer, earlier_stabilizer)
-                    direction_bit = 0b10
-                parity = order_parity_by_pair.get(pair, 0) ^ direction_bit
-                if parity == 0:
-                    del order_parity_by_pair[pair]
-                else:
-                    order_parity_by_pair[pair] = parity
+    # Incidence lists are in ascending stabilizer order, so combinations
+    # always yield stabilizer_a < stabilizer_b.
+    parities: dict[tuple[int, int], list[bool]] = defaultdict(lambda: [False, False])
+    for incidences in incidences_by_qubit.values():
+        for (stabilizer_a, order_a), (stabilizer_b, order_b) in combinations(incidences, 2):
+            if order_a == order_b:
+                continue
+            direction = 0 if order_a < order_b else 1
+            parities[stabilizer_a, stabilizer_b][direction] ^= True
 
-    return sorted(pair for pair, parity in order_parity_by_pair.items() if parity == _BOTH_ORDER_DIRECTIONS)
+    return sorted(pair for pair, (forward_odd, reverse_odd) in parities.items() if forward_odd and reverse_odd)
 
 
 def _connect_stabilizer_support(
@@ -414,15 +389,31 @@ def _type_ii_support_layer(layers: tuple[int, ...], *, has_x: bool, has_z: bool)
     return layers[2]
 
 
-def _qubits_with_y_support(code: StabilizerCode) -> set[int]:
+def _stabilizer_supports(code: StabilizerCode) -> list[_StabilizerSupport]:
+    """Return sparse X/Z support sets for every stabilizer row.
+
+    Returns
+    -------
+    `list`[`_StabilizerSupport`]
+        Support sets indexed by stabilizer row.
+    """
     hx = code.hx.copy()
     hz = code.hz.copy()
     hx.eliminate_zeros()
     hz.eliminate_zeros()
+    return [
+        _StabilizerSupport(
+            hx=set(_row_support(hx, stabilizer)),
+            hz=set(_row_support(hz, stabilizer)),
+        )
+        for stabilizer in range(code.num_stabilizers)
+    ]
 
+
+def _qubits_with_y_support(code: StabilizerCode) -> set[int]:
     y_qubits: set[int] = set()
-    for stabilizer in range(code.num_stabilizers):
-        y_qubits.update(set(_row_support(hx, stabilizer)) & set(_row_support(hz, stabilizer)))
+    for support in _stabilizer_supports(code):
+        y_qubits.update(support.hx & support.hz)
     return y_qubits
 
 
