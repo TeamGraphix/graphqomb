@@ -8,6 +8,7 @@ from graphqomb.gates import (
     CNOT,
     CU3,
     CZ,
+    HS,
     SWAP,
     U3,
     CRx,
@@ -33,7 +34,7 @@ from graphqomb.gates import (
 )
 from graphqomb.statevec import StateVector
 
-SINGLE_GATES: list[type[SingleGate]] = [J, Identity, X, Y, Z, H, S, T, Tdg, Rx, Ry, Rz, U3]
+SINGLE_GATES: list[type[SingleGate]] = [J, Identity, X, Y, Z, H, HS, S, T, Tdg, Rx, Ry, Rz, U3]
 TWO_GATES: list[type[TwoQubitGate]] = [CZ, CNOT, SWAP, CRz, CRx, CU3]
 MULTI_GATES: list[type[MultiGate]] = [PhaseGadget, CCZ, Toffoli]
 
@@ -44,6 +45,7 @@ NUM_ANGLES: dict[type, int] = {
     Y: 0,
     Z: 0,
     H: 0,
+    HS: 0,
     S: 0,
     T: 0,
     Tdg: 0,
@@ -81,6 +83,14 @@ def apply_gates(state: StateVector, gates: Sequence[Gate], qubits: Sequence[int]
         qubit_indices = [qubits.index(i) for i in indices]
         state.evolve(gate.matrix(), qubit_indices)
     return state
+
+
+def test_hs_is_exactly_one_j_pi_over_two_primitive() -> None:
+    gate = HS(qubit=3)
+    primitive = J(qubit=3, angle=np.pi / 2)
+
+    assert gate.unit_gates() == [primitive]
+    np.testing.assert_allclose(gate.matrix(), primitive.matrix())
 
 
 @pytest.mark.parametrize("gate_class", SINGLE_GATES)

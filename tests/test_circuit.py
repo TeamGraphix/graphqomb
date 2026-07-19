@@ -14,6 +14,7 @@ from graphqomb.feedforward import pauli_simplification, signal_shifting
 from graphqomb.gates import (
     CNOT,
     CZ,
+    HS,
     Gate,
     H,
     J,
@@ -84,6 +85,15 @@ def test_mbqc_circuit_j_gate() -> None:
     assert isinstance(instructions[0], J)
     assert instructions[0].qubit == 0
     assert math.isclose(instructions[0].angle, 0.5)
+
+
+def test_mbqc_circuit_hs_is_one_j_primitive() -> None:
+    """Test adding HS directly as one J(pi/2) primitive."""
+    circuit = MBQCCircuit(num_qubits=2)
+    circuit.hs(qubit=1)
+
+    instructions = circuit.unit_instructions()
+    assert instructions == [J(qubit=1, angle=math.pi / 2)]
 
 
 def test_mbqc_circuit_cz_gate() -> None:
@@ -173,6 +183,15 @@ def test_circuit_single_qubit_gates() -> None:
     assert isinstance(macro_gates[3], Z)
     assert isinstance(macro_gates[4], S)
     assert isinstance(macro_gates[5], T)
+
+
+def test_circuit_hs_preserves_macro_and_expands_to_one_j() -> None:
+    """Test that Circuit.hs stores HS and expands it to one J primitive."""
+    circuit = Circuit(num_qubits=2)
+    circuit.hs(qubit=1)
+
+    assert circuit.instructions() == [HS(qubit=1)]
+    assert circuit.unit_instructions() == [J(qubit=1, angle=math.pi / 2)]
 
 
 def test_circuit_two_qubit_gates() -> None:

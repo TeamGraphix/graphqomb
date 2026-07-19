@@ -38,6 +38,44 @@ def test_stim_text_to_pattern_imports_unitary_clifford_block() -> None:
     assert set(result.pattern.output_node_indices.values()) == {0, 1}
 
 
+@pytest.mark.parametrize(
+    "gate_name",
+    [name for name in sorted(stim.gate_data()) if stim.gate_data(name).is_unitary and name not in {"SPP", "SPP_DAG"}],
+)
+def test_stim_circuit_to_pattern_imports_every_fixed_clifford_gate(gate_name: str) -> None:
+    """Test every fixed Stim Clifford gate through parser and importer integration."""
+    gate_data = stim.gate_data(gate_name)
+    targets = [0] if gate_data.is_single_qubit_gate else [0, 1]
+    source = stim.Circuit()
+    source.append(gate_name, targets)
+
+    result = stim_circuit_to_pattern(source)
+
+    assert set(result.pattern.input_node_indices.values()) == set(targets)
+    assert set(result.pattern.output_node_indices.values()) == set(targets)
+
+
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_stim_text_to_pattern_imports_pauli_product_rotations(gate_name: str) -> None:
+    result = stim_text_to_pattern(f"{gate_name} X0*Y1*!Z2")
+
+    assert set(result.pattern.input_node_indices.values()) == {0, 1, 2}
+    assert set(result.pattern.output_node_indices.values()) == {0, 1, 2}
+
+
+def test_stim_text_to_pattern_cancels_repeated_cz_in_one_tick_block() -> None:
+    result = stim_text_to_pattern("CZ 0 1\nCZ 0 1")
+    graph = result.pattern.pauli_frame.graphstate
+
+    assert graph.number_of_nodes() == 2
+    assert graph.number_of_edges() == 0
+
+
+def test_stim_text_to_pattern_rejects_classically_controlled_clifford() -> None:
+    with pytest.raises(ValueError, match="non-qubit target"):
+        stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1")
+
+
 def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None:
     initial = np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2)
     expected = np.asarray([1 + 1j, 1 - 1j], dtype=np.complex128) / 2

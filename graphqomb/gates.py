@@ -12,6 +12,7 @@ This module provides:
 - `Y`: Class for the Y gate.
 - `Z`: Class for the Z gate.
 - `H`: Class for the H gate.
+- `HS`: Class for the HS gate.
 - `S`: Class for the S gate.
 - `T`: Class for the T gate.
 - `Tdg`: Class for the Tdg gate.
@@ -446,6 +447,42 @@ class H(SingleGate):
         """
         array: NDArray[np.complex128] = (1 / np.sqrt(2)) * np.asarray([[1, 1], [1, -1]], dtype=np.complex128)
         return array
+
+
+@dataclass(frozen=True)
+class HS(SingleGate):
+    r"""Class for the HS gate.
+
+    ``HS`` is the algebraic matrix product :math:`H S` and is therefore the
+    primitive :math:`J(\pi / 2)` gate.
+
+    Attributes
+    ----------
+    qubit : `int`
+        The qubit the gate acts on.
+    """
+
+    qubit: int
+
+    def unit_gates(self) -> list[UnitGate]:
+        r"""Get the single J primitive that implements HS.
+
+        Returns
+        -------
+        `list`\[`UnitGate`\]
+            A one-element list containing :math:`J(\pi / 2)`.
+        """
+        return [J(self.qubit, math.pi / 2)]
+
+    def matrix(self) -> NDArray[np.complex128]:
+        r"""Get the matrix representation of the HS gate.
+
+        Returns
+        -------
+        `numpy.typing.NDArray`\[`numpy.complex128`\]
+            The matrix :math:`H S = J(\pi / 2)`.
+        """
+        return J(self.qubit, math.pi / 2).matrix()
 
 
 @dataclass(frozen=True)

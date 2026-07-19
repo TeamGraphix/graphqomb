@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Stim Clifford Parser**: Added `graphqomb.stim_parser` for normalizing Stim Clifford circuits to the `H`/`HS`/`CZ` basis, with `HS = J(pi/2)` represented by Stim's `C_XNYZ` instruction. The parser covers fixed one- and two-qubit Clifford gates, `SPP`/`SPP_DAG`, nested repeats, boundary operations, optimization, and detailed rejection of unsupported instructions.
+- **HS Gate**: Added `graphqomb.gates.HS` plus `Circuit.hs()` and `MBQCCircuit.hs()`. The gate expands to exactly one `J(pi/2)` primitive.
+
+### Changed
+
+- **Stim Circuit Import**: Normalize every unitary TICK block through the new Stim parser, expanding accepted Clifford gates and cancelling identities such as repeated CZ pairs before graph construction.
+
 ## [0.4.0] - 2026-07-19
 
 ### Added

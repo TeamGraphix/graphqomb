@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from itertools import combinations, pairwise
 from pathlib import Path
@@ -12,7 +11,7 @@ import stim
 
 from graphqomb.circuit import Circuit, CircuitScheduleStrategy, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Sign
-from graphqomb.gates import CNOT, CZ, SWAP, Gate, H, Rz, S, X, Y, Z
+from graphqomb.gates import CZ, H
 from graphqomb.graphstate import GraphState, compose, odd_neighbors
 from graphqomb.qec._stim import (
     PauliSupport,
@@ -27,36 +26,20 @@ from graphqomb.qec._stim import (
 )
 from graphqomb.qec.qeccode import StabilizerGraphStateBuildResult, YFoliation, build_graph_state
 from graphqomb.qompiler import qompile
+from graphqomb.stim_parser import HS_STIM_GATE, transpile
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
 
     from graphqomb.pattern import Pattern
 
 
-_UNITARY_GATES = frozenset({"H", "S", "SQRT_Z", "S_DAG", "SQRT_Z_DAG", "X", "Y", "Z", "CX", "CNOT", "CZ", "SWAP"})
 # Stim canonicalizes Z-axis aliases when parsing circuits: RZ becomes R and
 # MZ becomes M before instructions reach the importer.
 _RESET_AXES = {"R": Axis.Z, "RX": Axis.X, "RY": Axis.Y}
 _SINGLE_PAULI_MEASUREMENT_AXES = {"M": Axis.Z, "MX": Axis.X, "MY": Axis.Y}
 _PAIR_PAULI_MEASUREMENT_AXES = {"MXX": "X", "MYY": "Y", "MZZ": "Z"}
 _PAULI_PRODUCT_MEASUREMENT_GATES = frozenset({"MPP", *_PAIR_PAULI_MEASUREMENT_AXES})
-_SINGLE_QUBIT_GATE_FACTORIES: dict[str, Callable[[int], Gate]] = {
-    "H": H,
-    "S": S,
-    "SQRT_Z": S,
-    "S_DAG": lambda qubit: Rz(qubit, -math.pi / 2),
-    "SQRT_Z_DAG": lambda qubit: Rz(qubit, -math.pi / 2),
-    "X": X,
-    "Y": Y,
-    "Z": Z,
-}
-_TWO_QUBIT_GATE_FACTORIES: dict[str, Callable[[tuple[int, int]], Gate]] = {
-    "CX": CNOT,
-    "CNOT": CNOT,
-    "CZ": CZ,
-    "SWAP": SWAP,
-}
 
 
 @dataclass(frozen=True)
@@ -391,7 +374,7 @@ class _CircuitAnalyzer:
         analyzed = _AnalyzedInstruction(instruction, record_indices, frozenset(instruction_qubits))
         self.current_block.append(analyzed)
 
-        is_unitary = instruction.name in _UNITARY_GATES
+        is_unitary = _is_unitary_instruction(instruction)
         is_pauli_measurement = instruction.name == "MPP" or instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES
         self._validate_block_separation(
             is_unitary=is_unitary,
@@ -478,7 +461,7 @@ def _validate_supported_instruction(instruction: stim.CircuitInstruction) -> Non
         If the instruction is unsupported.
     """
     if (
-        instruction.name in _UNITARY_GATES
+        _is_unitary_instruction(instruction)
         or instruction.name in _RESET_AXES
         or instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES
         or instruction.name == "MPP"
@@ -486,6 +469,17 @@ def _validate_supported_instruction(instruction: stim.CircuitInstruction) -> Non
         return
     msg = f"Unsupported Stim instruction(s): {instruction.name}."
     raise ValueError(msg)
+
+
+def _is_unitary_instruction(instruction: stim.CircuitInstruction) -> bool:
+    """Return whether Stim classifies an instruction as a unitary gate.
+
+    Returns
+    -------
+    `bool`
+        Whether the instruction is unitary.
+    """
+    return bool(stim.gate_data(instruction.name).is_unitary)
 
 
 def _direct_measurements_from_instruction(
@@ -575,7 +569,7 @@ def _fragments_from_blocks(
             for stim_id in analyzed.qubit_ids
         }
         unitary_instructions = tuple(
-            analyzed.instruction for analyzed in block if analyzed.instruction.name in _UNITARY_GATES
+            analyzed.instruction for analyzed in block if _is_unitary_instruction(analyzed.instruction)
         )
         if unitary_instructions:
             fragment, z_base = _unitary_fragment(
@@ -662,8 +656,16 @@ def _unitary_fragment(
     ordered_stim_ids = sorted(live_stim_ids)
     stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(ordered_stim_ids)}
     local_to_global = {local_index: context.stim_to_qubit[stim_id] for stim_id, local_index in stim_to_local.items()}
-    circuit = Circuit(len(ordered_stim_ids))
+    source = stim.Circuit()
     for instruction in block:
+        source.append(instruction)
+    normalized = transpile(source, optimize=True)
+
+    circuit = Circuit(len(ordered_stim_ids))
+    for instruction in normalized:
+        if not isinstance(instruction, stim.CircuitInstruction):
+            msg = "Flattened Stim unitary block unexpectedly transpiled to a repeat block."
+            raise TypeError(msg)
         _append_unitary_instruction(circuit, instruction, stim_to_local)
 
     local_graph, local_xflow, _ = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
@@ -777,10 +779,6 @@ def _copy_graph_with_qindices(
     return copied, node_map
 
 
-# TODO(masa10-f): Cancel repeated CZ pairs within one TICK block(#233)
-# CZ*CZ = identity, but repeated pairs currently fail in graph construction with
-# "Edge already exists" when neither wire advances between the two CZ instructions.
-# Deferred to the full Stim parser PR.
 def _append_unitary_instruction(
     circuit: Circuit,
     instruction: stim.CircuitInstruction,
@@ -789,15 +787,15 @@ def _append_unitary_instruction(
     for group in instruction.target_groups():
         qubits = [plain_qubit_target(target, instruction.name) for target in group]
         mapped = [stim_to_qubit[qubit] for qubit in qubits]
-        single_factory = _SINGLE_QUBIT_GATE_FACTORIES.get(instruction.name)
-        two_factory = _TWO_QUBIT_GATE_FACTORIES.get(instruction.name)
-        if single_factory is not None:
-            circuit.apply_macro_gate(single_factory(mapped[0]))
-        elif two_factory is not None:
-            circuit.apply_macro_gate(two_factory((mapped[0], mapped[1])))
+        if instruction.name == "H":
+            circuit.apply_macro_gate(H(mapped[0]))
+        elif instruction.name == HS_STIM_GATE:
+            circuit.hs(mapped[0])
+        elif instruction.name == "CZ":
+            circuit.apply_macro_gate(CZ((mapped[0], mapped[1])))
         else:
-            msg = f"Unsupported unitary Stim instruction: {instruction.name}."
-            raise ValueError(msg)
+            msg = f"Stim parser emitted unsupported basis instruction: {instruction.name}."
+            raise AssertionError(msg)
 
 
 def _mpp_fragment(
