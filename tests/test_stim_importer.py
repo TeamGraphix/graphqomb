@@ -697,6 +697,19 @@ def test_stim_text_to_pattern_defers_measurement_reset_instructions(instruction:
         stim_text_to_pattern(instruction)
 
 
+def test_stim_text_to_pattern_rejects_duplicate_qubit_coordinates() -> None:
+    with pytest.raises(ValueError, match="distinct XY projections"):
+        stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nQUBIT_COORDS(0, 0) 1\nCZ 0 1")
+
+
+def test_stim_text_to_pattern_rejects_coordinates_sharing_an_xy_projection() -> None:
+    with pytest.raises(ValueError, match="distinct XY projections"):
+        stim_text_to_pattern(
+            "QUBIT_COORDS(0, 0, 1) 0\nQUBIT_COORDS(0, 0, 2) 1\nCZ 0 1",
+            coord_dims=3,
+        )
+
+
 def test_stim_text_to_pattern_rejects_qubit_reuse_after_single_measurement() -> None:
     with pytest.raises(ValueError, match="terminate those qubit lifetimes"):
         stim_text_to_pattern("M 0\nTICK\nMPP X0")

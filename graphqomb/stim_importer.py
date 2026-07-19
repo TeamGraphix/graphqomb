@@ -777,6 +777,10 @@ def _copy_graph_with_qindices(
     return copied, node_map
 
 
+# TODO(masa10-f): Cancel repeated CZ pairs within one TICK block(#233)
+# CZ*CZ = identity, but repeated pairs currently fail in graph construction with
+# "Edge already exists" when neither wire advances between the two CZ instructions.
+# Deferred to the full Stim parser PR.
 def _append_unitary_instruction(
     circuit: Circuit,
     instruction: stim.CircuitInstruction,
