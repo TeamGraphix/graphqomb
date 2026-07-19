@@ -405,7 +405,7 @@ def _parse_node_axis_pairs(parts: Sequence[str]) -> dict[int, Axis]:
     result: dict[int, Axis] = {}
     for part in parts:
         pair = part.split(":")
-        if len(pair) != 2:  # ruff:ignore[PLR2004]
+        if len(pair) != 2:  # ruff:ignore[magic-value-comparison]
             msg = f"Invalid node:axis pair: {part!r}"
             raise ValueError(msg)
         node_str, axis_str = pair
