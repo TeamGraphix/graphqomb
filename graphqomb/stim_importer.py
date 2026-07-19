@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 
 _UNITARY_GATES = frozenset({"H", "S", "SQRT_Z", "S_DAG", "SQRT_Z_DAG", "X", "Y", "Z", "CX", "CNOT", "CZ", "SWAP"})
+# Stim canonicalizes Z-axis aliases when parsing circuits: RZ becomes R and
+# MZ becomes M before instructions reach the importer.
 _RESET_AXES = {"R": Axis.Z, "RX": Axis.X, "RY": Axis.Y}
 _SINGLE_PAULI_MEASUREMENT_AXES = {"M": Axis.Z, "MX": Axis.X, "MY": Axis.Y}
 _PAIR_PAULI_MEASUREMENT_AXES = {"MXX": "X", "MYY": "Y", "MZZ": "Z"}

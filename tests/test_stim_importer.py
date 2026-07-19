@@ -654,6 +654,7 @@ def test_stim_text_to_pattern_rejects_mixed_measurement_and_unitary_block(measur
     ("instruction", "expected_axis", "compiled_instruction"),
     [
         ("R 0", Axis.Z, "R 0"),
+        ("RZ 0", Axis.Z, "R 0"),
         ("RX 0", Axis.X, "RX 0"),
         ("RY 0", Axis.Y, "RY 0"),
     ],

@@ -23,6 +23,10 @@ participated in a unitary or measurement operation. Operations on other qubits
 do not prevent a later initial reset. Repeated leading resets are accepted, and
 the last reset on each qubit determines its initialization state.
 
+Stim canonicalizes the Z-axis aliases internally, so the importer accepts both
+``M`` and ``MZ`` for Z measurement and both ``R`` and ``RZ`` for Z reset. Stim
+export uses ``MZ`` for Z measurement and ``R`` for Z reset.
+
 Mid-circuit resets are rejected because GraphQOMB patterns do not currently
 represent multiple lifetimes for one logical qubit. Combined measurement-reset
 instructions (``MR``/``MRZ``, ``MRX``, and ``MRY``) remain unsupported.
