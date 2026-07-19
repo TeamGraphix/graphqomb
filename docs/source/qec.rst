@@ -16,6 +16,15 @@ support, followed by an output layer; qubits without Y support retain the Type I
 two-measurement-layer layout. Ancilla support edges only touch measurement
 layers, and the output of one composed unit becomes the input of the next.
 
+Both foliation variants use the local stabilizer-interaction order
+``Z -> Y -> X`` on each shared data qubit. For a pair of stabilizers, the
+builder adds a CZ edge between their ancillas when an odd number of shared
+data-qubit pairs reverse that order: one qubit applies stabilizer ``a`` before
+``b`` while the other applies ``b`` before ``a``. Equal-Pauli overlaps have no
+strict order and do not contribute. The builder tracks only the parity of the
+two directions and considers only stabilizer pairs that share a data qubit, so
+sparse codes do not require an all-pairs stabilizer scan.
+
 .. automodule:: graphqomb.qec.qeccode
    :members:
    :show-inheritance:

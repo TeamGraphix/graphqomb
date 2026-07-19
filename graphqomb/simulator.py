@@ -16,13 +16,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from graphqomb.command import TICK, E, M, N
-from graphqomb.common import MeasBasis, Plane
+from graphqomb.common import Axis, MeasBasis, Plane
 from graphqomb.gates import MultiGate, SingleGate, TwoQubitGate
 from graphqomb.pattern import is_runnable
 from graphqomb.rng import ensure_rng
 from graphqomb.statevec import StateVector
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
     from graphqomb.circuit import BaseCircuit
     from graphqomb.command import Command
     from graphqomb.gates import Gate
@@ -31,6 +33,11 @@ if TYPE_CHECKING:
 
 _X_MATRIX = np.asarray([[0, 1], [1, 0]], dtype=np.complex128)
 _Z_MATRIX = np.asarray([[1, 0], [0, -1]], dtype=np.complex128)
+_INPUT_STATE_VECTORS: dict[Axis, NDArray[np.complex128]] = {
+    Axis.X: np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2),
+    Axis.Y: np.asarray([1.0, 1.0j], dtype=np.complex128) / np.sqrt(2),
+    Axis.Z: np.asarray([1.0, 0.0], dtype=np.complex128),
+}
 
 
 class SimulatorBackend(Enum):
@@ -118,7 +125,8 @@ class PatternSimulator:
     output_results : `dict`\[`int`, `bool`\]
         Measurement results for output nodes, keyed by logical output index.
     calc_prob : `bool`
-        Whether to calculate probabilities.
+        Whether to sample every measurement from its exact Born probability.
+        If False, non-output measurements use the legacy 50/50 assumption.
     """
 
     state: BaseFullStateSimulator
@@ -133,7 +141,7 @@ class PatternSimulator:
         pattern: Pattern,
         backend: SimulatorBackend,
         *,
-        calc_prob: bool = False,
+        calc_prob: bool = True,
     ) -> None:
         self.node_indices = list(pattern.input_node_indices.keys())
         self.results = {}
@@ -146,8 +154,11 @@ class PatternSimulator:
         is_runnable(self.__pattern)
 
         if backend == SimulatorBackend.StateVector:
-            # Note: deterministic check skipped for now
-            self.state = StateVector.from_num_qubits(len(self.__pattern.input_node_indices))
+            input_states = [
+                _INPUT_STATE_VECTORS[self.__pattern.input_initialization_axes.get(node, Axis.X)]
+                for node in self.node_indices
+            ]
+            self.state = StateVector.from_product_states(input_states)
         elif backend == SimulatorBackend.DensityMatrix:
             raise NotImplementedError
         else:
@@ -155,7 +166,9 @@ class PatternSimulator:
             raise ValueError(msg)
 
     @functools.singledispatchmethod
-    def apply_cmd(self, cmd: Command, *, rng: np.random.Generator) -> None:
+    def apply_cmd(  # ruff:ignore[no-self-use]
+        self, cmd: Command, *, rng: np.random.Generator
+    ) -> None:
         """Apply a command to the state.
 
         Parameters
@@ -164,8 +177,15 @@ class PatternSimulator:
             The command to apply.
         rng : `numpy.random.Generator`
             Random number generator to use.
+
+        Raises
+        ------
+        TypeError
+            If the command type is not supported by the simulator.
         """
-        self.apply_cmd(cmd, rng=rng)
+        _ = rng
+        msg = f"Unsupported command for pattern simulation: {type(cmd).__name__}"
+        raise TypeError(msg)
 
     @apply_cmd.register
     def _(self, cmd: N, *, rng: np.random.Generator) -> None:  # ruff:ignore[unused-method-argument]
@@ -201,20 +221,6 @@ class PatternSimulator:
 
         return basis
 
-    def _sample_measurement_result(
-        self,
-        node_id: int,
-        meas_basis: MeasBasis,
-        rng: np.random.Generator,
-    ) -> bool:
-        state = self.state.state()
-        norm_sq = float(np.real(np.vdot(state, state)))
-        basis_vector = meas_basis.vector()
-        projected = np.tensordot(basis_vector.conjugate(), state, axes=(0, node_id))
-        prob_false = float(np.real(np.vdot(projected, projected)) / norm_sq)
-        prob_false = min(1.0, max(0.0, prob_false))
-        return bool(rng.uniform() >= prob_false)
-
     def _apply_output_pauli_frame(self, node: int) -> None:
         node_id = self.node_indices.index(node)
         if self.__pattern.pauli_frame.x_pauli[node]:
@@ -224,18 +230,13 @@ class PatternSimulator:
 
     @apply_cmd.register
     def _(self, cmd: M, *, rng: np.random.Generator) -> None:
-        if self.calc_prob:
-            raise NotImplementedError
-
         node_id = self.node_indices.index(cmd.node)
-        if cmd.node in self.__pattern.output_node_indices:
-            meas_basis = self._updated_measurement_basis(cmd)
-            result = self._sample_measurement_result(node_id, meas_basis, rng)
+        meas_basis = self._updated_measurement_basis(cmd)
+        if self.calc_prob or cmd.node in self.__pattern.output_node_indices:
+            result = self.state.sample_measure(node_id, meas_basis, rng)
         else:
-            meas_basis = self._updated_measurement_basis(cmd)
             result = rng.uniform() < 1 / 2
-
-        self.state.measure(node_id, meas_basis, result)
+            self.state.measure(node_id, meas_basis, result)
         self.results[cmd.node] = result
         self.node_indices.remove(cmd.node)
 

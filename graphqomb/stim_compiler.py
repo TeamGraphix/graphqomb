@@ -79,7 +79,8 @@ class _StimCompiler:
         coordinates = self._pattern.input_coordinates if self._emit_qubit_coords else None
         for node in self._pattern.input_node_indices:
             coord = coordinates.get(node) if coordinates else None
-            self._process_prepare(node, coord, is_input=True)
+            axis = self._pattern.input_initialization_axes.get(node, Axis.X)
+            self._process_prepare(node, coord, is_input=True, init_axis=axis)
 
     def _process_commands(self) -> None:
         for cmd in self._pattern:
@@ -95,7 +96,14 @@ class _StimCompiler:
                 msg = f"Unsupported command for stim compilation: {type(cmd).__name__}"
                 raise TypeError(msg)
 
-    def _process_prepare(self, node: int, coordinate: tuple[float, ...] | None, *, is_input: bool) -> None:
+    def _process_prepare(
+        self,
+        node: int,
+        coordinate: tuple[float, ...] | None,
+        *,
+        is_input: bool,
+        init_axis: Axis = Axis.X,
+    ) -> None:
         event = PrepareEvent(time=self._tick, node=self._node_info(node), is_input=is_input)
         ops = self._validate_ops_for_event(event, self._collect_noise_ops_from_models(lambda m: m.on_prepare(event)))
         default_placement = default_noise_placement(event)
@@ -104,7 +112,8 @@ class _StimCompiler:
         coord = coordinate if self._emit_qubit_coords else None
         if coord is not None:
             self._stim_io.write(f"QUBIT_COORDS({', '.join(str(c) for c in coord)}) {node}\n")
-        self._stim_io.write(f"RX {node}\n")
+        reset_instr = {Axis.X: "RX", Axis.Y: "RY", Axis.Z: "R"}[init_axis]
+        self._stim_io.write(f"{reset_instr} {node}\n")
 
         self._rec_index += self._emit_noise_ops(ops, NoisePlacement.AFTER, default_placement)
         self._alive_nodes.add(node)

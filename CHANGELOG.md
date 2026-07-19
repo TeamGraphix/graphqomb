@@ -10,16 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **QEC Stim MPP Import**: Added utilities for building `StabilizerCode` inputs from unsigned Stim `MPP` layers, including sparse Stim qubit id mapping, coordinate import, multi-layer selection, detector/logical-observable import, and the optional `graphqomb[stim]` extra. Signed products using inverted Pauli targets are rejected because stabilizer signs are not retained.
-- **Stim Circuit Import**: Added `stim_file_to_pattern()`, `stim_text_to_pattern()`, and `stim_circuit_to_pattern()` for converting supported Stim circuits into GraphQOMB patterns. The importer handles Clifford unitary blocks and `TICK`-separated Pauli measurements (`M`/`MZ`, `MX`, `MY`, `MXX`, `MYY`, `MZZ`, and `MPP`), assigns single-qubit measurement bases directly to their graph nodes, terminates each qubit lifetime at its direct measurement while allowing disjoint qubits to continue, validates that same-block MPP products commute, supports Type I and Type II Y foliation, causally lowers commuting MPP groups, composes each MPP unit through a separate unmeasured output layer, and resolves detector/logical-observable records once across the full flattened circuit. Circuit-level noise and measurement-error probabilities are intentionally omitted because GraphQOMB uses an MBQC-specific noise model; reset, measurement-reset, and feedback instructions remain unsupported.
+- **Stim Circuit Import**: Added `stim_file_to_pattern()`, `stim_text_to_pattern()`, and `stim_circuit_to_pattern()` for converting supported Stim circuits into GraphQOMB patterns. The importer handles initial Pauli resets (`R`/`RZ`, `RX`, and `RY`), Clifford unitary blocks, and `TICK`-separated Pauli measurements (`M`/`MZ`, `MX`, `MY`, `MXX`, `MYY`, `MZZ`, and `MPP`), assigns single-qubit measurement bases directly to their graph nodes, terminates each qubit lifetime at its direct measurement while allowing disjoint qubits to continue, validates that same-block MPP products commute, supports Type I and Type II Y foliation, keeps MPP ancilla nodes out of the X-correction flow, derives the complete Z-correction flow from the composed data flow without Pauli simplification, places gate and MPP blocks on explicit temporal Z layers while preserving the first two Stim coordinate components, aligns parallel gate outputs across different transpiled depths, relocates idle I/O nodes without adding graph nodes or edges, and resolves detector/logical-observable records once across the full flattened circuit. Circuit-level noise and measurement-error probabilities are intentionally omitted because GraphQOMB uses an MBQC-specific noise model; mid-circuit reset, measurement-reset, and feedback instructions remain unsupported.
+- **Input Initialization Bases**: Added per-input positive Pauli eigenstate initialization via `GraphState.register_input(..., init_axis=...)`, with `X+`, `Y+`, and `Z+` propagated through `qompile()`, `Pattern`, `PatternSimulator`, and Stim export.
 
 ### Changed
 
 - **Development Tooling**: Use uv as the default dependency manager for local development, CI, documentation builds, and publishing workflows.
 - **Graph State API**: Replaced legacy `physical_*` graph methods/properties with standard graph-style `nodes`, `edges`, `add_node()`, `add_edge()`, `remove_node()`, `remove_edge()`, and count/query helpers.
 - **Pattern Simulator**: Materialize pending output Pauli-frame corrections when returning output statevectors or explicit output measurement results.
+- **Pattern Simulator**: Sample all measurements from exact Born probabilities by default, with `calc_prob=False` retaining the legacy 50/50 assumption for non-output measurements.
+- **PTN Format**: Bumped exported `.ptn` files to format version 2 to record non-default input initialization bases with `.input_basis`; version 1 files remain readable and default inputs to `X+`.
+- **Stim Compiler**: Input reset instructions now follow the stored initialization basis (`RX`, `RY`, or `R`) while non-input preparations remain `RX`.
+- **Stim Coordinate Import**: Reject `QUBIT_COORDS` whose first two components collide across qubits, because graph nodes are placed by the XY projection and colliding projections produce coincident nodes.
 
 ### Fixed
 
+- **Pattern Simulator**: Raise `TypeError` for unsupported commands instead of recursively redispatching them.
+- **QEC Graph-State Builder**: Add the required ancilla CZ edge when shared data qubits contain an odd number of oppositely ordered stabilizer-interaction pairs, using the same `Z`-before-`Y`-before-`X` rule for Type I and Type II foliation.
+- **Stim Circuit Import**: Preserve the existing data-lane endpoint and its coordinate when importing a terminal single-qubit measurement.
+- **Stim Circuit Import Coordinates**: Generate consistent 3D spacetime coordinates across gate, idle, and MPP fragments instead of mixing raw 2D gate coordinates with MPP Z layers.
 - **Stim Compiler**: Preserve minus-signed axis measurement bases using inverted Stim measurement targets.
 - **State Vector Array Conversion**: Convert to a real NumPy dtype without warnings when every amplitude is real-valued, and reject the conversion when it would discard nonzero imaginary amplitudes.
 

@@ -21,25 +21,25 @@ PauliSupport = tuple[tuple[int, str], ...]
 
 @dataclass(frozen=True)
 class StimMppExtraction:
-    """Stabilizer-code data extracted from Stim MPP products.
+    r"""Stabilizer-code data extracted from Stim MPP products.
 
     Attributes
     ----------
     code : StabilizerCode
         Dense-column stabilizer code using the ``[Hx | Hz]`` convention.
-    stim_to_column : dict[int, int]
+    stim_to_column : `dict`\[`int`, `int`\]
         Mapping from original Stim qubit ids to dense matrix columns.
-    column_to_stim : dict[int, int]
+    column_to_stim : `dict`\[`int`, `int`\]
         Inverse dense-column mapping.
-    supports : tuple[PauliSupport, ...]
+    supports : `tuple`\[``PauliSupport``, ...\]
         Original Stim Pauli supports, one support per stabilizer row.
-    detector_rows : tuple[frozenset[int], ...]
+    detector_rows : `tuple`\[`frozenset`\[`int`\], ...\]
         Detector groups as selected-MPP stabilizer row indices.
-    logical_observable_rows : dict[int, frozenset[int]]
+    logical_observable_rows : `dict`\[`int`, `frozenset`\[`int`\]\]
         Logical observables as selected-MPP stabilizer row indices.
-    detector_record_indices : tuple[frozenset[int], ...]
+    detector_record_indices : `tuple`\[`frozenset`\[`int`\], ...\]
         Absolute Stim measurement-record indices for selected detectors.
-    logical_observable_record_indices : dict[int, frozenset[int]]
+    logical_observable_record_indices : `dict`\[`int`, `frozenset`\[`int`\]\]
         Absolute Stim record indices for selected logical observables.
     """
 
@@ -53,21 +53,21 @@ class StimMppExtraction:
     logical_observable_record_indices: dict[int, frozenset[int]] = field(default_factory=dict)
 
     def detector_groups(self, ancilla_nodes: Mapping[int, int]) -> list[set[int]]:
-        """Return detector groups mapped to graph node ids for ``qompile``.
+        r"""Return detector groups mapped to graph node ids for ``qompile``.
 
         Returns
         -------
-        list[set[int]]
+        `list`\[`set`\[`int`\]\]
             Detector groups suitable for ``qompile``.
         """
         return [_map_rows_to_nodes(rows, ancilla_nodes, "detector") for rows in self.detector_rows]
 
     def logical_observables(self, ancilla_nodes: Mapping[int, int]) -> dict[int, set[int]]:
-        """Return logical observables mapped to graph node ids for ``qompile``.
+        r"""Return logical observables mapped to graph node ids for ``qompile``.
 
         Returns
         -------
-        dict[int, set[int]]
+        `dict`\[`int`, `set`\[`int`\]\]
             Logical-observable node groups keyed by Stim observable index.
         """
         return {
@@ -149,9 +149,12 @@ def extract_qubit_coordinates(
     Raises
     ------
     ValueError
-        If a coordinate has fewer dimensions than requested.
+        If a coordinate has fewer dimensions than requested, or if two qubits
+        share the same XY projection. Graph nodes are placed by the first two
+        coordinate components, so XY collisions produce coincident nodes.
     """
     coordinates: dict[int, Coordinate] = {}
+    stim_ids_by_xy: dict[Coordinate, list[int]] = {}
     for stim_id, values in circuit.get_final_qubit_coordinates().items():
         if len(values) < coord_dims:
             msg = (
@@ -159,7 +162,14 @@ def extract_qubit_coordinates(
                 f"fewer than requested coord_dims={coord_dims}."
             )
             raise ValueError(msg)
-        coordinates[int(stim_id)] = tuple(float(value) for value in values[:coord_dims])
+        coordinate = tuple(float(value) for value in values[:coord_dims])
+        coordinates[int(stim_id)] = coordinate
+        stim_ids_by_xy.setdefault(coordinate[:2], []).append(int(stim_id))
+    duplicates = {xy: stim_ids for xy, stim_ids in stim_ids_by_xy.items() if len(stim_ids) > 1}
+    if duplicates:
+        described = "; ".join(f"qubits {sorted(stim_ids)} share {xy}" for xy, stim_ids in sorted(duplicates.items()))
+        msg = f"QUBIT_COORDS must have distinct XY projections: {described}."
+        raise ValueError(msg)
     return coordinates
 
 

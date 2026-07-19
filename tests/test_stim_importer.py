@@ -64,7 +64,44 @@ def test_stim_text_to_pattern_preserves_sparse_qubit_coordinates() -> None:
 
     assert result.stim_to_qubit == {10: 0, 99: 1}
     assert result.pattern.input_coordinates
-    assert set(result.pattern.input_coordinates.values()) == {(1.0, 2.0), (3.0, 4.0)}
+    assert set(result.pattern.input_coordinates.values()) == {(1.0, 2.0, 1.0), (3.0, 4.0, 0.0)}
+
+
+def test_stim_text_to_pattern_aligns_parallel_gate_outputs_with_different_depths() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        H 0
+        S 1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    output_coordinates = {qubit: graph.coordinates[node] for node, qubit in graph.output_node_indices.items()}
+    lane_0_z = sorted(coord[2] for coord in graph.coordinates.values() if np.isclose(coord[0], 0.0))
+    lane_1_z = sorted(coord[2] for coord in graph.coordinates.values() if np.isclose(coord[0], 1.0))
+
+    assert output_coordinates == {0: (0.0, 0.0, 2.0), 1: (1.0, 0.0, 2.0)}
+    assert lane_0_z == [0.0, 2.0]
+    assert lane_1_z == [0.0, 1.0, 2.0]
+
+
+def test_stim_text_to_pattern_relocates_idle_input_without_adding_a_wire_node() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        H 0
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    idle_input = next(node for node, qubit in graph.input_node_indices.items() if qubit == 1)
+    idle_output = next(node for node, qubit in graph.output_node_indices.items() if qubit == 1)
+
+    assert graph.number_of_nodes() == 3
+    assert idle_input == idle_output
+    assert graph.coordinates[idle_input] == (1.0, 0.0, 1.0)
+    assert graph.neighbors(idle_input) == set()
 
 
 @pytest.mark.parametrize(
@@ -154,33 +191,105 @@ def test_stim_text_to_pattern_rejects_anticommuting_mpp_in_one_tick_block() -> N
         stim_text_to_pattern("MPP X0\nMPP Z0")
 
 
-@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
-def test_stim_text_to_pattern_serializes_cyclic_commuting_mpp_flow(y_foliation: YFoliation) -> None:
+@pytest.mark.parametrize(
+    ("y_foliation", "expected_node_count"),
+    [(YFoliation.TYPE_I, 27), (YFoliation.TYPE_II, 28)],
+)
+def test_stim_text_to_pattern_builds_commuting_mpp_block_at_common_z(
+    y_foliation: YFoliation,
+    expected_node_count: int,
+) -> None:
     result = stim_text_to_pattern(
         """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        QUBIT_COORDS(2, 0) 2
+        QUBIT_COORDS(3, 0) 3
+        QUBIT_COORDS(4, 0) 4
+        QUBIT_COORDS(5, 0) 5
+        QUBIT_COORDS(6, 0) 6
         MPP X0*X1*X4*X5
+        DETECTOR rec[-1]
         MPP Z0*Z1*Z2*Z3
+        DETECTOR rec[-1]
         MPP Y0*X2*Z4*Z6
+        DETECTOR rec[-1]
         MPP Z4*Z5
+        DETECTOR rec[-1]
         MPP X1*X3
+        DETECTOR rec[-1]
         MPP Z2*X6
+        DETECTOR rec[-1]
         """,
         y_foliation=y_foliation,
     )
+    graph = result.pattern.pauli_frame.graphstate
+    z_coordinates = {coordinate[2] for coordinate in graph.coordinates.values()}
 
     assert len(result.mpp_extractions) == 1
     assert len(result.mpp_extractions[0].supports) == 6
+    assert graph.number_of_nodes() == expected_node_count
+    assert np.isclose(min(z_coordinates), 0.0)
+    assert np.isclose(max(z_coordinates), 2.0)
     assert set(result.pattern.input_node_indices.values()) == set(range(7))
     assert set(result.pattern.output_node_indices.values()) == set(range(7))
+    mixed_check_ancilla = next(iter(result.pattern.pauli_frame.parity_check_group[2]))
+    mixed_loop_ancilla = next(iter(result.pattern.pauli_frame.parity_check_group[5]))
+    assert graph.has_edge(mixed_check_ancilla, mixed_loop_ancilla)
 
 
-def test_stim_text_to_pattern_uses_automatic_zflow_for_mpp_graph() -> None:
-    result = stim_text_to_pattern("MPP X0*Z1")
+def test_stim_text_to_pattern_advances_z_once_per_mpp_tick_block() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        MPP X0
+        MPP X1
+        TICK
+        MPP X0*X1
+        """
+    )
     graph = result.pattern.pauli_frame.graphstate
+    z_coordinates = {coordinate[2] for coordinate in graph.coordinates.values()}
 
-    assert result.pattern.pauli_frame.xflow
-    for node, correction_nodes in result.pattern.pauli_frame.xflow.items():
-        assert result.pattern.pauli_frame.zflow[node] == odd_neighbors(correction_nodes, graph)
+    assert len(result.mpp_extractions) == 2
+    assert np.isclose(max(z_coordinates), 4.0)
+
+
+def test_stim_text_to_pattern_relocates_idle_input_to_mpp_output_layer() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        MPP X0
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    idle_input = next(node for node, qubit in graph.input_node_indices.items() if qubit == 1)
+    idle_output = next(node for node, qubit in graph.output_node_indices.items() if qubit == 1)
+    active_output = next(node for node, qubit in graph.output_node_indices.items() if qubit == 0)
+
+    assert idle_input == idle_output
+    assert graph.coordinates[idle_input] == (1.0, 0.0, 2.0)
+    assert graph.coordinates[active_output] == (0.0, 0.0, 2.0)
+    assert graph.neighbors(idle_input) == set()
+
+
+def test_stim_text_to_pattern_derives_complete_zflow_from_xflow() -> None:
+    result = stim_text_to_pattern("H 0\nTICK\nMPP X0")
+    frame = result.pattern.pauli_frame
+
+    assert frame.zflow == {node: odd_neighbors(targets, frame.graphstate) for node, targets in frame.xflow.items()}
+
+
+def test_stim_text_to_pattern_excludes_mpp_ancilla_from_xflow() -> None:
+    result = stim_text_to_pattern("MPP X0\nDETECTOR rec[-1]")
+    frame = result.pattern.pauli_frame
+
+    ancilla_nodes = frame.parity_check_group[0]
+    assert len(ancilla_nodes) == 1
+    assert set(frame.xflow) == set(frame.graphstate.meas_bases) - ancilla_nodes
+    assert all(targets.isdisjoint(ancilla_nodes) for targets in frame.xflow.values())
 
 
 def test_stim_text_to_pattern_appends_output_after_type_i_mpp_measurements() -> None:
@@ -251,7 +360,7 @@ def test_stim_text_to_pattern_imports_single_qubit_pauli_measurements(
 
 
 def test_stim_text_to_pattern_assigns_single_measurement_to_existing_wire_node() -> None:
-    result = stim_text_to_pattern("H 10\nTICK\nMX 10")
+    result = stim_text_to_pattern("QUBIT_COORDS(1, 2) 10\nH 10\nTICK\nMX 10")
     output_node = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 0)
     output_measurements = [
         command for command in result.pattern.commands if isinstance(command, M) and command.node == output_node
@@ -262,6 +371,67 @@ def test_stim_text_to_pattern_assigns_single_measurement_to_existing_wire_node()
     assert isinstance(output_measurements[0].meas_basis, AxisMeasBasis)
     assert output_measurements[0].meas_basis.axis == Axis.X
     assert output_measurements[0].meas_basis.sign == Sign.PLUS
+    assert result.pattern.pauli_frame.graphstate.coordinates[output_node] == (1.0, 2.0, 1.0)
+
+
+def test_stim_text_to_pattern_preserves_mpp_lane_coordinate_for_terminal_measurement() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(1, 2) 0
+        MPP X0
+        TICK
+        MX 0
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    output_node = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 0)
+    output_basis = graph.meas_bases[output_node]
+
+    assert graph.number_of_nodes() == 4
+    assert graph.coordinates[output_node] == (1.0, 2.0, 2.0)
+    assert isinstance(output_basis, AxisMeasBasis)
+    assert output_basis.axis == Axis.X
+
+
+def test_stim_text_to_pattern_places_gate_after_mpp_at_next_z_layer() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(1, 2) 0
+        MPP X0
+        TICK
+        H 0
+        TICK
+        MX 0
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    output_node = next(node for node, qubit in graph.output_node_indices.items() if qubit == 0)
+
+    assert graph.coordinates[output_node] == (1.0, 2.0, 3.0)
+    assert all(len(coord) == 3 for coord in graph.coordinates.values())
+    assert {coord[2] for coord in graph.coordinates.values()} == {0.0, 1.0, 2.0, 3.0}
+
+
+def test_stim_text_to_pattern_composes_gate_output_with_mpp_input_at_same_z() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        H 0
+        TICK
+        MPP X0*Z1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    input_coordinates = {qubit: graph.coordinates[node] for node, qubit in graph.input_node_indices.items()}
+    output_coordinates = {qubit: graph.coordinates[node] for node, qubit in graph.output_node_indices.items()}
+
+    assert input_coordinates == {0: (0.0, 0.0, 0.0), 1: (1.0, 0.0, 1.0)}
+    assert output_coordinates == {0: (0.0, 0.0, 3.0), 1: (1.0, 0.0, 3.0)}
+    assert {(coord[0], coord[2]) for coord in graph.coordinates.values()} >= {
+        (0.0, 1.0),
+        (1.0, 1.0),
+    }
 
 
 @pytest.mark.parametrize(
@@ -410,6 +580,48 @@ def test_stim_text_to_pattern_preserves_deterministic_mpp_detectors(text: str) -
     compiled.detector_error_model()
 
 
+@pytest.mark.parametrize("y_foliation", [YFoliation.TYPE_I, YFoliation.TYPE_II])
+def test_stim_text_to_pattern_preserves_detectors_for_twisted_stabilizer_orders(
+    y_foliation: YFoliation,
+) -> None:
+    pattern = stim_text_to_pattern(
+        """
+        MPP X0*Z1
+        MPP Z0*X1
+        TICK
+        MPP X0*Z1
+        DETECTOR rec[-1] rec[-3]
+        MPP Z0*X1
+        DETECTOR rec[-1] rec[-3]
+        """,
+        y_foliation=y_foliation,
+    ).pattern
+    compiled = stim.Circuit(stim_compile(pattern, emit_qubit_coords=False))
+
+    assert compiled.detector_error_model().num_detectors == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_ancilla_axis"),
+    [
+        ("RY 0\nTICK\nMPP Y0\nDETECTOR rec[-1]", Axis.Y),
+        ("RY 0 1\nTICK\nMPP Y0*Y1\nDETECTOR rec[-1]", Axis.X),
+    ],
+)
+def test_stim_text_to_pattern_preserves_deterministic_type_i_y_mpp_detector(
+    text: str,
+    expected_ancilla_axis: Axis,
+) -> None:
+    pattern = stim_text_to_pattern(text, y_foliation=YFoliation.TYPE_I).pattern
+    ancilla_node = next(iter(pattern.pauli_frame.parity_check_group[0]))
+    ancilla_basis = pattern.pauli_frame.graphstate.meas_bases[ancilla_node]
+    compiled = stim.Circuit(stim_compile(pattern, emit_qubit_coords=False))
+
+    assert isinstance(ancilla_basis, AxisMeasBasis)
+    assert ancilla_basis.axis == expected_ancilla_axis
+    compiled.detector_error_model()
+
+
 def test_stim_text_to_pattern_composes_mpp_output_into_next_mpp_input() -> None:
     result = stim_text_to_pattern("MPP X0\nTICK\nMPP X0")
     graph = result.pattern.pauli_frame.graphstate
@@ -438,10 +650,64 @@ def test_stim_text_to_pattern_rejects_mixed_measurement_and_unitary_block(measur
         stim_text_to_pattern(f"H 0\n{measurement}\n")
 
 
-@pytest.mark.parametrize("instruction", ["R 0", "RX 0", "RY 0", "MR 0", "MRX 0", "MRY 0"])
-def test_stim_text_to_pattern_defers_reset_instructions(instruction: str) -> None:
+@pytest.mark.parametrize(
+    ("instruction", "expected_axis", "compiled_instruction"),
+    [
+        ("R 0", Axis.Z, "R 0"),
+        ("RZ 0", Axis.Z, "R 0"),
+        ("RX 0", Axis.X, "RX 0"),
+        ("RY 0", Axis.Y, "RY 0"),
+    ],
+)
+def test_stim_text_to_pattern_imports_initial_reset(
+    instruction: str,
+    expected_axis: Axis,
+    compiled_instruction: str,
+) -> None:
+    result = stim_text_to_pattern(instruction)
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 0)
+
+    assert result.pattern.input_initialization_axes[input_node] == expected_axis
+    assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
+
+
+def test_stim_text_to_pattern_uses_last_leading_reset() -> None:
+    result = stim_text_to_pattern("R 0\nRY 0\nH 0")
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 0)
+
+    assert result.pattern.input_initialization_axes[input_node] == Axis.Y
+
+
+def test_stim_text_to_pattern_allows_initial_reset_after_other_qubit_operation() -> None:
+    result = stim_text_to_pattern("H 0\nR 1")
+    input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 1)
+
+    assert result.pattern.input_initialization_axes[input_node] == Axis.Z
+
+
+@pytest.mark.parametrize("instruction", ["R", "RX", "RY"])
+def test_stim_text_to_pattern_rejects_reset_after_quantum_operation(instruction: str) -> None:
+    with pytest.raises(ValueError, match="only initial resets are supported"):
+        stim_text_to_pattern(f"H 0\n{instruction} 0")
+
+
+@pytest.mark.parametrize("instruction", ["MR 0", "MRX 0", "MRY 0"])
+def test_stim_text_to_pattern_defers_measurement_reset_instructions(instruction: str) -> None:
     with pytest.raises(ValueError, match="Unsupported Stim instruction"):
         stim_text_to_pattern(instruction)
+
+
+def test_stim_text_to_pattern_rejects_duplicate_qubit_coordinates() -> None:
+    with pytest.raises(ValueError, match="distinct XY projections"):
+        stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nQUBIT_COORDS(0, 0) 1\nCZ 0 1")
+
+
+def test_stim_text_to_pattern_rejects_coordinates_sharing_an_xy_projection() -> None:
+    with pytest.raises(ValueError, match="distinct XY projections"):
+        stim_text_to_pattern(
+            "QUBIT_COORDS(0, 0, 1) 0\nQUBIT_COORDS(0, 0, 2) 1\nCZ 0 1",
+            coord_dims=3,
+        )
 
 
 def test_stim_text_to_pattern_rejects_qubit_reuse_after_single_measurement() -> None:

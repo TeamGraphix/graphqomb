@@ -83,7 +83,7 @@ def bloch_sphere_coordinates(vector: NDArray[np.complex128]) -> tuple[float, flo
 
     Returns
     -------
-    `tuple`\[`float`, `float`]
+    `tuple`\[`float`, `float`\]
         Bloch sphere coordinates (:math:`\theta`, :math:`\phi`)
     """
     # normalize
@@ -223,7 +223,7 @@ def meas_basis_info(vector: NDArray[np.complex128]) -> tuple[Plane, float]:
 
     Returns
     -------
-    `tuple`\[`Plane`, `float`]
+    `tuple`\[`Plane`, `float`\]
         measurement plane and angle
 
     Raises

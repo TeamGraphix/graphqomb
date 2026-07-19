@@ -216,6 +216,33 @@ class BaseFullStateSimulator(BaseSimulatorBackend):
         """
 
     @abc.abstractmethod
+    def sample_measure(
+        self,
+        qubit: int,
+        meas_basis: MeasBasis,
+        rng: np.random.Generator,
+    ) -> bool:
+        """Sample and apply a measurement.
+
+        Implementations should reuse the sampled projection when collapsing
+        the state when possible.
+
+        Parameters
+        ----------
+        qubit : `int`
+            The qubit to measure.
+        meas_basis : `MeasBasis`
+            The measurement basis to use.
+        rng : `numpy.random.Generator`
+            Random number generator used to sample the outcome.
+
+        Returns
+        -------
+        `bool`
+            The sampled measurement result.
+        """
+
+    @abc.abstractmethod
     def norm(self) -> float:
         r"""Get the current state vector norm.
 

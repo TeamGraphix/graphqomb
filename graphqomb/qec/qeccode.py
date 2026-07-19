@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from enum import Enum, auto
+from itertools import combinations
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from scipy.sparse import csr_array
@@ -11,7 +13,7 @@ from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 
 _TYPE_II_CHAIN_LENGTH = 3
@@ -94,7 +96,7 @@ def build_graph_state(
     data_as_io: bool = False,
     qubit_indices: Mapping[int, int] | None = None,
 ) -> StabilizerGraphStateBuildResult:
-    """Build a graph-state unit from a stabilizer code.
+    r"""Build a graph-state unit from a stabilizer code.
 
     Parameters
     ----------
@@ -106,12 +108,17 @@ def build_graph_state(
         uses two measurement layers; Type II uses three for Y support. When
         ``data_as_io`` is enabled, a separate output layer is appended.
     y_foliation : `YFoliation`, optional
-        Foliation variant. Type II uses a three-node Y-measured data chain only
-        for qubits that have an Hx=Hz=1 support in at least one stabilizer row.
+        Foliation variant. Type I measures each stabilizer ancilla in X when
+        its row has an even number of Y supports, including zero, and in Y
+        when the number is odd. Type II uses a three-node Y-measured data chain
+        only for qubits that have an Hx=Hz=1 support in at least one stabilizer
+        row. Both variants add a CZ between stabilizer ancillas when an odd
+        number of shared-data-qubit pairs have opposite local interaction
+        order under Z-before-Y-before-X ordering.
     data_as_io : `bool`, optional
         Whether to register the first stabilizer-measurement data nodes as
         inputs and append separate unmeasured output nodes, by default False.
-    qubit_indices : collections.abc.Mapping[int, int] | None, optional
+    qubit_indices : `collections.abc.Mapping`\[`int`, `int`\] | `None`, optional
         Mapping from stabilizer-code qubit columns to graph qindices when
         ``data_as_io`` is enabled. If omitted, code qubit columns are used.
 
@@ -272,23 +279,22 @@ def _add_ancilla_nodes(
         Mapping from stabilizer row index to graph node.
     """
     ancilla_nodes: dict[int, int] = {}
-    hx = code.hx.copy()
-    hz = code.hz.copy()
-    hx.eliminate_zeros()
-    hz.eliminate_zeros()
-    for stabilizer in range(code.num_stabilizers):
+    supports = _stabilizer_supports(code)
+    y_meas_basis = AxisMeasBasis(Axis.Y, Sign.PLUS)
+    for stabilizer, support in enumerate(supports):
         explicit_ancilla_coord = _explicit_ancilla_coordinate(code, stabilizer)
         ancilla_node = graph.add_node(coordinate=explicit_ancilla_coord)
-        graph.assign_meas_basis(ancilla_node, meas_basis)
+        has_odd_y_support = len(support.hx & support.hz) % 2 == 1
+        ancilla_meas_basis = (
+            y_meas_basis if data_layer_plan.y_foliation is YFoliation.TYPE_I and has_odd_y_support else meas_basis
+        )
+        graph.assign_meas_basis(ancilla_node, ancilla_meas_basis)
         ancilla_nodes[stabilizer] = ancilla_node
 
         connected_data_nodes = _connect_stabilizer_support(
             graph,
             ancilla_node=ancilla_node,
-            support=_StabilizerSupport(
-                hx=set(_row_support(hx, stabilizer)),
-                hz=set(_row_support(hz, stabilizer)),
-            ),
+            support=support,
             data_nodes=data_nodes,
             data_layer_plan=data_layer_plan,
         )
@@ -298,7 +304,51 @@ def _add_ancilla_nodes(
             if inferred_coord is not None:
                 graph.set_coordinate(ancilla_node, inferred_coord)
 
+    for left_stabilizer, right_stabilizer in _twisted_stabilizer_pairs(supports):
+        graph.add_edge(ancilla_nodes[left_stabilizer], ancilla_nodes[right_stabilizer])
+
     return ancilla_nodes
+
+
+def _twisted_stabilizer_pairs(supports: Sequence[_StabilizerSupport]) -> list[tuple[int, int]]:
+    """Return stabilizer pairs whose ancillas require a CZ edge.
+
+    Local interactions on each shared data qubit are ordered Z, Y, then X.
+    For a stabilizer pair, let ``forward`` and ``reverse`` be the numbers of
+    shared qubits with the two possible strict orders. The number of twisted
+    qubit pairs is ``forward * reverse``, so only the parity of each direction
+    is required. Equal-Pauli overlaps have no strict order and are ignored.
+
+    Candidate stabilizer pairs are generated from per-qubit incidence lists,
+    avoiding a scan over all stabilizer pairs when supports are sparse.
+
+    Returns
+    -------
+    `list`[`tuple`[`int`, `int`]]
+        Sorted stabilizer-row pairs requiring an ancilla CZ edge.
+    """
+    incidences_by_qubit: dict[int, list[tuple[int, int]]] = defaultdict(list)
+    for stabilizer, support in enumerate(supports):
+        qubits_by_order = (
+            support.hz - support.hx,
+            support.hx & support.hz,
+            support.hx - support.hz,
+        )
+        for order, qubits in enumerate(qubits_by_order):
+            for qubit in qubits:
+                incidences_by_qubit[qubit].append((stabilizer, order))
+
+    # Incidence lists are in ascending stabilizer order, so combinations
+    # always yield stabilizer_a < stabilizer_b.
+    parities: dict[tuple[int, int], list[bool]] = defaultdict(lambda: [False, False])
+    for incidences in incidences_by_qubit.values():
+        for (stabilizer_a, order_a), (stabilizer_b, order_b) in combinations(incidences, 2):
+            if order_a == order_b:
+                continue
+            direction = 0 if order_a < order_b else 1
+            parities[stabilizer_a, stabilizer_b][direction] ^= True
+
+    return sorted(pair for pair, (forward_odd, reverse_odd) in parities.items() if forward_odd and reverse_odd)
 
 
 def _connect_stabilizer_support(
@@ -339,15 +389,31 @@ def _type_ii_support_layer(layers: tuple[int, ...], *, has_x: bool, has_z: bool)
     return layers[2]
 
 
-def _qubits_with_y_support(code: StabilizerCode) -> set[int]:
+def _stabilizer_supports(code: StabilizerCode) -> list[_StabilizerSupport]:
+    """Return sparse X/Z support sets for every stabilizer row.
+
+    Returns
+    -------
+    `list`[`_StabilizerSupport`]
+        Support sets indexed by stabilizer row.
+    """
     hx = code.hx.copy()
     hz = code.hz.copy()
     hx.eliminate_zeros()
     hz.eliminate_zeros()
+    return [
+        _StabilizerSupport(
+            hx=set(_row_support(hx, stabilizer)),
+            hz=set(_row_support(hz, stabilizer)),
+        )
+        for stabilizer in range(code.num_stabilizers)
+    ]
 
+
+def _qubits_with_y_support(code: StabilizerCode) -> set[int]:
     y_qubits: set[int] = set()
-    for stabilizer in range(code.num_stabilizers):
-        y_qubits.update(set(_row_support(hx, stabilizer)) & set(_row_support(hz, stabilizer)))
+    for support in _stabilizer_supports(code):
+        y_qubits.update(support.hx & support.hz)
     return y_qubits
 
 

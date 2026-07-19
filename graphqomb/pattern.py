@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from graphqomb.command import TICK, Command, E, M, N
+from graphqomb.common import Axis
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -39,13 +40,16 @@ class Pattern(Sequence[Command]):
         Pauli frame of the pattern to track the Pauli state of each node
     input_coordinates : `dict`\[`int`, `tuple`\[`float`, ...\]\]
         Coordinates for input nodes (2D or 3D)
+    input_initialization_axes : `dict`\[`int`, `Axis`\]
+        Pauli initialization axes for input nodes. Missing inputs default to Axis.X.
     """
 
     input_node_indices: dict[int, int]
     output_node_indices: dict[int, int]
     commands: tuple[Command, ...]
     pauli_frame: PauliFrame
-    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict)
+    input_coordinates: dict[int, tuple[float, ...]] = dataclasses.field(default_factory=dict[int, tuple[float, ...]])
+    input_initialization_axes: dict[int, Axis] = dataclasses.field(default_factory=dict[int, Axis])
 
     def __len__(self) -> int:
         return len(self.commands)

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
 
-from graphqomb.common import Plane, PlannerMeasBasis
+from graphqomb.common import Axis, Plane, PlannerMeasBasis
 from graphqomb.euler import LocalClifford
 from graphqomb.graphstate import GraphState, bipartite_edges, compose, odd_neighbors
 
@@ -100,6 +101,33 @@ def test_add_node_input_output(graph: GraphState) -> None:
     assert node_index in graph.output_node_indices
     assert graph.input_node_indices[node_index] == q_index
     assert graph.output_node_indices[node_index] == q_index
+
+
+def test_register_input_defaults_to_x_initialization_axis(graph: GraphState) -> None:
+    """Input nodes default to positive X-basis initialization."""
+    node_index = graph.add_node()
+
+    graph.register_input(node_index, 0)
+
+    assert graph.input_initialization_axes == {node_index: Axis.X}
+
+
+def test_register_input_accepts_pauli_initialization_axis(graph: GraphState) -> None:
+    """Input nodes can be initialized in a positive Pauli eigenstate."""
+    node_index = graph.add_node()
+
+    graph.register_input(node_index, 0, init_axis=Axis.Y)
+
+    assert graph.input_initialization_axes == {node_index: Axis.Y}
+
+
+def test_register_input_rejects_non_axis_initialization(graph: GraphState) -> None:
+    """Input registration rejects values outside the Axis enum."""
+    node_index = graph.add_node()
+    invalid_axis: Any = "X"
+
+    with pytest.raises(TypeError, match="Input initialization axis must be one of"):
+        graph.register_input(node_index, 0, init_axis=invalid_axis)
 
 
 def test_ensure_node_exists_raises(graph: GraphState) -> None:

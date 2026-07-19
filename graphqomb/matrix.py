@@ -8,22 +8,20 @@ This module provides:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-T = TypeVar("T", bound=np.number[Any])  # can be removed >= 3.10
 
-
-def is_unitary(mat: NDArray[T]) -> bool:
+def is_unitary(mat: NDArray[np.number[Any]]) -> bool:
     r"""Check if a matrix is unitary.
 
     Parameters
     ----------
-    mat : `numpy.typing.NDArray`\[T\]
+    mat : `numpy.typing.NDArray`\[`numpy.number`\]
         matrix to check
 
     Returns
@@ -36,12 +34,12 @@ def is_unitary(mat: NDArray[T]) -> bool:
     return np.allclose(np.eye(mat.shape[0]), mat @ mat.T.conj())
 
 
-def is_hermitian(mat: NDArray[T]) -> bool:
+def is_hermitian(mat: NDArray[np.number[Any]]) -> bool:
     r"""Check if a matrix is Hermitian.
 
     Parameters
     ----------
-    mat : `numpy.typing.NDArray`\[T\]
+    mat : `numpy.typing.NDArray`\[`numpy.number`\]
         matrix to check
 
     Returns

@@ -38,7 +38,8 @@ from graphqomb.pauli_frame import PauliFrame
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-PTN_VERSION = 1
+PTN_VERSION = 2
+SUPPORTED_PTN_VERSIONS = frozenset({1, PTN_VERSION})
 
 # Angle formatting/parsing lookup tables
 _ANGLE_TO_STR: dict[float, str] = {
@@ -178,6 +179,13 @@ def _write_header(out: StringIO, pattern: Pattern) -> None:
             f"{node}:{qidx}" for node, qidx in sorted(pattern.input_node_indices.items(), key=operator.itemgetter(1))
         ]
         out.write(f".input {' '.join(input_parts)}\n")
+        input_basis_parts = [
+            f"{node}:{axis.name}"
+            for node, _qidx in sorted(pattern.input_node_indices.items(), key=operator.itemgetter(1))
+            if (axis := pattern.input_initialization_axes.get(node, Axis.X)) is not Axis.X
+        ]
+        if input_basis_parts:
+            out.write(f".input_basis {' '.join(input_basis_parts)}\n")
 
     if pattern.output_node_indices:
         output_parts = [
@@ -381,6 +389,38 @@ def _parse_node_qubit_pairs(parts: Sequence[str]) -> dict[int, int]:
     return result
 
 
+def _parse_node_axis_pairs(parts: Sequence[str]) -> dict[int, Axis]:
+    r"""Parse node:axis pairs from string parts.
+
+    Returns
+    -------
+    `dict`\[`int`, `Axis`\]
+        Mapping from node to Pauli axis.
+
+    Raises
+    ------
+    ValueError
+        If any pair is malformed, duplicated, or uses an invalid axis.
+    """
+    result: dict[int, Axis] = {}
+    for part in parts:
+        pair = part.split(":")
+        if len(pair) != 2:  # ruff:ignore[magic-value-comparison]
+            msg = f"Invalid node:axis pair: {part!r}"
+            raise ValueError(msg)
+        node_str, axis_str = pair
+        node = _parse_int(node_str, "node")
+        if node in result:
+            msg = f"Duplicate input basis node: {node}"
+            raise ValueError(msg)
+        try:
+            result[node] = Axis[axis_str]
+        except KeyError as exc:
+            msg = f"Invalid input basis axis: {axis_str!r}"
+            raise ValueError(msg) from exc
+    return result
+
+
 def _parse_node_set(parts: Sequence[str], label: str) -> set[int]:
     r"""Parse a non-empty set of node ids.
 
@@ -432,61 +472,6 @@ def _parse_arrow_mapping(line: str, label: str) -> tuple[int, set[int]]:
     return source, targets
 
 
-def _empty_node_index_map() -> dict[int, int]:
-    r"""Return an empty node-to-qubit-index map.
-
-    Returns
-    -------
-    `dict`\[`int`, `int`\]
-        Empty node-to-qubit-index map.
-    """
-    return {}
-
-
-def _empty_coordinates() -> dict[int, tuple[float, ...]]:
-    r"""Return an empty coordinate map.
-
-    Returns
-    -------
-    `dict`\[`int`, `tuple`\[`float`, ...\]\]
-        Empty coordinate map.
-    """
-    return {}
-
-
-def _empty_commands() -> list[Command]:
-    r"""Return an empty command list.
-
-    Returns
-    -------
-    `list`\[`Command`\]
-        Empty command list.
-    """
-    return []
-
-
-def _empty_node_set_map() -> dict[int, set[int]]:
-    r"""Return an empty node-to-node-set map.
-
-    Returns
-    -------
-    `dict`\[`int`, `set`\[`int`\]\]
-        Empty node-to-node-set map.
-    """
-    return {}
-
-
-def _empty_node_groups() -> list[set[int]]:
-    r"""Return an empty node group list.
-
-    Returns
-    -------
-    `list`\[`set`\[`int`\]\]
-        Empty node group list.
-    """
-    return []
-
-
 @dataclass(slots=True)
 class _PatternData:
     """Container for parsed pattern data from .ptn format.
@@ -499,6 +484,8 @@ class _PatternData:
         Mapping from node to qubit index for output nodes.
     input_coordinates : `dict`[`int`, `tuple`[`float`, ...]]
         Coordinates for input nodes.
+    input_initialization_axes : `dict`[`int`, `Axis`]
+        Pauli initialization axes for input nodes.
     commands : `list`[`Command`]
         List of quantum commands.
     xflow : `dict`[`int`, `set`[`int`]]
@@ -509,14 +496,15 @@ class _PatternData:
         Parity check groups for error detection.
     """
 
-    input_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
-    output_node_indices: dict[int, int] = field(default_factory=_empty_node_index_map)
-    input_coordinates: dict[int, tuple[float, ...]] = field(default_factory=_empty_coordinates)
-    commands: list[Command] = field(default_factory=_empty_commands)
-    xflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
-    zflow: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
-    parity_check_groups: list[set[int]] = field(default_factory=_empty_node_groups)
-    logical_observables: dict[int, set[int]] = field(default_factory=_empty_node_set_map)
+    input_node_indices: dict[int, int] = field(default_factory=dict[int, int])
+    output_node_indices: dict[int, int] = field(default_factory=dict[int, int])
+    input_coordinates: dict[int, tuple[float, ...]] = field(default_factory=dict[int, tuple[float, ...]])
+    input_initialization_axes: dict[int, Axis] = field(default_factory=dict[int, Axis])
+    commands: list[Command] = field(default_factory=list[Command])
+    xflow: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
+    zflow: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
+    parity_check_groups: list[set[int]] = field(default_factory=list[set[int]])
+    logical_observables: dict[int, set[int]] = field(default_factory=dict[int, set[int]])
 
 
 @dataclass(slots=True)
@@ -529,6 +517,7 @@ class _LoadedGraphState(BaseGraphState):
     _edges: set[tuple[int, int]]
     _meas_bases: dict[int, MeasBasis]
     _coordinates: dict[int, tuple[float, ...]]
+    _input_initialization_axes: dict[int, Axis]
     _neighbors: dict[int, set[int]] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -538,6 +527,7 @@ class _LoadedGraphState(BaseGraphState):
         self._edges = {(node1, node2) if node1 < node2 else (node2, node1) for node1, node2 in self._edges}
         self._meas_bases = dict(self._meas_bases)
         self._coordinates = dict(self._coordinates)
+        self._input_initialization_axes = dict(self._input_initialization_axes)
         self._neighbors: dict[int, set[int]] = {node: set() for node in self._nodes}
         for node1, node2 in self._edges:
             self._neighbors.setdefault(node1, set()).add(node2)
@@ -546,6 +536,10 @@ class _LoadedGraphState(BaseGraphState):
     @property
     def input_node_indices(self) -> dict[int, int]:
         return self._input_node_indices.copy()
+
+    @property
+    def input_initialization_axes(self) -> dict[int, Axis]:
+        return self._input_initialization_axes.copy()
 
     @property
     def output_node_indices(self) -> dict[int, int]:
@@ -575,7 +569,7 @@ class _LoadedGraphState(BaseGraphState):
         msg = "Loaded .ptn graph states are read-only"
         raise NotImplementedError(msg)
 
-    def register_input(self, node: int, q_index: int) -> None:
+    def register_input(self, node: int, q_index: int, *, init_axis: Axis = Axis.X) -> None:
         msg = "Loaded .ptn graph states are read-only"
         raise NotImplementedError(msg)
 
@@ -615,6 +609,27 @@ def _command_nodes(cmd: Command) -> set[int]:
     return set()
 
 
+def _input_initialization_axes_from_data(data: _PatternData) -> dict[int, Axis]:
+    r"""Validate and normalize parsed input initialization axes.
+
+    Returns
+    -------
+    `dict`\[`int`, `Axis`\]
+        Normalized input initialization axes.
+
+    Raises
+    ------
+    ValueError
+        If an input basis is specified for a non-input node.
+    """
+    non_input_basis_nodes = set(data.input_initialization_axes) - set(data.input_node_indices)
+    if non_input_basis_nodes:
+        msg = f"Input basis specified for non-input node(s): {sorted(non_input_basis_nodes)}"
+        raise ValueError(msg)
+
+    return {node: data.input_initialization_axes.get(node, Axis.X) for node in data.input_node_indices}
+
+
 def _build_pattern(data: _PatternData) -> Pattern:
     """Build a Pattern from parsed .ptn data.
 
@@ -628,6 +643,8 @@ def _build_pattern(data: _PatternData) -> Pattern:
     ValueError
         If parsed commands contain invalid graph structure.
     """
+    input_initialization_axes = _input_initialization_axes_from_data(data)
+
     nodes: set[int] = set(data.input_node_indices) | set(data.output_node_indices) | set(data.input_coordinates)
     edges: set[tuple[int, int]] = set()
     meas_bases: dict[int, MeasBasis] = {}
@@ -665,6 +682,7 @@ def _build_pattern(data: _PatternData) -> Pattern:
         _edges=edges,
         _meas_bases=meas_bases,
         _coordinates=coordinates,
+        _input_initialization_axes=input_initialization_axes,
     )
     pauli_frame = PauliFrame(
         graphstate,
@@ -679,6 +697,7 @@ def _build_pattern(data: _PatternData) -> Pattern:
         commands=tuple(data.commands),
         pauli_frame=pauli_frame,
         input_coordinates=dict(data.input_coordinates),
+        input_initialization_axes=input_initialization_axes,
     )
 
 
@@ -688,7 +707,7 @@ class _Parser:
     def __init__(self) -> None:
         self.result = _PatternData()
         self.current_timeslice = -1
-        self.version_found = False
+        self.version: int | None = None
 
     def parse(self, s: str) -> Pattern:
         r"""Parse the input string and return Pattern.
@@ -711,8 +730,11 @@ class _Parser:
         for line_num, raw_line in enumerate(s.splitlines(), 1):
             self._parse_line(line_num, raw_line)
 
-        if not self.version_found:
+        if self.version is None:
             msg = "Missing .version directive"
+            raise ValueError(msg)
+        if self.version == 1 and self.result.input_initialization_axes:
+            msg = ".input_basis requires .ptn version 2 or later"
             raise ValueError(msg)
 
         return _build_pattern(self.result)
@@ -759,6 +781,8 @@ class _Parser:
             self._handle_version(content)
         elif directive == ".input":
             self.result.input_node_indices = _parse_node_qubit_pairs(content.split())
+        elif directive == ".input_basis":
+            self.result.input_initialization_axes = _parse_node_axis_pairs(content.split())
         elif directive == ".output":
             self.result.output_node_indices = _parse_node_qubit_pairs(content.split())
         elif directive == ".coord":
@@ -787,10 +811,11 @@ class _Parser:
             If the version is unsupported.
         """
         version = _parse_int(content, "version")
-        if version != PTN_VERSION:
-            msg = f"Unsupported .ptn version: {version} (expected {PTN_VERSION})"
+        if version not in SUPPORTED_PTN_VERSIONS:
+            supported = ", ".join(str(supported_version) for supported_version in sorted(SUPPORTED_PTN_VERSIONS))
+            msg = f"Unsupported .ptn version: {version} (supported: {supported})"
             raise ValueError(msg)
-        self.version_found = True
+        self.version = version
 
     def _handle_coord(self, content: str) -> None:
         """Handle .coord directive.
