@@ -181,7 +181,7 @@ def _write_header(out: StringIO, pattern: Pattern) -> None:
         out.write(f".input {' '.join(input_parts)}\n")
         input_basis_parts = [
             f"{node}:{axis.name}"
-            for node, qidx in sorted(pattern.input_node_indices.items(), key=operator.itemgetter(1))
+            for node, _qidx in sorted(pattern.input_node_indices.items(), key=operator.itemgetter(1))
             if (axis := pattern.input_initialization_axes.get(node, Axis.X)) is not Axis.X
         ]
         if input_basis_parts:

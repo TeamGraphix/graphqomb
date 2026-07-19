@@ -225,7 +225,7 @@ def signal_shifting(
 
     Returns
     -------
-    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
+    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]\]
         Updated correction maps for X and Z after signal shifting.
     """
     if zflow is None:
@@ -268,7 +268,7 @@ def propagate_correction_map(  # noqa: C901, PLR0912
 
     Returns
     -------
-    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
+    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]\]
         Updated correction maps for X and Z after measurement at the target node.
 
     Raises
@@ -351,7 +351,7 @@ def pauli_simplification(  # noqa: C901, PLR0912
 
     Returns
     -------
-    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]]
+    `tuple`\[`dict`\[`int`, `set`\[`int`\]\], `dict`\[`int`, `set`\[`int`\]\]\]
         Updated correction maps for X and Z after simplification.
     """
     if zflow is None:

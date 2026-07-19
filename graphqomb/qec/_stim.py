@@ -21,25 +21,25 @@ PauliSupport = tuple[tuple[int, str], ...]
 
 @dataclass(frozen=True)
 class StimMppExtraction:
-    """Stabilizer-code data extracted from Stim MPP products.
+    r"""Stabilizer-code data extracted from Stim MPP products.
 
     Attributes
     ----------
     code : StabilizerCode
         Dense-column stabilizer code using the ``[Hx | Hz]`` convention.
-    stim_to_column : dict[int, int]
+    stim_to_column : `dict`\[`int`, `int`\]
         Mapping from original Stim qubit ids to dense matrix columns.
-    column_to_stim : dict[int, int]
+    column_to_stim : `dict`\[`int`, `int`\]
         Inverse dense-column mapping.
-    supports : tuple[PauliSupport, ...]
+    supports : `tuple`\[``PauliSupport``, ...\]
         Original Stim Pauli supports, one support per stabilizer row.
-    detector_rows : tuple[frozenset[int], ...]
+    detector_rows : `tuple`\[`frozenset`\[`int`\], ...\]
         Detector groups as selected-MPP stabilizer row indices.
-    logical_observable_rows : dict[int, frozenset[int]]
+    logical_observable_rows : `dict`\[`int`, `frozenset`\[`int`\]\]
         Logical observables as selected-MPP stabilizer row indices.
-    detector_record_indices : tuple[frozenset[int], ...]
+    detector_record_indices : `tuple`\[`frozenset`\[`int`\], ...\]
         Absolute Stim measurement-record indices for selected detectors.
-    logical_observable_record_indices : dict[int, frozenset[int]]
+    logical_observable_record_indices : `dict`\[`int`, `frozenset`\[`int`\]\]
         Absolute Stim record indices for selected logical observables.
     """
 
@@ -53,21 +53,21 @@ class StimMppExtraction:
     logical_observable_record_indices: dict[int, frozenset[int]] = field(default_factory=dict)
 
     def detector_groups(self, ancilla_nodes: Mapping[int, int]) -> list[set[int]]:
-        """Return detector groups mapped to graph node ids for ``qompile``.
+        r"""Return detector groups mapped to graph node ids for ``qompile``.
 
         Returns
         -------
-        list[set[int]]
+        `list`\[`set`\[`int`\]\]
             Detector groups suitable for ``qompile``.
         """
         return [_map_rows_to_nodes(rows, ancilla_nodes, "detector") for rows in self.detector_rows]
 
     def logical_observables(self, ancilla_nodes: Mapping[int, int]) -> dict[int, set[int]]:
-        """Return logical observables mapped to graph node ids for ``qompile``.
+        r"""Return logical observables mapped to graph node ids for ``qompile``.
 
         Returns
         -------
-        dict[int, set[int]]
+        `dict`\[`int`, `set`\[`int`\]\]
             Logical-observable node groups keyed by Stim observable index.
         """
         return {

@@ -96,7 +96,7 @@ def build_graph_state(
     data_as_io: bool = False,
     qubit_indices: Mapping[int, int] | None = None,
 ) -> StabilizerGraphStateBuildResult:
-    """Build a graph-state unit from a stabilizer code.
+    r"""Build a graph-state unit from a stabilizer code.
 
     Parameters
     ----------
@@ -118,7 +118,7 @@ def build_graph_state(
     data_as_io : `bool`, optional
         Whether to register the first stabilizer-measurement data nodes as
         inputs and append separate unmeasured output nodes, by default False.
-    qubit_indices : collections.abc.Mapping[int, int] | None, optional
+    qubit_indices : `collections.abc.Mapping`\[`int`, `int`\] | `None`, optional
         Mapping from stabilizer-code qubit columns to graph qindices when
         ``data_as_io`` is enabled. If omitted, code qubit columns are used.
 
