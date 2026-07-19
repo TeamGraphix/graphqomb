@@ -166,7 +166,9 @@ class PatternSimulator:
             raise ValueError(msg)
 
     @functools.singledispatchmethod
-    def apply_cmd(self, cmd: Command, *, rng: np.random.Generator) -> None:
+    def apply_cmd(  # ruff:ignore[no-self-use]
+        self, cmd: Command, *, rng: np.random.Generator
+    ) -> None:
         """Apply a command to the state.
 
         Parameters
@@ -181,7 +183,7 @@ class PatternSimulator:
         TypeError
             If the command type is not supported by the simulator.
         """
-        _ = self, rng
+        _ = rng
         msg = f"Unsupported command for pattern simulation: {type(cmd).__name__}"
         raise TypeError(msg)
 
