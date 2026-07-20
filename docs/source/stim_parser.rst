@@ -51,6 +51,9 @@ their measurement-record targets. Noise, non-Clifford instructions,
 measurement-reset instructions, MPP measurements, and classically controlled
 targets are rejected.
 
+Hermitian ``SPP`` products may contain the same qubit more than once. Their
+ordered Pauli factors and target inversions retain Stim's product semantics.
+
 With ``optimize=True``, every maximal single-qubit gate run is replaced by
 the shortest equivalent word over the four J gates, so any single-qubit
 Clifford costs at most three J primitives (three graph nodes in the compiled

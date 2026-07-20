@@ -219,38 +219,53 @@ def _optimize_circuit(
 def _cancel_redundant_gates(gates: list[_AtomicGate]) -> list[_AtomicGate]:
     result = list(gates)
     while True:
-        normalized = _normalize_one_single_qubit_run(result)
-        if normalized is not None:
-            result = normalized
-            continue
+        result = _normalize_single_qubit_runs(result)
         cancelled = _cancel_one_cz_pair(result)
         if cancelled is None:
             return result
         result = cancelled
 
 
-def _normalize_one_single_qubit_run(gates: list[_AtomicGate]) -> list[_AtomicGate] | None:
-    for head_index, head in enumerate(gates):
-        if head.name not in _LOCAL_BASIS_GATES:
+def _single_qubit_runs(gates: list[_AtomicGate]) -> list[list[int]]:
+    active_positions: dict[int, list[int]] = {}
+    runs: list[list[int]] = []
+    for index, gate in enumerate(gates):
+        if gate.name in _LOCAL_BASIS_GATES:
+            active_positions.setdefault(gate.targets[0], []).append(index)
             continue
-        qubit = head.targets[0]
-        if not _is_local_run_head(gates, head_index, qubit=qubit):
+        for qubit in gate.targets:
+            positions = active_positions.pop(qubit, None)
+            if positions is not None:
+                runs.append(positions)
+    runs.extend(active_positions.values())
+    return runs
+
+
+def _normalize_single_qubit_runs(gates: list[_AtomicGate]) -> list[_AtomicGate]:
+    replacements: dict[int, tuple[_AtomicGate, ...]] = {}
+    removed_positions: set[int] = set()
+    for positions in _single_qubit_runs(gates):
+        if len(positions) == 1:
             continue
-        positions = [head_index, *_local_word_after(gates, head_index, qubit=qubit)]
         word = tuple(gates[index].name for index in positions)
         canonical = _single_qubit_normal_forms().unitary[_tableau_key(_single_qubit_tableau(word))]
         if canonical == word:
             continue
+        head = gates[positions[0]]
+        qubit = head.targets[0]
         replacement = tuple(_AtomicGate(name, (qubit,), head.tag) for name in canonical)
-        return _replace_gate_positions(gates, positions, replacement)
-    return None
+        replacements[positions[0]] = replacement
+        removed_positions.update(positions)
 
-
-def _is_local_run_head(gates: list[_AtomicGate], index: int, *, qubit: int) -> bool:
-    for candidate in reversed(gates[:index]):
-        if qubit in candidate.qubits:
-            return candidate.name not in _LOCAL_BASIS_GATES
-    return True
+    if not replacements:
+        return gates
+    result: list[_AtomicGate] = []
+    for index, gate in enumerate(gates):
+        if index in replacements:
+            result.extend(replacements[index])
+        if index not in removed_positions:
+            result.append(gate)
+    return result
 
 
 def _cancel_one_cz_pair(gates: list[_AtomicGate]) -> list[_AtomicGate] | None:
@@ -716,23 +731,15 @@ def _append_spp_decomposition(
             msg = f"Instruction {instruction.name!r} at {location} has an empty Pauli product."
             raise UnsupportedInstructionError(msg)
 
-        original_qubits: list[int] = []
+        original_qubits = sorted({target.value for target in group})
+        qubit_to_local = {qubit: index for index, qubit in enumerate(original_qubits)}
         local_targets: list[stim.GateTarget] = []
-        seen_qubits: set[int] = set()
 
-        for local_index, target in enumerate(group):
+        for factor_index, target in enumerate(group):
             pauli = target.pauli_type
             if pauli not in {"X", "Y", "Z"}:
                 msg = f"Instruction {instruction.name!r} at {location} has unsupported Pauli target {target!s}."
                 raise UnsupportedInstructionError(msg)
-            if target.value in seen_qubits:
-                msg = (
-                    f"Instruction {instruction.name!r} at {location} targets qubit {target.value} "
-                    "more than once in one Pauli product."
-                )
-                raise UnsupportedInstructionError(msg)
-            seen_qubits.add(target.value)
-            original_qubits.append(target.value)
 
             factory = {
                 "X": stim.target_x,
@@ -741,16 +748,20 @@ def _append_spp_decomposition(
             }[pauli]
             local_targets.append(
                 factory(
-                    local_index,
+                    qubit_to_local[target.value],
                     invert=target.is_inverted_result_target,
                 )
             )
-            if local_index + 1 != len(group):
+            if factor_index + 1 != len(group):
                 local_targets.append(stim.target_combiner())
 
         local_circuit = stim.Circuit()
         local_circuit.append(instruction.name, local_targets)
-        template = stim.Tableau.from_circuit(local_circuit).to_circuit(method="elimination")
+        try:
+            template = stim.Tableau.from_circuit(local_circuit).to_circuit(method="elimination")
+        except ValueError as ex:
+            msg = f"Instruction {instruction.name!r} at {location} has an invalid Pauli product: {ex}"
+            raise UnsupportedInstructionError(msg) from ex
         _append_template(
             output,
             template,

@@ -96,6 +96,22 @@ def test_pauli_product_rotations(gate_name: str) -> None:
     assert_same_tableau(result, source)
 
 
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_pauli_product_rotations_support_repeated_qubits(gate_name: str) -> None:
+    source = stim.Circuit(f"{gate_name} X5*X5*Z2 X1*Y1*Y2*Z2 X0*!X0")
+
+    result = transpile(source)
+
+    assert_only_graphqomb_basis(result)
+    assert_same_tableau(result, source)
+
+
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_pauli_product_rotations_reject_anti_hermitian_products(gate_name: str) -> None:
+    with pytest.raises(UnsupportedInstructionError, match="invalid Pauli product"):
+        transpile(f"{gate_name} X0*Y0")
+
+
 def test_repeat_blocks_annotations_and_tags_are_preserved() -> None:
     source = stim.Circuit(
         """
@@ -177,6 +193,16 @@ def test_optimizer_cancels_basis_gates_across_commuting_operations() -> None:
     )
 
     assert len(optimize_j_cz(source)) == 0
+
+
+def test_optimizer_batch_normalizes_many_disjoint_single_qubit_runs() -> None:
+    qubit_count = 2048
+    source = stim.Circuit()
+    source.append("H", range(qubit_count))
+    source.append("H", range(qubit_count))
+    source.append(HS_STIM_GATE, [qubit_count])
+
+    assert optimize_j_cz(source) == stim.Circuit(f"{HS_STIM_GATE} {qubit_count}")
 
 
 def test_optimizer_treats_tick_as_a_barrier_and_recurses_into_repeat() -> None:

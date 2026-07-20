@@ -64,6 +64,15 @@ def test_stim_text_to_pattern_imports_pauli_product_rotations(gate_name: str) ->
     assert set(result.pattern.output_node_indices.values()) == {0, 1, 2}
 
 
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_stim_text_to_pattern_imports_repeated_qubit_pauli_products(gate_name: str) -> None:
+    result = stim_text_to_pattern(f"{gate_name} X0*X0*Z1")
+
+    assert result.stim_to_qubit == {0: 0, 1: 1}
+    assert set(result.pattern.input_node_indices.values()) == {0, 1}
+    assert set(result.pattern.output_node_indices.values()) == {0, 1}
+
+
 def test_stim_text_to_pattern_cancels_repeated_cz_in_one_tick_block() -> None:
     result = stim_text_to_pattern(
         """
