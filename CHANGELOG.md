@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Stim Clifford Parser**: Added `graphqomb.stim_parser` for normalizing Stim Clifford circuits to the Clifford `J`/`CZ` basis: `H = J(0)`, `HS = J(pi/2)` (Stim `C_XNYZ`), `HZ = J(pi)` (Stim `SQRT_Y`), and `HS_DAG = J(-pi/2)` (Stim `C_XYZ`), corresponding to X+/Y+/X-/Y- measurements. The parser covers fixed one- and two-qubit Clifford gates, `SPP`/`SPP_DAG`, nested repeats, `R`/`RX`/`RY` and `M`/`MX`/`MY` boundaries, preserved record/annotation instructions, and detailed rejection of unsupported instructions. Optimization canonicalizes every single-qubit gate run to its shortest word over the four `J` gates (at most three per single-qubit Clifford), cancels redundant `CZ` pairs, and folds gates at those Pauli reset and measurement boundaries.
-- **HS Gate**: Added `graphqomb.gates.HS`, applied via `Circuit.apply_macro_gate`. The gate expands to exactly one `J(pi/2)` primitive.
 
 ### Changed
 

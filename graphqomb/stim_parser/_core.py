@@ -217,19 +217,6 @@ def _optimize_circuit(
 
 
 def _cancel_redundant_gates(gates: list[_AtomicGate]) -> list[_AtomicGate]:
-    r"""Canonicalize single-qubit runs and cancel redundant CZ gates.
-
-    Every maximal run of single-qubit basis gates on one qubit (operations on
-    disjoint qubits may interleave) is replaced by the shortest word over the
-    Clifford J gates with the same Clifford action, which removes identities
-    such as H^2 and (HS)^3. CZ pairs cancel across intervening operations
-    that commute with CZ.
-
-    Returns
-    -------
-    `list`\[`_AtomicGate`\]
-        The simplified gate list.
-    """
     result = list(gates)
     while True:
         normalized = _normalize_one_single_qubit_run(result)
@@ -678,18 +665,6 @@ def _validate_plain_qubit_targets(
 
 
 def _qubit_value(target: stim.GateTarget) -> int:
-    """Return a validated qubit target value.
-
-    Returns
-    -------
-    `int`
-        The qubit index.
-
-    Raises
-    ------
-    AssertionError
-        If an internally validated target has no qubit value.
-    """
     value = target.qubit_value
     if value is None:
         msg = f"Expected a qubit target, got {target!s}."
