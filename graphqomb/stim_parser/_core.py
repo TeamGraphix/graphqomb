@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from dataclasses import dataclass
 from functools import cache
@@ -10,7 +11,19 @@ from typing import Literal
 import stim
 
 HS_STIM_GATE = "C_XNYZ"
-_LOCAL_BASIS_GATES = frozenset({"H", HS_STIM_GATE})
+HZ_STIM_GATE = "SQRT_Y"
+HS_DAG_STIM_GATE = "C_XYZ"
+# Maps each single-qubit basis gate, by its Stim spelling, to the angle of the
+# one J(angle) = H Rz(angle) primitive implementing it. These are the four
+# Clifford XY-plane measurements: X+ (H), Y+ (HS), X- (HZ), and Y- (HS_DAG).
+STIM_GATE_J_ANGLES: dict[str, float] = {
+    "H": 0.0,
+    HS_STIM_GATE: math.pi / 2,
+    HZ_STIM_GATE: math.pi,
+    HS_DAG_STIM_GATE: -math.pi / 2,
+}
+_LOCAL_BASIS_GENERATORS = ("H", HS_STIM_GATE, HZ_STIM_GATE, HS_DAG_STIM_GATE)
+_LOCAL_BASIS_GATES = frozenset(_LOCAL_BASIS_GENERATORS)
 _BASIS_GATES = frozenset({"CZ", *_LOCAL_BASIS_GATES})
 _PRESERVED_ANNOTATIONS = frozenset({"QUBIT_COORDS", "SHIFT_COORDS", "TICK"})
 _RESETS = frozenset({"R", "RX", "RY"})
@@ -30,7 +43,12 @@ def transpile(
     *,
     optimize: bool = False,
 ) -> stim.Circuit:
-    """Transpile a Stim Clifford circuit into the H/HS/CZ gate basis.
+    """Transpile a Stim Clifford circuit into the Clifford J/CZ gate basis.
+
+    The single-qubit basis gates are the four Clifford ``J(angle)`` gates,
+    i.e. the XY-plane Pauli measurements: ``H = J(0)`` (X+),
+    ``HS = J(pi/2)`` (Y+, Stim's ``C_XNYZ``), ``HZ = J(pi)`` (X-, Stim's
+    ``SQRT_Y``), and ``HS_DAG = J(-pi/2)`` (Y-, Stim's ``C_XYZ``).
 
     Parameters
     ----------
@@ -45,24 +63,23 @@ def transpile(
     Returns
     -------
     ``stim.Circuit``
-        A new circuit containing only H, logical HS, CZ, supported boundaries,
-        and preserved annotations. Stim represents ``HS = J(pi/2)`` as
-        ``C_XNYZ``.
+        A new circuit containing only Clifford J gates, CZ, supported
+        boundaries, and preserved annotations.
     """
     transpiled = _transpile_block(_coerce_circuit(circuit), context="circuit")
-    return optimize_h_hs_cz(transpiled) if optimize else transpiled
+    return optimize_j_cz(transpiled) if optimize else transpiled
 
 
-def optimize_h_hs_cz(circuit: stim.Circuit | str) -> stim.Circuit:
-    """Remove redundant H, logical HS, and CZ gates.
+def optimize_j_cz(circuit: stim.Circuit | str) -> stim.Circuit:
+    """Remove redundant Clifford J and CZ gates.
 
-    Logical ``HS = J(pi/2)`` is represented by Stim's C_XNYZ instruction.
     Every maximal run of single-qubit basis gates on one qubit is replaced by
-    the shortest H/HS word with the same Clifford action, which removes
-    identities such as H^2 and (HS)^3, and CZ pairs cancel across commuting
-    operations on other qubits. Single-qubit gates at R and M boundaries are
-    folded into R/RX/RY preparations or M/MX/MY measurements when safe.
-    Annotations are treated as optimization barriers.
+    the shortest word over the four Clifford J gates (``H``, ``HS``, ``HZ``,
+    ``HS_DAG``) with the same Clifford action; any single-qubit Clifford
+    needs at most three J gates. CZ pairs cancel across commuting operations
+    on other qubits. Single-qubit gates at R and M boundaries are folded into
+    R/RX/RY preparations or M/MX/MY measurements when safe. Annotations are
+    treated as optimization barriers.
 
     Returns
     -------
@@ -158,7 +175,7 @@ def _optimize_circuit(
             continue
         if instruction.name not in _OPTIMIZER_INSTRUCTIONS:
             rendered = ", ".join(sorted(_OPTIMIZER_INSTRUCTIONS))
-            msg = f"Instruction {instruction.name!r} at {location} is not in the H/HS/CZ basis ({rendered})."
+            msg = f"Instruction {instruction.name!r} at {location} is not in the Clifford J/CZ basis ({rendered})."
             raise UnsupportedInstructionError(msg)
 
         _validate_plain_qubit_targets(instruction, location=location)
@@ -185,9 +202,10 @@ def _cancel_redundant_gates(gates: list[_AtomicGate]) -> list[_AtomicGate]:
     r"""Canonicalize single-qubit runs and cancel redundant CZ gates.
 
     Every maximal run of single-qubit basis gates on one qubit (operations on
-    disjoint qubits may interleave) is replaced by the shortest H/HS word with
-    the same Clifford action, which removes identities such as H^2 and (HS)^3.
-    CZ pairs cancel across intervening operations that commute with CZ.
+    disjoint qubits may interleave) is replaced by the shortest word over the
+    Clifford J gates with the same Clifford action, which removes identities
+    such as H^2 and (HS)^3. CZ pairs cancel across intervening operations
+    that commute with CZ.
 
     Returns
     -------
@@ -488,9 +506,9 @@ def _single_qubit_normal_forms() -> _NormalForms:
     measurement_forms: dict[str, tuple[str, ...]] = {}
     queue: deque[tuple[str, ...]] = deque([()])
 
-    # Breadth-first search over H/HS words visits shorter words first, so the
-    # first word reaching a tableau, prepared state, or measured observable is
-    # a shortest representative.
+    # Breadth-first search over Clifford J words visits shorter words first,
+    # so the first word reaching a tableau, prepared state, or measured
+    # observable is a shortest representative.
     while queue:
         word = queue.popleft()
         tableau = _single_qubit_tableau(word)
@@ -500,7 +518,7 @@ def _single_qubit_normal_forms() -> _NormalForms:
         unitary_forms[key] = word
         state_forms.setdefault(str(tableau.z_output(0)), word)
         measurement_forms.setdefault(str(tableau.inverse().z_output(0)), word)
-        for generator in ("H", HS_STIM_GATE):
+        for generator in _LOCAL_BASIS_GENERATORS:
             queue.append((*word, generator))
 
     if (
@@ -508,7 +526,7 @@ def _single_qubit_normal_forms() -> _NormalForms:
         or len(state_forms) != _SIGNED_PAULI_COUNT
         or len(measurement_forms) != _SIGNED_PAULI_COUNT
     ):
-        msg = "Failed to enumerate single-qubit H/HS normal forms"
+        msg = "Failed to enumerate single-qubit Clifford J normal forms"
         raise AssertionError(msg)
     return _NormalForms(unitary_forms, state_forms, measurement_forms)
 

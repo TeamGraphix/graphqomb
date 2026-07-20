@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+import math
 import random
 from itertools import product
 
 import pytest
 import stim
 
-from graphqomb.stim_parser import HS_STIM_GATE, UnsupportedInstructionError, optimize_h_hs_cz, transpile
+from graphqomb.stim_parser import (
+    HS_DAG_STIM_GATE,
+    HS_STIM_GATE,
+    HZ_STIM_GATE,
+    STIM_GATE_J_ANGLES,
+    UnsupportedInstructionError,
+    optimize_j_cz,
+    transpile,
+)
 
 ANNOTATIONS = {"QUBIT_COORDS", "SHIFT_COORDS", "TICK"}
 BOUNDARY_OPERATIONS = {"R", "RX", "RY", "M", "MX", "MY"}
-BASIS_GATES = {"H", HS_STIM_GATE, "CZ"}
+J_GATES = ("H", HS_STIM_GATE, HZ_STIM_GATE, HS_DAG_STIM_GATE)
+BASIS_GATES = {*J_GATES, "CZ"}
 
 
 def assert_only_graphqomb_basis(circuit: stim.Circuit) -> None:
@@ -39,6 +49,18 @@ def test_hs_stim_gate_is_j_pi_over_two_and_s_decomposition_is_hs_then_h() -> Non
     assert_same_tableau(native_hs, expected_hs)
     assert str(transpile("S 0")) == f"{HS_STIM_GATE} 0\nH 0"
     assert_same_tableau(transpile("S 0"), stim.Circuit("S 0"))
+
+
+def test_each_basis_gate_is_the_j_gate_named_by_its_angle() -> None:
+    """Each single-qubit basis gate must equal J(angle) = H Rz(angle) up to phase."""
+    for gate_name, angle in STIM_GATE_J_ANGLES.items():
+        quarter_turns = round(angle / (math.pi / 2))
+        j_circuit = stim.Circuit()
+        for _ in range(quarter_turns % 4):
+            j_circuit.append("S", [0])
+        j_circuit.append("H", [0])
+
+        assert_same_tableau(stim.Circuit(f"{gate_name} 0"), j_circuit)
 
 
 @pytest.mark.parametrize(
@@ -110,7 +132,7 @@ def test_optimizer_removes_h_squared_hs_cubed_and_cz_squared() -> None:
         """
     )
 
-    result = optimize_h_hs_cz(source)
+    result = optimize_j_cz(source)
 
     assert str(result) == f"{HS_STIM_GATE} 4"
 
@@ -130,7 +152,7 @@ def test_optimizer_cancels_basis_gates_across_commuting_operations() -> None:
         """
     )
 
-    assert len(optimize_h_hs_cz(source)) == 0
+    assert len(optimize_j_cz(source)) == 0
 
 
 def test_optimizer_treats_tick_as_a_barrier_and_recurses_into_repeat() -> None:
@@ -146,7 +168,7 @@ def test_optimizer_treats_tick_as_a_barrier_and_recurses_into_repeat() -> None:
         """
     )
 
-    result = optimize_h_hs_cz(source)
+    result = optimize_j_cz(source)
 
     assert str(result).startswith("H 0\nTICK\nH 0\nREPEAT 2")
     repeat = result[3]
@@ -163,19 +185,19 @@ def test_transpile_optimization_cancels_source_basis_identities() -> None:
 def test_measurement_is_not_folded_when_post_measurement_state_is_reused() -> None:
     source = stim.Circuit("H 0\nM 0\nH 0")
 
-    assert optimize_h_hs_cz(source) == source
+    assert optimize_j_cz(source) == source
 
 
 @pytest.mark.parametrize("measurement", ["M", "MX", "MY"])
 def test_optimizer_preserves_inverted_measurement_targets(measurement: str) -> None:
     source = stim.Circuit(f"{measurement}(0.125) !0")
 
-    assert optimize_h_hs_cz(source) == source
+    assert optimize_j_cz(source) == source
 
 
 def test_optimizer_emits_shortest_single_qubit_words() -> None:
-    """Every H/HS word must optimize to a shortest word with the same Clifford action."""
-    words = [word for length in range(8) for word in product(("H", HS_STIM_GATE), repeat=length)]
+    """Every J word must optimize to a shortest word with the same Clifford action."""
+    words = [word for length in range(5) for word in product(J_GATES, repeat=length)]
     minimal_lengths: dict[tuple[str, str], int] = {}
     for word in words:
         circuit = stim.Circuit()
@@ -185,25 +207,26 @@ def test_optimizer_emits_shortest_single_qubit_words() -> None:
         key = (str(tableau.x_output(0)), str(tableau.z_output(0)))
         minimal_lengths.setdefault(key, len(word))
 
-        optimized = optimize_h_hs_cz(circuit)
+        optimized = optimize_j_cz(circuit)
         gate_count = sum(len(instruction.targets_copy()) for instruction in optimized)
         assert gate_count == minimal_lengths[key]
         assert_same_tableau(optimized + stim.Circuit("I 0"), circuit + stim.Circuit("I 0"))
     assert len(minimal_lengths) == 24
+    assert max(minimal_lengths.values()) == 3
 
 
 def test_all_single_qubit_words_preserve_reset_state_and_measurement_observable() -> None:
-    for length in range(6):
-        for word in product(("H", HS_STIM_GATE), repeat=length):
+    for length in range(5):
+        for word in product(J_GATES, repeat=length):
             word_circuit = stim.Circuit()
             for gate in word:
                 word_circuit.append(gate, [0])
             original_tableau = stim.Tableau.from_circuit(word_circuit) if word else stim.Tableau(1)
 
-            optimized_reset = optimize_h_hs_cz(stim.Circuit("R 0") + word_circuit)
+            optimized_reset = optimize_j_cz(stim.Circuit("R 0") + word_circuit)
             assert _prepared_state_key(optimized_reset) == original_tableau.z_output(0)
 
-            optimized_measurement = optimize_h_hs_cz(word_circuit + stim.Circuit("M !0"))
+            optimized_measurement = optimize_j_cz(word_circuit + stim.Circuit("M !0"))
             assert _measurement_observable_key(optimized_measurement) == -original_tableau.inverse().z_output(0)
 
 

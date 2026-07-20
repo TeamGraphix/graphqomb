@@ -90,6 +90,30 @@ def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None
         assert np.isclose(abs(overlap), 1.0, atol=1e-9)
 
 
+@pytest.mark.parametrize(
+    ("stim_text", "expected"),
+    [
+        ("SQRT_Y 0", [0.0, 1.0]),
+        ("C_XYZ 0", [(1 - 1j) / 2, (1 + 1j) / 2]),
+    ],
+)
+def test_stim_text_to_pattern_preserves_negative_measurement_gate_semantics(
+    stim_text: str, expected: list[complex]
+) -> None:
+    """Test the X- and Y- measurement basis gates end to end on a |+> input."""
+    initial = np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2)
+    expected_state = np.asarray(expected, dtype=np.complex128)
+
+    for seed in range(8):
+        pattern = stim_text_to_pattern(stim_text).pattern
+        simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+        simulator.state = StateVector(initial)
+        simulator.simulate(rng=np.random.default_rng(seed))
+
+        overlap = np.vdot(expected_state, simulator.state.state())
+        assert np.isclose(abs(overlap), 1.0, atol=1e-9)
+
+
 def test_stim_text_to_pattern_preserves_sparse_qubit_coordinates() -> None:
     result = stim_text_to_pattern(
         """

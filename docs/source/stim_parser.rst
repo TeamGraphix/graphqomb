@@ -8,10 +8,18 @@ Install the optional Stim integration before importing this module:
    uv add "graphqomb[stim]"
 
 The parser normalizes Stim Clifford circuits to GraphQOMB's unitary basis:
-``H``, ``HS``, and ``CZ``. GraphQOMB defines
-``HS = H S = J(pi / 2)`` in algebraic matrix order, so one ``HS`` becomes one
-:class:`graphqomb.gates.J` primitive. Stim's native spelling for this Clifford
-gate is ``C_XNYZ``.
+the four Clifford ``J(angle)`` gates plus ``CZ``. Each single-qubit basis
+gate is one :class:`graphqomb.gates.J` primitive, i.e. one XY-plane Pauli
+measurement in MBQC (gate names use algebraic matrix order):
+
+===========  ==================  =============  ===========
+Basis gate   Definition          Measurement    Stim name
+===========  ==================  =============  ===========
+``H``        ``J(0)``            X+             ``H``
+``HS``       ``H S = J(pi/2)``   Y+             ``C_XNYZ``
+``HZ``       ``H Z = J(pi)``     X-             ``SQRT_Y``
+``HS_DAG``   ``H S† = J(-pi/2)`` Y-             ``C_XYZ``
+===========  ==================  =============  ===========
 
 .. code-block:: python
 
@@ -24,6 +32,11 @@ Stim, arbitrary-length ``SPP`` and ``SPP_DAG`` rotations, nested ``REPEAT``
 blocks, Pauli reset and measurement boundaries, and coordinate/TICK
 annotations. Noise, non-Clifford instructions, and classically controlled
 targets are rejected.
+
+With ``optimize=True``, every maximal single-qubit gate run is replaced by
+the shortest equivalent word over the four J gates, so any single-qubit
+Clifford costs at most three J primitives (three graph nodes in the compiled
+pattern).
 
 The Stim importer applies this normalization independently to each unitary
 ``TICK`` block. Measurement records, detectors, observables, MPP operations,

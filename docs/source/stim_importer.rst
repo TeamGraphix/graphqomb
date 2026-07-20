@@ -13,11 +13,12 @@ and Pauli measurement blocks separated by ``TICK``. The supported Pauli
 measurement instructions are ``M``/``MZ``, ``MX``, ``MY``, ``MXX``, ``MYY``,
 ``MZZ``, and ``MPP``.
 
-Every unitary block is normalized by :mod:`graphqomb.stim_parser` to ``H``,
-``HS``, and ``CZ`` before graph conversion. This accepts all fixed one- and
-two-qubit Clifford gates exposed by Stim as well as ``SPP`` and ``SPP_DAG``.
-Here ``HS = H S = J(pi / 2)`` and is represented by one GraphQOMB ``J``
-primitive; Stim spells this gate ``C_XNYZ``.
+Every unitary block is normalized by :mod:`graphqomb.stim_parser` to the four
+Clifford ``J(angle)`` gates (``H = J(0)``, ``HS = J(pi/2)``, ``HZ = J(pi)``,
+``HS_DAG = J(-pi/2)``, corresponding to X+/Y+/X-/Y- measurements) plus ``CZ``
+before graph conversion. This accepts all fixed one- and two-qubit Clifford
+gates exposed by Stim as well as ``SPP`` and ``SPP_DAG``. Each basis gate
+becomes one GraphQOMB ``J`` primitive.
 
 Initial reset instructions
 --------------------------

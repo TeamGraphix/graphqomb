@@ -11,7 +11,7 @@ import stim
 
 from graphqomb.circuit import Circuit, CircuitScheduleStrategy, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Sign
-from graphqomb.gates import CZ, HS, H
+from graphqomb.gates import CZ, J
 from graphqomb.graphstate import GraphState, compose, odd_neighbors
 from graphqomb.qec._stim import (
     PauliSupport,
@@ -26,7 +26,7 @@ from graphqomb.qec._stim import (
 )
 from graphqomb.qec.qeccode import StabilizerGraphStateBuildResult, YFoliation, build_graph_state
 from graphqomb.qompiler import qompile
-from graphqomb.stim_parser import HS_STIM_GATE, transpile
+from graphqomb.stim_parser import STIM_GATE_J_ANGLES, transpile
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -787,10 +787,9 @@ def _append_unitary_instruction(
     for group in instruction.target_groups():
         qubits = [plain_qubit_target(target, instruction.name) for target in group]
         mapped = [stim_to_qubit[qubit] for qubit in qubits]
-        if instruction.name == "H":
-            circuit.apply_macro_gate(H(mapped[0]))
-        elif instruction.name == HS_STIM_GATE:
-            circuit.apply_macro_gate(HS(mapped[0]))
+        j_angle = STIM_GATE_J_ANGLES.get(instruction.name)
+        if j_angle is not None:
+            circuit.apply_macro_gate(J(mapped[0], j_angle))
         elif instruction.name == "CZ":
             circuit.apply_macro_gate(CZ((mapped[0], mapped[1])))
         else:

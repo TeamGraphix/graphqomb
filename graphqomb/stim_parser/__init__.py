@@ -1,10 +1,21 @@
-"""Transpile Stim Clifford circuits into GraphQOMB's H/HS/CZ basis."""
+"""Transpile Stim Clifford circuits into GraphQOMB's Clifford J/CZ basis."""
 
-from ._core import HS_STIM_GATE, UnsupportedInstructionError, optimize_h_hs_cz, transpile
+from ._core import (
+    HS_DAG_STIM_GATE,
+    HS_STIM_GATE,
+    HZ_STIM_GATE,
+    STIM_GATE_J_ANGLES,
+    UnsupportedInstructionError,
+    optimize_j_cz,
+    transpile,
+)
 
 __all__ = [
+    "HS_DAG_STIM_GATE",
     "HS_STIM_GATE",
+    "HZ_STIM_GATE",
+    "STIM_GATE_J_ANGLES",
     "UnsupportedInstructionError",
-    "optimize_h_hs_cz",
+    "optimize_j_cz",
     "transpile",
 ]
