@@ -15,6 +15,7 @@ from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
 from graphqomb.stim_compiler import stim_compile
 from graphqomb.stim_importer import stim_circuit_to_pattern, stim_file_to_pattern, stim_text_to_pattern
+from graphqomb.stim_parser import UnsupportedInstructionError
 
 stim = pytest.importorskip("stim")
 
@@ -38,6 +39,76 @@ def test_stim_text_to_pattern_imports_unitary_clifford_block() -> None:
     assert set(result.pattern.output_node_indices.values()) == {0, 1}
 
 
+@pytest.mark.parametrize(
+    "gate_name",
+    [name for name in sorted(stim.gate_data()) if stim.gate_data(name).is_unitary and name not in {"SPP", "SPP_DAG"}],
+)
+def test_stim_circuit_to_pattern_imports_every_fixed_clifford_gate(gate_name: str) -> None:
+    """Test every fixed Stim Clifford gate through parser and importer integration."""
+    gate_data = stim.gate_data(gate_name)
+    targets = [0] if gate_data.is_single_qubit_gate else [0, 1]
+    source = stim.Circuit()
+    source.append(gate_name, targets)
+
+    result = stim_circuit_to_pattern(source)
+
+    assert set(result.pattern.input_node_indices.values()) == set(targets)
+    assert set(result.pattern.output_node_indices.values()) == set(targets)
+
+
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_stim_text_to_pattern_imports_pauli_product_rotations(gate_name: str) -> None:
+    result = stim_text_to_pattern(f"{gate_name} X0*Y1*!Z2")
+
+    assert set(result.pattern.input_node_indices.values()) == {0, 1, 2}
+    assert set(result.pattern.output_node_indices.values()) == {0, 1, 2}
+
+
+@pytest.mark.parametrize("gate_name", ["SPP", "SPP_DAG"])
+def test_stim_text_to_pattern_imports_repeated_qubit_pauli_products(gate_name: str) -> None:
+    result = stim_text_to_pattern(f"{gate_name} X0*X0*Z1")
+
+    assert result.stim_to_qubit == {0: 0, 1: 1}
+    assert set(result.pattern.input_node_indices.values()) == {0, 1}
+    assert set(result.pattern.output_node_indices.values()) == {0, 1}
+
+
+def test_stim_text_to_pattern_cancels_repeated_cz_in_one_tick_block() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        CZ 0 1
+        CZ 0 1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    input_coordinates = {qubit: graph.coordinates[node] for node, qubit in graph.input_node_indices.items()}
+
+    assert graph.number_of_nodes() == 2
+    assert graph.number_of_edges() == 0
+    assert input_coordinates == {0: (0.0, 0.0, 0.0), 1: (1.0, 0.0, 0.0)}
+
+
+def test_stim_text_to_pattern_does_not_advance_z_for_cancelled_single_qubit_block() -> None:
+    result = stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nH 0\nH 0")
+    graph = result.pattern.pauli_frame.graphstate
+    input_node = next(iter(graph.input_node_indices))
+
+    assert graph.number_of_nodes() == 1
+    assert graph.coordinates[input_node] == (0.0, 0.0, 0.0)
+
+
+def test_stim_text_to_pattern_rejects_classically_controlled_clifford() -> None:
+    with pytest.raises(UnsupportedInstructionError) as exc_info:
+        stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1")
+
+    message = str(exc_info.value)
+    assert "Stim unitary TICK block 2" in message
+    assert "circuit, instruction 0" in message
+    assert "non-qubit target" in message
+
+
 def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None:
     initial = np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2)
     expected = np.asarray([1 + 1j, 1 - 1j], dtype=np.complex128) / 2
@@ -49,6 +120,30 @@ def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None
         simulator.simulate(rng=np.random.default_rng(seed))
 
         overlap = np.vdot(expected, simulator.state.state())
+        assert np.isclose(abs(overlap), 1.0, atol=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("stim_text", "expected"),
+    [
+        ("SQRT_Y 0", [0.0, 1.0]),
+        ("C_XYZ 0", [(1 - 1j) / 2, (1 + 1j) / 2]),
+    ],
+)
+def test_stim_text_to_pattern_preserves_negative_measurement_gate_semantics(
+    stim_text: str, expected: list[complex]
+) -> None:
+    """Test the X- and Y- measurement basis gates end to end on a |+> input."""
+    initial = np.asarray([1.0, 1.0], dtype=np.complex128) / np.sqrt(2)
+    expected_state = np.asarray(expected, dtype=np.complex128)
+
+    for seed in range(8):
+        pattern = stim_text_to_pattern(stim_text).pattern
+        simulator = PatternSimulator(pattern, SimulatorBackend.StateVector)
+        simulator.state = StateVector(initial)
+        simulator.simulate(rng=np.random.default_rng(seed))
+
+        overlap = np.vdot(expected_state, simulator.state.state())
         assert np.isclose(abs(overlap), 1.0, atol=1e-9)
 
 
@@ -671,6 +766,39 @@ def test_stim_text_to_pattern_imports_initial_reset(
     assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
 
 
+def test_stim_text_to_pattern_folds_initial_h_into_rx_and_aligns_input_z() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        R 0 1
+        H 1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    input_nodes = {qubit: node for node, qubit in graph.input_node_indices.items()}
+    compiled = stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
+
+    assert graph.number_of_nodes() == 2
+    assert graph.number_of_edges() == 0
+    assert graph.input_initialization_axes[input_nodes[0]] == Axis.Z
+    assert graph.input_initialization_axes[input_nodes[1]] == Axis.X
+    assert graph.coordinates[input_nodes[0]] == (0.0, 0.0, 0.0)
+    assert graph.coordinates[input_nodes[1]] == (1.0, 0.0, 0.0)
+    assert f"R {input_nodes[0]}" in compiled
+    assert f"RX {input_nodes[1]}" in compiled
+
+
+def test_stim_text_to_pattern_removes_clifford_preserving_initial_reset_state() -> None:
+    result = stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nR 0\nS 0")
+    graph = result.pattern.pauli_frame.graphstate
+    input_node = next(iter(graph.input_node_indices))
+
+    assert graph.number_of_nodes() == 1
+    assert graph.input_initialization_axes[input_node] == Axis.Z
+    assert graph.coordinates[input_node] == (0.0, 0.0, 0.0)
+
+
 def test_stim_text_to_pattern_uses_last_leading_reset() -> None:
     result = stim_text_to_pattern("R 0\nRY 0\nH 0")
     input_node = next(node for node, q_index in result.pattern.input_node_indices.items() if q_index == 0)
@@ -758,9 +886,20 @@ def test_stim_text_to_pattern_preserves_inverted_single_measurement(
     assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
 
 
-def test_stim_text_to_pattern_rejects_inverted_pair_measurement_result() -> None:
-    with pytest.raises(ValueError, match="Signed MPP products are not supported"):
-        stim_text_to_pattern("MYY !0 1")
+@pytest.mark.parametrize(
+    ("instruction", "name"),
+    [
+        ("MXX !0 1", "MXX"),
+        ("MYY 0 !1", "MYY"),
+        ("MZZ !0 1", "MZZ"),
+    ],
+)
+def test_stim_text_to_pattern_rejects_inverted_pair_measurement_result(
+    instruction: str,
+    name: str,
+) -> None:
+    with pytest.raises(ValueError, match=rf"Signed {name} products are not supported"):
+        stim_text_to_pattern(instruction)
 
 
 def test_stim_text_to_pattern_rejects_true_mpad_record() -> None:

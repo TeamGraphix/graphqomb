@@ -23,6 +23,7 @@ Module reference
     scheduler
     qec
     stim_mpp
+    stim_parser
     stim_importer
     stim_compiler
     noise_model

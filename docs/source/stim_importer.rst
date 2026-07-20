@@ -13,6 +13,13 @@ and Pauli measurement blocks separated by ``TICK``. The supported Pauli
 measurement instructions are ``M``/``MZ``, ``MX``, ``MY``, ``MXX``, ``MYY``,
 ``MZZ``, and ``MPP``.
 
+Every unitary block is normalized by :mod:`graphqomb.stim_parser` to the four
+Clifford ``J(angle)`` gates (``H = J(0)``, ``HS = J(pi/2)``, ``HZ = J(pi)``,
+``HS_DAG = J(-pi/2)``, corresponding to X+/Y+/X-/Y- measurements) plus ``CZ``
+before graph conversion. This accepts all fixed one- and two-qubit Clifford
+gates exposed by Stim as well as ``SPP`` and ``SPP_DAG``. Each basis gate
+becomes one GraphQOMB ``J`` primitive.
+
 Initial reset instructions
 --------------------------
 
@@ -22,6 +29,12 @@ initializes ``Y+``. A reset is initial when its target qubit has not previously
 participated in a unitary or measurement operation. Operations on other qubits
 do not prevent a later initial reset. Repeated leading resets are accepted, and
 the last reset on each qubit determines its initialization state.
+
+Leading resets are normalized together with the Clifford gates in their
+``TICK`` block. When the resulting state is a positive Pauli eigenstate, the
+gates are absorbed into ``R``, ``RX``, or ``RY`` before graph construction.
+For example, ``R`` followed by ``H`` becomes ``RX`` and does not add a gate
+node or shift that input to an earlier ``z`` layer.
 
 Stim canonicalizes the Z-axis aliases internally, so the importer accepts both
 ``M`` and ``MZ`` for Z measurement and both ``R`` and ``RZ`` for Z reset. Stim
@@ -81,12 +94,14 @@ same output layer without adding nodes. Consequently, a composed output and
 the next active fragment input have the same ``z`` coordinate, and imported
 patterns do not mix 2D spatial coordinates with 3D spacetime coordinates.
 
-The flattened ideal circuit is analyzed once for measurement records. Records
-from single-qubit measurements, pair measurements, ``MPP``, and ideal-zero
-``MPAD`` replacements share one absolute index space. ``DETECTOR`` and
-``OBSERVABLE_INCLUDE`` targets are resolved against that whole-circuit index
-space, and each ``StimMppExtraction`` retains the corresponding absolute record
-sets even when an annotation also references records outside that MPP unit.
+The flattened ideal circuit is normalized before measurement-record analysis.
+The original qubit inventory is retained even when a unitary block optimizes
+to the identity. Records from single-qubit measurements, pair measurements,
+``MPP``, and ideal-zero ``MPAD`` replacements share one absolute index space.
+``DETECTOR`` and ``OBSERVABLE_INCLUDE`` targets are resolved against that
+whole-circuit index space, and each ``StimMppExtraction`` retains the
+corresponding absolute record sets even when an annotation also references
+records outside that MPP unit.
 
 Noise policy
 ------------
