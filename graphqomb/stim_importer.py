@@ -26,7 +26,7 @@ from graphqomb.qec._stim import (
 )
 from graphqomb.qec.qeccode import StabilizerGraphStateBuildResult, YFoliation, build_graph_state
 from graphqomb.qompiler import qompile
-from graphqomb.stim_parser import STIM_GATE_J_ANGLES, transpile
+from graphqomb.stim_parser import STIM_GATE_J_ANGLES, UnsupportedInstructionError, transpile
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -526,11 +526,17 @@ def _append_ideal_pauli_measurements(
     Raises
     ------
     ValueError
-        If an instruction has an invalid target group.
+        If an instruction has an invalid target group or an inverted
+        pair-measurement target.
     """
     if instruction.name == "MPP":
         circuit.append("MPP", instruction.targets_copy())
         return
+
+    targets = instruction.targets_copy()
+    if any(target.is_inverted_result_target for target in targets):
+        msg = f"Signed {instruction.name} products are not supported; inverted targets cannot be imported."
+        raise ValueError(msg)
 
     axis = _PAIR_PAULI_MEASUREMENT_AXES[instruction.name]
     expected_group_size = 2
@@ -547,7 +553,6 @@ def _append_ideal_pauli_measurements(
             product_targets.append(
                 target_factory(
                     plain_qubit_target(target, instruction.name),
-                    invert=target.is_inverted_result_target,
                 )
             )
         circuit.append("MPP", product_targets)
@@ -561,7 +566,7 @@ def _fragments_from_blocks(
     fragments = [_identity_fragment(context)]
     z_base = 0
     live_stim_ids = set(context.stim_to_qubit)
-    for block in blocks:
+    for block_number, block in enumerate(blocks, start=1):
         directly_measured_stim_ids = {
             stim_id
             for analyzed in block
@@ -577,6 +582,7 @@ def _fragments_from_blocks(
                 live_stim_ids=live_stim_ids,
                 z_base=z_base,
                 context=context,
+                block_number=block_number,
             )
             fragments.append(fragment)
         else:
@@ -652,6 +658,7 @@ def _unitary_fragment(
     live_stim_ids: set[int],
     z_base: int,
     context: _ImportContext,
+    block_number: int,
 ) -> tuple[_Fragment, int]:
     ordered_stim_ids = sorted(live_stim_ids)
     stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(ordered_stim_ids)}
@@ -659,7 +666,11 @@ def _unitary_fragment(
     source = stim.Circuit()
     for instruction in block:
         source.append(instruction)
-    normalized = transpile(source, optimize=True)
+    try:
+        normalized = transpile(source, optimize=True)
+    except UnsupportedInstructionError as ex:
+        msg = f"Stim unitary TICK block {block_number} failed to transpile: {ex}"
+        raise UnsupportedInstructionError(msg) from ex
 
     circuit = Circuit(len(ordered_stim_ids))
     for instruction in normalized:

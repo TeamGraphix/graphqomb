@@ -19,21 +19,28 @@ from graphqomb.stim_parser import (
     transpile,
 )
 
-ANNOTATIONS = {"QUBIT_COORDS", "SHIFT_COORDS", "TICK"}
+PRESERVED_INSTRUCTIONS = {
+    "DETECTOR",
+    "MPAD",
+    "OBSERVABLE_INCLUDE",
+    "QUBIT_COORDS",
+    "SHIFT_COORDS",
+    "TICK",
+}
 BOUNDARY_OPERATIONS = {"R", "RX", "RY", "M", "MX", "MY"}
 J_GATES = ("H", HS_STIM_GATE, HZ_STIM_GATE, HS_DAG_STIM_GATE)
 BASIS_GATES = {*J_GATES, "CZ"}
 
 
 def assert_only_graphqomb_basis(circuit: stim.Circuit) -> None:
-    """Assert that every unitary instruction is H, HS, or CZ."""
+    """Assert that every unitary instruction is a Clifford J gate or CZ."""
     for instruction in circuit:
         if isinstance(instruction, stim.CircuitRepeatBlock):
             assert_only_graphqomb_basis(instruction.body_copy())
         elif stim.gate_data(instruction.name).is_unitary:
             assert instruction.name in BASIS_GATES
         else:
-            assert instruction.name in ANNOTATIONS | BOUNDARY_OPERATIONS
+            assert instruction.name in PRESERVED_INSTRUCTIONS | BOUNDARY_OPERATIONS
 
 
 def assert_same_tableau(actual: stim.Circuit, expected: stim.Circuit) -> None:
@@ -114,6 +121,23 @@ def test_repeat_blocks_annotations_and_tags_are_preserved() -> None:
     assert "[entangle]" in str(repeat.body_copy())
 
 
+def test_record_annotations_and_mpad_are_preserved_as_optimization_barriers() -> None:
+    source = stim.Circuit(
+        """
+        H 1
+        M 0
+        DETECTOR[det](1, 2, 3) rec[-1]
+        OBSERVABLE_INCLUDE[obs](7) rec[-1]
+        MPAD[pad] 0 1
+        H 1
+        """
+    )
+
+    assert transpile(source, optimize=True) == source
+    assert optimize_j_cz(source) == source
+    assert transpile(source, optimize=True).num_measurements == source.num_measurements
+
+
 def test_accepts_circuit_text() -> None:
     result = transpile("X 0\nCY 0 1\n")
 
@@ -182,8 +206,9 @@ def test_transpile_optimization_cancels_source_basis_identities() -> None:
     assert len(transpile(source, optimize=True)) == 0
 
 
-def test_measurement_is_not_folded_when_post_measurement_state_is_reused() -> None:
-    source = stim.Circuit("H 0\nM 0\nH 0")
+@pytest.mark.parametrize("measurement", ["M", "MX", "MY"])
+def test_measurement_is_not_folded_when_post_measurement_state_is_reused(measurement: str) -> None:
+    source = stim.Circuit(f"H 0\n{measurement} 0\nH 0")
 
     assert optimize_j_cz(source) == source
 
@@ -193,6 +218,31 @@ def test_optimizer_preserves_inverted_measurement_targets(measurement: str) -> N
     source = stim.Circuit(f"{measurement}(0.125) !0")
 
     assert optimize_j_cz(source) == source
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("RX 0\nH 0", "R 0"),
+        (f"RY 0\n{HS_DAG_STIM_GATE} 0", "R 0"),
+        ("H 0\nMX 0", "M 0"),
+        ("H 0\nMY(0.125) 0", "MY(0.125) !0"),
+        (f"{HS_DAG_STIM_GATE} 0\nMY 0", "MX 0"),
+    ],
+)
+def test_optimizer_folds_all_pauli_reset_and_measurement_boundaries(source: str, expected: str) -> None:
+    assert optimize_j_cz(source) == stim.Circuit(expected)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        (f"H 0\n{HS_STIM_GATE} 0\nMX 0\nH 0", "MX 0\nH 0"),
+        (f"RY 0\nH 0\n{HZ_STIM_GATE} 0", "RY 0\nH 0"),
+    ],
+)
+def test_optimizer_uses_axis_relative_boundary_normal_forms(source: str, expected: str) -> None:
+    assert optimize_j_cz(source) == stim.Circuit(expected)
 
 
 def test_optimizer_emits_shortest_single_qubit_words() -> None:
@@ -219,6 +269,8 @@ def test_optimizer_emits_shortest_single_qubit_words() -> None:
 
 
 def test_all_single_qubit_words_preserve_reset_state_and_measurement_observable() -> None:
+    reset_axes = {"R": "Z", "RX": "X", "RY": "Y"}
+    measurement_axes = {"M": "Z", "MX": "X", "MY": "Y"}
     for length in range(5):
         for word in product(J_GATES, repeat=length):
             word_circuit = stim.Circuit()
@@ -226,11 +278,26 @@ def test_all_single_qubit_words_preserve_reset_state_and_measurement_observable(
                 word_circuit.append(gate, [0])
             original_tableau = stim.Tableau.from_circuit(word_circuit) if word else stim.Tableau(1)
 
-            optimized_reset = optimize_j_cz(stim.Circuit("R 0") + word_circuit)
-            assert _prepared_state_key(optimized_reset) == original_tableau.z_output(0)
+            for reset, axis in reset_axes.items():
+                optimized_reset = optimize_j_cz(stim.Circuit(f"{reset} 0") + word_circuit)
+                assert _prepared_state_key(optimized_reset) == _tableau_axis_output(original_tableau, axis), (
+                    f"{reset=} {word=}"
+                )
 
-            optimized_measurement = optimize_j_cz(word_circuit + stim.Circuit("M !0"))
-            assert _measurement_observable_key(optimized_measurement) == -original_tableau.inverse().z_output(0)
+            inverse = original_tableau.inverse()
+            for measurement, axis in measurement_axes.items():
+                optimized_measurement = optimize_j_cz(word_circuit + stim.Circuit(f"{measurement} !0"))
+                assert _measurement_observable_key(optimized_measurement) == -_tableau_axis_output(inverse, axis), (
+                    f"{measurement=} {word=}"
+                )
+
+
+def _tableau_axis_output(tableau: stim.Tableau, axis: str) -> stim.PauliString:
+    return {
+        "X": tableau.x_output(0),
+        "Y": tableau.y_output(0),
+        "Z": tableau.z_output(0),
+    }[axis]
 
 
 def _unitary_part(circuit: stim.Circuit) -> stim.Circuit:
@@ -313,6 +380,16 @@ def test_random_circuits_keep_their_tableau_with_and_without_optimization() -> N
 def test_rejects_operations_that_cannot_be_represented(source: str, message: str) -> None:
     with pytest.raises(UnsupportedInstructionError, match=message):
         transpile(source)
+
+
+def test_non_clifford_rejection_lists_the_current_j_cz_basis() -> None:
+    with pytest.raises(UnsupportedInstructionError) as exc_info:
+        transpile("X_ERROR(0.1) 0")
+
+    message = str(exc_info.value)
+    assert "Clifford J/CZ basis" in message
+    for gate in BASIS_GATES:
+        assert gate in message
 
 
 def test_rejection_reports_nested_repeat_location() -> None:

@@ -22,20 +22,33 @@ STIM_GATE_J_ANGLES: dict[str, float] = {
     HZ_STIM_GATE: math.pi,
     HS_DAG_STIM_GATE: -math.pi / 2,
 }
+_PauliAxis = Literal["X", "Y", "Z"]
 _LOCAL_BASIS_GENERATORS = ("H", HS_STIM_GATE, HZ_STIM_GATE, HS_DAG_STIM_GATE)
 _LOCAL_BASIS_GATES = frozenset(_LOCAL_BASIS_GENERATORS)
 _BASIS_GATES = frozenset({"CZ", *_LOCAL_BASIS_GATES})
-_PRESERVED_ANNOTATIONS = frozenset({"QUBIT_COORDS", "SHIFT_COORDS", "TICK"})
-_RESETS = frozenset({"R", "RX", "RY"})
-_MEASUREMENTS = frozenset({"M", "MX", "MY"})
+_PRESERVED_INSTRUCTIONS = frozenset(
+    {
+        "DETECTOR",
+        "MPAD",
+        "OBSERVABLE_INCLUDE",
+        "QUBIT_COORDS",
+        "SHIFT_COORDS",
+        "TICK",
+    }
+)
+_RESET_AXES: dict[str, _PauliAxis] = {"R": "Z", "RX": "X", "RY": "Y"}
+_MEASUREMENT_AXES: dict[str, _PauliAxis] = {"M": "Z", "MX": "X", "MY": "Y"}
+_RESETS = frozenset(_RESET_AXES)
+_MEASUREMENTS = frozenset(_MEASUREMENT_AXES)
 _BOUNDARY_OPERATIONS = _RESETS | _MEASUREMENTS
 _OPTIMIZER_INSTRUCTIONS = _BASIS_GATES | _BOUNDARY_OPERATIONS
+_PAULI_AXES: tuple[_PauliAxis, ...] = ("X", "Y", "Z")
 _SINGLE_QUBIT_CLIFFORD_COUNT = 24
 _SIGNED_PAULI_COUNT = 6
 
 
 class UnsupportedInstructionError(ValueError):
-    """Raised when a circuit instruction is not a unitary Clifford operation."""
+    """Raised when an instruction cannot be represented by the supported basis."""
 
 
 def transpile(
@@ -54,17 +67,19 @@ def transpile(
     ----------
     circuit : ``stim.Circuit`` | `str`
         A Stim circuit or Stim circuit text. REPEAT blocks are handled
-        recursively. TICK, QUBIT_COORDS, and SHIFT_COORDS annotations are
-        preserved because they do not affect the quantum operation.
+        recursively. TICK, QUBIT_COORDS, SHIFT_COORDS, DETECTOR,
+        OBSERVABLE_INCLUDE, and MPAD instructions are preserved verbatim
+        because they do not affect the quantum operation. Measurement-record
+        targets are not interpreted by this standalone parser.
     optimize : `bool`, optional
-        Remove redundant basis gates and simplify gates adjacent to R/M
-        boundaries after transpilation.
+        Remove redundant basis gates and simplify gates adjacent to
+        R/RX/RY and M/MX/MY boundaries after transpilation.
 
     Returns
     -------
     ``stim.Circuit``
         A new circuit containing only Clifford J gates, CZ, supported
-        boundaries, and preserved annotations.
+        boundaries, and preserved instructions.
     """
     transpiled = _transpile_block(_coerce_circuit(circuit), context="circuit")
     return optimize_j_cz(transpiled) if optimize else transpiled
@@ -77,9 +92,12 @@ def optimize_j_cz(circuit: stim.Circuit | str) -> stim.Circuit:
     the shortest word over the four Clifford J gates (``H``, ``HS``, ``HZ``,
     ``HS_DAG``) with the same Clifford action; any single-qubit Clifford
     needs at most three J gates. CZ pairs cancel across commuting operations
-    on other qubits. Single-qubit gates at R and M boundaries are folded into
-    R/RX/RY preparations or M/MX/MY measurements when safe. Annotations are
-    treated as optimization barriers.
+    on other qubits. Single-qubit gates at R/RX/RY and M/MX/MY boundaries are
+    folded into Pauli preparations or measurements when safe. TICK,
+    coordinate annotations, DETECTOR, OBSERVABLE_INCLUDE, and MPAD are
+    preserved verbatim and treated as optimization barriers. The repeated
+    simplification passes are intended for TICK-bounded blocks; unusually
+    large barrier-free inputs can take superlinear time.
 
     Returns
     -------
@@ -169,7 +187,7 @@ def _optimize_circuit(
             )
             continue
 
-        if instruction.name in _PRESERVED_ANNOTATIONS:
+        if instruction.name in _PRESERVED_INSTRUCTIONS:
             flush(allow_terminal_measurement_fold=False)
             result.append(instruction)
             continue
@@ -286,14 +304,18 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
 
         # Absorb a positive-axis state preparation into Stim's reset basis.
         for reset_index, reset in enumerate(result):
-            if reset.name != "R":
+            if reset.name not in _RESETS:
                 continue
             positions = _local_word_after(result, reset_index, qubit=reset.targets[0])
             if not positions:
                 continue
             word = tuple(result[index].name for index in positions)
-            state_key = _boundary_key(word, boundary="state")
-            reset_name = {"+Z": "R", "+X": "RX", "+Y": "RY"}.get(state_key)
+            state_key = _boundary_key(
+                word,
+                boundary="state",
+                axis=_RESET_AXES[reset.name],
+            )
+            reset_name: str | None = {"+Z": "R", "+X": "RX", "+Y": "RY"}.get(state_key)
             if reset_name is None:
                 continue
             replacement = _AtomicGate(
@@ -315,7 +337,7 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
 
         # Absorb a signed measurement basis into M/MX/MY and target inversion.
         for measurement_index, measurement in enumerate(result):
-            if measurement.name != "M":
+            if measurement.name not in _MEASUREMENTS:
                 continue
             if not _measurement_state_is_discarded(
                 result,
@@ -327,8 +349,12 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
             if not positions:
                 continue
             word = tuple(result[index].name for index in positions)
-            measurement_key = _boundary_key(word, boundary="measurement")
-            measurement_name = {
+            measurement_key = _boundary_key(
+                word,
+                boundary="measurement",
+                axis=_MEASUREMENT_AXES[measurement.name],
+            )
+            measurement_name: str = {
                 "+Z": "M",
                 "-Z": "M",
                 "+X": "MX",
@@ -354,9 +380,9 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
         if changed:
             continue
 
-        # After R, only the prepared stabilizer state matters.
+        # After a reset, only the prepared stabilizer state matters.
         for reset_index, reset in enumerate(result):
-            if reset.name != "R":
+            if reset.name not in _RESETS:
                 continue
             positions = _local_word_after(result, reset_index, qubit=reset.targets[0])
             if positions:
@@ -365,6 +391,7 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
                     positions,
                     qubit=reset.targets[0],
                     boundary="state",
+                    axis=_RESET_AXES[reset.name],
                 )
                 if normalized is not None:
                     result = normalized
@@ -373,9 +400,9 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
         if changed:
             continue
 
-        # Before M, only the signed measured Pauli observable matters.
+        # Before a Pauli measurement, only the signed observable matters.
         for measurement_index, measurement in enumerate(result):
-            if measurement.name != "M":
+            if measurement.name not in _MEASUREMENTS:
                 continue
             positions = _local_word_before(result, measurement_index, qubit=measurement.targets[0])
             if positions:
@@ -384,6 +411,7 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
                     positions,
                     qubit=measurement.targets[0],
                     boundary="measurement",
+                    axis=_MEASUREMENT_AXES[measurement.name],
                 )
                 if normalized is not None:
                     result = normalized
@@ -437,11 +465,12 @@ def _normalize_boundary_positions(
     *,
     qubit: int,
     boundary: Literal["state", "measurement"],
+    axis: _PauliAxis,
 ) -> list[_AtomicGate] | None:
     word = tuple(gates[index].name for index in positions)
     forms = _single_qubit_normal_forms()
-    key = _boundary_key(word, boundary=boundary)
-    replacement = (forms.state if boundary == "state" else forms.measurement)[key]
+    key = _boundary_key(word, boundary=boundary, axis=axis)
+    replacement = (forms.state if boundary == "state" else forms.measurement)[axis, key]
     if replacement == word:
         return None
     tag = gates[positions[0]].tag
@@ -495,15 +524,15 @@ def _measurement_state_is_discarded(
 @dataclass(frozen=True)
 class _NormalForms:
     unitary: dict[tuple[str, str], tuple[str, ...]]
-    state: dict[str, tuple[str, ...]]
-    measurement: dict[str, tuple[str, ...]]
+    state: dict[tuple[str, str], tuple[str, ...]]
+    measurement: dict[tuple[str, str], tuple[str, ...]]
 
 
 @cache
 def _single_qubit_normal_forms() -> _NormalForms:
     unitary_forms: dict[tuple[str, str], tuple[str, ...]] = {}
-    state_forms: dict[str, tuple[str, ...]] = {}
-    measurement_forms: dict[str, tuple[str, ...]] = {}
+    state_forms: dict[tuple[str, str], tuple[str, ...]] = {}
+    measurement_forms: dict[tuple[str, str], tuple[str, ...]] = {}
     queue: deque[tuple[str, ...]] = deque([()])
 
     # Breadth-first search over Clifford J words visits shorter words first,
@@ -516,15 +545,17 @@ def _single_qubit_normal_forms() -> _NormalForms:
         if key in unitary_forms:
             continue
         unitary_forms[key] = word
-        state_forms.setdefault(str(tableau.z_output(0)), word)
-        measurement_forms.setdefault(str(tableau.inverse().z_output(0)), word)
+        inverse = tableau.inverse()
+        for axis in _PAULI_AXES:
+            state_forms.setdefault((axis, str(_tableau_pauli_output(tableau, axis))), word)
+            measurement_forms.setdefault((axis, str(_tableau_pauli_output(inverse, axis))), word)
         for generator in _LOCAL_BASIS_GENERATORS:
             queue.append((*word, generator))
 
     if (
         len(unitary_forms) != _SINGLE_QUBIT_CLIFFORD_COUNT
-        or len(state_forms) != _SIGNED_PAULI_COUNT
-        or len(measurement_forms) != _SIGNED_PAULI_COUNT
+        or len(state_forms) != len(_PAULI_AXES) * _SIGNED_PAULI_COUNT
+        or len(measurement_forms) != len(_PAULI_AXES) * _SIGNED_PAULI_COUNT
     ):
         msg = "Failed to enumerate single-qubit Clifford J normal forms"
         raise AssertionError(msg)
@@ -539,11 +570,23 @@ def _boundary_key(
     word: tuple[str, ...],
     *,
     boundary: Literal["state", "measurement"],
+    axis: _PauliAxis,
 ) -> str:
     tableau = _single_qubit_tableau(word)
     if boundary == "state":
-        return str(tableau.z_output(0))
-    return str(tableau.inverse().z_output(0))
+        return str(_tableau_pauli_output(tableau, axis))
+    return str(_tableau_pauli_output(tableau.inverse(), axis))
+
+
+def _tableau_pauli_output(
+    tableau: stim.Tableau,
+    axis: _PauliAxis,
+) -> stim.PauliString:
+    return {
+        "X": tableau.x_output(0),
+        "Y": tableau.y_output(0),
+        "Z": tableau.z_output(0),
+    }[axis]
 
 
 def _single_qubit_tableau(word: tuple[str, ...]) -> stim.Tableau:
@@ -575,7 +618,7 @@ def _transpile_block(circuit: stim.Circuit, *, context: str) -> stim.Circuit:
             continue
 
         name = instruction.name
-        if name in _PRESERVED_ANNOTATIONS:
+        if name in _PRESERVED_INSTRUCTIONS:
             result.append(instruction)
             continue
         if name in _BOUNDARY_OPERATIONS:
@@ -590,9 +633,10 @@ def _transpile_block(circuit: stim.Circuit, *, context: str) -> stim.Circuit:
             raise UnsupportedInstructionError(msg) from ex
 
         if not gate_data.is_unitary:
+            rendered = ", ".join(sorted(_BASIS_GATES))
             msg = (
                 f"Instruction {name!r} at {location} is not a unitary "
-                "Clifford gate and cannot be decomposed into H, HS, and CZ."
+                f"Clifford gate and cannot be decomposed into the Clifford J/CZ basis ({rendered})."
             )
             raise UnsupportedInstructionError(msg)
 

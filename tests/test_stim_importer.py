@@ -15,6 +15,7 @@ from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
 from graphqomb.stim_compiler import stim_compile
 from graphqomb.stim_importer import stim_circuit_to_pattern, stim_file_to_pattern, stim_text_to_pattern
+from graphqomb.stim_parser import UnsupportedInstructionError
 
 stim = pytest.importorskip("stim")
 
@@ -72,8 +73,13 @@ def test_stim_text_to_pattern_cancels_repeated_cz_in_one_tick_block() -> None:
 
 
 def test_stim_text_to_pattern_rejects_classically_controlled_clifford() -> None:
-    with pytest.raises(ValueError, match="non-qubit target"):
+    with pytest.raises(UnsupportedInstructionError) as exc_info:
         stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1")
+
+    message = str(exc_info.value)
+    assert "Stim unitary TICK block 2" in message
+    assert "circuit, instruction 0" in message
+    assert "non-qubit target" in message
 
 
 def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None:
@@ -820,9 +826,20 @@ def test_stim_text_to_pattern_preserves_inverted_single_measurement(
     assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
 
 
-def test_stim_text_to_pattern_rejects_inverted_pair_measurement_result() -> None:
-    with pytest.raises(ValueError, match="Signed MPP products are not supported"):
-        stim_text_to_pattern("MYY !0 1")
+@pytest.mark.parametrize(
+    ("instruction", "name"),
+    [
+        ("MXX !0 1", "MXX"),
+        ("MYY 0 !1", "MYY"),
+        ("MZZ !0 1", "MZZ"),
+    ],
+)
+def test_stim_text_to_pattern_rejects_inverted_pair_measurement_result(
+    instruction: str,
+    name: str,
+) -> None:
+    with pytest.raises(ValueError, match=rf"Signed {name} products are not supported"):
+        stim_text_to_pattern(instruction)
 
 
 def test_stim_text_to_pattern_rejects_true_mpad_record() -> None:

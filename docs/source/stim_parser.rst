@@ -45,18 +45,22 @@ measurement in MBQC (gate names use algebraic matrix order):
 The parser supports all fixed one- and two-qubit Clifford gates exposed by
 Stim, arbitrary-length ``SPP`` and ``SPP_DAG`` rotations, nested ``REPEAT``
 blocks, Pauli reset and measurement boundaries, and coordinate/TICK
-annotations. Noise, non-Clifford instructions, and classically controlled
+annotations. ``DETECTOR``, ``OBSERVABLE_INCLUDE``, and ``MPAD`` are preserved
+verbatim as optimization barriers; the standalone parser does not interpret
+their measurement-record targets. Noise, non-Clifford instructions,
+measurement-reset instructions, MPP measurements, and classically controlled
 targets are rejected.
 
 With ``optimize=True``, every maximal single-qubit gate run is replaced by
 the shortest equivalent word over the four J gates, so any single-qubit
 Clifford costs at most three J primitives (three graph nodes in the compiled
-pattern).
+pattern). Optimization repeatedly scans a barrier-free block, so very large
+circuits without ``TICK`` or annotation barriers can take superlinear time.
+The importer normalizes each unitary ``TICK`` block independently, so
+TICK-partitioned inputs bound this cost.
 
-The Stim importer applies this normalization independently to each unitary
-``TICK`` block. Measurement records, detectors, observables, MPP operations,
-and GraphQOMB's circuit-level noise policy remain the responsibility of the
-importer.
+The Stim importer resolves the preserved detector and observable records,
+handles MPP operations, and applies GraphQOMB's circuit-level noise policy.
 
 API reference
 -------------
