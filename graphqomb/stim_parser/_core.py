@@ -757,6 +757,10 @@ def _append_spp_decomposition(
 
         local_circuit = stim.Circuit()
         local_circuit.append(instruction.name, local_targets)
+        # Stim defers semantic validation of repeated-qubit SPP products (for
+        # example, the anti-Hermitian X*Y) until tableau construction. Keep Stim
+        # as the source of truth for ordered Pauli multiplication, then translate
+        # its expected ValueError into this parser's location-aware error.
         try:
             template = stim.Tableau.from_circuit(local_circuit).to_circuit(method="elimination")
         except ValueError as ex:
