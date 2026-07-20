@@ -65,11 +65,29 @@ def test_stim_text_to_pattern_imports_pauli_product_rotations(gate_name: str) ->
 
 
 def test_stim_text_to_pattern_cancels_repeated_cz_in_one_tick_block() -> None:
-    result = stim_text_to_pattern("CZ 0 1\nCZ 0 1")
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        CZ 0 1
+        CZ 0 1
+        """
+    )
     graph = result.pattern.pauli_frame.graphstate
+    input_coordinates = {qubit: graph.coordinates[node] for node, qubit in graph.input_node_indices.items()}
 
     assert graph.number_of_nodes() == 2
     assert graph.number_of_edges() == 0
+    assert input_coordinates == {0: (0.0, 0.0, 0.0), 1: (1.0, 0.0, 0.0)}
+
+
+def test_stim_text_to_pattern_does_not_advance_z_for_cancelled_single_qubit_block() -> None:
+    result = stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nH 0\nH 0")
+    graph = result.pattern.pauli_frame.graphstate
+    input_node = next(iter(graph.input_node_indices))
+
+    assert graph.number_of_nodes() == 1
+    assert graph.coordinates[input_node] == (0.0, 0.0, 0.0)
 
 
 def test_stim_text_to_pattern_rejects_classically_controlled_clifford() -> None:
@@ -737,6 +755,39 @@ def test_stim_text_to_pattern_imports_initial_reset(
 
     assert result.pattern.input_initialization_axes[input_node] == expected_axis
     assert compiled_instruction in stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
+
+
+def test_stim_text_to_pattern_folds_initial_h_into_rx_and_aligns_input_z() -> None:
+    result = stim_text_to_pattern(
+        """
+        QUBIT_COORDS(0, 0) 0
+        QUBIT_COORDS(1, 0) 1
+        R 0 1
+        H 1
+        """
+    )
+    graph = result.pattern.pauli_frame.graphstate
+    input_nodes = {qubit: node for node, qubit in graph.input_node_indices.items()}
+    compiled = stim_compile(result.pattern, emit_qubit_coords=False).splitlines()
+
+    assert graph.number_of_nodes() == 2
+    assert graph.number_of_edges() == 0
+    assert graph.input_initialization_axes[input_nodes[0]] == Axis.Z
+    assert graph.input_initialization_axes[input_nodes[1]] == Axis.X
+    assert graph.coordinates[input_nodes[0]] == (0.0, 0.0, 0.0)
+    assert graph.coordinates[input_nodes[1]] == (1.0, 0.0, 0.0)
+    assert f"R {input_nodes[0]}" in compiled
+    assert f"RX {input_nodes[1]}" in compiled
+
+
+def test_stim_text_to_pattern_removes_clifford_preserving_initial_reset_state() -> None:
+    result = stim_text_to_pattern("QUBIT_COORDS(0, 0) 0\nR 0\nS 0")
+    graph = result.pattern.pauli_frame.graphstate
+    input_node = next(iter(graph.input_node_indices))
+
+    assert graph.number_of_nodes() == 1
+    assert graph.input_initialization_axes[input_node] == Axis.Z
+    assert graph.coordinates[input_node] == (0.0, 0.0, 0.0)
 
 
 def test_stim_text_to_pattern_uses_last_leading_reset() -> None:

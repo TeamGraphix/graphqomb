@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Stim Circuit Import**: Normalize every unitary TICK block through the new Stim parser, expanding accepted Clifford gates and cancelling identities such as repeated CZ pairs before graph construction.
+- **Stim Circuit Import**: Normalize reset/unitary TICK blocks through the new Stim parser before circuit analysis, folding leading Clifford gates into Pauli input initialization, expanding accepted Clifford gates, and removing identity blocks such as repeated CZ pairs without advancing their temporal coordinate.
 
 ## [0.4.0] - 2026-07-19
 

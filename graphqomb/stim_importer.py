@@ -99,7 +99,6 @@ class _CircuitAnalysis:
     detector_record_indices: tuple[frozenset[int], ...]
     logical_observable_record_indices: dict[int, frozenset[int]]
     measurement_count: int
-    stim_ids: frozenset[int]
     input_initialization_axes: dict[int, Axis]
     direct_measurements: tuple[_DirectMeasurement, ...]
 
@@ -161,12 +160,13 @@ def stim_circuit_to_pattern(
     Pauli measurement blocks. Stim ``R``, ``RX``, and ``RY`` instructions are
     imported as positive Z-, X-, and Y-eigenstate input initialization,
     respectively, when they occur before any other quantum operation on the
-    target qubit. Stim noise instructions and measurement-error probabilities
-    are omitted because circuit-level noise is outside the GraphQOMB import
-    model. Pauli measurement blocks must be separated from unitary blocks by
-    TICK. A direct single-qubit measurement terminates that qubit's lifetime;
-    other qubits may continue, but the measured qubit cannot be used by a later
-    operation.
+    target qubit. Adjacent Clifford gates are folded into those initial Pauli
+    states when possible. Stim noise instructions and measurement-error
+    probabilities are omitted because circuit-level noise is outside the
+    GraphQOMB import model. Pauli measurement blocks must be separated from
+    unitary blocks by TICK. A direct single-qubit measurement terminates that
+    qubit's lifetime; other qubits may continue, but the measured qubit cannot
+    be used by a later operation.
 
     Returns
     -------
@@ -184,14 +184,15 @@ def stim_circuit_to_pattern(
 
     flat_circuit = circuit.flattened()
     idealized = _idealize_circuit(flat_circuit)
-    analysis = _CircuitAnalyzer().analyze(idealized.circuit)
+    normalized_circuit, stim_ids = _normalize_import_circuit(idealized.circuit)
+    analysis = _CircuitAnalyzer().analyze(normalized_circuit)
     if analysis.measurement_count == 0 and (
         analysis.detector_record_indices or analysis.logical_observable_record_indices
     ):
         msg = "DETECTOR and OBSERVABLE_INCLUDE require at least one imported measurement instruction."
         raise ValueError(msg)
     coordinate_by_stim_id = extract_qubit_coordinates(idealized.circuit, coord_dims=coord_dims)
-    stim_to_qubit = {stim_id: qubit for qubit, stim_id in enumerate(sorted(analysis.stim_ids))}
+    stim_to_qubit = {stim_id: qubit for qubit, stim_id in enumerate(sorted(stim_ids))}
     qubit_to_stim = {qubit: stim_id for stim_id, qubit in stim_to_qubit.items()}
     context = _ImportContext(
         stim_to_qubit=stim_to_qubit,
@@ -261,6 +262,69 @@ def _idealize_circuit(circuit: stim.Circuit) -> _IdealizedCircuit:
     return _IdealizedCircuit(result, frozenset(zero_record_indices))
 
 
+def _tracked_qubits(instruction: stim.CircuitInstruction) -> set[int]:
+    if instruction.name in {"TICK", "DETECTOR", "OBSERVABLE_INCLUDE", "MPAD"}:
+        return set()
+    return {int(target.qubit_value) for target in instruction.targets_copy() if target.qubit_value is not None}
+
+
+def _normalize_import_circuit(circuit: stim.Circuit) -> tuple[stim.Circuit, frozenset[int]]:
+    result = stim.Circuit()
+    block = stim.Circuit()
+    stim_ids: set[int] = set()
+    used_qubits: set[int] = set()
+    block_number = 1
+    block_has_unitary = False
+    block_has_pauli_measurement = False
+
+    def flush_block() -> None:
+        nonlocal block, block_has_pauli_measurement, block_has_unitary
+        normalized = block
+        if block_has_unitary and not block_has_pauli_measurement:
+            try:
+                normalized = transpile(block, optimize=True)
+            except UnsupportedInstructionError as ex:
+                msg = f"Stim unitary TICK block {block_number} failed to transpile: {ex}"
+                raise UnsupportedInstructionError(msg) from ex
+        result.append(normalized)
+        block = stim.Circuit()
+        block_has_unitary = False
+        block_has_pauli_measurement = False
+
+    for instruction in circuit:
+        if not isinstance(instruction, stim.CircuitInstruction):
+            msg = "Flattened Stim circuit unexpectedly contains a repeat block."
+            raise TypeError(msg)
+
+        instruction_qubits = _tracked_qubits(instruction)
+        stim_ids.update(instruction_qubits)
+        is_unitary = _is_unitary_instruction(instruction)
+        if instruction.name in _RESET_AXES:
+            reset_after_use = used_qubits & instruction_qubits
+            if reset_after_use:
+                msg = (
+                    f"Stim reset instruction {instruction.name} targets qubit(s) {sorted(reset_after_use)} "
+                    "after another quantum operation; only initial resets are supported."
+                )
+                raise ValueError(msg)
+        elif is_unitary or instruction.name == "MPP" or instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES:
+            used_qubits.update(instruction_qubits)
+
+        if instruction.name == "TICK":
+            flush_block()
+            result.append(instruction)
+            block_number += 1
+        else:
+            block.append(instruction)
+            block_has_unitary |= is_unitary
+            block_has_pauli_measurement |= (
+                instruction.name == "MPP" or instruction.name in _SINGLE_PAULI_MEASUREMENT_AXES
+            )
+
+    flush_block()
+    return result, frozenset(stim_ids)
+
+
 class _CircuitAnalyzer:
     """Mutable state for the single-pass Stim circuit analysis."""
 
@@ -270,10 +334,8 @@ class _CircuitAnalyzer:
         self.detector_record_indices: list[frozenset[int]] = []
         self.logical_record_indices: dict[int, set[int]] = {}
         self.measurement_count = 0
-        self.stim_ids: set[int] = set()
         self.input_initialization_axes: dict[int, Axis] = {}
         self.direct_measurements: list[_DirectMeasurement] = []
-        self.used_qubits: set[int] = set()
         self.measured_qubits: set[int] = set()
         self.block_has_unitary = False
         self.block_has_pauli_measurement = False
@@ -289,8 +351,7 @@ class _CircuitAnalyzer:
         return self._result()
 
     def _process_instruction(self, instruction: stim.CircuitInstruction) -> None:
-        instruction_qubits = self._tracked_qubits(instruction)
-        self.stim_ids.update(instruction_qubits)
+        instruction_qubits = _tracked_qubits(instruction)
 
         if instruction.name == "TICK":
             self._finish_block()
@@ -308,12 +369,6 @@ class _CircuitAnalyzer:
             self._record_logical_observable(instruction)
         elif instruction.name != "MPAD":
             self._record_operation(instruction, instruction_qubits)
-
-    @staticmethod
-    def _tracked_qubits(instruction: stim.CircuitInstruction) -> set[int]:
-        if instruction.name in {"TICK", "DETECTOR", "OBSERVABLE_INCLUDE", "MPAD"}:
-            return set()
-        return {int(target.qubit_value) for target in instruction.targets_copy() if target.qubit_value is not None}
 
     def _finish_block(self) -> None:
         self.blocks.append(tuple(self.current_block))
@@ -369,13 +424,6 @@ class _CircuitAnalyzer:
     ) -> None:
         reset_axis = _RESET_AXES.get(instruction.name)
         if reset_axis is not None:
-            reset_after_use = self.used_qubits & instruction_qubits
-            if reset_after_use:
-                msg = (
-                    f"Stim reset instruction {instruction.name} targets qubit(s) {sorted(reset_after_use)} "
-                    "after another quantum operation; only initial resets are supported."
-                )
-                raise ValueError(msg)
             self.input_initialization_axes.update(dict.fromkeys(instruction_qubits, reset_axis))
             return
         if not is_quantum_operation:
@@ -388,7 +436,6 @@ class _CircuitAnalyzer:
                 "single-qubit measurements terminate those qubit lifetimes."
             )
             raise ValueError(msg)
-        self.used_qubits.update(instruction_qubits)
 
     def _result(self) -> _CircuitAnalysis:
         return _CircuitAnalysis(
@@ -398,7 +445,6 @@ class _CircuitAnalyzer:
                 logical_idx: frozenset(records) for logical_idx, records in sorted(self.logical_record_indices.items())
             },
             measurement_count=self.measurement_count,
-            stim_ids=frozenset(self.stim_ids),
             input_initialization_axes=self.input_initialization_axes,
             direct_measurements=tuple(self.direct_measurements),
         )
@@ -484,7 +530,7 @@ def _fragments_from_blocks(
     fragments = [_identity_fragment(context)]
     z_base = 0
     live_stim_ids = set(context.stim_to_qubit)
-    for block_number, block in enumerate(blocks, start=1):
+    for block in blocks:
         directly_measured_stim_ids = {
             stim_id
             for analyzed in block
@@ -500,7 +546,6 @@ def _fragments_from_blocks(
                 live_stim_ids=live_stim_ids,
                 z_base=z_base,
                 context=context,
-                block_number=block_number,
             )
             fragments.append(fragment)
         else:
@@ -555,25 +600,12 @@ def _unitary_fragment(
     live_stim_ids: set[int],
     z_base: int,
     context: _ImportContext,
-    block_number: int,
 ) -> tuple[_Fragment, int]:
     ordered_stim_ids = sorted(live_stim_ids)
     stim_to_local = {stim_id: local_index for local_index, stim_id in enumerate(ordered_stim_ids)}
     local_to_global = {local_index: context.stim_to_qubit[stim_id] for stim_id, local_index in stim_to_local.items()}
-    source = stim.Circuit()
-    for instruction in block:
-        source.append(instruction)
-    try:
-        normalized = transpile(source, optimize=True)
-    except UnsupportedInstructionError as ex:
-        msg = f"Stim unitary TICK block {block_number} failed to transpile: {ex}"
-        raise UnsupportedInstructionError(msg) from ex
-
     circuit = Circuit(len(ordered_stim_ids))
-    for instruction in normalized:
-        if not isinstance(instruction, stim.CircuitInstruction):
-            msg = "Flattened Stim unitary block unexpectedly transpiled to a repeat block."
-            raise TypeError(msg)
+    for instruction in block:
         _append_unitary_instruction(circuit, instruction, stim_to_local)
 
     local_graph, local_xflow, _ = circuit2graph(circuit, schedule_strategy=context.schedule_strategy)
