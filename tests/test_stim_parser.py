@@ -208,7 +208,10 @@ def test_optimizer_emits_shortest_single_qubit_words() -> None:
         minimal_lengths.setdefault(key, len(word))
 
         optimized = optimize_j_cz(circuit)
-        gate_count = sum(len(instruction.targets_copy()) for instruction in optimized)
+        gate_count = 0
+        for instruction in optimized:
+            assert isinstance(instruction, stim.CircuitInstruction)
+            gate_count += len(instruction.targets_copy())
         assert gate_count == minimal_lengths[key]
         assert_same_tableau(optimized + stim.Circuit("I 0"), circuit + stim.Circuit("I 0"))
     assert len(minimal_lengths) == 24

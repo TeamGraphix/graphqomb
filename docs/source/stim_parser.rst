@@ -12,14 +12,29 @@ the four Clifford ``J(angle)`` gates plus ``CZ``. Each single-qubit basis
 gate is one :class:`graphqomb.gates.J` primitive, i.e. one XY-plane Pauli
 measurement in MBQC (gate names use algebraic matrix order):
 
-===========  ==================  =============  ===========
-Basis gate   Definition          Measurement    Stim name
-===========  ==================  =============  ===========
-``H``        ``J(0)``            X+             ``H``
-``HS``       ``H S = J(pi/2)``   Y+             ``C_XNYZ``
-``HZ``       ``H Z = J(pi)``     X-             ``SQRT_Y``
-``HS_DAG``   ``H S† = J(-pi/2)`` Y-             ``C_XYZ``
-===========  ==================  =============  ===========
+.. list-table::
+   :header-rows: 1
+
+   * - Basis gate
+     - Definition
+     - Measurement
+     - Stim name
+   * - ``H``
+     - ``J(0)``
+     - X+
+     - ``H``
+   * - ``HS``
+     - ``H S = J(pi/2)``
+     - Y+
+     - ``C_XNYZ``
+   * - ``HZ``
+     - ``H Z = J(pi)``
+     - X-
+     - ``SQRT_Y``
+   * - ``HS_DAG``
+     - ``H S† = J(-pi/2)``
+     - Y-
+     - ``C_XYZ``
 
 .. code-block:: python
 
