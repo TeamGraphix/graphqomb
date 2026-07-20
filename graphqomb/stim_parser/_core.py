@@ -9,12 +9,16 @@ from typing import Literal
 
 import stim
 
-_BASIS_GATES = frozenset({"H", "S", "CZ"})
-_PRESERVED_ANNOTATIONS = frozenset({"QUBIT_COORDS", "SHIFT_COORDS", "TICK"})
-_BOUNDARY_OPERATIONS = frozenset({"R", "RX", "RY", "M", "MX", "MY"})
-_SIGNED_PAULI_COUNT = 6
 HS_STIM_GATE = "C_XNYZ"
-_Basis = Literal["H_S_CZ", "H_HS_CZ"]
+_LOCAL_BASIS_GATES = frozenset({"H", HS_STIM_GATE})
+_BASIS_GATES = frozenset({"CZ", *_LOCAL_BASIS_GATES})
+_PRESERVED_ANNOTATIONS = frozenset({"QUBIT_COORDS", "SHIFT_COORDS", "TICK"})
+_RESETS = frozenset({"R", "RX", "RY"})
+_MEASUREMENTS = frozenset({"M", "MX", "MY"})
+_BOUNDARY_OPERATIONS = _RESETS | _MEASUREMENTS
+_OPTIMIZER_INSTRUCTIONS = _BASIS_GATES | _BOUNDARY_OPERATIONS
+_SINGLE_QUBIT_CLIFFORD_COUNT = 24
+_SIGNED_PAULI_COUNT = 6
 
 
 class UnsupportedInstructionError(ValueError):
@@ -44,34 +48,19 @@ def transpile(
         A new circuit containing only H, logical HS, CZ, supported boundaries,
         and preserved annotations. Stim represents ``HS = J(pi/2)`` as
         ``C_XNYZ``.
-
-    Raises
-    ------
-    TypeError
-        If ``circuit`` is neither Stim text nor a Stim circuit.
     """
-    if isinstance(circuit, str):
-        circuit = stim.Circuit(circuit)
-    elif not isinstance(circuit, stim.Circuit):
-        msg = "circuit must be a stim.Circuit or Stim circuit text"
-        raise TypeError(msg)
-
-    h_s_cz = _transpile_block(circuit, context="circuit")
-    if optimize:
-        # Remove diagonal H/S/CZ redundancies before replacing each S by HS·H.
-        # This catches identities such as S^4 without obscuring them behind the
-        # composite-gate encoding.
-        h_s_cz = _optimize_h_s_cz(h_s_cz)
-    h_hs_cz = _convert_s_to_hs(h_s_cz)
-    return optimize_h_hs_cz(h_hs_cz) if optimize else h_hs_cz
+    transpiled = _transpile_block(_coerce_circuit(circuit), context="circuit")
+    return optimize_h_hs_cz(transpiled) if optimize else transpiled
 
 
-def _optimize_h_s_cz(circuit: stim.Circuit | str) -> stim.Circuit:
-    """Remove redundant H, S, and CZ gates from an H/S/CZ circuit.
+def optimize_h_hs_cz(circuit: stim.Circuit | str) -> stim.Circuit:
+    """Remove redundant H, logical HS, and CZ gates.
 
-    The identities H^2 = I, S^4 = I, and CZ^2 = I are removed. Cancellation
-    is also performed across intervening gates when all of them commute with
-    the gate being cancelled. Single-qubit gates at R and M boundaries are
+    Logical ``HS = J(pi/2)`` is represented by Stim's C_XNYZ instruction.
+    Every maximal run of single-qubit basis gates on one qubit is replaced by
+    the shortest H/HS word with the same Clifford action, which removes
+    identities such as H^2 and (HS)^3, and CZ pairs cancel across commuting
+    operations on other qubits. Single-qubit gates at R and M boundaries are
     folded into R/RX/RY preparations or M/MX/MY measurements when safe.
     Annotations are treated as optimization barriers.
 
@@ -80,31 +69,8 @@ def _optimize_h_s_cz(circuit: stim.Circuit | str) -> stim.Circuit:
     ``stim.Circuit``
         The optimized circuit.
     """
-    return _optimize_basis_circuit(
+    return _optimize_circuit(
         _coerce_circuit(circuit),
-        basis="H_S_CZ",
-        context="circuit",
-        terminal_measurements=True,
-    )
-
-
-def optimize_h_hs_cz(circuit: stim.Circuit | str) -> stim.Circuit:
-    """Remove redundant H, logical HS, and CZ gates.
-
-    Logical ``HS = J(pi/2)`` is represented by Stim's C_XNYZ instruction. The
-    identities H^2 = I, (HS)^3 = I, and CZ^2 = I are removed, including across
-    commuting operations on disjoint qubits. Single-qubit gates at R and M
-    boundaries are folded into R/RX/RY preparations or M/MX/MY measurements
-    when safe. Annotations are treated as optimization barriers.
-
-    Returns
-    -------
-    ``stim.Circuit``
-        The optimized circuit.
-    """
-    return _optimize_basis_circuit(
-        _coerce_circuit(circuit),
-        basis="H_HS_CZ",
         context="circuit",
         terminal_measurements=True,
     )
@@ -119,30 +85,6 @@ def _coerce_circuit(circuit: stim.Circuit | str) -> stim.Circuit:
     return circuit
 
 
-def _convert_s_to_hs(circuit: stim.Circuit) -> stim.Circuit:
-    result = stim.Circuit()
-    for instruction_index in range(len(circuit)):
-        instruction = circuit[instruction_index]
-        if isinstance(instruction, stim.CircuitRepeatBlock):
-            result.append(
-                stim.CircuitRepeatBlock(
-                    instruction.repeat_count,
-                    _convert_s_to_hs(instruction.body_copy()),
-                    tag=instruction.tag,
-                )
-            )
-        elif instruction.name == "S":
-            for target in instruction.targets_copy():
-                qubit = _qubit_value(target)
-                # Chronological HS (= H S in matrix order) followed by H
-                # implements S, because H H S = S.
-                result.append(HS_STIM_GATE, [qubit], tag=instruction.tag)
-                result.append("H", [qubit], tag=instruction.tag)
-        else:
-            result.append(instruction)
-    return result
-
-
 @dataclass(frozen=True)
 class _AtomicGate:
     name: str
@@ -155,17 +97,9 @@ class _AtomicGate:
     def qubits(self) -> frozenset[int]:
         return frozenset(self.targets)
 
-    @property
-    def cancellation_key(self) -> tuple[str, tuple[int, ...]]:
-        targets = tuple(sorted(self.targets)) if self.name == "CZ" else self.targets
-        return self.name, targets
-
     def append_to(self, circuit: stim.Circuit) -> None:
         targets: tuple[int | stim.GateTarget, ...]
-        if self.name in {"M", "MX", "MY"} and self.inverted:
-            targets = (stim.target_inv(self.targets[0]),)
-        else:
-            targets = self.targets
+        targets = (stim.target_inv(self.targets[0]),) if self.name in _MEASUREMENTS and self.inverted else self.targets
         circuit.append(
             self.name,
             targets,
@@ -174,38 +108,25 @@ class _AtomicGate:
         )
 
 
-def _optimize_basis_circuit(
+def _optimize_circuit(
     circuit: stim.Circuit,
     *,
-    basis: _Basis,
     context: str,
     terminal_measurements: bool,
 ) -> stim.Circuit:
     result = stim.Circuit()
     pending: list[_AtomicGate] = []
-    basis_gates = (
-        {"H", "S", "CZ"}
-        if basis == "H_S_CZ"
-        else {
-            "H",
-            HS_STIM_GATE,
-            "CZ",
-        }
-    )
-    allowed = basis_gates | _BOUNDARY_OPERATIONS
 
     def flush(*, allow_terminal_measurement_fold: bool) -> None:
         if not pending:
             return
         optimized = _simplify_boundaries(
             pending,
-            basis=basis,
             allow_terminal_measurement_fold=allow_terminal_measurement_fold,
         )
-        optimized = _cancel_redundant_gates(optimized, basis=basis)
+        optimized = _cancel_redundant_gates(optimized)
         optimized = _simplify_boundaries(
             optimized,
-            basis=basis,
             allow_terminal_measurement_fold=allow_terminal_measurement_fold,
         )
         for gate in optimized:
@@ -217,9 +138,8 @@ def _optimize_basis_circuit(
         location = f"{context}, instruction {instruction_index}"
         if isinstance(instruction, stim.CircuitRepeatBlock):
             flush(allow_terminal_measurement_fold=False)
-            body = _optimize_basis_circuit(
+            body = _optimize_circuit(
                 instruction.body_copy(),
-                basis=basis,
                 context=f"{location}, REPEAT body",
                 terminal_measurements=False,
             )
@@ -236,9 +156,9 @@ def _optimize_basis_circuit(
             flush(allow_terminal_measurement_fold=False)
             result.append(instruction)
             continue
-        if instruction.name not in allowed:
-            rendered = ", ".join(sorted(allowed))
-            msg = f"Instruction {instruction.name!r} at {location} is not in the {basis} basis ({rendered})."
+        if instruction.name not in _OPTIMIZER_INSTRUCTIONS:
+            rendered = ", ".join(sorted(_OPTIMIZER_INSTRUCTIONS))
+            msg = f"Instruction {instruction.name!r} at {location} is not in the H/HS/CZ basis ({rendered})."
             raise UnsupportedInstructionError(msg)
 
         _validate_plain_qubit_targets(instruction, location=location)
@@ -247,14 +167,13 @@ def _optimize_basis_circuit(
             if len(targets) != (2 if instruction.name == "CZ" else 1):
                 msg = f"Instruction {instruction.name!r} at {location} has unsupported target grouping."
                 raise UnsupportedInstructionError(msg)
-            target = group[0]
             pending.append(
                 _AtomicGate(
                     instruction.name,
                     targets,
                     instruction.tag,
                     tuple(instruction.gate_args_copy()),
-                    instruction.name in {"M", "MX", "MY"} and target.is_inverted_result_target,
+                    instruction.name in _MEASUREMENTS and group[0].is_inverted_result_target,
                 )
             )
 
@@ -262,66 +181,86 @@ def _optimize_basis_circuit(
     return result
 
 
-def _cancel_redundant_gates(
-    gates: list[_AtomicGate],
-    *,
-    basis: _Basis,
-) -> list[_AtomicGate]:
-    result = list(gates)
-    orders = {"H": 2, "CZ": 2}
-    orders["S" if basis == "H_S_CZ" else HS_STIM_GATE] = 4 if basis == "H_S_CZ" else 3
+def _cancel_redundant_gates(gates: list[_AtomicGate]) -> list[_AtomicGate]:
+    r"""Canonicalize single-qubit runs and cancel redundant CZ gates.
 
+    Every maximal run of single-qubit basis gates on one qubit (operations on
+    disjoint qubits may interleave) is replaced by the shortest H/HS word with
+    the same Clifford action, which removes identities such as H^2 and (HS)^3.
+    CZ pairs cancel across intervening operations that commute with CZ.
+
+    Returns
+    -------
+    `list`\[`_AtomicGate`\]
+        The simplified gate list.
+    """
+    result = list(gates)
     while True:
-        removed = False
-        for start, gate in enumerate(result):
-            if gate.name not in orders:
-                continue
-            matching_positions = [start]
-            for candidate_index in range(start + 1, len(result)):
-                candidate = result[candidate_index]
-                if candidate.cancellation_key == gate.cancellation_key:
-                    matching_positions.append(candidate_index)
-                    if len(matching_positions) == orders[gate.name]:
-                        removed_positions = set(matching_positions)
-                        result = [item for index, item in enumerate(result) if index not in removed_positions]
-                        removed = True
-                        break
-                elif not _commutes_for_optimization(gate, candidate, basis=basis):
-                    break
-            if removed:
-                break
-        if not removed:
+        normalized = _normalize_one_single_qubit_run(result)
+        if normalized is not None:
+            result = normalized
+            continue
+        cancelled = _cancel_one_cz_pair(result)
+        if cancelled is None:
             return result
+        result = cancelled
+
+
+def _normalize_one_single_qubit_run(gates: list[_AtomicGate]) -> list[_AtomicGate] | None:
+    for head_index, head in enumerate(gates):
+        if head.name not in _LOCAL_BASIS_GATES:
+            continue
+        qubit = head.targets[0]
+        if not _is_local_run_head(gates, head_index, qubit=qubit):
+            continue
+        positions = [head_index, *_local_word_after(gates, head_index, qubit=qubit)]
+        word = tuple(gates[index].name for index in positions)
+        canonical = _single_qubit_normal_forms().unitary[_tableau_key(_single_qubit_tableau(word))]
+        if canonical == word:
+            continue
+        replacement = tuple(_AtomicGate(name, (qubit,), head.tag) for name in canonical)
+        return _replace_gate_positions(gates, positions, replacement)
+    return None
+
+
+def _is_local_run_head(gates: list[_AtomicGate], index: int, *, qubit: int) -> bool:
+    for candidate in reversed(gates[:index]):
+        if qubit in candidate.qubits:
+            return candidate.name not in _LOCAL_BASIS_GATES
+    return True
+
+
+def _cancel_one_cz_pair(gates: list[_AtomicGate]) -> list[_AtomicGate] | None:
+    for start, gate in enumerate(gates):
+        if gate.name != "CZ":
+            continue
+        for candidate_index in range(start + 1, len(gates)):
+            candidate = gates[candidate_index]
+            if candidate.name == "CZ" and candidate.qubits == gate.qubits:
+                removed = {start, candidate_index}
+                return [item for index, item in enumerate(gates) if index not in removed]
+            if candidate.name != "CZ" and not gate.qubits.isdisjoint(candidate.qubits):
+                break
+    return None
 
 
 def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, too-many-statements]
     gates: list[_AtomicGate],
     *,
-    basis: _Basis,
     allow_terminal_measurement_fold: bool,
 ) -> list[_AtomicGate]:
     result = list(gates)
-    local_gates = {"H", "S" if basis == "H_S_CZ" else HS_STIM_GATE}
 
     while True:
         changed = False
 
         # A reset discards prior single-qubit operations on the reset qubit.
         for reset_index, reset in enumerate(result):
-            if reset.name not in {"R", "RX", "RY"}:
+            if reset.name not in _RESETS:
                 continue
-            qubit = reset.targets[0]
-            removable: list[int] = []
-            for index in range(reset_index - 1, -1, -1):
-                candidate = result[index]
-                if qubit not in candidate.qubits:
-                    continue
-                if candidate.name in local_gates and candidate.targets == (qubit,):
-                    removable.append(index)
-                    continue
-                break
-            if removable:
-                result = _replace_gate_positions(result, removable, ())
+            positions = _local_word_before(result, reset_index, qubit=reset.targets[0])
+            if positions:
+                result = _replace_gate_positions(result, positions, ())
                 changed = True
                 break
         if changed:
@@ -331,12 +270,7 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
         for reset_index, reset in enumerate(result):
             if reset.name != "R":
                 continue
-            positions = _local_word_after(
-                result,
-                reset_index,
-                qubit=reset.targets[0],
-                local_gates=local_gates,
-            )
+            positions = _local_word_after(result, reset_index, qubit=reset.targets[0])
             if not positions:
                 continue
             word = tuple(result[index].name for index in positions)
@@ -350,9 +284,9 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
                 reset.tag,
                 reset.gate_args,
             )
-            result = _replace_reset_and_word(
+            result = _replace_boundary_and_word(
                 result,
-                reset_index=reset_index,
+                boundary_index=reset_index,
                 word_positions=positions,
                 replacement=replacement,
             )
@@ -371,12 +305,7 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
                 allow_end=allow_terminal_measurement_fold,
             ):
                 continue
-            positions = _local_word_before(
-                result,
-                measurement_index,
-                qubit=measurement.targets[0],
-                local_gates=local_gates,
-            )
+            positions = _local_word_before(result, measurement_index, qubit=measurement.targets[0])
             if not positions:
                 continue
             word = tuple(result[index].name for index in positions)
@@ -396,9 +325,9 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
                 measurement.gate_args,
                 measurement.inverted ^ measurement_key.startswith("-"),
             )
-            result = _replace_measurement_and_word(
+            result = _replace_boundary_and_word(
                 result,
-                measurement_index=measurement_index,
+                boundary_index=measurement_index,
                 word_positions=positions,
                 replacement=replacement,
             )
@@ -411,18 +340,12 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
         for reset_index, reset in enumerate(result):
             if reset.name != "R":
                 continue
-            positions = _local_word_after(
-                result,
-                reset_index,
-                qubit=reset.targets[0],
-                local_gates=local_gates,
-            )
+            positions = _local_word_after(result, reset_index, qubit=reset.targets[0])
             if positions:
                 normalized = _normalize_boundary_positions(
                     result,
                     positions,
                     qubit=reset.targets[0],
-                    basis=basis,
                     boundary="state",
                 )
                 if normalized is not None:
@@ -436,18 +359,12 @@ def _simplify_boundaries(  # ruff:ignore[complex-structure, too-many-branches, t
         for measurement_index, measurement in enumerate(result):
             if measurement.name != "M":
                 continue
-            positions = _local_word_before(
-                result,
-                measurement_index,
-                qubit=measurement.targets[0],
-                local_gates=local_gates,
-            )
+            positions = _local_word_before(result, measurement_index, qubit=measurement.targets[0])
             if positions:
                 normalized = _normalize_boundary_positions(
                     result,
                     positions,
                     qubit=measurement.targets[0],
-                    basis=basis,
                     boundary="measurement",
                 )
                 if normalized is not None:
@@ -464,14 +381,13 @@ def _local_word_after(
     boundary_index: int,
     *,
     qubit: int,
-    local_gates: set[str],
 ) -> list[int]:
     positions: list[int] = []
     for index in range(boundary_index + 1, len(gates)):
         candidate = gates[index]
         if qubit not in candidate.qubits:
             continue
-        if candidate.name in local_gates and candidate.targets == (qubit,):
+        if candidate.name in _LOCAL_BASIS_GATES:
             positions.append(index)
             continue
         break
@@ -483,14 +399,13 @@ def _local_word_before(
     boundary_index: int,
     *,
     qubit: int,
-    local_gates: set[str],
 ) -> list[int]:
     positions: list[int] = []
     for index in range(boundary_index - 1, -1, -1):
         candidate = gates[index]
         if qubit not in candidate.qubits:
             continue
-        if candidate.name in local_gates and candidate.targets == (qubit,):
+        if candidate.name in _LOCAL_BASIS_GATES:
             positions.append(index)
             continue
         break
@@ -503,22 +418,17 @@ def _normalize_boundary_positions(
     positions: list[int],
     *,
     qubit: int,
-    basis: _Basis,
     boundary: Literal["state", "measurement"],
 ) -> list[_AtomicGate] | None:
     word = tuple(gates[index].name for index in positions)
-    state_forms, measurement_forms = _boundary_normal_forms(basis)
+    forms = _single_qubit_normal_forms()
     key = _boundary_key(word, boundary=boundary)
-    replacement = state_forms[key] if boundary == "state" else measurement_forms[key]
+    replacement = (forms.state if boundary == "state" else forms.measurement)[key]
     if replacement == word:
         return None
     tag = gates[positions[0]].tag
     replacement_gates = tuple(_AtomicGate(name, (qubit,), tag) for name in replacement)
-    return _replace_gate_positions(
-        result=gates,
-        positions=positions,
-        replacement=replacement_gates,
-    )
+    return _replace_gate_positions(gates, positions, replacement_gates)
 
 
 def _replace_gate_positions(
@@ -537,27 +447,16 @@ def _replace_gate_positions(
     return output
 
 
-def _replace_reset_and_word(
+def _replace_boundary_and_word(
     gates: list[_AtomicGate],
     *,
-    reset_index: int,
-    word_positions: list[int],
-    replacement: _AtomicGate,
-) -> list[_AtomicGate]:
-    removed = set(word_positions)
-    return [replacement if index == reset_index else gate for index, gate in enumerate(gates) if index not in removed]
-
-
-def _replace_measurement_and_word(
-    gates: list[_AtomicGate],
-    *,
-    measurement_index: int,
+    boundary_index: int,
     word_positions: list[int],
     replacement: _AtomicGate,
 ) -> list[_AtomicGate]:
     removed = set(word_positions)
     return [
-        replacement if index == measurement_index else gate for index, gate in enumerate(gates) if index not in removed
+        replacement if index == boundary_index else gate for index, gate in enumerate(gates) if index not in removed
     ]
 
 
@@ -571,37 +470,51 @@ def _measurement_state_is_discarded(
     for candidate in gates[measurement_index + 1 :]:
         if qubit not in candidate.qubits:
             continue
-        return candidate.name in {"R", "RX", "RY"}
+        return candidate.name in _RESETS
     return allow_end
 
 
+@dataclass(frozen=True)
+class _NormalForms:
+    unitary: dict[tuple[str, str], tuple[str, ...]]
+    state: dict[str, tuple[str, ...]]
+    measurement: dict[str, tuple[str, ...]]
+
+
 @cache
-def _boundary_normal_forms(
-    basis: _Basis,
-) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
-    generators = ("H", "S") if basis == "H_S_CZ" else ("H", HS_STIM_GATE)
+def _single_qubit_normal_forms() -> _NormalForms:
+    unitary_forms: dict[tuple[str, str], tuple[str, ...]] = {}
     state_forms: dict[str, tuple[str, ...]] = {}
     measurement_forms: dict[str, tuple[str, ...]] = {}
     queue: deque[tuple[str, ...]] = deque([()])
-    seen_tableaus: set[tuple[str, str]] = set()
 
-    while queue and (len(state_forms) < _SIGNED_PAULI_COUNT or len(measurement_forms) < _SIGNED_PAULI_COUNT):
+    # Breadth-first search over H/HS words visits shorter words first, so the
+    # first word reaching a tableau, prepared state, or measured observable is
+    # a shortest representative.
+    while queue:
         word = queue.popleft()
         tableau = _single_qubit_tableau(word)
-        tableau_key = (str(tableau.x_output(0)), str(tableau.z_output(0)))
-        if tableau_key in seen_tableaus:
+        key = _tableau_key(tableau)
+        if key in unitary_forms:
             continue
-        seen_tableaus.add(tableau_key)
-
+        unitary_forms[key] = word
         state_forms.setdefault(str(tableau.z_output(0)), word)
         measurement_forms.setdefault(str(tableau.inverse().z_output(0)), word)
-        for generator in generators:
+        for generator in ("H", HS_STIM_GATE):
             queue.append((*word, generator))
 
-    if len(state_forms) != _SIGNED_PAULI_COUNT or len(measurement_forms) != _SIGNED_PAULI_COUNT:
-        msg = f"Failed to enumerate boundary forms for {basis}"
+    if (
+        len(unitary_forms) != _SINGLE_QUBIT_CLIFFORD_COUNT
+        or len(state_forms) != _SIGNED_PAULI_COUNT
+        or len(measurement_forms) != _SIGNED_PAULI_COUNT
+    ):
+        msg = "Failed to enumerate single-qubit H/HS normal forms"
         raise AssertionError(msg)
-    return state_forms, measurement_forms
+    return _NormalForms(unitary_forms, state_forms, measurement_forms)
+
+
+def _tableau_key(tableau: stim.Tableau) -> tuple[str, str]:
+    return str(tableau.x_output(0)), str(tableau.z_output(0))
 
 
 def _boundary_key(
@@ -622,20 +535,7 @@ def _single_qubit_tableau(word: tuple[str, ...]) -> stim.Tableau:
     return stim.Tableau.from_circuit(circuit) if word else stim.Tableau(1)
 
 
-def _commutes_for_optimization(
-    left: _AtomicGate,
-    right: _AtomicGate,
-    *,
-    basis: _Basis,
-) -> bool:
-    if left.qubits.isdisjoint(right.qubits):
-        return True
-    if basis == "H_S_CZ":
-        return left.name in {"S", "CZ"} and right.name in {"S", "CZ"}
-    return left.name == "CZ" and right.name == "CZ"
-
-
-def _transpile_block(circuit: stim.Circuit, *, context: str) -> stim.Circuit:  # ruff:ignore[complex-structure]
+def _transpile_block(circuit: stim.Circuit, *, context: str) -> stim.Circuit:
     result = stim.Circuit()
 
     for instruction_index in range(len(circuit)):
@@ -681,11 +581,6 @@ def _transpile_block(circuit: stim.Circuit, *, context: str) -> stim.Circuit:  #
         if name in _BASIS_GATES:
             _validate_plain_qubit_targets(instruction, location=location)
             result.append(instruction)
-        elif name == "S_DAG":
-            _validate_plain_qubit_targets(instruction, location=location)
-            targets = instruction.targets_copy()
-            for _ in range(3):
-                result.append("S", targets, tag=instruction.tag)
         elif name in {"SPP", "SPP_DAG"}:
             _append_spp_decomposition(
                 result,
@@ -841,13 +736,20 @@ def _append_template(
             raise TypeError(msg)
 
         targets = instruction.targets_copy()
-        if instruction.name in {"H", "S"}:
+        if instruction.name == "H":
             for target in targets:
                 output.append(
-                    instruction.name,
+                    "H",
                     [qubits[_qubit_value(target)]],
                     tag=tag,
                 )
+        elif instruction.name == "S":
+            for target in targets:
+                qubit = qubits[_qubit_value(target)]
+                # Chronological HS (= H S in matrix order) followed by H
+                # implements S, because H H S = S.
+                output.append(HS_STIM_GATE, [qubit], tag=tag)
+                output.append("H", [qubit], tag=tag)
         elif instruction.name == "CX":
             if len(targets) % 2:
                 msg = "Stim synthesized CX with an odd target count"

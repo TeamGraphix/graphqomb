@@ -87,15 +87,6 @@ def test_mbqc_circuit_j_gate() -> None:
     assert math.isclose(instructions[0].angle, 0.5)
 
 
-def test_mbqc_circuit_hs_is_one_j_primitive() -> None:
-    """Test adding HS directly as one J(pi/2) primitive."""
-    circuit = MBQCCircuit(num_qubits=2)
-    circuit.hs(qubit=1)
-
-    instructions = circuit.unit_instructions()
-    assert instructions == [J(qubit=1, angle=math.pi / 2)]
-
-
 def test_mbqc_circuit_cz_gate() -> None:
     """Test adding CZ gate."""
     circuit = MBQCCircuit(num_qubits=3)
@@ -185,10 +176,10 @@ def test_circuit_single_qubit_gates() -> None:
     assert isinstance(macro_gates[5], T)
 
 
-def test_circuit_hs_preserves_macro_and_expands_to_one_j() -> None:
-    """Test that Circuit.hs stores HS and expands it to one J primitive."""
+def test_circuit_hs_macro_expands_to_one_j() -> None:
+    """Test that the HS macro gate expands to one J primitive."""
     circuit = Circuit(num_qubits=2)
-    circuit.hs(qubit=1)
+    circuit.apply_macro_gate(HS(qubit=1))
 
     assert circuit.instructions() == [HS(qubit=1)]
     assert circuit.unit_instructions() == [J(qubit=1, angle=math.pi / 2)]

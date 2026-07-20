@@ -173,6 +173,25 @@ def test_optimizer_preserves_inverted_measurement_targets(measurement: str) -> N
     assert optimize_h_hs_cz(source) == source
 
 
+def test_optimizer_emits_shortest_single_qubit_words() -> None:
+    """Every H/HS word must optimize to a shortest word with the same Clifford action."""
+    words = [word for length in range(8) for word in product(("H", HS_STIM_GATE), repeat=length)]
+    minimal_lengths: dict[tuple[str, str], int] = {}
+    for word in words:
+        circuit = stim.Circuit()
+        for gate in word:
+            circuit.append(gate, [0])
+        tableau = stim.Tableau.from_circuit(circuit) if word else stim.Tableau(1)
+        key = (str(tableau.x_output(0)), str(tableau.z_output(0)))
+        minimal_lengths.setdefault(key, len(word))
+
+        optimized = optimize_h_hs_cz(circuit)
+        gate_count = sum(len(instruction.targets_copy()) for instruction in optimized)
+        assert gate_count == minimal_lengths[key]
+        assert_same_tableau(optimized + stim.Circuit("I 0"), circuit + stim.Circuit("I 0"))
+    assert len(minimal_lengths) == 24
+
+
 def test_all_single_qubit_words_preserve_reset_state_and_measurement_observable() -> None:
     for length in range(6):
         for word in product(("H", HS_STIM_GATE), repeat=length):

@@ -11,7 +11,7 @@ import stim
 
 from graphqomb.circuit import Circuit, CircuitScheduleStrategy, circuit2graph
 from graphqomb.common import Axis, AxisMeasBasis, Sign
-from graphqomb.gates import CZ, H
+from graphqomb.gates import CZ, HS, H
 from graphqomb.graphstate import GraphState, compose, odd_neighbors
 from graphqomb.qec._stim import (
     PauliSupport,
@@ -790,7 +790,7 @@ def _append_unitary_instruction(
         if instruction.name == "H":
             circuit.apply_macro_gate(H(mapped[0]))
         elif instruction.name == HS_STIM_GATE:
-            circuit.hs(mapped[0])
+            circuit.apply_macro_gate(HS(mapped[0]))
         elif instruction.name == "CZ":
             circuit.apply_macro_gate(CZ((mapped[0], mapped[1])))
         else:

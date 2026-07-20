@@ -14,7 +14,6 @@ from __future__ import annotations
 import copy
 import enum
 import itertools
-import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -22,7 +21,7 @@ from typing import TYPE_CHECKING
 import typing_extensions
 
 from graphqomb.common import Plane, PlannerMeasBasis
-from graphqomb.gates import CZ, HS, Gate, J, PhaseGadget, UnitGate
+from graphqomb.gates import CZ, Gate, J, PhaseGadget, UnitGate
 from graphqomb.graphstate import GraphState
 from graphqomb.scheduler import Scheduler
 
@@ -238,16 +237,6 @@ class MBQCCircuit(BaseCircuit):
         """
         self.__gate_instructions.append(J(qubit=qubit, angle=angle))
 
-    def hs(self, qubit: int) -> None:
-        r"""Add an HS gate as one :math:`J(\pi / 2)` primitive.
-
-        Parameters
-        ----------
-        qubit : `int`
-            The qubit index.
-        """
-        self.__gate_instructions.append(J(qubit=qubit, angle=math.pi / 2))
-
     def cz(self, qubit1: int, qubit2: int) -> None:
         """Add a CZ gate to the circuit.
 
@@ -318,16 +307,6 @@ class Circuit(BaseCircuit):
         return list(
             itertools.chain.from_iterable(macro_gate.unit_gates() for macro_gate in self.__macro_gate_instructions)
         )
-
-    def hs(self, qubit: int) -> None:
-        """Add an HS macro gate that expands to one J primitive.
-
-        Parameters
-        ----------
-        qubit : `int`
-            The qubit index.
-        """
-        self.__macro_gate_instructions.append(HS(qubit=qubit))
 
     def apply_macro_gate(self, gate: Gate) -> None:
         """Apply a macro gate to the circuit.
