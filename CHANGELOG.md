@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pauli Frame Logical Observables**: Added `PauliFrame.logical_observable_groups()` to return all indexed logical observables after dependent-chain expansion, matching the all-groups behavior of `detector_groups()`; Stim export now uses the new aggregate API.
+
 ### Fixed
 
 - **QEC Graph-State Coordinates**: Move automatically positioned MPP ancillas aside when their support centroid's XY projection is already occupied by another node, using clearance scaled to the graph's coordinate span while preserving the inferred temporal coordinate and explicit ancilla coordinates.

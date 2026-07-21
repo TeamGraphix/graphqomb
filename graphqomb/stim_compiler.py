@@ -70,8 +70,7 @@ class _StimCompiler:
             self._stim_io.write(f"DETECTOR {' '.join(targets)}\n")
 
     def _emit_observables(self, total_measurements: int) -> None:
-        for log_idx, obs in sorted(self._pframe.logical_observables.items()):
-            group = self._pframe.logical_observables_group(obs)
+        for log_idx, group in sorted(self._pframe.logical_observable_groups().items()):
             targets = [f"rec[{self._meas_order[n] - total_measurements}]" for n in group]
             self._stim_io.write(f"OBSERVABLE_INCLUDE({log_idx}) {' '.join(targets)}\n")
 

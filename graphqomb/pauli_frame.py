@@ -178,6 +178,19 @@ class PauliFrame:
 
         return groups
 
+    def logical_observable_groups(self) -> dict[int, set[int]]:
+        r"""Get all logical observable groups after dependent-chain expansion.
+
+        Returns
+        -------
+        `dict`\[`int`, `set`\[`int`\]\]
+            The expanded logical observable groups keyed by logical index.
+        """
+        return {
+            logical_idx: self.logical_observables_group(target_nodes)
+            for logical_idx, target_nodes in self.logical_observables.items()
+        }
+
     def logical_observables_group(self, target_nodes: Collection[int]) -> set[int]:
         r"""Get the logical observables group for the given target nodes.
 
