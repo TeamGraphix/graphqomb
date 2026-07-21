@@ -508,7 +508,7 @@ def _avoid_occupied_coordinate(
         The original coordinate when unoccupied, otherwise a nearby free one.
     """
     occupied_coordinates = tuple(graph.coordinates.values())
-    if not any(math.dist(coordinate, occupied) <= _COORDINATE_TOLERANCE for occupied in occupied_coordinates):
+    if not any(math.dist(coordinate[:2], occupied[:2]) <= _COORDINATE_TOLERANCE for occupied in occupied_coordinates):
         return coordinate
 
     x, y, z = coordinate
@@ -518,7 +518,7 @@ def _avoid_occupied_coordinate(
         for dx, dy in _ANCILLA_ESCAPE_DIRECTIONS:
             candidate = (x + dx * distance, y + dy * distance, z)
             if all(
-                math.dist(candidate, occupied) >= _ANCILLA_COLLISION_CLEARANCE - _COORDINATE_TOLERANCE
+                math.dist(candidate[:2], occupied[:2]) >= _ANCILLA_COLLISION_CLEARANCE - _COORDINATE_TOLERANCE
                 for occupied in occupied_coordinates
             ):
                 return candidate

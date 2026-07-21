@@ -287,6 +287,20 @@ def test_build_graph_state_type_ii_moves_ancilla_off_overlapping_middle_node() -
     assert coords[result.ancilla_nodes[0]] == (10.5, 20.0, 5.5)
 
 
+def test_build_graph_state_type_i_moves_ancilla_off_same_xy_projection() -> None:
+    code = StabilizerCode(
+        _matrix([[1, 1]]),
+        qubit_coords={0: (10.0, 20.0)},
+    )
+
+    result = build_graph_state(code, z_base=5, y_foliation=YFoliation.TYPE_I)
+    coords = result.graph.coordinates
+
+    assert coords[result.data_nodes[0, 5]] == (10.0, 20.0, 5.0)
+    assert coords[result.data_nodes[0, 6]] == (10.0, 20.0, 6.0)
+    assert coords[result.ancilla_nodes[0]] == (10.5, 20.0, 5.5)
+
+
 def test_build_graph_state_moves_ancilla_off_data_qubit_at_support_centroid() -> None:
     code = StabilizerCode(
         _matrix([[1, 0, 1, 0, 0, 0]]),
@@ -312,6 +326,32 @@ def test_build_graph_state_uses_next_escape_direction_when_first_is_occupied() -
             1: (1.5, 0.0),
             2: (2.0, 0.0),
             3: (3.0, 0.0),
+        },
+    )
+
+    result = build_graph_state(code)
+
+    assert result.graph.coordinates[result.ancilla_nodes[0]] == (1.0, 0.0, 1.0)
+
+
+def test_build_graph_state_expands_escape_radius_when_first_ring_is_occupied() -> None:
+    escape_ring = [
+        (0.5, 0.0),
+        (-0.5, 0.0),
+        (0.0, 0.5),
+        (0.0, -0.5),
+        (0.5, 0.5),
+        (0.5, -0.5),
+        (-0.5, 0.5),
+        (-0.5, -0.5),
+    ]
+    code = StabilizerCode(
+        _matrix([[1, 1, *([0] * 9), *([0] * 11)]]),
+        qubit_coords={
+            0: (-2.0, 0.0),
+            1: (2.0, 0.0),
+            2: (0.0, 0.0),
+            **dict(enumerate(escape_ring, start=3)),
         },
     )
 
