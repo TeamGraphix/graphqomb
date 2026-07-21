@@ -18,7 +18,8 @@ if TYPE_CHECKING:
 
 
 _TYPE_II_CHAIN_LENGTH = 3
-_ANCILLA_COLLISION_CLEARANCE = 0.5
+_MIN_ANCILLA_COLLISION_CLEARANCE = 0.5
+_ANCILLA_COLLISION_CLEARANCE_RATIO = 0.05
 _COORDINATE_TOLERANCE = 1e-9
 _ANCILLA_ESCAPE_DIRECTIONS = (
     (1.0, 0.0),
@@ -506,20 +507,42 @@ def _avoid_occupied_coordinate(
     -------
     `tuple`[`float`, `float`, `float`]
         The original coordinate when unoccupied, otherwise a nearby free one.
+
+    Raises
+    ------
+    ValueError
+        If no finite candidate can be found within the bounded search.
     """
-    occupied_coordinates = tuple(graph.coordinates.values())
+    if not all(math.isfinite(value) for value in coordinate[:2]):
+        return coordinate
+
+    occupied_coordinates = tuple(
+        occupied for occupied in graph.coordinates.values() if all(math.isfinite(value) for value in occupied[:2])
+    )
     if not any(math.dist(coordinate[:2], occupied[:2]) <= _COORDINATE_TOLERANCE for occupied in occupied_coordinates):
         return coordinate
 
+    x_coordinates = tuple(occupied[0] for occupied in occupied_coordinates)
+    y_coordinates = tuple(occupied[1] for occupied in occupied_coordinates)
+    scaled_coordinate_span = max(
+        max(x_coordinates) * _ANCILLA_COLLISION_CLEARANCE_RATIO
+        - min(x_coordinates) * _ANCILLA_COLLISION_CLEARANCE_RATIO,
+        max(y_coordinates) * _ANCILLA_COLLISION_CLEARANCE_RATIO
+        - min(y_coordinates) * _ANCILLA_COLLISION_CLEARANCE_RATIO,
+    )
+    clearance = max(_MIN_ANCILLA_COLLISION_CLEARANCE, scaled_coordinate_span)
+
     x, y, z = coordinate
-    radius = 1
-    while True:
-        distance = radius * _ANCILLA_COLLISION_CLEARANCE
+    max_radius = 3 * len(occupied_coordinates) + 1
+    for radius in range(1, max_radius + 1):
+        distance = radius * clearance
         for dx, dy in _ANCILLA_ESCAPE_DIRECTIONS:
             candidate = (x + dx * distance, y + dy * distance, z)
-            if all(
-                math.dist(candidate[:2], occupied[:2]) >= _ANCILLA_COLLISION_CLEARANCE - _COORDINATE_TOLERANCE
+            if all(math.isfinite(value) for value in candidate[:2]) and all(
+                math.dist(candidate[:2], occupied[:2]) >= clearance - _COORDINATE_TOLERANCE
                 for occupied in occupied_coordinates
             ):
                 return candidate
-        radius += 1
+
+    msg = "could not find a finite coordinate for the inferred ancilla"
+    raise ValueError(msg)

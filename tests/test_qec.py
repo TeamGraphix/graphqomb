@@ -318,6 +318,37 @@ def test_build_graph_state_moves_ancilla_off_data_qubit_at_support_centroid() ->
     assert coords[result.ancilla_nodes[0]] == (1.5, 0.0, 1.0)
 
 
+def test_build_graph_state_scales_ancilla_clearance_with_coordinate_span() -> None:
+    code = StabilizerCode(
+        _matrix([[1, 0, 1, 0, 0, 0]]),
+        qubit_coords={
+            0: (0.0, 0.0),
+            1: (1000.0, 0.0),
+            2: (2000.0, 0.0),
+        },
+    )
+
+    result = build_graph_state(code)
+
+    assert result.graph.coordinates[result.ancilla_nodes[0]] == (1100.0, 0.0, 1.0)
+
+
+def test_build_graph_state_ignores_nonfinite_coordinates_when_avoiding_overlap() -> None:
+    code = StabilizerCode(
+        _matrix([[1, 1, 0, 0, 0, 0, 0, 0]]),
+        qubit_coords={
+            0: (-1.0, 0.0),
+            1: (1.0, 0.0),
+            2: (0.0, 0.0),
+            3: (float("nan"), 5.0),
+        },
+    )
+
+    result = build_graph_state(code)
+
+    assert result.graph.coordinates[result.ancilla_nodes[0]] == (0.5, 0.0, 1.0)
+
+
 def test_build_graph_state_uses_next_escape_direction_when_first_is_occupied() -> None:
     code = StabilizerCode(
         _matrix([[1, 0, 0, 1, 0, 0, 0, 0]]),
