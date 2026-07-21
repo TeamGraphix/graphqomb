@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **QEC Graph-State Coordinates**: Move automatically positioned MPP ancillas aside when their support centroid's XY projection is already occupied by another node, using clearance scaled to the graph's coordinate span while preserving the inferred temporal coordinate and explicit ancilla coordinates.
+
 ## [0.4.1] - 2026-07-20
 
 ### Added

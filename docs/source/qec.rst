@@ -7,7 +7,12 @@ Type I and Type II graph-state builders used by the QEC helper workflow.
 Coordinate tuples are retained without restricting their dimensionality. The
 graph-state builder uses the first two qubit-coordinate components for the data
 plane and the first three explicitly supplied stabilizer-coordinate components
-for ancilla placement.
+for ancilla placement. An ancilla without an explicit coordinate is placed at
+the centroid of its connected data nodes. If that centroid's XY projection is
+already occupied, the ancilla is moved in the data plane to a nearby candidate
+position with clearance from existing nodes. The clearance scales with the XY
+coordinate span so that it remains visible for large coordinate ranges; the
+temporal coordinate is left unchanged.
 
 With ``data_as_io=True``, the stabilizer-measurement unit has a separate,
 unmeasured output layer. Type I therefore has two measured data layers followed
