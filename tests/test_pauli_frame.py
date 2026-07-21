@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from graphqomb.common import Axis, Plane, PlannerMeasBasis
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.pauli_frame import PauliFrame
 
@@ -374,6 +374,81 @@ def test_detector_groups() -> None:
 
     assert groups[0] == {n1}
     assert groups[1] == {n0, n1, n2}  # n0 is included via dependent chain
+
+
+def test_detector_stabilizer_and_determinism() -> None:
+    """A detector stabilizer is the product of graph-state stabilizers."""
+    graph = GraphState()
+    center = graph.add_node()
+    measured_neighbor = graph.add_node()
+    unmeasured_output = graph.add_node()
+
+    graph.register_output(unmeasured_output, 0)
+    graph.add_edge(center, measured_neighbor)
+    graph.add_edge(center, unmeasured_output)
+    graph.assign_meas_basis(center, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(measured_neighbor, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{center}])
+
+    assert pframe.detector_stabilizers() == [
+        {
+            center: Axis.X,
+            measured_neighbor: Axis.Z,
+            unmeasured_output: Axis.Z,
+        }
+    ]
+    assert pframe.detector_determinism() == [True]
+
+    # Once the output is measured, its basis participates in the comparison.
+    graph.assign_meas_basis(unmeasured_output, AxisMeasBasis(Axis.X, Sign.PLUS))
+    assert pframe.detector_determinism() == [False]
+
+
+def test_detector_stabilizer_multiplication() -> None:
+    """Overlapping X and Z support multiplies to Y up to phase."""
+    graph = GraphState()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.assign_meas_basis(n0, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    graph.assign_meas_basis(n1, AxisMeasBasis(Axis.Y, Sign.MINUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{n0, n1}])
+
+    assert pframe.detector_stabilizers() == [{n0: Axis.Y, n1: Axis.Y}]
+    assert pframe.detector_determinism() == [True]
+
+    graph.assign_meas_basis(n1, AxisMeasBasis(Axis.X, Sign.PLUS))
+    assert pframe.detector_determinism() == [False]
+
+
+@pytest.mark.parametrize(
+    ("init_axis", "expected_stabilizer"),
+    [
+        (Axis.X, {0: Axis.X, 1: Axis.Z}),
+        (Axis.Y, {0: Axis.Y, 1: Axis.Z}),
+        (Axis.Z, {0: Axis.Z}),
+    ],
+)
+def test_input_detector_stabilizer(
+    init_axis: Axis,
+    expected_stabilizer: dict[int, Axis],
+) -> None:
+    """Input detector stabilizers respect their preparation axes."""
+    graph = GraphState()
+    input_node = graph.add_node()
+    neighbor = graph.add_node()
+    graph.register_input(input_node, 0, init_axis=init_axis)
+    graph.add_edge(input_node, neighbor)
+    graph.assign_meas_basis(input_node, AxisMeasBasis(init_axis, Sign.PLUS))
+    graph.assign_meas_basis(neighbor, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{input_node}])
+
+    assert (input_node, neighbor) == (0, 1)
+    assert pframe.detector_stabilizers() == [expected_stabilizer]
+    assert pframe.detector_determinism() == [True]
 
 
 def test_logical_observables_group() -> None:

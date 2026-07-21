@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Detector Determinism**: Added `PauliFrame.detector_stabilizers()` and `PauliFrame.detector_determinism()` to construct closure-expanded detector stabilizers and report whether their Pauli operators match the assigned measurement axes, including Pauli input initialization and unmeasured-output handling.
 - **Pauli Frame Logical Observables**: Added `PauliFrame.logical_observable_groups()` to return all indexed logical observables after dependent-chain expansion, matching the all-groups behavior of `detector_groups()`; Stim export now uses the new aggregate API.
 
 ### Fixed
