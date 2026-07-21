@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from enum import Enum, auto
 from itertools import combinations
@@ -17,6 +18,18 @@ if TYPE_CHECKING:
 
 
 _TYPE_II_CHAIN_LENGTH = 3
+_ANCILLA_COLLISION_CLEARANCE = 0.5
+_COORDINATE_TOLERANCE = 1e-9
+_ANCILLA_ESCAPE_DIRECTIONS = (
+    (1.0, 0.0),
+    (-1.0, 0.0),
+    (0.0, 1.0),
+    (0.0, -1.0),
+    (1.0, 1.0),
+    (1.0, -1.0),
+    (-1.0, 1.0),
+    (-1.0, -1.0),
+)
 Coordinate = tuple[float, ...]
 
 
@@ -302,7 +315,7 @@ def _add_ancilla_nodes(
         if explicit_ancilla_coord is None:
             inferred_coord = _average_node_coordinates(graph, connected_data_nodes)
             if inferred_coord is not None:
-                graph.set_coordinate(ancilla_node, inferred_coord)
+                graph.set_coordinate(ancilla_node, _avoid_occupied_coordinate(graph, inferred_coord))
 
     for left_stabilizer, right_stabilizer in _twisted_stabilizer_pairs(supports):
         graph.add_edge(ancilla_nodes[left_stabilizer], ancilla_nodes[right_stabilizer])
@@ -477,3 +490,36 @@ def _average_node_coordinates(graph: GraphState, nodes: list[int]) -> tuple[floa
         sum(coordinates[node][1] for node in nodes) / len(nodes),
         sum(coordinates[node][2] for node in nodes) / len(nodes),
     )
+
+
+def _avoid_occupied_coordinate(
+    graph: GraphState,
+    coordinate: tuple[float, float, float],
+) -> tuple[float, float, float]:
+    """Move an inferred ancilla coordinate aside when its centroid is occupied.
+
+    The temporal coordinate is preserved. Candidate positions expand
+    deterministically in the data plane until one has enough clearance from
+    every node whose coordinate has already been assigned.
+
+    Returns
+    -------
+    `tuple`[`float`, `float`, `float`]
+        The original coordinate when unoccupied, otherwise a nearby free one.
+    """
+    occupied_coordinates = tuple(graph.coordinates.values())
+    if not any(math.dist(coordinate, occupied) <= _COORDINATE_TOLERANCE for occupied in occupied_coordinates):
+        return coordinate
+
+    x, y, z = coordinate
+    radius = 1
+    while True:
+        distance = radius * _ANCILLA_COLLISION_CLEARANCE
+        for dx, dy in _ANCILLA_ESCAPE_DIRECTIONS:
+            candidate = (x + dx * distance, y + dy * distance, z)
+            if all(
+                math.dist(candidate, occupied) >= _ANCILLA_COLLISION_CLEARANCE - _COORDINATE_TOLERANCE
+                for occupied in occupied_coordinates
+            ):
+                return candidate
+        radius += 1
