@@ -216,9 +216,7 @@ class PauliFrame:
         results: list[bool] = []
 
         for group, stabilizer in zip(groups, stabilizers, strict=True):
-            compared_stabilizer = {
-                node: axis for node, axis in stabilizer.items() if node not in unmeasured_outputs
-            }
+            compared_stabilizer = {node: axis for node, axis in stabilizer.items() if node not in unmeasured_outputs}
             measurement_product = self._detector_measurement_product(group)
             results.append(measurement_product is not None and compared_stabilizer == measurement_product)
 
