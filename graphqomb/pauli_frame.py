@@ -200,27 +200,57 @@ class PauliFrame:
     def detector_determinism(self) -> list[bool]:
         r"""Determine whether each detector has deterministic measurement parity.
 
-        A detector is deterministic when every non-identity Pauli operator in
-        its stabilizer agrees with the corresponding Pauli measurement axis.
-        Output nodes without an assigned measurement basis are omitted from the
-        comparison.
+        A detector is deterministic when its stabilizer is exactly equal to the
+        product of the Pauli measurement axes on its detector group.  Measurement
+        signs and output nodes without an assigned measurement basis are omitted
+        from the comparison.
 
         Returns
         -------
         `list`\[`bool`\]
             Determinism flags in the same order as `detector_groups`.
         """
+        groups = self.detector_groups()
+        stabilizers = [self._detector_stabilizer(group) for group in groups]
+        unmeasured_outputs = self.graphstate.output_node_indices.keys() - self.graphstate.meas_bases.keys()
+        results: list[bool] = []
+
+        for group, stabilizer in zip(groups, stabilizers, strict=True):
+            compared_stabilizer = {
+                node: axis for node, axis in stabilizer.items() if node not in unmeasured_outputs
+            }
+            measurement_product = self._detector_measurement_product(group)
+            results.append(measurement_product is not None and compared_stabilizer == measurement_product)
+
+        return results
+
+    def _detector_measurement_product(self, detector_group: AbstractSet[int]) -> dict[int, Axis] | None:
+        r"""Construct the unsigned Pauli measurement product on a detector group.
+
+        Parameters
+        ----------
+        detector_group : `collections.abc.Set`\[`int`\]
+            Closure-expanded detector group.
+
+        Returns
+        -------
+        `dict`\[`int`, `Axis`\] | `None`
+            Pauli measurement axes, or None if a compared node does not have a
+            Pauli measurement basis.
+        """
+        measurement_product: dict[int, Axis] = {}
         output_nodes = self.graphstate.output_node_indices
         meas_bases = self.graphstate.meas_bases
 
-        return [
-            all(
-                (node in output_nodes and node not in meas_bases)
-                or (node in meas_bases and determine_pauli_axis(meas_bases[node]) == pauli_axis)
-                for node, pauli_axis in stabilizer.items()
-            )
-            for stabilizer in self.detector_stabilizers()
-        ]
+        for node in detector_group:
+            meas_basis = meas_bases.get(node)
+            if meas_basis is None and node in output_nodes:
+                continue
+            if meas_basis is None or (axis := determine_pauli_axis(meas_basis)) is None:
+                return None
+            measurement_product[node] = axis
+
+        return measurement_product
 
     def _detector_stabilizer(self, detector_group: AbstractSet[int]) -> dict[int, Axis]:
         r"""Construct the product stabilizer for an expanded detector group.

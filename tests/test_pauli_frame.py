@@ -380,21 +380,17 @@ def test_detector_stabilizer_and_determinism() -> None:
     """A detector stabilizer is the product of graph-state stabilizers."""
     graph = GraphState()
     center = graph.add_node()
-    measured_neighbor = graph.add_node()
     unmeasured_output = graph.add_node()
 
     graph.register_output(unmeasured_output, 0)
-    graph.add_edge(center, measured_neighbor)
     graph.add_edge(center, unmeasured_output)
     graph.assign_meas_basis(center, AxisMeasBasis(Axis.X, Sign.PLUS))
-    graph.assign_meas_basis(measured_neighbor, AxisMeasBasis(Axis.Z, Sign.PLUS))
 
     pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{center}])
 
     assert pframe.detector_stabilizers() == [
         {
             center: Axis.X,
-            measured_neighbor: Axis.Z,
             unmeasured_output: Axis.Z,
         }
     ]
@@ -402,6 +398,21 @@ def test_detector_stabilizer_and_determinism() -> None:
 
     # Once the output is measured, its basis participates in the comparison.
     graph.assign_meas_basis(unmeasured_output, AxisMeasBasis(Axis.X, Sign.PLUS))
+    assert pframe.detector_determinism() == [False]
+
+
+def test_detector_determinism_requires_exact_support() -> None:
+    """A matching measurement outside the detector group cannot extend its product."""
+    graph = GraphState()
+    detector_node = graph.add_node()
+    outside_node = graph.add_node()
+    graph.add_edge(detector_node, outside_node)
+    graph.assign_meas_basis(detector_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(outside_node, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{detector_node}])
+
+    assert pframe.detector_stabilizers() == [{detector_node: Axis.X, outside_node: Axis.Z}]
     assert pframe.detector_determinism() == [False]
 
 
@@ -424,16 +435,17 @@ def test_detector_stabilizer_multiplication() -> None:
 
 
 @pytest.mark.parametrize(
-    ("init_axis", "expected_stabilizer"),
+    ("init_axis", "expected_stabilizer", "expected_determinism"),
     [
-        (Axis.X, {0: Axis.X, 1: Axis.Z}),
-        (Axis.Y, {0: Axis.Y, 1: Axis.Z}),
-        (Axis.Z, {0: Axis.Z}),
+        (Axis.X, {0: Axis.X, 1: Axis.Z}, False),
+        (Axis.Y, {0: Axis.Y, 1: Axis.Z}, False),
+        (Axis.Z, {0: Axis.Z}, True),
     ],
 )
 def test_input_detector_stabilizer(
     init_axis: Axis,
     expected_stabilizer: dict[int, Axis],
+    expected_determinism: bool,
 ) -> None:
     """Input detector stabilizers respect their preparation axes."""
     graph = GraphState()
@@ -448,7 +460,23 @@ def test_input_detector_stabilizer(
 
     assert (input_node, neighbor) == (0, 1)
     assert pframe.detector_stabilizers() == [expected_stabilizer]
-    assert pframe.detector_determinism() == [True]
+    assert pframe.detector_determinism() == [expected_determinism]
+
+
+def test_detector_determinism_detects_canceled_support() -> None:
+    """A detector node canceled to identity makes the Pauli products unequal."""
+    graph = GraphState()
+    z_input = graph.add_node()
+    neighbor = graph.add_node()
+    graph.register_input(z_input, 0, init_axis=Axis.Z)
+    graph.add_edge(z_input, neighbor)
+    graph.assign_meas_basis(z_input, AxisMeasBasis(Axis.Z, Sign.PLUS))
+    graph.assign_meas_basis(neighbor, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{z_input, neighbor}])
+
+    assert pframe.detector_stabilizers() == [{neighbor: Axis.X}]
+    assert pframe.detector_determinism() == [False]
 
 
 def test_logical_observables_group() -> None:
