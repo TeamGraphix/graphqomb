@@ -182,11 +182,11 @@ class PauliFrame:
         r"""Get the graph-state stabilizer associated with each detector.
 
         The detector groups are expanded through their dependent chains before
-        constructing the stabilizers.  A non-input node contributes its graph
-        stabilizer, i.e. X on itself and Z on each neighbor.  Input nodes instead
-        contribute the stabilizer obtained from their initialization axis: X or
-        Y on themselves and Z on each neighbor, or only Z on themselves for a
-        Z-initialized input.
+        constructing the stabilizers.  A Z-measured node contributes Z only on
+        itself and is removed from the neighbor sets of all other graph
+        stabilizers.  Every other non-input node contributes X on itself and Z
+        on each remaining neighbor.  Input nodes instead contribute the
+        stabilizer obtained from their initialization axis.
 
         Global phases are discarded when multiplying the Pauli operators.
 
@@ -195,7 +195,8 @@ class PauliFrame:
         `list`\[`dict`\[`int`, `Axis`\]\]
             Detector stabilizers, represented by their non-identity Pauli axes.
         """
-        return [self._detector_stabilizer(group) for group in self.detector_groups()]
+        z_measurements = self._z_measurements()
+        return [self._detector_stabilizer(group, z_measurements=z_measurements) for group in self.detector_groups()]
 
     def detector_determinism(self) -> list[bool]:
         r"""Determine whether each detector has deterministic measurement parity.
@@ -211,7 +212,8 @@ class PauliFrame:
             Determinism flags in the same order as `detector_groups`.
         """
         groups = self.detector_groups()
-        stabilizers = [self._detector_stabilizer(group) for group in groups]
+        z_measurements = self._z_measurements()
+        stabilizers = [self._detector_stabilizer(group, z_measurements=z_measurements) for group in groups]
         unmeasured_outputs = self.graphstate.output_node_indices.keys() - self.graphstate.meas_bases.keys()
         results: list[bool] = []
 
@@ -250,13 +252,34 @@ class PauliFrame:
 
         return measurement_product
 
-    def _detector_stabilizer(self, detector_group: AbstractSet[int]) -> dict[int, Axis]:
+    def _z_measurements(self) -> set[int]:
+        r"""Return all nodes assigned a Z measurement.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            Nodes with a Z measurement basis.
+        """
+        return {
+            node
+            for node, meas_basis in self.graphstate.meas_bases.items()
+            if determine_pauli_axis(meas_basis) is Axis.Z
+        }
+
+    def _detector_stabilizer(
+        self,
+        detector_group: AbstractSet[int],
+        *,
+        z_measurements: AbstractSet[int],
+    ) -> dict[int, Axis]:
         r"""Construct the product stabilizer for an expanded detector group.
 
         Parameters
         ----------
         detector_group : `collections.abc.Set`\[`int`\]
             Closure-expanded detector group.
+        z_measurements : `collections.abc.Set`\[`int`\]
+            Nodes removed by Z measurements.
 
         Returns
         -------
@@ -268,11 +291,15 @@ class PauliFrame:
         input_axes = self.graphstate.input_initialization_axes
 
         for node in detector_group:
+            if node in z_measurements:
+                z_support.symmetric_difference_update({node})
+                continue
+
             axis = input_axes.get(node, Axis.X)
 
             if axis in {Axis.X, Axis.Y}:
                 x_support.symmetric_difference_update({node})
-                z_support.symmetric_difference_update(self.graphstate.neighbors(node))
+                z_support.symmetric_difference_update(self.graphstate.neighbors(node) - z_measurements)
             if axis in {Axis.Y, Axis.Z}:
                 z_support.symmetric_difference_update({node})
 

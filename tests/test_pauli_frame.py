@@ -408,12 +408,27 @@ def test_detector_determinism_requires_exact_support() -> None:
     outside_node = graph.add_node()
     graph.add_edge(detector_node, outside_node)
     graph.assign_meas_basis(detector_node, AxisMeasBasis(Axis.X, Sign.PLUS))
-    graph.assign_meas_basis(outside_node, AxisMeasBasis(Axis.Z, Sign.PLUS))
+    graph.assign_meas_basis(outside_node, AxisMeasBasis(Axis.X, Sign.PLUS))
 
     pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{detector_node}])
 
     assert pframe.detector_stabilizers() == [{detector_node: Axis.X, outside_node: Axis.Z}]
     assert pframe.detector_determinism() == [False]
+
+
+def test_z_measurement_replaces_graph_stabilizer_and_incident_edges() -> None:
+    """A Z-measured node contributes Z alone and is removed from neighbor sets."""
+    graph = GraphState()
+    x_node = graph.add_node()
+    z_node = graph.add_node()
+    graph.add_edge(x_node, z_node)
+    graph.assign_meas_basis(x_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(z_node, AxisMeasBasis(Axis.Z, Sign.MINUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{x_node, z_node}])
+
+    assert pframe.detector_stabilizers() == [{x_node: Axis.X, z_node: Axis.Z}]
+    assert pframe.detector_determinism() == [True]
 
 
 def test_detector_stabilizer_multiplication() -> None:
@@ -437,8 +452,8 @@ def test_detector_stabilizer_multiplication() -> None:
 @pytest.mark.parametrize(
     ("init_axis", "expected_stabilizer", "expected_determinism"),
     [
-        (Axis.X, {0: Axis.X, 1: Axis.Z}, False),
-        (Axis.Y, {0: Axis.Y, 1: Axis.Z}, False),
+        (Axis.X, {0: Axis.X}, True),
+        (Axis.Y, {0: Axis.Y}, True),
         (Axis.Z, {0: Axis.Z}, True),
     ],
 )
@@ -463,8 +478,8 @@ def test_input_detector_stabilizer(
     assert pframe.detector_determinism() == [expected_determinism]
 
 
-def test_detector_determinism_detects_canceled_support() -> None:
-    """A detector node canceled to identity makes the Pauli products unequal."""
+def test_z_measurement_prevents_incident_support_cancellation() -> None:
+    """Removing Z-measured nodes from neighbor sets prevents support cancellation."""
     graph = GraphState()
     z_input = graph.add_node()
     neighbor = graph.add_node()
@@ -475,7 +490,20 @@ def test_detector_determinism_detects_canceled_support() -> None:
 
     pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{z_input, neighbor}])
 
-    assert pframe.detector_stabilizers() == [{neighbor: Axis.X}]
+    assert pframe.detector_stabilizers() == [{z_input: Axis.Z, neighbor: Axis.X}]
+    assert pframe.detector_determinism() == [True]
+
+
+def test_input_initialization_can_make_detector_non_deterministic() -> None:
+    """A detector is non-deterministic when its measurement disagrees with input preparation."""
+    graph = GraphState()
+    z_input = graph.add_node()
+    graph.register_input(z_input, 0, init_axis=Axis.Z)
+    graph.assign_meas_basis(z_input, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{z_input}])
+
+    assert pframe.detector_stabilizers() == [{z_input: Axis.Z}]
     assert pframe.detector_determinism() == [False]
 
 
