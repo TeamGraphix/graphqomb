@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Stim Classical Feedback Import**: Import measurement-record-controlled `CX`, `CY`, `CZ`, `XCZ`, and `YCZ` targets into the pattern's X/Z correction flows, preserving instruction position and applying the feedback only after graph-derived odd-neighbor Z-flow construction. Because frame corrections are applied at the target's measurement, an X or Y feedback entry also XORs Z corrections onto the neighbors entangled with the target after the feedback position; neighbors entangled before the feedback receive no compensation, and Z feedback needs none.
+
+### Changed
+
+- **First-Class Measured Outputs**: Output nodes with an assigned measurement basis are now scheduled and executed like ordinary measurements instead of being appended after the timeline. `dag_from_flow` keeps correction-flow dependencies whose source is a measured output, the `Scheduler`, CP-SAT solver, and both greedy schedulers include measured outputs in `measure_time`, `qompile` emits their `M` commands inside the scheduled slices, and `PatternSimulator` applies their feedforward corrections via `meas_flip`. This makes classical feedback sourced from direct Stim measurements causal and correctly simulated. Manual schedules must now provide measurement times for measured outputs. Added `unmeasured_output_nodes()` to `graphqomb.graphstate`, and `compose()` now rejects connecting through a measured output of the first graph because the wire is consumed by the readout.
+
 ## [0.4.2] - 2026-07-23
 
 ### Added
