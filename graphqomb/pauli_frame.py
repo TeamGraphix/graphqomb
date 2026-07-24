@@ -178,6 +178,138 @@ class PauliFrame:
 
         return groups
 
+    def detector_stabilizers(self) -> list[dict[int, Axis]]:
+        r"""Get the graph-state stabilizer associated with each detector.
+
+        The detector groups are expanded through their dependent chains before
+        constructing the stabilizers.  A Z-measured node contributes Z only on
+        itself and is removed from the neighbor sets of all other graph
+        stabilizers.  Every other non-input node contributes X on itself and Z
+        on each remaining neighbor.  Input nodes instead contribute the
+        stabilizer obtained from their initialization axis.
+
+        Global phases are discarded when multiplying the Pauli operators.
+
+        Returns
+        -------
+        `list`\[`dict`\[`int`, `Axis`\]\]
+            Detector stabilizers, represented by their non-identity Pauli axes.
+        """
+        z_measurements = self._z_measurements()
+        return [self._detector_stabilizer(group, z_measurements=z_measurements) for group in self.detector_groups()]
+
+    def detector_determinism(self) -> list[bool]:
+        r"""Determine whether each detector has deterministic measurement parity.
+
+        A detector is deterministic when its stabilizer is exactly equal to the
+        product of the Pauli measurement axes on its detector group.  Measurement
+        signs and output nodes without an assigned measurement basis are omitted
+        from the comparison.
+
+        Returns
+        -------
+        `list`\[`bool`\]
+            Determinism flags in the same order as `detector_groups`.
+        """
+        groups = self.detector_groups()
+        z_measurements = self._z_measurements()
+        stabilizers = [self._detector_stabilizer(group, z_measurements=z_measurements) for group in groups]
+        unmeasured_outputs = self.graphstate.output_node_indices.keys() - self.graphstate.meas_bases.keys()
+        results: list[bool] = []
+
+        for group, stabilizer in zip(groups, stabilizers, strict=True):
+            compared_stabilizer = {node: axis for node, axis in stabilizer.items() if node not in unmeasured_outputs}
+            measurement_product = self._detector_measurement_product(group)
+            results.append(measurement_product is not None and compared_stabilizer == measurement_product)
+
+        return results
+
+    def _detector_measurement_product(self, detector_group: AbstractSet[int]) -> dict[int, Axis] | None:
+        r"""Construct the unsigned Pauli measurement product on a detector group.
+
+        Parameters
+        ----------
+        detector_group : `collections.abc.Set`\[`int`\]
+            Closure-expanded detector group.
+
+        Returns
+        -------
+        `dict`\[`int`, `Axis`\] | `None`
+            Pauli measurement axes, or None if a compared node does not have a
+            Pauli measurement basis.
+        """
+        measurement_product: dict[int, Axis] = {}
+        output_nodes = self.graphstate.output_node_indices
+        meas_bases = self.graphstate.meas_bases
+
+        for node in detector_group:
+            meas_basis = meas_bases.get(node)
+            if meas_basis is None and node in output_nodes:
+                continue
+            if meas_basis is None or (axis := determine_pauli_axis(meas_basis)) is None:
+                return None
+            measurement_product[node] = axis
+
+        return measurement_product
+
+    def _z_measurements(self) -> set[int]:
+        r"""Return all nodes assigned a Z measurement.
+
+        Returns
+        -------
+        `set`\[`int`\]
+            Nodes with a Z measurement basis.
+        """
+        return {
+            node
+            for node, meas_basis in self.graphstate.meas_bases.items()
+            if determine_pauli_axis(meas_basis) is Axis.Z
+        }
+
+    def _detector_stabilizer(
+        self,
+        detector_group: AbstractSet[int],
+        *,
+        z_measurements: AbstractSet[int],
+    ) -> dict[int, Axis]:
+        r"""Construct the product stabilizer for an expanded detector group.
+
+        Parameters
+        ----------
+        detector_group : `collections.abc.Set`\[`int`\]
+            Closure-expanded detector group.
+        z_measurements : `collections.abc.Set`\[`int`\]
+            Nodes removed by Z measurements.
+
+        Returns
+        -------
+        `dict`\[`int`, `Axis`\]
+            Non-identity Pauli axes in the detector stabilizer.
+        """
+        x_support: set[int] = set()
+        z_support: set[int] = set()
+        input_axes = self.graphstate.input_initialization_axes
+
+        for node in detector_group:
+            if node in z_measurements:
+                z_support.symmetric_difference_update({node})
+                continue
+
+            axis = input_axes.get(node, Axis.X)
+
+            if axis in {Axis.X, Axis.Y}:
+                x_support.symmetric_difference_update({node})
+                z_support.symmetric_difference_update(self.graphstate.neighbors(node) - z_measurements)
+            if axis in {Axis.Y, Axis.Z}:
+                z_support.symmetric_difference_update({node})
+
+        stabilizer: dict[int, Axis] = {}
+        for node in x_support | z_support:
+            has_x = node in x_support
+            has_z = node in z_support
+            stabilizer[node] = Axis.Y if has_x and has_z else Axis.X if has_x else Axis.Z
+        return stabilizer
+
     def logical_observable_groups(self) -> dict[int, set[int]]:
         r"""Get all logical observable groups after dependent-chain expansion.
 

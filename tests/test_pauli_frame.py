@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from graphqomb.common import Axis, Plane, PlannerMeasBasis
+from graphqomb.common import Axis, AxisMeasBasis, Plane, PlannerMeasBasis, Sign
 from graphqomb.graphstate import GraphState
 from graphqomb.pauli_frame import PauliFrame
 
@@ -374,6 +374,137 @@ def test_detector_groups() -> None:
 
     assert groups[0] == {n1}
     assert groups[1] == {n0, n1, n2}  # n0 is included via dependent chain
+
+
+def test_detector_stabilizer_and_determinism() -> None:
+    """A detector stabilizer is the product of graph-state stabilizers."""
+    graph = GraphState()
+    center = graph.add_node()
+    unmeasured_output = graph.add_node()
+
+    graph.register_output(unmeasured_output, 0)
+    graph.add_edge(center, unmeasured_output)
+    graph.assign_meas_basis(center, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{center}])
+
+    assert pframe.detector_stabilizers() == [
+        {
+            center: Axis.X,
+            unmeasured_output: Axis.Z,
+        }
+    ]
+    assert pframe.detector_determinism() == [True]
+
+    # Once the output is measured, its basis participates in the comparison.
+    graph.assign_meas_basis(unmeasured_output, AxisMeasBasis(Axis.X, Sign.PLUS))
+    assert pframe.detector_determinism() == [False]
+
+
+def test_detector_determinism_requires_exact_support() -> None:
+    """A matching measurement outside the detector group cannot extend its product."""
+    graph = GraphState()
+    detector_node = graph.add_node()
+    outside_node = graph.add_node()
+    graph.add_edge(detector_node, outside_node)
+    graph.assign_meas_basis(detector_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(outside_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{detector_node}])
+
+    assert pframe.detector_stabilizers() == [{detector_node: Axis.X, outside_node: Axis.Z}]
+    assert pframe.detector_determinism() == [False]
+
+
+def test_z_measurement_replaces_graph_stabilizer_and_incident_edges() -> None:
+    """A Z-measured node contributes Z alone and is removed from neighbor sets."""
+    graph = GraphState()
+    x_node = graph.add_node()
+    z_node = graph.add_node()
+    graph.add_edge(x_node, z_node)
+    graph.assign_meas_basis(x_node, AxisMeasBasis(Axis.X, Sign.PLUS))
+    graph.assign_meas_basis(z_node, AxisMeasBasis(Axis.Z, Sign.MINUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{x_node, z_node}])
+
+    assert pframe.detector_stabilizers() == [{x_node: Axis.X, z_node: Axis.Z}]
+    assert pframe.detector_determinism() == [True]
+
+
+def test_detector_stabilizer_multiplication() -> None:
+    """Overlapping X and Z support multiplies to Y up to phase."""
+    graph = GraphState()
+    n0 = graph.add_node()
+    n1 = graph.add_node()
+    graph.add_edge(n0, n1)
+    graph.assign_meas_basis(n0, AxisMeasBasis(Axis.Y, Sign.PLUS))
+    graph.assign_meas_basis(n1, AxisMeasBasis(Axis.Y, Sign.MINUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{n0, n1}])
+
+    assert pframe.detector_stabilizers() == [{n0: Axis.Y, n1: Axis.Y}]
+    assert pframe.detector_determinism() == [True]
+
+    graph.assign_meas_basis(n1, AxisMeasBasis(Axis.X, Sign.PLUS))
+    assert pframe.detector_determinism() == [False]
+
+
+@pytest.mark.parametrize(
+    ("init_axis", "expected_stabilizer", "expected_determinism"),
+    [
+        (Axis.X, {0: Axis.X}, True),
+        (Axis.Y, {0: Axis.Y}, True),
+        (Axis.Z, {0: Axis.Z}, True),
+    ],
+)
+def test_input_detector_stabilizer(
+    init_axis: Axis,
+    expected_stabilizer: dict[int, Axis],
+    expected_determinism: bool,
+) -> None:
+    """Input detector stabilizers respect their preparation axes."""
+    graph = GraphState()
+    input_node = graph.add_node()
+    neighbor = graph.add_node()
+    graph.register_input(input_node, 0, init_axis=init_axis)
+    graph.add_edge(input_node, neighbor)
+    graph.assign_meas_basis(input_node, AxisMeasBasis(init_axis, Sign.PLUS))
+    graph.assign_meas_basis(neighbor, AxisMeasBasis(Axis.Z, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{input_node}])
+
+    assert (input_node, neighbor) == (0, 1)
+    assert pframe.detector_stabilizers() == [expected_stabilizer]
+    assert pframe.detector_determinism() == [expected_determinism]
+
+
+def test_z_measurement_prevents_incident_support_cancellation() -> None:
+    """Removing Z-measured nodes from neighbor sets prevents support cancellation."""
+    graph = GraphState()
+    z_input = graph.add_node()
+    neighbor = graph.add_node()
+    graph.register_input(z_input, 0, init_axis=Axis.Z)
+    graph.add_edge(z_input, neighbor)
+    graph.assign_meas_basis(z_input, AxisMeasBasis(Axis.Z, Sign.PLUS))
+    graph.assign_meas_basis(neighbor, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{z_input, neighbor}])
+
+    assert pframe.detector_stabilizers() == [{z_input: Axis.Z, neighbor: Axis.X}]
+    assert pframe.detector_determinism() == [True]
+
+
+def test_input_initialization_can_make_detector_non_deterministic() -> None:
+    """A detector is non-deterministic when its measurement disagrees with input preparation."""
+    graph = GraphState()
+    z_input = graph.add_node()
+    graph.register_input(z_input, 0, init_axis=Axis.Z)
+    graph.assign_meas_basis(z_input, AxisMeasBasis(Axis.X, Sign.PLUS))
+
+    pframe = PauliFrame(graph, xflow={}, zflow={}, parity_check_group=[{z_input}])
+
+    assert pframe.detector_stabilizers() == [{z_input: Axis.Z}]
+    assert pframe.detector_determinism() == [False]
 
 
 def test_logical_observables_group() -> None:
