@@ -15,7 +15,6 @@ from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
 from graphqomb.stim_compiler import stim_compile
 from graphqomb.stim_importer import stim_circuit_to_pattern, stim_file_to_pattern, stim_text_to_pattern
-from graphqomb.stim_parser import UnsupportedInstructionError
 
 stim = pytest.importorskip("stim")
 
@@ -99,14 +98,77 @@ def test_stim_text_to_pattern_does_not_advance_z_for_cancelled_single_qubit_bloc
     assert graph.coordinates[input_node] == (0.0, 0.0, 0.0)
 
 
-def test_stim_text_to_pattern_rejects_classically_controlled_clifford() -> None:
-    with pytest.raises(UnsupportedInstructionError) as exc_info:
-        stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1")
+@pytest.mark.parametrize(
+    ("instruction", "has_x_correction", "has_z_correction"),
+    [
+        ("CNOT rec[-1] 1", True, False),
+        ("CY rec[-1] 1", True, True),
+        ("CZ rec[-1] 1", False, True),
+        ("CZ 1 rec[-1]", False, True),
+        ("XCZ 1 rec[-1]", True, False),
+        ("YCZ 1 rec[-1]", True, True),
+    ],
+)
+def test_stim_text_to_pattern_imports_classically_controlled_pauli_corrections(
+    instruction: str,
+    has_x_correction: bool,
+    has_z_correction: bool,
+) -> None:
+    result = stim_text_to_pattern(f"M 0\nTICK\n{instruction}")
+    frame = result.pattern.pauli_frame
+    source = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 0)
+    target = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
 
-    message = str(exc_info.value)
-    assert "Stim unitary TICK block 2" in message
-    assert "circuit, instruction 0" in message
-    assert "non-qubit target" in message
+    assert frame.xflow.get(source, set()) == ({target} if has_x_correction else set())
+    assert frame.zflow.get(source, set()) == ({target} if has_z_correction else set())
+
+
+def test_stim_text_to_pattern_adds_feedback_after_odd_neighbor_zflow_derivation() -> None:
+    result = stim_text_to_pattern(
+        """
+        MPP X0
+        DETECTOR rec[-1]
+        TICK
+        CNOT rec[-1] 1
+        TICK
+        H 1
+        """
+    )
+    frame = result.pattern.pauli_frame
+    source = next(iter(frame.parity_check_group[0]))
+    target = next(iter(frame.xflow[source]))
+    output = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
+
+    assert target != output
+    assert odd_neighbors({target}, frame.graphstate)
+    assert frame.zflow.get(source, set()) == set()
+
+
+def test_stim_text_to_pattern_imports_batched_feedback_pairs_by_parity() -> None:
+    result = stim_text_to_pattern(
+        """
+        MPP X0
+        DETECTOR rec[-1]
+        TICK
+        CX rec[-1] 1 rec[-1] 2 rec[-1] 2
+        """
+    )
+    frame = result.pattern.pauli_frame
+    source = next(iter(frame.parity_check_group[0]))
+    target = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
+
+    assert frame.xflow[source] == {target}
+    assert frame.zflow.get(source, set()) == set()
+
+
+def test_stim_text_to_pattern_rejects_mixed_quantum_and_feedback_pairs() -> None:
+    with pytest.raises(ValueError, match="exactly one measurement record"):
+        stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1 2 3")
+
+
+def test_stim_text_to_pattern_rejects_feedback_before_any_measurement_record() -> None:
+    with pytest.raises(ValueError, match="before the beginning of time"):
+        stim_text_to_pattern("CX rec[-1] 0")
 
 
 def test_stim_text_to_pattern_preserves_unitary_semantics_across_ticks() -> None:
