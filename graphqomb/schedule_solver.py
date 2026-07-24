@@ -125,18 +125,18 @@ def _compute_alive_nodes_at_time(
             ctx.model.add(p <= t).only_enforce_if(a_pre)
             ctx.model.add(p > t).only_enforce_if(a_pre.negated())
 
-        a_meas = ctx.model.new_bool_var(f"alive_meas_{node}_{t}")
+        measured_before_t = ctx.model.new_bool_var(f"measured_before_{node}_{t}")
         if node not in node2meas:
-            ctx.model.add(a_meas == 0)
+            ctx.model.add(measured_before_t == 0)
         else:
             q = node2meas[node]
-            ctx.model.add(q <= t).only_enforce_if(a_meas)
-            ctx.model.add(q > t).only_enforce_if(a_meas.negated())
+            ctx.model.add(q < t).only_enforce_if(measured_before_t)
+            ctx.model.add(q >= t).only_enforce_if(measured_before_t.negated())
 
         alive = ctx.model.new_bool_var(f"alive_{node}_{t}")
         ctx.model.add_implication(alive, a_pre)
-        ctx.model.add_implication(alive, a_meas.negated())
-        ctx.model.add(a_pre - a_meas <= alive)
+        ctx.model.add_implication(alive, measured_before_t.negated())
+        ctx.model.add(a_pre - measured_before_t <= alive)
         alive_at_t.append(alive)
 
     return alive_at_t
@@ -150,7 +150,7 @@ def _set_minimize_space_objective(
 ) -> None:
     """Set objective to minimize the maximum number of qubits used at any time."""
     max_space = ctx.model.new_int_var(0, len(ctx.graph.nodes), "max_space")
-    for t in range(max_time):
+    for t in range(max_time + 1):
         alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
         ctx.model.add(max_space >= sum(alive_at_t))
     ctx.model.minimize(max_space)
@@ -166,7 +166,7 @@ def _set_minimize_time_objective(
     """Set objective to minimize the total execution time."""
     # Add space constraint if max_qubit_count is specified
     if max_qubit_count is not None:
-        for t in range(max_time):
+        for t in range(max_time + 1):
             alive_at_t = _compute_alive_nodes_at_time(ctx, node2prep, node2meas, t)
             ctx.model.add(sum(alive_at_t) <= max_qubit_count)
 

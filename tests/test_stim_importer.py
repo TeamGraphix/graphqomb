@@ -235,6 +235,21 @@ def test_stim_text_to_pattern_applies_direct_measurement_feedback_in_simulation(
         assert simulator.results[source] == simulator.results[target]
 
 
+def test_stim_text_to_pattern_splits_adjacent_feedback_and_unitary_operations() -> None:
+    stim_text = "RX 0\nR 1\nM 0\nTICK\nCX rec[-1] 1\nH 1\nTICK\nMX 1"
+
+    for seed in range(8):
+        result = stim_text_to_pattern(stim_text)
+        source = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 0)
+        target = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
+        simulator = PatternSimulator(result.pattern, SimulatorBackend.StateVector)
+
+        simulator.simulate(rng=np.random.default_rng(seed))
+
+        # H maps X^{m0}|0> to the X-basis state with outcome m0.
+        assert simulator.results[target] == simulator.results[source]
+
+
 def test_stim_text_to_pattern_rejects_mixed_quantum_and_feedback_pairs() -> None:
     with pytest.raises(ValueError, match="exactly one measurement record"):
         stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1 2 3")

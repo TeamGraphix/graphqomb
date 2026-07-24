@@ -193,6 +193,25 @@ def test_space_constrained_scheduling() -> None:
     assert isinstance(success, bool)
 
 
+def test_cpsat_rejects_initial_measured_outputs_exceeding_qubit_limit() -> None:
+    """Measured inputs still occupy qubits during their measurement slice."""
+    graph = GraphState()
+    for qubit in range(2):
+        node = graph.add_node()
+        graph.register_input(node, qubit)
+        graph.register_output(node, qubit)
+        graph.assign_meas_basis(node, PlannerMeasBasis(Plane.XY, 0.0))
+
+    scheduler = Scheduler(graph, {})
+
+    success = scheduler.solve_schedule(
+        ScheduleConfig(strategy=Strategy.MINIMIZE_TIME, max_qubit_count=1),
+        timeout=10,
+    )
+
+    assert not success
+
+
 def test_schedule_compression() -> None:
     """Test that schedule compression reduces unnecessary time gaps."""
     # Create a graph
