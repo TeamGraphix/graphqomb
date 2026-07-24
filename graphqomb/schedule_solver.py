@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 
 from ortools.sat.python import cp_model
 
+from graphqomb.graphstate import unmeasured_output_nodes
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from collections.abc import Set as AbstractSet
@@ -62,13 +64,13 @@ def _add_constraints(
             if node in node2meas and child in node2meas:
                 model.add(node2meas[node] < node2meas[child])
 
-    # A non-input, non-output node must be prepared before it is measured.
+    # A non-input, measured node must be prepared before it is measured.
     for node in graph.nodes:
         if node in node2prep and node in node2meas:
             model.add(node2prep[node] < node2meas[node])
 
     # Edge constraints
-    for node in graph.nodes - set(graph.output_node_indices):
+    for node in node2meas:
         for neighbor in graph.neighbors(node):
             if neighbor in graph.input_node_indices:
                 if node in graph.input_node_indices:
@@ -124,7 +126,7 @@ def _compute_alive_nodes_at_time(
             ctx.model.add(p > t).only_enforce_if(a_pre.negated())
 
         a_meas = ctx.model.new_bool_var(f"alive_meas_{node}_{t}")
-        if node in ctx.graph.output_node_indices:
+        if node not in node2meas:
             ctx.model.add(a_meas == 0)
         else:
             q = node2meas[node]
@@ -211,12 +213,13 @@ def solve_schedule(
     max_time = config.max_time if config.max_time is not None else 2 * len(graph.nodes)
 
     # Create variables
+    unmeasured_outputs = unmeasured_output_nodes(graph)
     node2prep: dict[int, cp_model.IntVar] = {}
     node2meas: dict[int, cp_model.IntVar] = {}
     for node in graph.nodes:
         if node not in graph.input_node_indices:
             node2prep[node] = model.new_int_var(0, max_time, f"prep_{node}")
-        if node not in graph.output_node_indices:
+        if node not in unmeasured_outputs:
             node2meas[node] = model.new_int_var(0, max_time, f"meas_{node}")
 
     # Add constraints

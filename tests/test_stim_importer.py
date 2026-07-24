@@ -10,6 +10,7 @@ import pytest
 from graphqomb.command import M
 from graphqomb.common import Axis, AxisMeasBasis, Sign
 from graphqomb.graphstate import odd_neighbors
+from graphqomb.pattern import is_runnable
 from graphqomb.qec.qeccode import YFoliation
 from graphqomb.simulator import PatternSimulator, SimulatorBackend
 from graphqomb.statevec import StateVector
@@ -207,6 +208,31 @@ def test_stim_text_to_pattern_imports_batched_feedback_pairs_by_parity() -> None
 
     assert frame.xflow[source] == {target}
     assert frame.zflow.get(source, set()) == set()
+
+
+def test_stim_text_to_pattern_schedules_direct_measurement_feedback_source_causally() -> None:
+    result = stim_text_to_pattern("M 0\nTICK\nCX rec[-1] 1\nTICK\nH 1")
+    pattern = result.pattern
+
+    is_runnable(pattern)
+    source = next(node for node, qubit in pattern.output_node_indices.items() if qubit == 0)
+    target = next(iter(pattern.pauli_frame.xflow[source]))
+    measured_order = [cmd.node for cmd in pattern if isinstance(cmd, M)]
+
+    assert measured_order.index(source) < measured_order.index(target)
+
+
+def test_stim_text_to_pattern_applies_direct_measurement_feedback_in_simulation() -> None:
+    rng = np.random.default_rng(7)
+    for _ in range(20):
+        result = stim_text_to_pattern("R 1\nM 0\nTICK\nCX rec[-1] 1\nTICK\nM 1")
+        simulator = PatternSimulator(result.pattern, SimulatorBackend.StateVector)
+        simulator.simulate(rng=rng)
+        source = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 0)
+        target = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
+
+        # q1 is reset to |0>, then X^{m0} is applied, so M1 must equal M0.
+        assert simulator.results[source] == simulator.results[target]
 
 
 def test_stim_text_to_pattern_rejects_mixed_quantum_and_feedback_pairs() -> None:

@@ -94,6 +94,11 @@ feedback position, which is what pushing the deferred X through those later CZ
 edges leaves behind. Neighbors entangled before the feedback position receive
 no compensation, and Z feedback commutes with CZ so it needs none.
 
+A feedback record may come from an ``MPP`` ancilla or from a direct
+single-qubit measurement. Direct measurements are imported as measured output
+nodes, which are scheduled like ordinary measurements, so the controlling
+readout is always measured before any node that depends on its correction.
+
 All ``MPP`` instructions within each feedback-free portion of one ``TICK``
 block are represented by one combined extraction and are validated to commute.
 Anticommuting products in the same portion are rejected. Within a combined

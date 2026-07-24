@@ -324,11 +324,11 @@ def test_validate_schedule_invalid_node_sets() -> None:
     with pytest.raises(ValueError, match="Input nodes"):
         scheduler.validate_schedule()
 
-    # Reset and test measuring output node
+    # Reset and test measuring an output node without a measurement basis
     scheduler2 = Scheduler(graph, flow)
     scheduler2.prepare_time = {node1: 0}
-    scheduler2.measure_time = {node0: 1, node1: 1, node2: 2}  # node2 is output, shouldn't be measured
-    with pytest.raises(ValueError, match="Output nodes"):
+    scheduler2.measure_time = {node0: 1, node1: 1, node2: 2}  # node2 is an unmeasured output
+    with pytest.raises(ValueError, match="Unmeasured output nodes"):
         scheduler2.validate_schedule()
 
 
