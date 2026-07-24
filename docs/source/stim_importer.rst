@@ -87,6 +87,13 @@ record-controlled Pauli correction cancels by parity. A feedback record must
 refer to an earlier imported measurement; records idealized to zero produce no
 correction.
 
+Frame corrections are applied at their target's measurement, after every graph
+edge on the target exists. An X or Y feedback therefore also XORs Z
+corrections onto the neighbors the target becomes entangled with after the
+feedback position, which is what pushing the deferred X through those later CZ
+edges leaves behind. Neighbors entangled before the feedback position receive
+no compensation, and Z feedback commutes with CZ so it needs none.
+
 All ``MPP`` instructions within each feedback-free portion of one ``TICK``
 block are represented by one combined extraction and are validated to commute.
 Anticommuting products in the same portion are rejected. Within a combined
@@ -100,8 +107,9 @@ Only data-wire nodes contribute to the graph-generated X-correction flow; MPP
 ancilla nodes do not produce those corrections. After composing all graph
 fragments, the importer first derives the Z-correction flow from the odd
 neighborhood of this graph-generated X flow. It then XORs Stim's explicit
-classical X/Y/Z feedback into the two correction maps. In particular, an
-imported CNOT feedback entry does not create an odd-neighbor Z correction.
+classical X/Y/Z feedback into the two correction maps, including the
+deferred-X compensation described above; a feedback entry never adopts the
+full odd-neighbor rule, only the neighbors entangled after its position.
 Both completed maps are passed directly to ``qompile()`` without Pauli
 simplification or an importer-specific fallback. Non-commuting measurements
 must be separated by ``TICK`` in the source circuit. Each unit has a distinct

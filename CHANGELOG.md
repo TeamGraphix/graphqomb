@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Stim Classical Feedback Import**: Import measurement-record-controlled `CX`, `CY`, `CZ`, `XCZ`, and `YCZ` targets into the pattern's X/Z correction flows, preserving instruction position and applying the feedback only after graph-derived odd-neighbor Z-flow construction.
+- **Stim Classical Feedback Import**: Import measurement-record-controlled `CX`, `CY`, `CZ`, `XCZ`, and `YCZ` targets into the pattern's X/Z correction flows, preserving instruction position and applying the feedback only after graph-derived odd-neighbor Z-flow construction. Because frame corrections are applied at the target's measurement, an X or Y feedback entry also XORs Z corrections onto the neighbors entangled with the target after the feedback position; neighbors entangled before the feedback receive no compensation, and Z feedback needs none.
 
 ## [0.4.2] - 2026-07-23
 

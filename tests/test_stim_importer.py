@@ -123,7 +123,7 @@ def test_stim_text_to_pattern_imports_classically_controlled_pauli_corrections(
     assert frame.zflow.get(source, set()) == ({target} if has_z_correction else set())
 
 
-def test_stim_text_to_pattern_adds_feedback_after_odd_neighbor_zflow_derivation() -> None:
+def test_stim_text_to_pattern_feedback_x_adds_deferred_z_on_future_neighbors() -> None:
     result = stim_text_to_pattern(
         """
         MPP X0
@@ -140,8 +140,56 @@ def test_stim_text_to_pattern_adds_feedback_after_odd_neighbor_zflow_derivation(
     output = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
 
     assert target != output
-    assert odd_neighbors({target}, frame.graphstate)
-    assert frame.zflow.get(source, set()) == set()
+    assert odd_neighbors({target}, frame.graphstate) == {output}
+    assert frame.zflow.get(source, set()) == {output}
+
+
+def test_stim_text_to_pattern_feedback_x_skips_z_on_past_neighbors() -> None:
+    result = stim_text_to_pattern(
+        """
+        MPP X0
+        DETECTOR rec[-1]
+        TICK
+        H 1
+        TICK
+        CNOT rec[-1] 1
+        TICK
+        H 1
+        """
+    )
+    frame = result.pattern.pauli_frame
+    source = next(iter(frame.parity_check_group[0]))
+    target = next(iter(frame.xflow[source]))
+    output = next(node for node, qubit in result.pattern.output_node_indices.items() if qubit == 1)
+    past_neighbors = frame.graphstate.neighbors(target) - {output}
+
+    assert past_neighbors
+    assert frame.zflow.get(source, set()) == {output}
+
+
+def test_stim_text_to_pattern_feedback_before_entanglement_keeps_detectors_deterministic() -> None:
+    result = stim_text_to_pattern(
+        """
+        R 1
+        RX 2
+        M 0
+        TICK
+        CX rec[-1] 1
+        TICK
+        CZ 1 2
+        TICK
+        MX 2
+        M 1
+        DETECTOR rec[-2] rec[-3]
+        DETECTOR rec[-1] rec[-3]
+        """
+    )
+    frame = result.pattern.pauli_frame
+
+    assert frame.detector_determinism() == [True, True]
+    exported = stim.Circuit(stim_compile(result.pattern))
+    # Raises if the exported circuit contains a non-deterministic detector.
+    exported.detector_error_model()
 
 
 def test_stim_text_to_pattern_imports_batched_feedback_pairs_by_parity() -> None:

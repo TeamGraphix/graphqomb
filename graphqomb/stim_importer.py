@@ -107,6 +107,7 @@ class _FeedbackTarget:
     record_index: int
     node: int
     axis: Axis
+    past_neighbors: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -189,7 +190,10 @@ def stim_circuit_to_pattern(
     probabilities are omitted because circuit-level noise is outside the
     GraphQOMB import model. Pauli measurement blocks must be separated from
     unitary blocks by TICK. Measurement-record-controlled Pauli gates are
-    imported as X/Z correction-flow entries at their circuit positions. A
+    imported as X/Z correction-flow entries at their circuit positions; an X or
+    Y feedback additionally contributes Z corrections on the neighbors its
+    target becomes entangled with after the feedback position, so deferred
+    frame-based application matches the circuit-position semantics. A
     direct single-qubit measurement terminates that qubit's lifetime; other
     qubits may continue, but the measured qubit cannot be used by a later
     operation.
@@ -997,7 +1001,7 @@ def _compose_fragments(fragments: Sequence[_Fragment]) -> _Fragment:
             | _remap_record_nodes(fragment.record_nodes, node_map2),
             feedback_targets=(
                 *_remap_feedback_targets(current.feedback_targets, node_map1),
-                *_remap_feedback_targets(fragment.feedback_targets, node_map2),
+                *_capture_feedback_targets(fragment.feedback_targets, node_map2, graph),
             ),
             mpp_extractions=(*current.mpp_extractions, *fragment.mpp_extractions),
         )
@@ -1046,6 +1050,11 @@ def _flows_with_feedback(
         source = next(iter(source_nodes))
         if feedback.axis in {Axis.X, Axis.Y}:
             xflow.setdefault(source, set()).symmetric_difference_update({feedback.node})
+            # Deferring the X to the target's measurement pushes it through the
+            # CZ edges created after the feedback position, leaving Z there.
+            deferred_z = fragment.graph.neighbors(feedback.node) - feedback.past_neighbors
+            if deferred_z:
+                zflow.setdefault(source, set()).symmetric_difference_update(deferred_z)
         if feedback.axis in {Axis.Z, Axis.Y}:
             zflow.setdefault(source, set()).symmetric_difference_update({feedback.node})
     return xflow, zflow
@@ -1109,6 +1118,25 @@ def _remap_feedback_targets(
             record_index=feedback.record_index,
             node=node_map[feedback.node],
             axis=feedback.axis,
+            past_neighbors=frozenset(node_map[node] for node in feedback.past_neighbors),
+        )
+        for feedback in feedback_targets
+    )
+
+
+def _capture_feedback_targets(
+    feedback_targets: Sequence[_FeedbackTarget],
+    node_map: Mapping[int, int],
+    graph: GraphState,
+) -> tuple[_FeedbackTarget, ...]:
+    # A feedback fragment has no internal edges, so right after composition the
+    # target's neighbors are exactly those entangled before the feedback position.
+    return tuple(
+        _FeedbackTarget(
+            record_index=feedback.record_index,
+            node=node_map[feedback.node],
+            axis=feedback.axis,
+            past_neighbors=frozenset(graph.neighbors(node_map[feedback.node])),
         )
         for feedback in feedback_targets
     )
