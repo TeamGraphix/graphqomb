@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-23
+
 ### Added
 
 - **Detector Determinism**: Added `PauliFrame.detector_stabilizers()` and `PauliFrame.detector_determinism()` to construct closure-expanded detector stabilizers and report whether they exactly match the unsigned product of assigned Pauli measurement axes on the detector support. The construction respects Pauli input initialization, replaces Z-measured graph stabilizers with single-qubit Z, removes their incident graph edges, and omits unmeasured outputs from comparison.
